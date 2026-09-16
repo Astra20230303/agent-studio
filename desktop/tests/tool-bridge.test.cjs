@@ -73,6 +73,7 @@ for (const [label, chunks] of [
 
 test('client tool search loads discovered tools into the next request', async () => {
   const converted = convertRequest({ model: 'test', tools: [{ type: 'tool_search', execution: 'client', parameters: { type: 'object' } }], input: [] });
+  assert.match(converted.body.tools[0].function.description, /initial tool list is incomplete/);
   const events = await translate([frame({ tool_calls: [{ index: 0, id: 'search', function: { name: 'tool_search', arguments: '{"query":"files"}' } }] }, 'tool_calls')], converted.definitions);
   const call = events.at(-1).response.output[0];
   assert.equal(call.type, 'tool_search_call');

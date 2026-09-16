@@ -1,7 +1,7 @@
-async function listMiniMaxModels({ apiKey, fetchImpl = fetch } = {}) {
+async function listMiniMaxModels({ apiKey, baseUrl = 'https://api.minimaxi.com/v1', fetchImpl = fetch } = {}) {
   if (!apiKey?.trim()) return { ok: false, models: [], error: '未配置 MINIMAX_API_KEY，请带密钥重新启动。' };
   try {
-    const response = await fetchImpl('https://api.minimaxi.com/v1/models', {
+    const response = await fetchImpl(baseUrl.replace(/\/+$/, '') + '/models', {
       headers: { authorization: `Bearer ${apiKey.trim()}` },
       signal: AbortSignal.timeout(15000)
     });

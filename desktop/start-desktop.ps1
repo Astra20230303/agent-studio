@@ -2,28 +2,26 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $electron = Join-Path $PSScriptRoot 'node_modules\electron\dist\electron.exe'
 if (-not (Test-Path -LiteralPath $electron)) {
-    throw 'Project Electron is missing. Install desktop dependencies first.'
+    $installer = Join-Path $PSScriptRoot 'node_modules\electron\install.js'
+    if (-not (Test-Path -LiteralPath $installer)) {
+        throw 'Electron package is missing. Run pnpm install in the desktop directory first.'
+    }
+    Write-Host 'Installing the missing Electron executable...'
+    & node $installer
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $electron)) {
+        throw 'Electron download failed. Check network access, then run node node_modules/electron/install.js and retry.'
+    }
 }
 if (-not (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'dist\index.html'))) {
     throw 'Desktop build is missing. Build the desktop project first.'
 }
-$previousKey = $env:MINIMAX_API_KEY
 $previousCodexHome = $env:CODEX_HOME
+$previousRunAsNode = $env:ELECTRON_RUN_AS_NODE
 try {
-    if ([string]::IsNullOrWhiteSpace($env:MINIMAX_API_KEY)) {
-        $secureKey = Read-Host 'MiniMax API Key (hidden, used only by this process)' -AsSecureString
-        $keyPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureKey)
-        try {
-            $env:MINIMAX_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($keyPointer).Trim()
-        } finally {
-            [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($keyPointer)
-            $secureKey.Dispose()
-        }
-    }
-    if ([string]::IsNullOrWhiteSpace($env:MINIMAX_API_KEY)) { throw 'API Key cannot be empty.' }
     $env:CODEX_HOME = Join-Path $projectRoot '.project-cache\codex-home'
+    $env:ELECTRON_RUN_AS_NODE = $null
     Start-Process -FilePath $electron -ArgumentList ('"' + $PSScriptRoot + '"') -WorkingDirectory $PSScriptRoot
 } finally {
-    $env:MINIMAX_API_KEY = $previousKey
     $env:CODEX_HOME = $previousCodexHome
+    $env:ELECTRON_RUN_AS_NODE = $previousRunAsNode
 }

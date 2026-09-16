@@ -1,3 +1,4 @@
+import { RemoteDesktopPanel } from './RemoteDesktopPanel';
 import { Fragment, StrictMode, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -243,7 +244,7 @@ function App() {
     }
     setPage(location.page);
   };
-  return <div className={`desktop-app ${state.theme}`}>
+  return <div className={`desktop-app ${state.theme} ${page === 'settings' ? 'settings-mode' : ''}`}>
     <header className="desktop-titlebar">
       <div className="titlebar-navigation">
         <button className="titlebar-icon" aria-label={sidebarVisible ? '收起侧栏' : '展开侧栏'} title={sidebarVisible ? '收起侧栏' : '展开侧栏'} aria-expanded={sidebarVisible} aria-controls="workspace-sidebar" onClick={() => setSidebarVisible(value => !value)}><PanelLeft aria-hidden="true" /></button>
@@ -267,8 +268,9 @@ function App() {
           {threads.length === 0 && <div className="empty">{search ? '没有匹配的会话' : '暂无会话'}</div>}
         </section>
       </div>
+      <div className="sidebar-footer"><button className="sidebar-nav" aria-current={page === 'settings' ? 'page' : undefined} onClick={() => setPage('settings')}><Badge aria-hidden="true" /><span>设置</span></button></div>
     </aside>
-      <main>{!!active?.messages.length && page === 'chat' && <div className="thread-toolbar global-thread-toolbar"><span>{active.title}</span><div><button onClick={renameActive}>重命名</button><button onClick={forkActive}>分叉</button><button onClick={archiveActive}>归档</button><button onClick={deleteActive}>删除</button></div></div>}{page === 'chat' ? <Chat mode={state.mode} permission={state.permission} onOpenPlugins={() => setPage('plugins')} composerPlugins={composerPlugins} setComposerPlugins={setComposerPlugins} active={active} input={input} setInput={setInput} send={send} cancel={cancel} running={Boolean(runningTurnId)} activity={activity} model={state.model} catalog={catalog} update={update} attachments={attachments} addAttachment={addAttachment} showModel={showModel} setShowModel={setShowModel} showProjects={showProjects} setShowProjects={setShowProjects} toast={toast} projectId={state.activeProjectId} projects={state.projects} status={codexStatus} onForkMessage={forkFromMessage} /> : page === 'scheduled' ? <ScheduledPage models={availableModels} loadingModels={catalog.loading} refreshModels={catalog.refresh} /> : page === 'plugins' ? <ExtensionsPage connected={codexStatus === 'connected'} /> : <Workspace page={page} state={state} models={availableModels} update={update} toast={toast} providerStatus={providerStatus} />}</main>
+      <main>{!!active?.messages.length && page === 'chat' && <div className="thread-toolbar global-thread-toolbar"><span>{active.title}</span><div><button onClick={renameActive}>重命名</button><button onClick={forkActive}>分叉</button><button onClick={archiveActive}>归档</button><button onClick={deleteActive}>删除</button></div></div>}{page === 'chat' ? <Chat mode={state.mode} permission={state.permission} onOpenPlugins={() => setPage('plugins')} composerPlugins={composerPlugins} setComposerPlugins={setComposerPlugins} active={active} input={input} setInput={setInput} send={send} cancel={cancel} running={Boolean(runningTurnId)} activity={activity} model={state.model} catalog={catalog} update={update} attachments={attachments} addAttachment={addAttachment} showModel={showModel} setShowModel={setShowModel} showProjects={showProjects} setShowProjects={setShowProjects} toast={toast} projectId={state.activeProjectId} projects={state.projects} status={codexStatus} onForkMessage={forkFromMessage} /> : page === 'scheduled' ? <ScheduledPage models={availableModels} loadingModels={catalog.loading} refreshModels={catalog.refresh} /> : page === 'plugins' ? <ExtensionsPage connected={codexStatus === 'connected'} /> : <Workspace page={page} state={state} models={availableModels} update={update} toast={toast} providerStatus={providerStatus} onBack={() => { setPage('chat'); setSidebarVisible(true); }} />}</main>
     </div>{notice && <div className="toast">{notice}</div>}{approval && <ApprovalDialog request={approval} onDecision={respondApproval} />}{deleteCandidate && <DeleteDialog thread={state.threads.find(item => item.id === deleteCandidate)} onCancel={() => setDeleteCandidate(undefined)} onConfirm={() => { const id = deleteCandidate; setDeleteCandidate(undefined); void performDelete(id); }} />}
   </div>;
 }
@@ -279,12 +281,25 @@ function modelId(model: string) { return model.split(' · ')[0]; }
 function cleanAssistantText(value: string) { return replyText(value); }
 
 function inlineMarkdown(value: string) {
-  const parts = value.split(/(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__)/g);
+  const parts = value.split(/(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|~~[^~]+~~|\[[^\]]+\]\([^\s)]+\))/g);
   return parts.map((part, index) => {
     if (part.startsWith('`') && part.endsWith('`')) return <code key={index}>{part.slice(1, -1)}</code>;
     if ((part.startsWith('**') && part.endsWith('**')) || (part.startsWith('__') && part.endsWith('__'))) return <strong key={index}>{part.slice(2, -2)}</strong>;
+    if (part.startsWith('~~') && part.endsWith('~~')) return <del key={index}>{part.slice(2, -2)}</del>;
+    const link = part.match(/^\[([^\]]+)\]\(([^\s)]+)\)$/);
+    if (link) return <a key={index} href={link[2]} target="_blank" rel="noreferrer">{link[1]}</a>;
     return <Fragment key={index}>{part}</Fragment>;
   });
+}
+
+function tableCells(line: string) {
+  const value = line.trim().replace(/^\|/, '').replace(/\|$/, '');
+  return value.split('|').map(cell => cell.trim());
+}
+
+function isTableDivider(line: string) {
+  const cells = tableCells(line);
+  return cells.length > 0 && cells.every(cell => /^:?-{3,}:?$/.test(cell));
 }
 
 function MarkdownMessage({ content }: { content: string }) {
@@ -294,13 +309,39 @@ function MarkdownMessage({ content }: { content: string }) {
   let paragraph: string[] = [];
   let code: string[] | null = null;
   let language = '';
+  let table: string[][] | null = null;
+  let tableAlign: Array<'left' | 'center' | 'right' | undefined> = [];
   const flushParagraph = () => { if (paragraph.length) { blocks.push(<p key={`p-${blocks.length}`}>{inlineMarkdown(paragraph.join(' '))}</p>); paragraph = []; } };
   const flushCode = () => { if (code) { const source = code.join('\n'); blocks.push(<div className="code-block" key={`code-${blocks.length}`}><div className="code-header"><span>{language || '代码'}</span><button title="复制代码" onClick={() => navigator.clipboard?.writeText(source)}>复制</button></div><pre><code>{source}</code></pre></div>); code = null; language = ''; } };
+  const flushTable = () => {
+    if (!table) return;
+    const rows = table;
+    blocks.push(<div className="md-table-wrap" key={`table-${blocks.length}`}><table className="md-table"><thead><tr>{rows[0]?.map((cell, i) => <th key={i} style={{ textAlign: tableAlign[i] }}>{inlineMarkdown(cell)}</th>)}</tr></thead><tbody>{rows.slice(1).map((row, rowIndex) => <tr key={rowIndex}>{rows[0].map((_, i) => <td key={i} style={{ textAlign: tableAlign[i] }}>{inlineMarkdown(row[i] || '')}</td>)}</tr>)}</tbody></table></div>);
+    table = null;
+    tableAlign = [];
+  };
   lines.forEach((line, index) => {
     const fence = line.match(/^\s*```(.*)$/);
     if (fence) { if (code) flushCode(); else { flushParagraph(); code = []; language = fence[1].trim(); } return; }
     if (code) { code.push(line); return; }
-    if (!line.trim()) { flushParagraph(); return; }
+    if (!line.trim()) { flushTable(); flushParagraph(); return; }
+    if (line.includes('|')) {
+      const cells = tableCells(line);
+      if (table && isTableDivider(line)) return;
+      if (!table && cells.length > 1) {
+        const next = lines[index + 1];
+        if (next !== undefined && isTableDivider(next)) {
+          flushParagraph();
+          table = [cells];
+          tableAlign = tableCells(next).map(cell => cell.startsWith(':') && cell.endsWith(':') ? 'center' : cell.endsWith(':') ? 'right' : cell.startsWith(':') ? 'left' : undefined);
+          return;
+        }
+      } else if (table && !isTableDivider(line)) {
+        table.push(cells);
+        return;
+      }
+    }
+    if (table) flushTable();
     const heading = line.match(/^\s*(#{1,3})\s+(.+)$/);
     if (heading) { flushParagraph(); blocks.push(<div className={`md-heading md-h${heading[1].length}`} key={`h-${index}`}>{inlineMarkdown(heading[2])}</div>); return; }
     const bullet = line.match(/^\s*[-*]\s+(.+)$/);
@@ -309,7 +350,7 @@ function MarkdownMessage({ content }: { content: string }) {
     if (numbered) { flushParagraph(); blocks.push(<div className="md-list-item" key={`n-${index}`}><span>{numbered[1]}.</span><div>{inlineMarkdown(numbered[2])}</div></div>); return; }
     paragraph.push(line.trim());
   });
-  flushCode(); flushParagraph();
+  flushCode(); flushTable(); flushParagraph();
   return <div className="markdown-content">{blocks.length ? blocks : <p>{text}</p>}</div>;
 }
 
@@ -423,11 +464,98 @@ function Chat({ mode, permission, onOpenPlugins, composerPlugins, setComposerPlu
   </div></div>;
 }
 
-function Workspace({ page, state, models, update, toast, providerStatus }: { page: Page; state: DesktopState; models: string[]; update: (fn: (next: DesktopState) => void) => void; toast: (text: string) => void; providerStatus?: any }) {
+function Workspace({ page, state, models, update, toast, providerStatus, onBack }: { page: Page; state: DesktopState; models: string[]; update: (fn: (next: DesktopState) => void) => void; toast: (text: string) => void; providerStatus?: any; onBack: () => void }) {
+  if (page === 'settings') return <SettingsWorkspace state={state} update={update} toast={toast} onBack={onBack} />;
   const title = page === 'scheduled' ? '已安排' : page === 'plugins' ? '插件' : '设置';
-  const providerCard = page === 'settings' ? <div className="page-card provider-card"><b>LLM Provider</b><small>MiniMax 中国服务 · {providerStatus?.endpoint || 'https://api.minimaxi.com/v1'}</small><span className={providerStatus?.keyConfigured ? 'provider-ok' : 'provider-missing'}>{providerStatus?.keyConfigured ? 'API Key 已注入当前进程' : '未检测到 API Key（仅当前副本进程生效）'}</span></div> : null;
-return <section className="page"><h1>{title}</h1><p>{page === 'settings' ? '管理 Codex Desktop 的显示与工作区偏好' : '本地工作区演示页面，已准备好接入对应 connector。'}</p>{page === 'settings' && <><label className="setting-row">主题<select value={state.theme} onChange={event => update(next => { next.theme = event.target.value as DesktopState['theme']; })}><option value="light">浅色</option><option value="dark">深色</option></select></label><label className="setting-row">默认模型<select value={state.model} onChange={event => update(next => { next.model = event.target.value; })}>{models.map(model => <option key={model} value={model}>{model}</option>)}</select></label><label className="setting-row">默认项目<select value={state.activeProjectId ?? ''} onChange={event => update(next => { next.activeProjectId = event.target.value || undefined; })}><option value="">未选择项目</option><option value="my-agent-plantform">my-agent-plantform</option></select></label></>}</section>;
+return <section className="page"><h1>{title}</h1><p>本地工作区演示页面，已准备好接入对应 connector。</p></section>;
 }
 
-  declare global { interface Window { desktop?: WindowFrameBridge & { toggleMaximize: () => Promise<{ maximized?: boolean }>; minimize?: () => Promise<void>; close?: () => Promise<void>; providerStatus?: () => Promise<any>; listModels?: () => Promise<any>; getProjectRoot?: () => Promise<string>; pickFiles?: () => Promise<string[]>; readExtensionFile?: (path: string, kind: 'image' | 'skill') => Promise<any>; listTasks?: () => Promise<any>; saveTask?: (input: any) => Promise<any>; setTaskStatus?: (id: string, status: string) => Promise<any>; runTask?: (id: string) => Promise<any>; cancelTask?: (id: string) => Promise<any>; deleteTask?: (id: string) => Promise<any>; taskDetail?: (id: string) => Promise<any>; onTasksChanged?: (listener: (message?: { error?: string }) => void) => () => void }; codex?: any } }
+function SettingsWorkspace({ state, update, toast, onBack }: { state: DesktopState; update: (fn: (next: DesktopState) => void) => void; toast: (text: string) => void; onBack: () => void }) {
+  const [section, setSection] = useState('常规');
+  const items = ['常规', '导入', '外观', '语音', '配置', '个性化', '宠物', '键盘快捷键', '账户', '电脑操控', '插件', '浏览器', '钩子', '连接', 'Git', '环境', 'Worktrees', '已归档的聊天'];
+return <div className="settings-shell"><aside className="settings-sidebar"><button className="settings-back" onClick={onBack}>← <span>返回应用</span></button><input className="settings-search" placeholder="搜索设置..." />{items.map((item, i) => <button key={item} className={`settings-nav ${section === item ? 'active' : ''} ${i === 0 || i === 9 || i === 12 || i === 17 ? 'settings-group-start' : ''}`} onClick={() => setSection(item)}>{item}</button>)}</aside><main className="settings-content"><h1>{section}</h1>{section === '电脑操控' ? <RemoteDesktopPanel /> : section === '配置' ? <ProviderSettings state={state} update={update} toast={toast} /> : <><h2>权限</h2><div className="settings-card"><div className="settings-line"><b>默认权限</b><span className="toggle on" /></div><div className="settings-line"><b>完整访问权限</b><span className="toggle on" /></div></div><h2>常规</h2><div className="settings-card"><div className="settings-line"><div><b>主题</b><small>应用界面主题</small></div><select value={state.theme} onChange={e => update(next => { next.theme = e.target.value as DesktopState['theme']; })}><option value="light">浅色</option><option value="dark">深色</option></select></div><div className="settings-line"><div><b>默认模型</b><small>Agent 默认使用的模型</small></div><span>{state.model || '自动选择'}</span></div></div></>}</main></div>;
+}
+
+function ProviderSettings({ state, update, toast }: { state: DesktopState; update: (fn: (next: DesktopState) => void) => void; toast: (text: string) => void }) {
+  type ProviderSummary = { id: string; name: string; baseUrl: string; model: string; enabled: boolean; keyConfigured: boolean };
+  const [providers, setProviders] = useState<ProviderSummary[]>([]);
+  const [draft, setDraft] = useState({ id: '', name: 'RVCompute', baseUrl: 'https://api.rvcompute.com:60000/v1', apiKey: '', model: '' });
+  const reload = async () => { setProviders(await window.desktop?.listProviders?.() || []); };
+  useEffect(() => { void reload().catch(() => toast('无法读取 Provider 配置')); }, []);
+  const [saving, setSaving] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [models, setModels] = useState<string[]>([]);
+  const [connectionError, setConnectionError] = useState('');
+  const changeConnection = (field: 'baseUrl' | 'apiKey', value: string) => {
+    setDraft(current => ({ ...current, [field]: value, model: '' }));
+    setModels([]);
+    setConnectionError('');
+  };
+  const connect = async () => {
+    setConnecting(true);
+    setModels([]);
+    setConnectionError('');
+    try {
+      const result = await window.desktop?.listModels?.({ id: draft.id, baseUrl: draft.baseUrl, apiKey: draft.apiKey });
+      if (!result?.ok || !result.models?.length) throw new Error(result?.error || '请在桌面应用中连接模型服务');
+      setModels(result.models);
+      setDraft(current => ({ ...current, model: result.models.includes(current.model) ? current.model : '' }));
+    } catch (error) { setConnectionError(error instanceof Error ? error.message : '连接失败'); }
+    finally { setConnecting(false); }
+  };
+  const add = async (activate: boolean) => {
+    if (saving) return;
+    if (!draft.name.trim() || !models.includes(draft.model)) return toast('请连接服务并选择模型');
+    setSaving(true);
+    try {
+      const result = await window.desktop?.saveProvider?.({ ...draft, activate });
+      if (!result?.ok) throw new Error(result?.error || '请在桌面应用中配置 Provider');
+      if (activate) { update(next => { next.model = draft.model; }); window.dispatchEvent(new Event('provider-changed')); }
+      setDraft({ ...draft, id: result.id || draft.id, apiKey: '' });
+      await reload();
+      toast(activate ? `已启用模型：${draft.model}` : '渠道已保存');
+    } catch (error) { toast(error instanceof Error ? error.message : '保存失败'); }
+    finally { setSaving(false); }
+  };
+  const activate = async (provider: ProviderSummary) => {
+    setSaving(true);
+    try {
+      const result = await window.desktop?.activateProvider?.(provider.id);
+      if (!result?.ok) throw new Error(result?.error || '切换失败');
+      update(next => { next.model = result.model || ''; });
+      window.dispatchEvent(new Event('provider-changed'));
+      await reload();
+      toast(`已切换到 ${provider.name}`);
+    } catch (error) { toast(error instanceof Error ? error.message : '切换失败'); }
+    finally { setSaving(false); }
+  };
+  return <div className="provider-settings"><h2>Agent LLM Provider</h2>
+    {providers.map(provider => <div className="provider-item" key={provider.id}>
+      <div><b>{provider.name}{provider.enabled ? ' · 当前使用' : ''}</b><small>{provider.baseUrl}</small><small>{provider.model || '未选择默认模型'} · {provider.keyConfigured ? '密钥已配置' : '待配置密钥'}</small></div>
+      <div><button disabled={saving || connecting} onClick={() => { setDraft({ id: provider.id, name: provider.name, baseUrl: provider.baseUrl, model: provider.model, apiKey: '' }); setModels([]); setConnectionError(''); }}>编辑</button>
+      <button disabled={saving || connecting || provider.enabled || !provider.keyConfigured} onClick={() => void activate(provider)}>启用</button></div>
+    </div>)}
+    <button disabled={saving || connecting} onClick={() => { setDraft({ id: '', name: '', baseUrl: 'https://api.rvcompute.com:60000/v1', apiKey: '', model: '' }); setModels([]); setConnectionError(''); }}><Plus size={14} /> 新增渠道</button>
+    <h3>{draft.id ? '编辑渠道' : '新增渠道'}</h3>
+    <fieldset className="provider-form" disabled={saving || connecting} style={{ border: 0, padding: 0, minWidth: 0 }}>
+      <input aria-label="Provider 名称" placeholder="Provider 名称" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} />
+      <input aria-label="Base URL" value={draft.baseUrl} onChange={e => changeConnection('baseUrl', e.target.value)} />
+      <input aria-label="API Key" placeholder="API Key（同一服务留空使用已保存密钥）" type="password" autoComplete="off" value={draft.apiKey} onChange={e => changeConnection('apiKey', e.target.value)} />
+      <button type="button" onClick={() => void connect()}><RefreshCcw size={14} /> {connecting ? '正在连接…' : '连接并获取模型'}</button>
+      {connectionError && <p role="alert" style={{ gridColumn: '1 / -1' }}>{connectionError}</p>}
+      {models.length > 0 && <>
+        <p role="status" style={{ gridColumn: '1 / -1' }}>连接成功 · 获取到 {models.length} 个模型</p>
+        <label htmlFor="provider-model">模型</label>
+        <select id="provider-model" value={draft.model} onChange={e => setDraft({ ...draft, model: e.target.value })} style={{ minWidth: 0, maxWidth: '100%' }}>
+          <option value="" disabled>请选择模型</option>
+          {models.map(model => <option key={model} value={model}>{model}</option>)}
+        </select>
+      </>}
+      <button disabled={!models.includes(draft.model)} onClick={() => void add(false)}>保存渠道</button>
+      <button className="primary-button" disabled={!models.includes(draft.model)} onClick={() => void add(true)}>{saving ? '保存中…' : '保存并启用模型'}</button>
+    </fieldset>
+  </div>;
+}
+
+declare global { interface Window { desktop?: WindowFrameBridge & { toggleMaximize: () => Promise<{ maximized?: boolean }>; minimize?: () => Promise<void>; close?: () => Promise<void>; providerStatus?: () => Promise<any>; saveProvider?: (input: { id?: string; activate?: boolean; name: string; baseUrl: string; apiKey: string; model: string }) => Promise<{ ok: boolean; id?: string; error?: string }>; listProviders?: () => Promise<any[]>; activateProvider?: (id: string) => Promise<{ ok: boolean; model?: string; error?: string }>; listModels?: (input?: { id?: string; baseUrl: string; apiKey: string }) => Promise<any>; getProjectRoot?: () => Promise<string>; pickFiles?: () => Promise<string[]>; readExtensionFile?: (path: string, kind: 'image' | 'skill') => Promise<any>; listTasks?: () => Promise<any>; saveTask?: (input: any) => Promise<any>; setTaskStatus?: (id: string, status: string) => Promise<any>; runTask?: (id: string) => Promise<any>; cancelTask?: (id: string) => Promise<any>; deleteTask?: (id: string) => Promise<any>; taskDetail?: (id: string) => Promise<any>; onTasksChanged?: (listener: (message?: { error?: string }) => void) => () => void }; codex?: any } }
 createRoot(document.getElementById('root')!).render(<StrictMode><WindowFrame><App /></WindowFrame></StrictMode>);

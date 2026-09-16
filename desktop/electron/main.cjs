@@ -2,10 +2,12 @@ const { app, BrowserWindow, ipcMain, Menu, Notification, dialog, screen } = requ
 const path = require('node:path');
 const { CodexServer } = require('./codex-server.cjs');
 const { listMiniMaxModels } = require('./minimax-models.cjs');
+const { readProvider, saveProvider, providerCredentials, listProviders, activateProvider } = require('./provider-config.cjs');
 const { readExtensionFile } = require('./extension-files.cjs');
 const { TaskScheduler } = require('./task-scheduler.cjs');
 const { createTaskRunner } = require('./task-runner.cjs');
 const { wireWindowFrame } = require('./window-frame.cjs');
+const { RemoteDesktop, startRemoteBridge } = require('./remote-desktop.cjs');
 const customFrame = process.platform === 'win32' && Number(require('node:os').release().split('.')[2]) < 22000;
 
 const projectRoot = path.resolve(__dirname, '../..');
@@ -17,10 +19,17 @@ if (app.requestSingleInstanceLock()) startDesktop();
 else app.quit();
 
 function startDesktop() {
+const remoteDesktop = new RemoteDesktop();
+ipcMain.handle('desktop:remote-action', async (_event, action) => {
+  if (action.type === 'connect') remoteDesktop.enabled = true;
+  if (action.type === 'disconnect') remoteDesktop.enabled = false;
+  try { return await remoteDesktop.run(action); }
+  catch (error) { return { isError: true, content: [{ type: 'text', text: error.message }] }; }
+});
 const codex = new CodexServer(projectRoot);
 const scheduler = new TaskScheduler({
   directory: path.join(projectRoot, '.project-cache', 'scheduled-tasks'),
-  runner: createTaskRunner(projectRoot),
+  runner: createTaskRunner(projectRoot, { apiKey: () => readProvider().apiKey, upstream: () => readProvider().baseUrl }),
 });
 let mainWindow;
 let manualMaximized = false;
@@ -122,8 +131,20 @@ ipcMain.handle('window:toggle-maximize', async event => {
 });
 ipcMain.handle('window:minimize', event => BrowserWindow.fromWebContents(event.sender)?.minimize());
 ipcMain.handle('window:close', event => BrowserWindow.fromWebContents(event.sender)?.close());
-ipcMain.handle('desktop:provider-status', () => ({ provider: 'minimax', endpoint: 'https://api.minimaxi.com/v1', keyConfigured: Boolean(process.env.MINIMAX_API_KEY) }));
-ipcMain.handle('desktop:list-models', () => listMiniMaxModels({ apiKey: process.env.MINIMAX_API_KEY }));
+ipcMain.handle('desktop:provider-status', () => { const provider = readProvider(); return { provider: provider.name || 'MiniMax', endpoint: provider.baseUrl, keyConfigured: Boolean(provider.apiKey) }; });
+ipcMain.handle('desktop:save-provider', (_event, input) => {
+  try { const id = saveProvider(input); return { ok: true, id }; }
+  catch (error) { return { ok: false, error: error.message }; }
+});
+ipcMain.handle('desktop:list-providers', () => listProviders());
+ipcMain.handle('desktop:activate-provider', (_event, id) => {
+  try { return { ok: true, model: activateProvider(id) }; }
+  catch (error) { return { ok: false, error: error.message }; }
+});
+ipcMain.handle('desktop:list-models', async (_event, input) => {
+  try { return await listMiniMaxModels(providerCredentials(input)); }
+  catch (error) { return { ok: false, models: [], error: error.message }; }
+});
 ipcMain.handle('desktop:project-root', () => projectRoot);
 ipcMain.handle('desktop:pick-files', async event => {
   const win = BrowserWindow.fromWebContents(event.sender);
@@ -148,7 +169,7 @@ ipcMain.handle('codex:connect', () => {
 });
 
 ipcMain.handle('codex:request', async (_event, { method, params }) => {
-  if (method === 'turn/start' && !process.env.MINIMAX_API_KEY?.trim()) {
+  if (method === 'turn/start' && !readProvider().apiKey?.trim()) {
     return { ok: false, error: { message: 'Missing environment variable: MINIMAX_API_KEY', code: 'missing_api_key' } };
   }
   try { return { ok: true, result: await getRpc().request(method, params || {}) }; }
@@ -167,7 +188,11 @@ ipcMain.handle('codex:respond', (_event, { id, result, error }) => {
 
 ipcMain.handle('codex:stop', () => { codex.stop(); return { ok: true }; });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  const bridge = await startRemoteBridge(remoteDesktop);
+  process.env.FELIX_REMOTE_ENDPOINT = bridge.endpoint;
+  process.env.FELIX_REMOTE_TOKEN = bridge.token;
+  app.on('will-quit', () => { bridge.server.close(); void remoteDesktop.stop(); });
   scheduler.start();
   Menu.setApplicationMenu(null);
   createWindow();

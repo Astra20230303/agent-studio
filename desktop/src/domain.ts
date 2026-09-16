@@ -53,6 +53,15 @@ export interface Automation {
   nextRunAt?: string;
 }
 
+export interface LlmProvider {
+  id: string;
+  name: string;
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  enabled: boolean;
+}
+
 export interface DesktopState {
   mode: 'code' | 'work';
   activeThreadId?: string;
@@ -63,4 +72,5 @@ export interface DesktopState {
   threads: Thread[];
   projects: Project[];
   automations: Automation[];
+  providers: LlmProvider[];
 }

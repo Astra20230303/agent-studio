@@ -66,7 +66,29 @@ function ensureProjectConfig(codexHome, projectRoot) {
     'default_tools_approval_mode = "auto"',
     ''
   ].join('\n');
-  fs.writeFileSync(configPath, existing.replace(/\s*$/, '') + suffix, 'utf8');
+  const remoteSection = '[mcp_servers.felix_remote_desktop]';
+  const remoteConfig = existing.includes(remoteSection) ? '' : [
+    '', remoteSection,
+    `command = ${tomlString(nodeCommand())}`,
+    `args = [${tomlString(path.join(projectRoot, 'desktop', 'electron', 'remote-desktop-mcp.cjs'))}]`,
+    'enabled = true', 'startup_timeout_sec = 20', 'tool_timeout_sec = 60',
+    'env_vars = ["FELIX_REMOTE_ENDPOINT", "FELIX_REMOTE_TOKEN"]', '',
+  ].join('\n');
+  fs.writeFileSync(configPath, existing.replace(/\s*$/, '') + suffix + remoteConfig, 'utf8');
+}
+
+function compatibilityCatalog(projectRoot, codexHome) {
+  const source = path.join(projectRoot, 'codex-upstream', 'codex-rs', 'models-manager', 'models.json');
+  const catalog = JSON.parse(fs.readFileSync(source, 'utf8'));
+  // Felix's Chat Completions adapter executes direct function calls. The
+  // bundled code-mode-only profiles otherwise suppress all tools on this host.
+  for (const model of catalog.models) {
+    if (model.tool_mode === 'code_mode_only') model.tool_mode = 'direct';
+    model.use_responses_lite = false;
+  }
+  const target = path.join(codexHome, 'felix-models.json');
+  fs.writeFileSync(target, JSON.stringify(catalog));
+  return target;
 }
 
 class CodexServer {
@@ -74,6 +96,7 @@ class CodexServer {
 
   start() {
     if (this.rpc) return this.rpc;
+    const { readProvider } = require('./provider-config.cjs');
     const resolved = findCommand(this.projectRoot);
     const cache = path.join(this.projectRoot, '.project-cache');
     const temp = path.join(cache, 'temp');
@@ -82,12 +105,14 @@ class CodexServer {
     // Always bind the local compatibility endpoint. With no key it returns a
     // deliberate 401 explaining the missing environment variable, instead of
     // making app-server fail with an opaque connection-refused error.
-    this.adapter = startMiniMaxAdapter({ apiKey: env.MINIMAX_API_KEY, onError: error => this.rpc?.emit('stderr', `MiniMax adapter error: ${error.message}`) });
+    env.MINIMAX_API_KEY = 'local-provider-adapter';
+    this.adapter = startMiniMaxAdapter({ apiKey: () => readProvider().apiKey, upstream: () => readProvider().baseUrl, onError: error => this.rpc?.emit('stderr', `Provider adapter error: ${error.message}`) });
     fs.mkdirSync(env.CODEX_HOME, { recursive: true });
     ensureProjectConfig(env.CODEX_HOME, this.projectRoot);
+    const catalog = compatibilityCatalog(this.projectRoot, env.CODEX_HOME);
     // Hosted web_search is unavailable through MiniMax Chat Completions. Felix
     // exposes an equivalent local MCP tool backed by public RSS search feeds.
-    this.child = spawn(resolved.command, [...resolved.args, '-c', 'web_search="disabled"', '-c', 'features.responses_websockets=false', '-c', 'features.responses_websockets_v2=false', 'app-server', '--stdio'], {
+    this.child = spawn(resolved.command, [...resolved.args, '-c', `model_catalog_json=${tomlString(catalog)}`, '-c', 'web_search="disabled"', '-c', 'features.responses_websockets=false', '-c', 'features.responses_websockets_v2=false', 'app-server', '--stdio'], {
       cwd: this.projectRoot, env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true
     });
     this.rpc = new CodexRpc(this.child);
@@ -100,4 +125,4 @@ class CodexServer {
   stop() { if (this.rpc) this.rpc.close(); if (this.adapter) this.adapter.close(); this.rpc = null; this.child = null; this.adapter = null; }
 }
 
-module.exports = { CodexServer, findCommand, ensureProjectConfig };
+module.exports = { CodexServer, findCommand, ensureProjectConfig, compatibilityCatalog };

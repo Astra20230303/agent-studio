@@ -3,7 +3,7 @@ const path = require('node:path');
 const { spawn, execFile } = require('node:child_process');
 const { once } = require('node:events');
 const { CodexRpc } = require('./codex-rpc.cjs');
-const { findCommand, ensureProjectConfig } = require('./codex-server.cjs');
+const { findCommand, ensureProjectConfig, compatibilityCatalog } = require('./codex-server.cjs');
 const { startMiniMaxAdapter } = require('./minimax-adapter.cjs');
 
 function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_KEY, upstream, timeoutMs = 10 * 60 * 1000 } = {}) {
@@ -28,6 +28,7 @@ function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_
         ensureProjectConfig(home, projectRoot);
         const command = findCommand(projectRoot).command;
         const settings = [
+          `model_catalog_json=${JSON.stringify(compatibilityCatalog(projectRoot, home))}`,
           'model_providers.minimax.name="MiniMax"', 'model_providers.minimax.wire_api="responses"',
           'model_providers.minimax.env_key="MINIMAX_API_KEY"',
           `model_providers.minimax.base_url="http://127.0.0.1:${adapter.address().port}/v1"`,

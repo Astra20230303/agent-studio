@@ -20,7 +20,7 @@ export function useModelCatalog() {
       setError(err instanceof Error ? err.message : '无法获取模型列表。');
     } finally { pending.current = false; setLoading(false); }
   }, []);
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { const changed = () => { void refresh(); }; changed(); window.addEventListener('provider-changed', changed); return () => window.removeEventListener('provider-changed', changed); }, [refresh]);
   return { models, loading, error, refresh };
 }
 
@@ -41,8 +41,8 @@ export function ModelPicker({ catalog, selected, onSelect, open, setOpen }: {
     <button className="model-button" aria-label="选择模型" aria-expanded={open} onClick={() => setOpen(!open)}>
       <span>{catalog.loading ? '加载模型…' : catalog.models.includes(selected) ? selected : '选择模型'}</span><ChevronDown size={13} />
     </button>
-    {open && <div className="floating-menu model-catalog" aria-label="MiniMax 模型">
-      <div className="model-catalog-header"><span>MiniMax</span><button type="button" title="刷新模型列表" aria-label="刷新模型列表" disabled={catalog.loading} onClick={() => void catalog.refresh()}><RefreshCw size={14} /></button></div>
+    {open && <div className="floating-menu model-catalog" aria-label="Provider 模型">
+      <div className="model-catalog-header"><span>Provider</span><button type="button" title="刷新模型列表" aria-label="刷新模型列表" disabled={catalog.loading} onClick={() => void catalog.refresh()}><RefreshCw size={14} /></button></div>
       {catalog.loading ? <p role="status">正在获取模型…</p> : catalog.error ? <p role="alert">{catalog.error}</p> :
         <div className="model-options">{catalog.models.map(id => <button key={id} aria-pressed={selected === id} onClick={() => { onSelect(id); setOpen(false); }}><span>{id}</span>{selected === id && <Check size={14} />}</button>)}</div>}
     </div>}

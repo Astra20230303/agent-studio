@@ -14,16 +14,17 @@
     "@vitejs/plugin-react": "latest",
     "cron-parser": "5.4.0",
     "electron": "latest",
+    "lucide-react": "latest",
+    "playwright": "^1.63.0",
     "react": "latest",
-    "react-dom": "latest",
-    "lucide-react": "latest"
+    "react-dom": "latest"
   },
   "devDependencies": {
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
     "concurrently": "latest",
     "typescript": "latest",
     "vite": "latest",
-    "wait-on": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest"
+    "wait-on": "latest"
   }
 }

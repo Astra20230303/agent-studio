@@ -6,7 +6,7 @@ settings:
 
 importers:
 
-  .:
+  desktop:
     dependencies:
       '@vitejs/plugin-react':
         specifier: latest
