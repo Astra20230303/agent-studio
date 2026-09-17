@@ -1,0 +1,22 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const { workspaceFile } = require('../electron/workspace-files.cjs');
+test('real files: directories, bounded text, binary detection and path boundaries', async t => {
+  const base = path.resolve(__dirname, '../../.project-cache/tmp'); await fs.mkdir(base, { recursive: true });
+  const root = await fs.mkdtemp(path.join(base, 'file-browser-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  await fs.mkdir(path.join(root, 'nested')); await fs.mkdir(path.join(root, '.git'));
+  await fs.writeFile(path.join(root, 'text.txt'), 'hello');
+  await fs.writeFile(path.join(root, 'large.txt'), 'a'.repeat(300000));
+  await fs.writeFile(path.join(root, 'binary.bin'), Buffer.from([0, 1, 2]));
+  const listing = await workspaceFile(root);
+  assert.equal(listing.entries[0].name, 'nested'); assert.ok(!listing.entries.some(item => item.name === '.git'));
+  assert.equal((await workspaceFile(root, 'text.txt', 'read')).text, 'hello');
+  const large = await workspaceFile(root, 'large.txt', 'read'); assert.equal(large.text.length, 256 * 1024); assert.equal(large.truncated, true);
+  assert.equal((await workspaceFile(root, 'binary.bin', 'read')).binary, true);
+  await assert.rejects(workspaceFile(root, '..'), /路径/);
+  await assert.rejects(workspaceFile(root, '.git'), /路径/);
+  await assert.rejects(workspaceFile(root, 'nested', 'read'), /文件/);
+});

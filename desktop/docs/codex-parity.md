@@ -192,3 +192,13 @@ Post-commit acceptance fixes attachment draft ownership on the first send from
 the welcome screen, preserves selections added while the picker is pending,
 and displays attachment filenames in messages/queue entries. The browser test
 now starts without an existing thread and verifies failure retention and labels.
+
+## Feature 4c: workspace file browser
+
+Toolbar file panel follows the conversation workspace. Supports directory/root/
+parent navigation, refresh, bounded text and raster-image previews, and attaching
+a selected file to the composer. Realpath containment excludes .git and paths
+outside the selected root. Binary content and truncated previews are explicit.
+Build, workspace-files.test.cjs (real temporary files) and workspace-files-ui.cjs
+(mocked bridge) pass navigation, file reading, path boundaries and attachment.
+Native Electron IPC end-to-end acceptance remains pending.
