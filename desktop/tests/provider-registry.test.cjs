@@ -47,6 +47,14 @@ test('migrates legacy provider and preserves independent channels and secrets', 
     config.saveProvider({ id: local, baseUrl: 'http://127.0.0.1:11434/v1', apiKey: 'local-secret' });
     config.saveProvider({ id: local, baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '' });
     assert.equal(config.readProvider().apiKey, 'local-secret');
+    const manual = config.saveProvider({ name: 'Manual', baseUrl: 'http://localhost:11434/v1', apiKey: '', model: '  local/unknown  ', manualModel: true });
+    const manualSummary = config.listProviders().find(item => item.id === manual);
+    assert.equal(manualSummary.manualModel, true);
+    assert.equal(manualSummary.model, 'local/unknown');
+    const manualFile = JSON.parse(fs.readFileSync(path.join(directory, 'provider.json'))).providers.find(item => item.id === manual);
+    assert.equal(manualFile.manualModel, true);
+    assert.equal(manualFile.secret, undefined);
+    assert.throws(() => config.saveProvider({ name: 'Bad', baseUrl: 'http://localhost:11434/v1', apiKey: '', model: 'bad\nmodel', manualModel: true }), /模型 ID/);
     assert.throws(() => config.deleteProvider(local), /启用其他渠道/);
     assert.throws(() => config.deleteProvider('missing'), /不存在/);
     const before = fs.readFileSync(path.join(directory, 'provider.json'), 'utf8');

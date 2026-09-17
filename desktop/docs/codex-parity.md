@@ -1680,3 +1680,7 @@ ID to the app catalog without a /models request. Manual IDs are trimmed and
 validated; automatic mode continues requiring a fetched selection. The UI states
 that saving does not validate inference availability. Browser 404/manual-save/
 edit/mode-switch coverage, registry regression and production build pass.
+Post-commit acceptance adds host-side registry assertions for trimmed persistence,
+manualModel metadata, absent secrets on keyless local services and newline ID
+rejection. The full settings browser fixture and registry tests pass together;
+manual inference availability remains a server-side concern.
