@@ -1,11 +1,29 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
-async function workspaceFile(root, name = '.', action = 'list') {
+async function workspaceFile(root, name = '.', action = 'list', query = '') {
   if (typeof root !== 'string' || !path.isAbsolute(root) || typeof name !== 'string') throw Error('无效工作区路径');
   root = await fs.realpath(root);
   const target = await fs.realpath(path.resolve(root, name));
   const relative = path.relative(root, target);
   if (relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative) || relative.split(path.sep).includes('.git')) throw Error('路径不在工作区可浏览范围内');
+  if (action === 'search') {
+    if (typeof query !== 'string' || !query.trim()) return { entries: [], truncated: false, skipped: 0 };
+    const term = query.trim().replace(/\\/g, '/').toLowerCase();
+    const entries = []; const pending = [target]; let visited = 0; let skipped = 0; let truncated = false;
+    while (pending.length && !truncated) {
+      const directory = pending.shift();
+      let handle;
+      try { handle = await fs.opendir(directory); } catch { skipped++; continue; }
+      for await (const entry of handle) {
+        if (++visited > 20000 || entries.length >= 200) { truncated = true; break; }
+        if (entry.name === '.git' || entry.isSymbolicLink()) continue;
+        const full = path.join(directory, entry.name); const file = path.relative(root, full);
+        if (entry.isDirectory()) { pending.push(full); continue; }
+        if (entry.isFile() && file.replace(/\\/g, '/').toLowerCase().includes(term)) entries.push({ name: entry.name, path: file, directory: false, symlink: false });
+      }
+    }
+    return { entries: entries.sort((a, b) => a.path.localeCompare(b.path)), truncated, skipped };
+  }
   if (action === 'list') {
     const entries = await fs.readdir(target, { withFileTypes: true });
     const visible = entries.filter(entry => entry.name !== '.git').sort((a, b) => Number(b.isDirectory()) - Number(a.isDirectory()) || a.name.localeCompare(b.name));

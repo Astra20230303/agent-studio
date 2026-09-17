@@ -932,3 +932,13 @@ Native Windows appearance toggling remains outside this emulated test; terminal
 colors currently retain their dedicated dark palette.
 Post-commit acceptance verifies invalid persisted themes fall back to light;
 settings search and storage-failure recovery browser regressions also pass.
+
+## Workspace filename search
+
+The file panel now searches nested filenames and relative paths case-insensitively.
+Results open in the existing preview/attachment flow and retain the query when
+returning to the result list. Search skips .git and symlinks, bounds traversal at
+20000 entries and 200 matches, and reports truncation or unreadable directories.
+Build, real-filesystem tests and browser acceptance cover nested Unicode paths,
+limits, workspace boundaries, preview, empty results and clearing the query.
+This is filename/path search, not file-content indexing.

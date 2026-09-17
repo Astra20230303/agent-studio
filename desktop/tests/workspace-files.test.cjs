@@ -3,6 +3,22 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { workspaceFile } = require('../electron/workspace-files.cjs');
+
+test('file search finds nested paths, excludes git, reports result limits and preserves read boundaries', async t => {
+  const base = path.resolve(__dirname, '../../.project-cache/tmp'); await fs.mkdir(base, { recursive: true });
+  const root = await fs.mkdtemp(path.join(base, 'file-search-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  await fs.mkdir(path.join(root, 'src')); await fs.mkdir(path.join(root, '.git'));
+  await fs.writeFile(path.join(root, 'src', '中文.TS'), 'source'); await fs.writeFile(path.join(root, '.git', 'secret.ts'), 'hidden');
+  const found = await workspaceFile(root, '.', 'search', 'SRC/中文.ts');
+  assert.deepEqual(found.entries.map(item => item.path), [path.join('src', '中文.TS')]);
+  assert.equal((await workspaceFile(root, '.', 'search', 'secret')).entries.length, 0);
+  assert.equal((await workspaceFile(root, '.', 'search', '')).entries.length, 0);
+  await assert.rejects(workspaceFile(root, '..', 'search', 'ts'), /路径/);
+  for (let i = 0; i < 202; i++) await fs.writeFile(path.join(root, `match-${i}.txt`), '');
+  const limited = await workspaceFile(root, '.', 'search', 'match-');
+  assert.equal(limited.entries.length, 200); assert.equal(limited.truncated, true);
+});
 test('real files: directories, bounded text, binary detection and path boundaries', async t => {
   const base = path.resolve(__dirname, '../../.project-cache/tmp'); await fs.mkdir(base, { recursive: true });
   const root = await fs.mkdtemp(path.join(base, 'file-browser-'));
