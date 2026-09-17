@@ -23,6 +23,7 @@ export interface ToolActivity {
 }
 
 export interface Thread {
+  cwd?: string;
   planningMode?: 'default' | 'plan';
   plan?: import('./planning').PlanProgress;
   id: string;

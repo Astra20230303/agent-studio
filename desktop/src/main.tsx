@@ -5,6 +5,7 @@ import { useThreadDraft } from './useThreadDraft';
 import { useTurnQueue } from './useTurnQueue';
 import { TurnQueue } from './TurnQueuePanel';
 import { PlanPanel } from './PlanPanel';
+import { workspaceFor } from './workspace';
 import { readPlan } from './planning';
 import { createConnectionRecovery } from './connectionRecovery';
 import './connection.css';
@@ -200,7 +201,7 @@ function App() {
   const update = (fn: (next: DesktopState) => void) => setState(previous => { const next = structuredClone(previous); fn(next); return next; });
   const enqueue = () => {
     if (!input.trim() || !active?.remoteId || !runningTurnId) return;
-    queue.change(items => [...items, { id: crypto.randomUUID(), localId: active.id, threadId: active.remoteId!, text: input.trim(), model: modelId(state.model), effort: state.reasoningEffort, planningMode: active.planningMode || 'default', plugins: composerPlugins.map(({ id, name }) => ({ id, name })), waitingOn: runningTurnId, status: 'waiting' }]);
+    queue.change(items => [...items, { id: crypto.randomUUID(), localId: active.id, threadId: active.remoteId!, text: input.trim(), model: modelId(state.model), effort: state.reasoningEffort, cwd: workspaceFor(state, active), planningMode: active.planningMode || 'default', plugins: composerPlugins.map(({ id, name }) => ({ id, name })), waitingOn: runningTurnId, status: 'waiting' }]);
     setInput(''); setComposerPlugins([]);
   };
   useEffect(() => {
@@ -216,7 +217,7 @@ function App() {
       update(next => { const target = next.threads.find(thread => thread.id === item.localId); if (target) target.messages.push({ id: item.id, role: 'user', content: item.text, createdAt: new Date().toISOString() }); });
       void (async () => {
         try {
-          const result = await startTurn({ threadId: item.threadId, text: item.text, model: item.model, effort: item.effort, plugins: item.plugins, planningMode: item.planningMode || 'default' });
+          const result = await startTurn({ threadId: item.threadId, text: item.text, model: item.model, effort: item.effort, plugins: item.plugins, planningMode: item.planningMode || 'default', cwd: item.cwd });
           const turn = result.turn;
           if (!turn?.id) throw new Error('服务未返回回合编号，请检查会话记录。');
           runtime.apply(item.threadId, { type: 'start', turnId: turn.id });
@@ -251,7 +252,9 @@ function App() {
       const provider = await window.desktop?.providerStatus?.();
       setProviderStatus(provider);
       if (!provider?.keyConfigured) throw new Error(failureMessage('MINIMAX_API_KEY'));
-      const model = modelId(state.model); const modelProvider = 'minimax'; const cwd = await window.desktop?.getProjectRoot?.();
+      const model = modelId(state.model); const modelProvider = 'minimax';
+      const cwd = workspaceFor(state, existing) || (!existing?.remoteId ? await window.desktop?.getProjectRoot?.() : undefined);
+      update(next => { const thread = next.threads.find(item => item.id === localId); if (thread && cwd) { thread.cwd = cwd; if (!thread.remoteId) thread.projectId = state.activeProjectId; } });
       let threadId = existing?.remoteId;
       const createRemoteThread = async () => {
         const started = await startThread({ effort: state.reasoningEffort, model, modelProvider, cwd, permission: state.permission });
@@ -323,6 +326,7 @@ function App() {
         update(next => {
           const thread = next.threads.find(item => item.remoteId === threadId);
           if (!thread) return;
+          if (loaded.thread?.cwd) thread.cwd = loaded.thread.cwd;
           const items = turns.flatMap((turn: any) => (turn.items || []).map((item: any) => ({ item, turnId: turn.id })));
           if (items.length) thread.messages = restoreMessages(items, thread.messages);
           thread.status = running ? 'running' : 'completed';
@@ -557,7 +561,7 @@ function Chat({ busy, mode, permission, onOpenPlugins, composerPlugins, setCompo
     return () => { disposed = true; };
   }, []);
   const project = projects.find(item => item.id === projectId);
-  const projectPath = workingDirectory || project?.path;
+  const projectPath = active?.cwd || project?.path || workingDirectory;
   const projectName = projectLabel(projectPath || project?.name || projectId);
   const workMode = mode === 'work';
   const empty = !active?.messages.length;
@@ -604,7 +608,7 @@ function Chat({ busy, mode, permission, onOpenPlugins, composerPlugins, setCompo
         textarea.current?.focus();
       }} /><span className="work-environment" title={project?.environment === 'worktree' ? '工作树' : '本地'} aria-label={project?.environment === 'worktree' ? '工作树' : '本地'}><Laptop aria-hidden="true" /></span></> : <><span className="project-context"><Laptop aria-hidden="true" />{project?.environment === 'worktree' ? '工作树' : '本地'}</span>
       {project?.git?.branch && <span className="project-context project-branch" title={project.git.branch}><GitBranch aria-hidden="true" /><span>{project.git.branch}</span></span>}</>}
-      {showProjects && <div className="floating-menu project-menu">{(projects.length ? projects : [{ id: workingDirectory || 'my-agent-plantform', name: projectName || 'my-agent-plantform' }]).map(item => <button key={item.id} onClick={() => { update(next => { next.activeProjectId = item.id; }); setShowProjects(false); }}>{projectLabel(item.name)}</button>)}</div>}
+      {showProjects && <div className="floating-menu project-menu"><button onClick={async () => { try { const project = await window.desktop?.pickProject?.(); if (!project) return; update(next => { if (!next.projects.some(item => item.id === project.id)) next.projects.push(project); next.activeProjectId = project.id; const thread = createThread(next); thread.projectId = project.id; thread.cwd = project.path; }); setShowProjects(false); } catch (error: any) { toast(error.message); } }}>打开文件夹…</button>{(projects.length ? projects : [{ id: workingDirectory || 'my-agent-plantform', name: projectName || 'my-agent-plantform' }]).map(item => <button key={item.id} onClick={() => { update(next => { next.activeProjectId = item.id; const thread = createThread(next); thread.projectId = item.id; thread.cwd = projects.find(project => project.id === item.id)?.path; }); setShowProjects(false); }}>{projectLabel(item.name)}</button>)}</div>}
     </div>
     <div className="composer">
       {composerPlugins.length > 0 && <div className="composer-plugin-chips" aria-label="本次使用的插件">{composerPlugins.map(plugin => <span key={plugin.id}><ExtensionIcon item={plugin} /><span>{extensionName(plugin)}</span><button aria-label={`移除 ${extensionName(plugin)}`} onClick={() => setComposerPlugins(composerPlugins.filter(item => item.id !== plugin.id))}><X /></button></span>)}</div>}
@@ -717,5 +721,5 @@ function ProviderSettings({ state, update, toast }: { state: DesktopState; updat
   </div>;
 }
 
-declare global { interface Window { desktop?: WindowFrameBridge & { artifact?: (input: any) => Promise<any>; toggleMaximize: () => Promise<{ maximized?: boolean }>; minimize?: () => Promise<void>; close?: () => Promise<void>; providerStatus?: () => Promise<any>; saveProvider?: (input: { id?: string; activate?: boolean; name: string; baseUrl: string; apiKey: string; model: string }) => Promise<{ ok: boolean; id?: string; error?: string }>; listProviders?: () => Promise<any[]>; activateProvider?: (id: string) => Promise<{ ok: boolean; model?: string; error?: string }>; listModels?: (input?: { id?: string; baseUrl: string; apiKey: string }) => Promise<any>; getProjectRoot?: () => Promise<string>; pickFiles?: () => Promise<string[]>; readExtensionFile?: (path: string, kind: 'image' | 'skill') => Promise<any>; listTasks?: () => Promise<any>; saveTask?: (input: any) => Promise<any>; setTaskStatus?: (id: string, status: string) => Promise<any>; runTask?: (id: string) => Promise<any>; cancelTask?: (id: string) => Promise<any>; deleteTask?: (id: string) => Promise<any>; taskDetail?: (id: string) => Promise<any>; onTasksChanged?: (listener: (message?: { error?: string }) => void) => () => void }; codex?: any } }
+declare global { interface Window { desktop?: WindowFrameBridge & { artifact?: (input: any) => Promise<any>; toggleMaximize: () => Promise<{ maximized?: boolean }>; minimize?: () => Promise<void>; close?: () => Promise<void>; providerStatus?: () => Promise<any>; saveProvider?: (input: { id?: string; activate?: boolean; name: string; baseUrl: string; apiKey: string; model: string }) => Promise<{ ok: boolean; id?: string; error?: string }>; listProviders?: () => Promise<any[]>; activateProvider?: (id: string) => Promise<{ ok: boolean; model?: string; error?: string }>; listModels?: (input?: { id?: string; baseUrl: string; apiKey: string }) => Promise<any>; pickProject?: () => Promise<import('./domain').Project | null>; getProjectRoot?: () => Promise<string>; pickFiles?: () => Promise<string[]>; readExtensionFile?: (path: string, kind: 'image' | 'skill') => Promise<any>; listTasks?: () => Promise<any>; saveTask?: (input: any) => Promise<any>; setTaskStatus?: (id: string, status: string) => Promise<any>; runTask?: (id: string) => Promise<any>; cancelTask?: (id: string) => Promise<any>; deleteTask?: (id: string) => Promise<any>; taskDetail?: (id: string) => Promise<any>; onTasksChanged?: (listener: (message?: { error?: string }) => void) => () => void }; codex?: any } }
 createRoot(document.getElementById('root')!).render(<StrictMode><WindowFrame><App /></WindowFrame></StrictMode>);

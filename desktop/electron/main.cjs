@@ -158,6 +158,14 @@ ipcMain.handle('desktop:artifact', async (_event, input) => {
   } catch (error) { return { ok: false, error: error.message }; }
 });
 ipcMain.handle('desktop:project-root', () => projectRoot);
+ipcMain.handle('desktop:pick-project', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, { title: '选择工作区目录', properties: ['openDirectory'] });
+  if (result.canceled || !result.filePaths[0]) return null;
+  const directory = await require('node:fs/promises').realpath(result.filePaths[0]);
+  const stat = await require('node:fs/promises').stat(directory);
+  if (!stat.isDirectory()) throw new Error('请选择目录');
+  return { id: directory, name: path.basename(directory), path: directory, environment: 'local', git: { isRepository: false } };
+});
 ipcMain.handle('desktop:pick-files', async event => {
   const win = BrowserWindow.fromWebContents(event.sender);
   const result = await dialog.showOpenDialog(win, { title: '选择附件', properties: ['openFile', 'multiSelections'] });

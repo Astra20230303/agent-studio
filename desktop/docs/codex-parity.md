@@ -163,3 +163,13 @@ verified. Plan mode is an engine instruction mode, not a separate sandbox.
 Post-commit review fixed stale progress across turn boundaries and protected
 unsent drafts from the implementation shortcut. Browser acceptance now verifies
 both cases; entering a new turn clears the prior progress panel.
+
+## Feature 4a: real project directories
+
+The project menu opens the native folder picker and creates a conversation bound
+to the selected directory. New thread/turn requests use that cwd. Existing
+conversations retain their own cwd; server resume restores it. Queued turns
+capture the source cwd. Switching projects starts a new conversation rather than
+retargeting an existing conversation. Build, workspace.test.cjs and mocked-bridge
+workspace-ui.cjs pass folder selection, request cwd and persisted display checks.
+Native folder-picker and model execution acceptance remain pending.

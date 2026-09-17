@@ -1,4 +1,5 @@
 export type QueuedTurn = {
+  cwd?: string;
   planningMode?: 'default' | 'plan';
   id: string; localId: string; threadId: string; text: string; model: string;
   effort: string; plugins: { id: string; name: string }[];
