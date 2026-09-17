@@ -970,3 +970,12 @@ acceptance cover canceled discard, read failure, successful reload and subsequen
 save using the new hash rather than the stale revision.
 Post-commit acceptance changes the disk response to binary and truncated text;
 both reloads retain the dirty buffer and report why editing cannot be refreshed.
+
+## File editor keyboard controls
+
+Ctrl/Meta+S saves through the same revision-checked write flow. Tab inserts two
+spaces or indents selected lines; Shift+Tab removes a leading tab or up to two
+spaces. Ctrl/Meta+M switches Tab back to focus navigation, with visible status.
+Save/reload share an immediate operation lock to reject overlapping actions.
+Build and browser acceptance cover multiline indentation, focus escape and
+shortcut save using the current revision and line endings.
