@@ -1476,3 +1476,8 @@ uses the selected merge target. A real temporary repository driven through the
 full browser app verifies fast-forward content, accurate target notice, conflict
 state, and error persistence across refresh and diff navigation. Production
 build passes.
+Post-commit acceptance disables starting another merge while MERGE_HEAD exists.
+The browser integration now resolves the conflict entirely to ours, stages via
+the UI, checks error clearing, and completes an empty-diff merge commit with two
+parents. Merge controls re-enable afterward. Existing real-Git merge regression
+tests and production build also pass.

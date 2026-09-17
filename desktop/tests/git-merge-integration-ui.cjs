@@ -50,6 +50,20 @@ const { workspaceGit } = require('../electron/workspace-git.cjs');
     await page.getByRole('button', { name: '返回变更', exact: true }).click();
     await failure.waitFor();
     assert.ok(git('rev-parse', '--verify', 'MERGE_HEAD'));
-    console.log('PASS: real browser merge success target and persistent conflict error after refresh/detail navigation');
+    assert.ok(await page.getByRole('button', { name: '合并', exact: true }).isDisabled());
+    assert.ok(await page.getByRole('combobox', { name: '合并本地分支' }).isDisabled());
+    // Resolve entirely to ours: no staged diff, but MERGE_HEAD requires a commit.
+    await fs.writeFile(path.join(root, 'file.txt'), 'main');
+    await page.getByRole('button', { name: '标记已解决 file.txt', exact: true }).click();
+    await page.getByText('合并尚未完成，请解决并暂存冲突后提交。', { exact: true }).waitFor();
+    await page.waitForFunction(() => !document.querySelector('[role="alert"]'));
+    assert.equal(git('diff', '--cached'), '');
+    await page.getByRole('textbox', { name: '提交说明' }).fill('Resolve conflict using ours');
+    await page.getByRole('button', { name: '完成合并提交', exact: true }).click();
+    await page.getByText('工作区没有变更。', { exact: true }).waitFor();
+    assert.equal(git('rev-list', '--parents', '-n', '1', 'HEAD').split(' ').length, 3);
+    assert.equal(await page.getByRole('alert').count(), 0);
+    assert.ok(await page.getByRole('combobox', { name: '合并本地分支' }).isEnabled());
+    console.log('PASS: real browser merge target, persistent conflict error, resolution and two-parent empty-diff merge commit');
   } finally { await browser?.close(); await fs.rm(root, { recursive: true, force: true }); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
