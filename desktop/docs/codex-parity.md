@@ -1462,3 +1462,8 @@ authoritative text. Invalid indices and deltas after completion/interruption are
 ignored. Only server-provided summaries are displayed; absent summaries have an
 explicit empty state. Unit coverage, full-chat browser streaming/disclosure/final
 replacement checks and production build pass. Raw reasoning content is not shown.
+Post-commit acceptance adds Markdown rendering through the existing message
+renderer. Full-chat browser checks now also exercise turn interruption, actual
+thread/resume history responses, default collapsed historical records, formatted
+summary text and absent-summary feedback. Browser acceptance and production build
+pass; provider reasoning availability remains dependent on the server/model.
