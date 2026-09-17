@@ -1512,3 +1512,15 @@ space, saves a reminder and localStorage value, then closes and reopens it. Both
 persist correctly, app.getPath('userData') points into that profile, and no
 .project-cache appears under the copied install. This does not test a packaged
 installer or bundled model runtime. No product correction was required.
+
+## Relocatable runtime lookup
+
+Plan and delivery: FELIX_RUNTIME_DIR selects an absolute bundle containing
+bin/codex(.exe), bin/node(.exe), models.json and electron MCP scripts. Packaged
+apps default to resources/felix-runtime; development keeps source lookup.
+Missing bundle files fail explicitly without using another installed CLI.
+Interactive and scheduled servers share the lookup. Managed remote MCP command
+and args update on relocation while other settings remain intact. Configuration
+regression, a copied real app-server initialize/model-list check, scheduled
+tool execution and production build pass. Runtime assembly and installer remain
+outstanding; the smoke test does not establish model response quality.

@@ -6,7 +6,7 @@ const { CodexRpc } = require('./codex-rpc.cjs');
 const { findCommand, ensureProjectConfig, compatibilityCatalog } = require('./codex-server.cjs');
 const { startMiniMaxAdapter } = require('./minimax-adapter.cjs');
 
-function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_KEY, upstream, timeoutMs = 10 * 60 * 1000, dataRoot = require('./data-directory.cjs').dataDirectory(projectRoot) } = {}) {
+function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_KEY, upstream, timeoutMs = 10 * 60 * 1000, dataRoot = require('./data-directory.cjs').dataDirectory(projectRoot), runtimeRoot = require('./runtime-directory.cjs').runtimeDirectory() } = {}) {
   return async (task, { signal, runId }) => {
     const cwd = task.cwd || projectRoot;
     if (!path.isAbsolute(cwd) || !fs.existsSync(cwd) || !fs.statSync(cwd).isDirectory()) throw new Error('任务工作目录不存在或无效，请编辑任务选择有效目录。');
@@ -27,10 +27,10 @@ function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_
         adapter = startMiniMaxAdapter({ port: 0, apiKey: apiKey(), upstream });
         await once(adapter, 'listening');
         if (signal.aborted || halted) throw new Error('执行已停止。');
-        ensureProjectConfig(home, projectRoot);
-        const command = findCommand(projectRoot).command;
+        ensureProjectConfig(home, projectRoot, runtimeRoot);
+        const command = findCommand(projectRoot, runtimeRoot).command;
         const settings = [
-          `model_catalog_json=${JSON.stringify(compatibilityCatalog(projectRoot, home))}`,
+          `model_catalog_json=${JSON.stringify(compatibilityCatalog(projectRoot, home, runtimeRoot))}`,
           'model_providers.minimax.name="MiniMax"', 'model_providers.minimax.wire_api="responses"',
           'model_providers.minimax.env_key="MINIMAX_API_KEY"',
           `model_providers.minimax.base_url="http://127.0.0.1:${adapter.address().port}/v1"`,

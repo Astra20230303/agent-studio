@@ -15,6 +15,7 @@ const customFrame = process.platform === 'win32' && Number(require('node:os').re
 
 const projectRoot = path.resolve(__dirname, '../..');
 const dataRoot = require('./data-directory.cjs').dataDirectory(projectRoot, { isPackaged: app.isPackaged, appData: app.getPath('appData') });
+const runtimeRoot = require('./runtime-directory.cjs').runtimeDirectory({ isPackaged: app.isPackaged, resourcesPath: process.resourcesPath });
 require('node:fs').mkdirSync(dataRoot, { recursive: true });
 // Keep Felix's profile separate from the installed Codex Desktop profile.
 app.setPath('userData', path.join(dataRoot, 'electron-user-data'));
@@ -35,10 +36,10 @@ ipcMain.handle('desktop:remote-action', async (_event, action) => {
   try { return await remoteDesktop.run(action); }
   catch (error) { return { isError: true, content: [{ type: 'text', text: error.message }] }; }
 });
-const codex = new CodexServer(projectRoot, { dataRoot });
+const codex = new CodexServer(projectRoot, { dataRoot, runtimeRoot });
 const scheduler = new TaskScheduler({
   directory: path.join(dataRoot, 'scheduled-tasks'),
-  runner: createTaskRunner(projectRoot, { dataRoot, apiKey: () => readProvider().apiKey, upstream: () => readProvider().baseUrl }),
+  runner: createTaskRunner(projectRoot, { dataRoot, runtimeRoot, apiKey: () => readProvider().apiKey, upstream: () => readProvider().baseUrl }),
 });
 let mainWindow;
 const conversationNotifications = require('./conversation-notifications.cjs').createConversationNotifications(path.join(app.getPath('userData'), 'conversation-notifications.json'), {
