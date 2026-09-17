@@ -8,6 +8,8 @@ const assert = require('node:assert/strict');
       localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeProjectId: 'p', projects: [{ id: 'p', name: 'P', path: 'D:/P', git: {} }], threads: [] }));
       window.__writes = []; window.__fail = true;
       window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }), workspaceFile: async input => {
+        if (input.action === 'read' && window.__readFail) return { ok: false, error: 'Read failed' };
+        if (input.action === 'read' && window.__latest) return { ok: true, result: window.__latest };
         if (input.action === 'write') { window.__writes.push(input); return window.__fail ? { ok: false, error: '文件已被外部修改' } : { ok: true, result: { text: input.edit.text, revision: 'new' } }; }
         return { ok: true, result: input.action === 'read' ? { text: 'original\r\nline', revision: 'old' } : { entries: [{ name: 'file.txt', path: 'file.txt' }] } };
       } };
@@ -36,6 +38,25 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: '取消编辑' }).click();
     await editor.waitFor({ state: 'detached' });
     assert.equal(await page.evaluate(() => window.__writes.length), 2);
+    await page.getByRole('button', { name: '编辑文件', exact: true }).click();
+    await editor.fill('keep until reload succeeds');
+    page.once('dialog', dialog => dialog.dismiss());
+    await page.getByRole('button', { name: '重新读取磁盘文件' }).click();
+    assert.equal(await editor.inputValue(), 'keep until reload succeeds');
+    await page.evaluate(() => { window.__readFail = true; });
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('button', { name: '重新读取磁盘文件' }).click();
+    await page.getByRole('alert').filter({ hasText: 'Read failed' }).waitFor();
+    assert.equal(await editor.inputValue(), 'keep until reload succeeds');
+    await page.evaluate(() => { window.__readFail = false; window.__latest = { text: 'disk\nversion', revision: 'disk-revision' }; });
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('button', { name: '重新读取磁盘文件' }).click();
+    await page.waitForFunction(() => document.querySelector('textarea[aria-label="文件内容"]').value === 'disk\nversion');
+    assert.equal(await page.getByRole('button', { name: '保存文件', exact: true }).isDisabled(), true);
+    await editor.fill('edited\nversion');
+    await page.getByRole('button', { name: '保存文件', exact: true }).click();
+    await editor.waitFor({ state: 'detached' });
+    assert.deepEqual(await page.evaluate(() => window.__writes.at(-1).edit), { text: 'edited\nversion', revision: 'disk-revision' });
     console.log('PASS: edit/save, conflict preservation, retry and confirmed discard without write');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

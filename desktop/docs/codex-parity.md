@@ -960,3 +960,11 @@ still race between the final check and rename. A full IDE editor is not provided
 Post-commit acceptance covers CRLF files: editing normalizes the textarea view
 but saving restores consistent original CRLF line endings. Unchanged buffers
 remain clean; mixed line-ending files normalize to LF when edited.
+
+## Reload after file editing conflicts
+
+The editor can reload the current disk version after confirming discard of dirty
+edits. A successful reload updates the baseline content, hash and line-ending
+preference together; a failed read retains the entire buffer. Build and browser
+acceptance cover canceled discard, read failure, successful reload and subsequent
+save using the new hash rather than the stale revision.
