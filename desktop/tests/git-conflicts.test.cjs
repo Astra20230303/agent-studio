@@ -38,4 +38,13 @@ test('real merge conflict blocks commit until resolved and staged', async () => 
   await workspaceGit({ root, action: 'commit', message: 'accept deletion' });
   assert.equal(git(['ls-files', 'a.txt']), '');
   assert.equal(git(['rev-list', '--parents', '-n', '1', 'HEAD']).split(' ').length, 3);
+  await fs.writeFile(path.join(root, 'binary.tmp'), Buffer.from([0, 1, 2]));
+  await fs.writeFile(path.join(root, 'large.tmp'), 'x'.repeat(512 * 1024 + 1));
+  const binary = git(['hash-object', '-w', 'binary.tmp']);
+  const large = git(['hash-object', '-w', 'large.tmp']);
+  execFileSync('git', ['update-index', '--index-info'], { cwd: root, windowsHide: true, input: `100644 ${binary} 2\tpreview.dat\n100644 ${large} 3\tpreview.dat\n`, stdio: ['pipe', 'pipe', 'pipe'] });
+  const previews = (await workspaceGit({ root, action: 'conflict', path: 'preview.dat' })).stages;
+  assert.match(previews[0].unavailable, /二进制/);
+  assert.match(previews[1].unavailable, /512 KB/);
+  assert.ok(previews.every(stage => stage.text === undefined));
 });

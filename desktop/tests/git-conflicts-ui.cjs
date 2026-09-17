@@ -9,7 +9,10 @@ const assert = require('node:assert/strict');
       window.__requests = [];
       window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }), workspaceGit: async input => {
         window.__requests.push(input);
-        if (input.action === 'conflict') return { ok: true, result: { stages: [{ stage: 1, text: 'base content' }, { stage: 2, text: '<script>current side</script>' }] } };
+        if (input.action === 'conflict') {
+          if (!window.__retried) return { ok: false, error: 'Read failed' };
+          return { ok: true, result: { stages: [{ stage: 1, text: 'base content' }, { stage: 2, text: '<script>current side</script>' }] } };
+        }
         if (input.action === 'diff') return { ok: true, result: { diff: 'conflict working copy' } };
         if (input.action === 'stage') window.__resolved = true;
         return { ok: true, result: { root: 'D:/repo', branch: 'main', files: [{ path: 'conflict.txt', index: window.__resolved ? 'M' : 'U', working: window.__resolved ? ' ' : 'U', untracked: false }] } };
@@ -24,6 +27,9 @@ const assert = require('node:assert/strict');
     assert.equal(await page.getByRole('button', { name: '提交已暂存变更', exact: true }).isDisabled(), true);
     assert.equal(await page.getByRole('button', { name: '已暂存 U', exact: true }).count(), 0);
     await page.getByRole('button', { name: '未暂存 U', exact: true }).click();
+    await page.getByRole('alert').filter({ hasText: 'Read failed' }).waitFor();
+    await page.evaluate(() => { window.__retried = true; });
+    await page.getByRole('button', { name: '重试读取版本', exact: true }).click();
     await page.getByLabel('冲突版本').getByText('base content', { exact: true }).waitFor();
     await page.getByLabel('冲突版本').getByText('<script>current side</script>', { exact: true }).waitFor();
     assert.equal(await page.getByLabel('冲突版本').locator('script').count(), 0);

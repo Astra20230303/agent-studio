@@ -624,3 +624,7 @@ commit ID. Content is read by object ID, without external diff/textconv executio
 Build, real merge tests and browser acceptance pass exact stage text, deleted-side
 absence and literal HTML rendering. Version editing and automatic choice of a
 side remain pending.
+Post-commit acceptance inserts real binary and oversized objects into unmerged
+index stages and verifies fallback responses without text content. Browser
+acceptance also verifies failed reads followed by explicit successful retry.
+Both pass without further product changes.
