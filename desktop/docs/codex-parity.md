@@ -847,3 +847,5 @@ backticks or tildes and require a matching closing marker of sufficient length;
 shorter markers inside a block remain code. Unclosed streaming blocks still render.
 Build and browser acceptance verify nested fences, Unicode/special characters,
 multiple independent blocks, clipboard rejection and exact copied text.
+Post-commit acceptance delays clipboard completion while a code block streams
+additional lines, verifies stale success is suppressed and copies the new content.
