@@ -21,6 +21,7 @@ async function workspaceGit(input) {
   if (input.action === 'create-worktree') {
     if (typeof input.branch !== 'string' || !input.branch.trim() || input.branch !== input.branch.trim()) throw Error('请输入有效分支名');
     await git(root, ['check-ref-format', '--branch', input.branch]);
+    await git(root, ['check-ref-format', `refs/heads/${input.branch}`]);
     await git(root, ['rev-parse', '--verify', 'HEAD']);
     const parent = path.join(path.dirname(root), '.felix-worktrees');
     await fs.mkdir(parent, { recursive: true });

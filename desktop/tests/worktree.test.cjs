@@ -12,5 +12,7 @@ test('worktree starts from HEAD and leaves dirty source unchanged', async t => {
   assert.equal(await fs.readFile(path.join(project.path, 'file.txt'), 'utf8'), 'committed'); assert.equal(await fs.readFile(path.join(root, 'file.txt'), 'utf8'), 'dirty');
   await assert.rejects(workspaceGit({ root, action: 'create-worktree', branch: 'codex/feature' }), /already exists/);
   await assert.rejects(workspaceGit({ root, action: 'create-worktree', branch: '../invalid' }));
+  await assert.rejects(workspaceGit({ root, action: 'create-worktree', branch: '@{-1}' }));
+  await assert.rejects(workspaceGit({ root, action: 'create-worktree', branch: '--detach' }));
   assert.equal(git(['worktree', 'list', '--porcelain']).split('worktree ').length - 1, 2);
 });

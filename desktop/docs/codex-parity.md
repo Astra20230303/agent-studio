@@ -239,3 +239,6 @@ prefix. Existing dirty files remain in the source worktree. Build, real-repo
 worktree.test.cjs and mocked-bridge worktree-ui.cjs verify isolation, branch
 creation, duplicate/invalid branch errors and conversation binding. Removal and
 merge/handoff workflows remain pending; no worktree is deleted automatically.
+Post-commit review requires both branch and literal refs/heads validation, so
+Git revision shorthand cannot silently change the requested branch identity.
+Real-repository regression covers shorthand and option-like branch inputs.
