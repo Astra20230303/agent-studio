@@ -252,3 +252,6 @@ clicks, shows transport failures and permits retry without losing the request.
 Build and approval-ui.cjs verify available choices, failure/retry, session choice
 and permission denial payload. MCP forms and persistent policy amendments remain
 pending; native/model approval flow is not yet verified.
+Post-commit acceptance adds initial focus, Tab/Shift-Tab containment and wrapped
+actions for narrow dialogs. Browser regression verifies focus cycling and a
+390px viewport without dialog overflow; unsupported choice sets are explicit.

@@ -1,9 +1,15 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 const labels: Record<string, string> = { accept: '本次允许', acceptForSession: '本会话允许', decline: '拒绝', cancel: '取消本轮' };
 export function ApprovalPrompt({ request, onDecision }: { request: any; onDecision: (decision: string) => Promise<void> }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const lock = useRef(false);
+  const dialog = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    dialog.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    return () => { if (previous?.isConnected) previous.focus(); };
+  }, []);
   const params = request.params || {};
   const permissions = request.method === 'item/permissions/requestApproval';
   const file = request.method === 'item/fileChange/requestApproval';
@@ -19,13 +25,21 @@ export function ApprovalPrompt({ request, onDecision }: { request: any; onDecisi
     catch (error) { setError(error instanceof Error ? error.message : String(error)); }
     finally { lock.current = false; setBusy(false); }
   };
-  return <div className="approval-backdrop"><section className="approval-dialog" role="dialog" aria-modal="true" aria-labelledby="approval-title" style={{ maxHeight: '85vh', overflow: 'auto' }}>
+  return <div className="approval-backdrop"><section ref={dialog} className="approval-dialog" role="dialog" aria-modal="true" aria-labelledby="approval-title" style={{ maxHeight: '85vh', overflow: 'auto', overflowWrap: 'anywhere' }} onKeyDown={event => {
+    if (event.key !== 'Tab') return;
+    const buttons = [...(dialog.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') || [])];
+    const first = buttons[0], last = buttons.at(-1);
+    if (!first) { event.preventDefault(); return; }
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  }}>
     <h2 id="approval-title">{permissions ? '请求额外权限' : file ? '确认文件变更' : '确认命令执行'}</h2>
     <p>{params.reason || params.message}</p>{params.command && <pre>{params.command}</pre>}{params.cwd && <p>{params.cwd}</p>}
     {params.threadId && <small>会话：{params.threadId}</small>}
     {params.grantRoot && <p>写入目录：{params.grantRoot}</p>}
     {(params.permissions || params.additionalPermissions || params.networkApprovalContext) && <pre>{JSON.stringify(params.permissions || params.additionalPermissions || params.networkApprovalContext, null, 2)}</pre>}
     {!supported && <p role="alert">此请求类型尚未支持：{request.method}</p>}{error && <p role="alert">{error}</p>}
-    <div className="approval-actions">{decisions.map(decision => <button key={decision} disabled={busy} onClick={() => void submit(decision)}>{labels[decision]}</button>)}</div>
+    {!decisions.length && <p role="alert">服务端未提供可用的审批选项。</p>}
+    <div className="approval-actions" style={{ flexWrap: 'wrap' }}>{decisions.map(decision => <button key={decision} disabled={busy} onClick={() => void submit(decision)}>{labels[decision]}</button>)}</div>
   </section></div>;
 }
