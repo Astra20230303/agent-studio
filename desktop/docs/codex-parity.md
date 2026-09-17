@@ -942,3 +942,7 @@ returning to the result list. Search skips .git and symlinks, bounds traversal a
 Build, real-filesystem tests and browser acceptance cover nested Unicode paths,
 limits, workspace boundaries, preview, empty results and clearing the query.
 This is filename/path search, not file-content indexing.
+Post-commit acceptance verifies directory junctions/symlinks cannot broaden the
+search outside the workspace. Each queued directory is re-resolved before opening
+to reject redirected paths; concurrent filesystem replacement is not an atomic
+snapshot guarantee.

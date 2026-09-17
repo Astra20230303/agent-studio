@@ -14,6 +14,12 @@ test('file search finds nested paths, excludes git, reports result limits and pr
   assert.deepEqual(found.entries.map(item => item.path), [path.join('src', '中文.TS')]);
   assert.equal((await workspaceFile(root, '.', 'search', 'secret')).entries.length, 0);
   assert.equal((await workspaceFile(root, '.', 'search', '')).entries.length, 0);
+  const outside = await fs.mkdtemp(path.join(base, 'file-search-outside-'));
+  t.after(() => fs.rm(outside, { recursive: true, force: true }));
+  await fs.writeFile(path.join(outside, 'outside-only.txt'), 'private');
+  await fs.symlink(outside, path.join(root, 'linked'), process.platform === 'win32' ? 'junction' : 'dir');
+  assert.equal((await workspaceFile(root, '.', 'search', 'outside-only')).entries.length, 0);
+  await assert.rejects(workspaceFile(root, 'linked', 'search', 'outside-only'), /路径/);
   await assert.rejects(workspaceFile(root, '..', 'search', 'ts'), /路径/);
   for (let i = 0; i < 202; i++) await fs.writeFile(path.join(root, `match-${i}.txt`), '');
   const limited = await workspaceFile(root, '.', 'search', 'match-');

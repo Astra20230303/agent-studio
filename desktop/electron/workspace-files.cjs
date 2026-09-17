@@ -13,7 +13,12 @@ async function workspaceFile(root, name = '.', action = 'list', query = '') {
     while (pending.length && !truncated) {
       const directory = pending.shift();
       let handle;
-      try { handle = await fs.opendir(directory); } catch { skipped++; continue; }
+      try {
+        const resolved = await fs.realpath(directory);
+        const within = path.relative(root, resolved);
+        if (resolved !== directory || within === '..' || within.startsWith('..' + path.sep) || path.isAbsolute(within) || within.split(path.sep).includes('.git')) { skipped++; continue; }
+        handle = await fs.opendir(resolved);
+      } catch { skipped++; continue; }
       for await (const entry of handle) {
         if (++visited > 20000 || entries.length >= 200) { truncated = true; break; }
         if (entry.name === '.git' || entry.isSymbolicLink()) continue;
