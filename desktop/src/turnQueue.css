@@ -1,0 +1,6 @@
+.turn-queue{margin:8px 20px;padding:10px 12px;border:1px solid #aaa5;border-radius:8px;max-height:180px;overflow:auto;font-size:13px}
+.turn-queue header,.turn-queue li{display:flex;justify-content:space-between;gap:12px;align-items:center}
+.turn-queue ol{padding:0;list-style:none;margin:8px 0 0}
+.turn-queue li{padding:6px 0}.turn-queue li span{min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.turn-queue small{display:block;opacity:.7;margin-top:4px}
+.turn-queue button,.queue-message{white-space:nowrap;border:1px solid #aaa6;border-radius:6px;padding:5px 9px;background:transparent;color:inherit;cursor:pointer}

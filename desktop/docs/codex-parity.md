@@ -125,3 +125,17 @@ Post-commit fault review found that repeated `closed` events during failed
 handshakes could reset retry counts indefinitely. Recovery now retains the
 current retry budget until connected or explicitly retried. Five focused tests,
 the production build and reconnect browser acceptance pass after this fix.
+
+## Feature 2d: next-turn queue
+
+Running conversations offer “本轮完成后发送” alongside direct steering. Queued
+messages retain model, effort and plugin selections; dispatch is FIFO per thread
+and independent of the selected conversation. Entries can be cancelled. Failed
+or interrupted predecessor turns pause the queue; rejected/unconfirmed sends
+retain the entry for review and explicit retry. Reload and disconnect pause
+persisted work, rather than automatically replaying uncertain requests.
+
+Acceptance: production build, two queue state tests and turn-queue-ui.cjs cover
+FIFO dispatch, cancellation, failed predecessor pause, rejection/retry and
+persisted queue without automatic replay. Browser bridge is mocked; live model
+and native Electron validation remain pending.

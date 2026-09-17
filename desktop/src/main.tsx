@@ -2,6 +2,8 @@ import { ArtifactLink } from './Artifacts';
 import { UserInputDialog } from './UserInputDialog';
 import { useTurnRuntime } from './useTurnRuntime';
 import { useThreadDraft } from './useThreadDraft';
+import { useTurnQueue } from './useTurnQueue';
+import { TurnQueue } from './TurnQueuePanel';
 import { createConnectionRecovery } from './connectionRecovery';
 import './connection.css';
 import { steerTurn } from './codexClient';
@@ -70,6 +72,7 @@ function App() {
   const [connectionError, setConnectionError] = useState('');
   const [remoteThreadId, setRemoteThreadId] = useState<string>();
   const runtime = useTurnRuntime();
+  const queue = useTurnQueue();
   const [pendingThreads, setPendingThreads] = useState<string[]>([]);
   const [restoringThread, setRestoringThread] = useState<string>();
   const [approvals, setApprovals] = useState<any[]>([]);
@@ -148,6 +151,7 @@ function App() {
           });
         }
         if (message.method === 'turn/completed') {
+          queue.finish(params.threadId, params.turn?.id, params.turn?.status === 'completed');
           if (params.threadId && params.turn?.id) runtime.apply(params.threadId, { type: 'finish', turnId: params.turn.id });
           update(next => {
             const thread = next.threads.find(item => params.threadId ? item.remoteId === params.threadId : item.id === activeThreadRef.current);
@@ -169,13 +173,48 @@ function App() {
           catch { if (/MINIMAX_API_KEY/.test(line)) setNotice(failureMessage(line)); }
         }
       },
-      closed: () => { setApprovals([]); runtime.clear(); recovery.disconnected(); }
+      closed: () => { queue.pause(); setApprovals([]); runtime.clear(); recovery.disconnected(); }
     });
     recovery.start();
     return () => { disposed = true; recovery.stop(); cleanup(); reconnectRef.current = () => {}; };
   }, []);
   const toast = (text: string) => { setNotice(text); window.setTimeout(() => setNotice(''), 1500); };
   const update = (fn: (next: DesktopState) => void) => setState(previous => { const next = structuredClone(previous); fn(next); return next; });
+  const enqueue = () => {
+    if (!input.trim() || !active?.remoteId || !runningTurnId) return;
+    queue.change(items => [...items, { id: crypto.randomUUID(), localId: active.id, threadId: active.remoteId!, text: input.trim(), model: modelId(state.model), effort: state.reasoningEffort, plugins: composerPlugins.map(({ id, name }) => ({ id, name })), waitingOn: runningTurnId, status: 'waiting' }]);
+    setInput(''); setComposerPlugins([]);
+  };
+  useEffect(() => {
+    if (codexStatus !== 'connected') return;
+    for (const item of queue.items) {
+      const head = queue.read().find(entry => entry.threadId === item.threadId);
+      if (head?.id !== item.id || head.status !== 'ready' || runtime.read(item.threadId)?.turnId || sendingRef.current.has(item.localId)) continue;
+      const thread = state.threads.find(thread => thread.id === item.localId && !thread.archived);
+      if (!thread) continue;
+      sendingRef.current.add(item.localId);
+      queue.change(items => items.map(entry => entry.id === item.id ? { ...entry, status: 'sending', error: undefined } : entry));
+      setPendingThreads(previous => [...previous, item.localId]);
+      update(next => { const target = next.threads.find(thread => thread.id === item.localId); if (target) target.messages.push({ id: item.id, role: 'user', content: item.text, createdAt: new Date().toISOString() }); });
+      void (async () => {
+        try {
+          const result = await startTurn({ threadId: item.threadId, text: item.text, model: item.model, effort: item.effort, plugins: item.plugins });
+          const turn = result.turn;
+          if (!turn?.id) throw new Error('服务未返回回合编号，请检查会话记录。');
+          runtime.apply(item.threadId, { type: 'start', turnId: turn.id });
+          const done = runtime.read(item.threadId)?.completed.includes(turn.id) || turn.status && turn.status !== 'inProgress';
+          queue.change(items => items.filter(entry => entry.id !== item.id).map(entry => entry.threadId === item.threadId && entry.status !== 'paused' ? { ...entry, waitingOn: turn.id, status: done ? 'ready' : 'waiting' } : entry));
+          update(next => { const target = next.threads.find(thread => thread.id === item.localId); const message = target?.messages.find(message => message.id === item.id); if (message) message.turnId = turn.id; });
+        } catch (error: any) {
+          queue.change(items => items.map(entry => entry.threadId === item.threadId ? { ...entry, status: 'paused', error: `发送未确认：${error.message}。请检查会话记录后再试。` } : entry));
+          update(next => { const target = next.threads.find(thread => thread.id === item.localId); if (target) target.messages = target.messages.filter(message => message.id !== item.id); });
+        } finally {
+          sendingRef.current.delete(item.localId);
+          setPendingThreads(previous => previous.filter(id => id !== item.localId));
+        }
+      })();
+    }
+  }, [queue.items, codexStatus, runtime.threads, pendingThreads, state.threads]);
   const send = async () => {
     const text = input.trim(); if (!text || pending) return;
     if (catalog.loading || !availableModels.includes(state.model)) { setNotice(catalog.error || '请等待模型列表加载并选择模型。'); setShowModel(true); return; }
@@ -368,7 +407,7 @@ function App() {
       </div>
       <div className="sidebar-footer"><button className="sidebar-nav" aria-current={page === 'settings' ? 'page' : undefined} onClick={() => setPage('settings')}><Badge aria-hidden="true" /><span>设置</span></button></div>
     </aside>
-      <main>{!!active?.messages.length && page === 'chat' && <div className="thread-toolbar global-thread-toolbar"><span>{active.title}</span><div><button onClick={renameActive}>重命名</button><button onClick={forkActive}>分叉</button><button onClick={archiveActive}>归档</button><button onClick={deleteActive}>删除</button></div></div>}{page === 'chat' ? <Chat busy={pending} mode={state.mode} permission={state.permission} onOpenPlugins={() => setPage('plugins')} composerPlugins={composerPlugins} setComposerPlugins={setComposerPlugins} active={active} input={input} setInput={setInput} send={send} cancel={cancel} running={Boolean(runningTurnId)} activity={activity} model={state.model} reasoningEffort={state.reasoningEffort} catalog={catalog} update={update} attachments={attachments} addAttachment={addAttachment} showModel={showModel} setShowModel={setShowModel} showProjects={showProjects} setShowProjects={setShowProjects} toast={toast} projectId={state.activeProjectId} projects={state.projects} status={codexStatus} onForkMessage={forkFromMessage} /> : page === 'scheduled' ? <ScheduledPage models={availableModels} loadingModels={catalog.loading} refreshModels={catalog.refresh} /> : page === 'plugins' ? <ExtensionsPage connected={codexStatus === 'connected'} /> : <Workspace page={page} state={state} models={availableModels} update={update} toast={toast} providerStatus={providerStatus} onBack={() => { setPage('chat'); setSidebarVisible(true); }} />}</main>
+      <main>{page === 'chat' && <><TurnQueue items={queue.items.filter(item => item.localId === active?.id)} disabled={codexStatus !== 'connected' || pending} onRemove={id => queue.change(items => items.filter(item => item.id !== id))} onResume={() => queue.change(items => items.map(item => item.localId === active?.id && item.status === 'paused' ? { ...item, status: runningTurnId ? 'waiting' : 'ready', waitingOn: runningTurnId, error: undefined } : item))} />{runningTurnId && <button className="queue-message" disabled={!input.trim() || pending || codexStatus !== 'connected'} onClick={enqueue}>本轮完成后发送</button>}</>}{!!active?.messages.length && page === 'chat' && <div className="thread-toolbar global-thread-toolbar"><span>{active.title}</span><div><button onClick={renameActive}>重命名</button><button onClick={forkActive}>分叉</button><button onClick={archiveActive}>归档</button><button onClick={deleteActive}>删除</button></div></div>}{page === 'chat' ? <Chat busy={pending} mode={state.mode} permission={state.permission} onOpenPlugins={() => setPage('plugins')} composerPlugins={composerPlugins} setComposerPlugins={setComposerPlugins} active={active} input={input} setInput={setInput} send={send} cancel={cancel} running={Boolean(runningTurnId)} activity={activity} model={state.model} reasoningEffort={state.reasoningEffort} catalog={catalog} update={update} attachments={attachments} addAttachment={addAttachment} showModel={showModel} setShowModel={setShowModel} showProjects={showProjects} setShowProjects={setShowProjects} toast={toast} projectId={state.activeProjectId} projects={state.projects} status={codexStatus} onForkMessage={forkFromMessage} /> : page === 'scheduled' ? <ScheduledPage models={availableModels} loadingModels={catalog.loading} refreshModels={catalog.refresh} /> : page === 'plugins' ? <ExtensionsPage connected={codexStatus === 'connected'} /> : <Workspace page={page} state={state} models={availableModels} update={update} toast={toast} providerStatus={providerStatus} onBack={() => { setPage('chat'); setSidebarVisible(true); }} />}</main>
       <RemoteBrowser open={browserOpen} onClose={() => setBrowserOpen(false)} />
     </div>{notice && <div className="toast">{notice}</div>}{approval && <ApprovalDialog request={approval} onDecision={respondApproval} />}{deleteCandidate && <DeleteDialog thread={state.threads.find(item => item.id === deleteCandidate)} onCancel={() => setDeleteCandidate(undefined)} onConfirm={() => { const id = deleteCandidate; setDeleteCandidate(undefined); void performDelete(id); }} />}
   </div>;
