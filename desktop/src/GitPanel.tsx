@@ -15,7 +15,9 @@ export function GitPanel({ root, onClose, onWorktree, onReview }: { root?: strin
   const [history, setHistory] = useState(false);
   const [branches, setBranches] = useState(false);
   const [diff, setDiff] = useState('');
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [readError, setReadError] = useState('');
+  const error = selected ? readError : [actionError, readError].filter(Boolean).join('\n');
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -27,7 +29,7 @@ export function GitPanel({ root, onClose, onWorktree, onReview }: { root?: strin
   const [mergeBranch, setMergeBranch] = useState('');
   const mutate = async (action: string, path?: string) => {
     if (lock.current || !root) return;
-    lock.current = true; setBusy(true); setError(''); setNotice('');
+    lock.current = true; setBusy(true); setActionError(''); setNotice('');
     try {
       const result = await window.desktop?.workspaceGit?.({ root, action, path, message, branch: action === 'merge-branch' ? mergeBranch : branch, remote: publishRemote, expectedBranch: snapshot?.branch, expectedHead: (snapshot as any)?.head });
       if (!result?.ok) throw Error(result?.error || 'Git 操作失败');
@@ -38,22 +40,23 @@ export function GitPanel({ root, onClose, onWorktree, onReview }: { root?: strin
       if (action === 'commit') { setMessage(''); setNotice(`已提交 ${result.result.commit.slice(0, 8)}`); }
       if (action === 'stash') setNotice('已暂存工作区修改，可随时恢复');
       if (action === 'stash-pop') setNotice('已恢复最近一次工作区暂存');
-      if (action === 'merge-branch') setNotice(`已合并 ${branch}`);
+      if (action === 'merge-branch') setNotice(`已合并 ${mergeBranch}`);
       setSelected(undefined); setSnapshot(undefined); setRevision(value => value + 1);
-    } catch (error) { const message = error instanceof Error ? error.message : String(error); setError(message); if (action === 'merge-branch') { setSelected(undefined); setSnapshot(undefined); setRevision(value => value + 1); setTimeout(() => setError(message), 0); } }
+    } catch (error) { setActionError(error instanceof Error ? error.message : String(error)); if (action === 'merge-branch') { setSelected(undefined); setSnapshot(undefined); setRevision(value => value + 1); } }
     finally { lock.current = false; setBusy(false); }
   };
   useEffect(() => {
-    let disposed = false; setError(''); setDiff(''); setLoading(true);
+    let disposed = false; setReadError(''); setDiff(''); setLoading(true);
     if (!root) { setLoading(false); return; }
     void window.desktop?.workspaceGit?.({ root, action: selected ? 'diff' : 'status', ...selected }).then(result => {
       if (disposed) return;
       if (!result?.ok) throw Error(result?.error || '无法读取 Git');
       if (selected) setDiff((result.result.diff || '此区域没有差异。') + (result.result.truncated ? '\n…内容已截断' : ''));
       else { setSnapshot(result.result); setPublishRemote(current => result.result.remotes?.includes(current) ? current : result.result.remotes?.[0] || ''); }
-    }).catch(error => { if (!disposed) setError(error.message); }).finally(() => { if (!disposed) setLoading(false); });
+    }).catch(error => { if (!disposed) setReadError(error.message); }).finally(() => { if (!disposed) setLoading(false); });
     return () => { disposed = true; };
   }, [root, selected, revision]);
+  useEffect(() => { setActionError(''); setNotice(''); }, [root]);
   if (branches && root) return <section className="workspace-files git-panel" aria-label="Git 变更"><header><b>Git 分支</b><button disabled={busy} onClick={() => setBranches(false)}>返回 Git 变更</button><button disabled={busy} aria-label="关闭 Git 面板" onClick={onClose}>×</button></header><GitBranches key={root} root={root} onBusyChange={setBusy} onSwitched={branch => { setBranches(false); setSelected(undefined); setSnapshot(undefined); setNotice(`已切换到 ${branch}`); setRevision(value => value + 1); }} /></section>;
   if (worktrees && root) return <section className="workspace-files git-panel" aria-label="Git 变更"><header><b>Git 工作树</b><button onClick={() => setWorktrees(false)}>返回 Git 变更</button><button aria-label="关闭 Git 面板" onClick={onClose}>×</button></header><GitWorktrees key={root} root={root} onOpen={onWorktree} /></section>;
   if (history && root) return <section className="workspace-files git-panel" aria-label="Git 变更"><header><b>Git 提交历史</b><button onClick={() => setHistory(false)}>返回 Git 变更</button><button aria-label="关闭 Git 面板" onClick={onClose}>×</button></header><GitHistory key={root} root={root} /></section>;

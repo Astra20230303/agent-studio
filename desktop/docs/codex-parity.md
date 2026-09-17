@@ -1467,3 +1467,12 @@ renderer. Full-chat browser checks now also exercise turn interruption, actual
 thread/resume history responses, default collapsed historical records, formatted
 summary text and absent-summary feedback. Browser acceptance and production build
 pass; provider reasoning availability remains dependent on the server/model.
+
+## Stable merge feedback
+
+Plan and delivery: separate mutation errors from status/diff read errors so merge
+conflict feedback survives refresh without a timer. Successful merge feedback
+uses the selected merge target. A real temporary repository driven through the
+full browser app verifies fast-forward content, accurate target notice, conflict
+state, and error persistence across refresh and diff navigation. Production
+build passes.
