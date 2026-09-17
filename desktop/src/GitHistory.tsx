@@ -9,6 +9,7 @@ export function GitHistory({ root }: { root: string }) {
   const [detail, setDetail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [retry, setRetry] = useState(0);
   const anchor = useRef<string | undefined>(undefined);
   useEffect(() => {
     let disposed = false;
@@ -24,12 +25,12 @@ export function GitHistory({ root }: { root: string }) {
       finally { if (!disposed) setLoading(false); }
     })();
     return () => { disposed = true; };
-  }, [root, selected, page]);
+  }, [root, selected, page, retry]);
   return <section aria-label="提交历史">
     <h3>提交历史</h3>
     <button disabled={loading} onClick={() => { setSelected(''); setPage({ offset: 0 }); }}>刷新历史</button>
     {loading && <p role="status">正在读取提交…</p>}
-    {error && <p role="alert">{error}</p>}
+    {error && <div role="alert"><p>{error}</p><button onClick={() => setRetry(value => value + 1)}>重试读取提交</button></div>}
     {selected ? <><button onClick={() => setSelected('')}>返回提交列表</button><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{detail}</pre></> : !loading && !error && <>
       {commits.length === 0 && <p>暂无提交。</p>}
       {commits.map(commit => <div key={commit.id}><button onClick={() => setSelected(commit.id)}>{commit.id.slice(0, 8)} · {commit.subject}</button><p>{commit.author} · {commit.date}</p></div>)}

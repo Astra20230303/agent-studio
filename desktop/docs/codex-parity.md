@@ -1004,3 +1004,6 @@ Git output is capped at 4 MB and larger details report a read error.
 Temporary repository tests cover empty history, stable pagination after new
 commits, root commit patches and invalid inputs. Browser acceptance covers
 navigation, escaped patch content and pagination; production build passes.
+Post-commit acceptance adds an in-place retry for failed history/detail reads.
+Browser tests inject a detail failure, retry successfully, then leave a delayed
+detail request and verify its stale response cannot replace the commit list.
