@@ -12,7 +12,7 @@ const assert = require('node:assert/strict');
         if (method === 'thread/items/list') {
           window.__pages.push(params);
           if (window.__fail) return { ok: false, error: 'History unavailable' };
-          return { ok: true, result: params.cursor ? { data: [{ item: { type: 'agentMessage', text: 'Final reply' } }, { item: { type: 'futureTool', payload: '``` nested ```' } }], nextCursor: null } : { data: [{ item: { type: 'userMessage', content: [{ type: 'text', text: '你好' }, { type: 'localImage', path: 'D:/image.png' }] } }, { item: { type: 'commandExecution', command: 'pwd', aggregatedOutput: 'D:/workspace' } }], nextCursor: 'second' } };
+          return { ok: true, result: params.cursor ? { data: [null,42,{item:null},{ item: { type: 'agentMessage', text: 'Final reply' } }, { item: { type: 'futureTool', payload: '``` nested ```' } }], nextCursor: null } : { data: [{ item: { type: 'userMessage', content: [{ type: 'text', text: '你好' }, { type: 'localImage', path: 'D:/image.png' }] } }, { item: { type: 'commandExecution', command: 'pwd', aggregatedOutput: 'D:/workspace' } }], nextCursor: 'second' } };
         }
         return { ok: true, result: method === 'thread/resume' ? { thread: { turns: [] } } : { data: [] } };
       }, onNotification: () => () => {}, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
