@@ -258,7 +258,7 @@ function App() {
   const update = (fn: (next: DesktopState) => void) => setState(previous => { const next = structuredClone(previous); fn(next); return next; });
   const enqueue = () => {
     if ((!input.trim() && !attachments.length && !composerSkills.length) || !active?.remoteId || !runningTurnId) return;
-    queue.change(items => [...items, { id: crypto.randomUUID(), localId: active.id, threadId: active.remoteId!, text: input.trim(), attachments: [...attachments], skills: [...composerSkills], model: modelId(state.model), effort: state.reasoningEffort, cwd: workspaceFor(state, active), planningMode: active.planningMode || 'default', plugins: composerPlugins.map(({ id, name }) => ({ id, name })), waitingOn: runningTurnId, status: 'waiting' }]);
+    if (!queue.change(items => [...items, { id: crypto.randomUUID(), localId: active.id, threadId: active.remoteId!, text: input.trim(), attachments: [...attachments], skills: [...composerSkills], model: modelId(state.model), effort: state.reasoningEffort, cwd: workspaceFor(state, active), planningMode: active.planningMode || 'default', plugins: composerPlugins.map(({ id, name }) => ({ id, name })), waitingOn: runningTurnId, status: 'waiting' }], true)) return;
     setInput(''); setAttachments([]); setComposerSkills([]); setComposerPlugins([]);
   };
   useEffect(() => {
@@ -268,8 +268,8 @@ function App() {
       if (head?.id !== item.id || head.status !== 'ready' || runtime.read(item.threadId)?.turnId || sendingRef.current.has(item.localId)) continue;
       const thread = state.threads.find(thread => thread.id === item.localId && !thread.archived);
       if (!thread) continue;
+      if (!queue.change(items => items.map(entry => entry.id === item.id ? { ...entry, status: 'sending', error: undefined } : entry), true)) continue;
       sendingRef.current.add(item.localId);
-      queue.change(items => items.map(entry => entry.id === item.id ? { ...entry, status: 'sending', error: undefined } : entry));
       setPendingThreads(previous => [...previous, item.localId]);
       update(next => { const target = next.threads.find(thread => thread.id === item.localId); if (target) target.messages.push({ id: item.id, role: 'user', content: item.text, attachments: item.attachments, skills: item.skills, createdAt: new Date().toISOString() }); });
       void (async () => {
@@ -500,6 +500,7 @@ function App() {
   };
   const serviceControl = <section className="settings-card" aria-label="工作区服务连接"><h2>工作区服务</h2><p role="status">服务连接：{codexStatus === 'connected' ? '已连接' : codexStatus === 'connecting' ? '连接中' : '未连接'}</p><p>配置变更后可重启服务并重新连接。{serviceInUse ? '请先等待运行中会话、审批和沙箱设置结束。' : '草稿保留，排队消息会暂停。'}</p><button disabled={serviceInUse || restarting || codexStatus === 'connecting'} onClick={() => void restartService()}>重启并重新连接服务</button></section>;
   return <div className={`desktop-app ${effectiveTheme} ${page === 'settings' ? 'settings-mode' : ''} ${terminalOpen ? 'terminal-visible' : ''}`}>
+    {queue.saveFailed && <div role="alert" className="state-save-warning">排队消息未能保存，自动发送已暂停。关闭窗口可能丢失更改或恢复旧队列。<button onClick={queue.retry}>重试保存队列</button></div>}
     {attachmentStorage.saveFailed && <div role="alert" className="state-save-warning">附件选择未保存到本机，刷新后可能丢失选择或恢复旧附件。当前仍可编辑和发送。<button onClick={attachmentStorage.retry}>重试保存附件</button></div>}
     {stateSaveFailed && <div role="alert" className="state-save-warning">会话和设置未能保存到本机，刷新或关闭窗口可能丢失当前更改。<button onClick={() => setStateSaveAttempt(attempt => attempt + 1)}>重试保存会话和设置</button></div>}
     <header className="desktop-titlebar">

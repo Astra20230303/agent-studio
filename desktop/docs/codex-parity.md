@@ -1395,3 +1395,15 @@ unresolved conflicts and ordinary empty commits remain blocked. Browser workflow
 and existing write regressions pass. Post-commit acceptance removes the misleading
 clean-worktree message while MERGE_HEAD exists, then verifies it returns after
 completion. Browser acceptance and production build pass.
+
+## Queue storage failure recovery
+
+Plan: handle queue read/write failures without throwing into React, preserve
+composer input when enqueue cannot persist, and never dispatch a turn unless
+its sending state was saved. Failed transitions pause in-memory items; successful
+submission removal stays removed in memory even if storage fails. Retry writes
+the latest snapshot. A failed initial read blocks writes until recovery reads
+the original queue, preventing accidental erasure. Browser fault injection,
+existing FIFO/cancellation/reload regression and production build pass. Unsaved
+changes can still be lost on close and previously persisted sends require user
+verification after reopening; no automatic replay is introduced.
