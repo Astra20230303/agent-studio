@@ -77,6 +77,19 @@ test('history restores commands and file changes alongside text', () => {
   assert.deepEqual(restoreMessages(items, restored).map(message => message.id), restored.map(message => message.id));
 });
 
+test('overlapping history pages do not duplicate messages and completion wins', () => {
+  const restored = restoreMessages([
+    { turnId: 't', item: { id: 'a', type: 'agentMessage', text: 'partial' } },
+    { turnId: 't', item: { id: 'c', type: 'commandExecution', status: 'inProgress', command: 'pwd' } },
+    { turnId: 't', item: { id: 'a', type: 'agentMessage', text: 'final' } },
+    { turnId: 't', item: { id: 'c', type: 'commandExecution', status: 'completed', command: 'pwd', aggregatedOutput: 'D:/repo', exitCode: 0 } },
+  ], []);
+  assert.deepEqual(restored.map(message => message.id), ['live-a', 'tool-c']);
+  assert.equal(restored[0].content, 'final');
+  assert.equal(restored[1].tool.status, 'completed');
+  assert.equal(restored[1].tool.output, 'D:/repo');
+});
+
 test('omitted remote tools retain their position before the next assistant message', () => {
   const previous = [{ id: 'tool-c', role: 'system', content: '', tool: { kind: 'commandExecution', status: 'completed', output: 'saved' } }, { id: 'live-b', role: 'assistant', content: 'Done' }];
   const restored = restoreMessages([{ id: 'b', type: 'agentMessage', text: 'Done' }], previous);

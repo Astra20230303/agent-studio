@@ -73,16 +73,20 @@ export function restoreMessages(items: any[], previous: Message[]): Message[] {
     const item = entry.item || entry;
     if (item && typeof item.type === 'string' && !['userMessage', 'agentMessage', 'plan'].includes(item.type)) {
       const saved = previous.find(message => message.id === `tool-${item.id}`);
-      if (saved) thread.messages.push(structuredClone(saved));
+      if (saved && !thread.messages.some(message => message.id === saved.id)) thread.messages.push(structuredClone(saved));
       upsertTool(thread, item, entry.turnId, true);
     } else if (item.type === 'userMessage' || item.type === 'agentMessage' || item.type === 'plan') {
-      thread.messages.push({ id: item.type === 'plan' ? `plan-${item.id}` : item.type === 'agentMessage' ? `live-${item.id}` : item.id,
+      const id = item.type === 'plan' ? `plan-${item.id}` : item.type === 'agentMessage' ? `live-${item.id}` : item.id;
+      const existing = thread.messages.find(message => message.id === id);
+      const message = { id,
         turnId: entry.turnId || previous.find(message => message.id === `live-${item.id}`)?.turnId,
         role: item.type === 'userMessage' ? 'user' : 'assistant',
         attachments: item.type === 'userMessage' ? item.content?.filter((part: any) => part.type === 'localImage' && typeof part.path === 'string').map((part: any) => part.path) : undefined,
         skills: item.type === 'userMessage' ? item.content?.filter((part: any) => part.type === 'skill' && typeof part.name === 'string' && typeof part.path === 'string').map((part: any) => ({ name: part.name, path: part.path })) : undefined,
-        content: item.text || item.content?.map((part: any) => part.text || part.input_text || '').join('') || '',
-        createdAt: new Date().toISOString() });
+        content: item.text || item.content?.map((part: any) => part.text || part.input_text || '').join('') || existing?.content || '',
+        createdAt: existing?.createdAt || new Date().toISOString() } as Message;
+      if (existing) Object.assign(existing, message);
+      else thread.messages.push(message);
     }
   }
   // Keep local-only tool/error records when an older server omits those items.

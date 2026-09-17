@@ -1684,3 +1684,11 @@ Post-commit acceptance adds host-side registry assertions for trimmed persistenc
 manualModel metadata, absent secrets on keyless local services and newline ID
 rejection. The full settings browser fixture and registry tests pass together;
 manual inference availability remains a server-side concern.
+
+## Overlapping conversation history
+
+Plan and delivery: restoring repeated server item IDs updates the existing row
+at its original position instead of duplicating assistant/user/plan messages or
+locally saved tools. Later completed tool records replace provisional output.
+Tool/reasoning tests and full-chat complete-history loading with overlapping
+records pass; production build passes.
