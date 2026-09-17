@@ -694,3 +694,6 @@ steering. The preference persists across reloads, defaults to Enter and normaliz
 invalid saved values. Shift+Enter remains newline and existing IME guards remain.
 Build and browser acceptance verify changing the setting, persistence, plain
 Enter inserting a newline and Ctrl+Enter sending the exact multiline draft.
+Post-commit browser acceptance switches back to Enter, verifies Shift+Enter
+newlines and blocks submission during a simulated composition session. Native
+IME interaction and macOS Command-key behavior still need platform acceptance.
