@@ -47,6 +47,19 @@ test('migrates legacy provider and preserves independent channels and secrets', 
     config.saveProvider({ id: local, baseUrl: 'http://127.0.0.1:11434/v1', apiKey: 'local-secret' });
     config.saveProvider({ id: local, baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '' });
     assert.equal(config.readProvider().apiKey, 'local-secret');
+    assert.throws(() => config.deleteProvider(local), /启用其他渠道/);
+    assert.throws(() => config.deleteProvider('missing'), /不存在/);
+    const before = fs.readFileSync(path.join(directory, 'provider.json'), 'utf8');
+    const rename = fs.renameSync;
+    try {
+      fs.renameSync = () => { throw Error('disk unavailable'); };
+      assert.throws(() => config.deleteProvider(id), /disk unavailable/);
+      assert.equal(fs.readFileSync(path.join(directory, 'provider.json'), 'utf8'), before);
+    } finally { fs.renameSync = rename; }
+    config.deleteProvider(id);
+    assert.ok(!config.listProviders().some(item => item.id === id));
+    assert.ok(!fs.readFileSync(path.join(directory, 'provider.json'), 'utf8').includes(Buffer.from('second-key').toString('base64')));
+    assert.equal(config.readProvider().apiKey, 'local-secret');
   } finally {
     Module._load = original;
     delete require.cache[filename];

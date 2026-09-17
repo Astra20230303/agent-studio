@@ -70,4 +70,12 @@ function providerCredentials(input) {
   return { baseUrl, apiKey: saved.apiKey };
 }
 
-module.exports = { readProvider, saveProvider, providerCredentials, listProviders, activateProvider };
+function deleteProvider(id) {
+  const registry = readRegistry();
+  if (typeof id !== 'string' || !registry.providers.some(item => item.id === id)) throw new Error('Provider 不存在');
+  if (registry.activeId === id) throw new Error('请先启用其他渠道，再删除当前渠道');
+  registry.providers = registry.providers.filter(item => item.id !== id);
+  writeRegistry(registry);
+}
+
+module.exports = { readProvider, saveProvider, providerCredentials, listProviders, activateProvider, deleteProvider };

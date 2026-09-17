@@ -686,6 +686,8 @@ function SettingsWorkspace({ serviceControl, state, update, toast, onBack }: { s
 function ProviderSettings({ state, update, toast }: { state: DesktopState; update: (fn: (next: DesktopState) => void) => void; toast: (text: string) => void }) {
   type ProviderSummary = { id: string; name: string; baseUrl: string; model: string; enabled: boolean; keyConfigured: boolean; authRequired?: boolean };
   const [providers, setProviders] = useState<ProviderSummary[]>([]);
+  const [deleting, setDeleting] = useState<ProviderSummary>();
+  const [deleteError, setDeleteError] = useState('');
   const [draft, setDraft] = useState({ id: '', name: 'RVCompute', baseUrl: 'https://api.rvcompute.com:60000/v1', apiKey: '', model: '' });
   const reload = async () => { setProviders(await window.desktop?.listProviders?.() || []); };
   useEffect(() => { void reload().catch(() => toast('无法读取 Provider 配置')); }, []);
@@ -736,11 +738,25 @@ function ProviderSettings({ state, update, toast }: { state: DesktopState; updat
     } catch (error) { toast(error instanceof Error ? error.message : '切换失败'); }
     finally { setSaving(false); }
   };
+  const remove = async () => {
+    if (!deleting || saving) return;
+    setSaving(true); setDeleteError('');
+    try {
+      const result = await window.desktop?.deleteProvider?.(deleting.id);
+      if (!result?.ok) throw new Error(result?.error || '删除渠道失败');
+      if (draft.id === deleting.id) { setDraft({ id: '', name: '', baseUrl: '', apiKey: '', model: '' }); setModels([]); setConnectionError(''); }
+      setDeleting(undefined);
+      await reload();
+      toast('渠道及其已保存密钥已删除');
+    } catch (error) { setDeleteError(error instanceof Error ? error.message : '删除渠道失败'); }
+    finally { setSaving(false); }
+  };
   return <div className="provider-settings"><h2>Agent LLM Provider</h2>
+    {deleting && <section role="alert" aria-label="确认删除渠道"><p>删除渠道“{deleting.name}”？其已保存的密钥也会移除。</p><button disabled={saving} onClick={() => { setDeleting(undefined); setDeleteError(''); }}>取消删除</button><button disabled={saving} onClick={() => void remove()}>确认删除渠道</button>{deleteError && <p>{deleteError}</p>}</section>}
     {providers.map(provider => <div className="provider-item" key={provider.id}>
       <div><b>{provider.name}{provider.enabled ? ' · 当前使用' : ''}</b><small>{provider.baseUrl}</small><small>{provider.model || '未选择默认模型'} · {provider.keyConfigured ? '密钥已配置' : provider.authRequired === false ? '本机服务，无密钥' : '待配置密钥'}</small></div>
       <div><button disabled={saving || connecting} onClick={() => { setDraft({ id: provider.id, name: provider.name, baseUrl: provider.baseUrl, model: provider.model, apiKey: '' }); setModels([]); setConnectionError(''); }}>编辑</button>
-      <button disabled={saving || connecting || provider.enabled || (!provider.keyConfigured && provider.authRequired !== false)} onClick={() => void activate(provider)}>启用</button></div>
+      <button disabled={saving || connecting || provider.enabled} aria-label={`删除渠道 ${provider.name}`} title={provider.enabled ? '请先启用其他渠道' : '删除渠道和已保存密钥'} onClick={() => { setDeleting(provider); setDeleteError(''); }}>删除</button><button disabled={saving || connecting || provider.enabled || (!provider.keyConfigured && provider.authRequired !== false)} onClick={() => void activate(provider)}>启用</button></div>
     </div>)}
     <button disabled={saving || connecting} onClick={() => { setDraft({ id: '', name: '', baseUrl: 'https://api.rvcompute.com:60000/v1', apiKey: '', model: '' }); setModels([]); setConnectionError(''); }}><Plus size={14} /> 新增渠道</button>
     <h3>{draft.id ? '编辑渠道' : '新增渠道'}</h3>
@@ -764,5 +780,5 @@ function ProviderSettings({ state, update, toast }: { state: DesktopState; updat
   </div>;
 }
 
-declare global { interface Window { desktop?: WindowFrameBridge & { platform?: string; saveTerminal?: (input: { filename: string; content: string }) => Promise<{ ok: boolean; canceled?: boolean; error?: string }>; saveConversation?: (input: { filename: string; content: string }) => Promise<{ ok: boolean; canceled?: boolean; error?: string }>;  openExternal?: (url: string) => Promise<void>; terminal?: import('./TerminalPanel').TerminalBridge; artifact?: (input: any) => Promise<any>; toggleMaximize: () => Promise<{ maximized?: boolean }>; minimize?: () => Promise<void>; close?: () => Promise<void>; providerStatus?: () => Promise<any>; saveProvider?: (input: { id?: string; activate?: boolean; name: string; baseUrl: string; apiKey: string; model: string }) => Promise<{ ok: boolean; id?: string; error?: string }>; listProviders?: () => Promise<any[]>; activateProvider?: (id: string) => Promise<{ ok: boolean; model?: string; error?: string }>; listModels?: (input?: { id?: string; baseUrl: string; apiKey: string }) => Promise<any>; workspaceGit?: (input: any) => Promise<any>; workspaceFile?: (input: { root: string; path: string; action: string; query?: string; edit?: { text: string; revision: string } }) => Promise<any>; pickProject?: () => Promise<import('./domain').Project | null>; getProjectRoot?: () => Promise<string>; pickFiles?: () => Promise<string[]>; readExtensionFile?: (path: string, kind: 'image' | 'skill') => Promise<any>; listTasks?: () => Promise<any>; saveTask?: (input: any) => Promise<any>; setTaskStatus?: (id: string, status: string) => Promise<any>; runTask?: (id: string) => Promise<any>; cancelTask?: (id: string) => Promise<any>; deleteTask?: (id: string) => Promise<any>; taskDetail?: (id: string) => Promise<any>; onTasksChanged?: (listener: (message?: { error?: string }) => void) => () => void }; codex?: any } }
+declare global { interface Window { desktop?: WindowFrameBridge & { platform?: string; saveTerminal?: (input: { filename: string; content: string }) => Promise<{ ok: boolean; canceled?: boolean; error?: string }>; saveConversation?: (input: { filename: string; content: string }) => Promise<{ ok: boolean; canceled?: boolean; error?: string }>;  openExternal?: (url: string) => Promise<void>; terminal?: import('./TerminalPanel').TerminalBridge; artifact?: (input: any) => Promise<any>; toggleMaximize: () => Promise<{ maximized?: boolean }>; minimize?: () => Promise<void>; close?: () => Promise<void>; providerStatus?: () => Promise<any>; saveProvider?: (input: { id?: string; activate?: boolean; name: string; baseUrl: string; apiKey: string; model: string }) => Promise<{ ok: boolean; id?: string; error?: string }>; listProviders?: () => Promise<any[]>; deleteProvider?: (id: string) => Promise<{ ok: boolean; error?: string }>; activateProvider?: (id: string) => Promise<{ ok: boolean; model?: string; error?: string }>; listModels?: (input?: { id?: string; baseUrl: string; apiKey: string }) => Promise<any>; workspaceGit?: (input: any) => Promise<any>; workspaceFile?: (input: { root: string; path: string; action: string; query?: string; edit?: { text: string; revision: string } }) => Promise<any>; pickProject?: () => Promise<import('./domain').Project | null>; getProjectRoot?: () => Promise<string>; pickFiles?: () => Promise<string[]>; readExtensionFile?: (path: string, kind: 'image' | 'skill') => Promise<any>; listTasks?: () => Promise<any>; saveTask?: (input: any) => Promise<any>; setTaskStatus?: (id: string, status: string) => Promise<any>; runTask?: (id: string) => Promise<any>; cancelTask?: (id: string) => Promise<any>; deleteTask?: (id: string) => Promise<any>; taskDetail?: (id: string) => Promise<any>; onTasksChanged?: (listener: (message?: { error?: string }) => void) => () => void }; codex?: any } }
 createRoot(document.getElementById('root')!).render(<StrictMode><WindowFrame><App /></WindowFrame></StrictMode>);

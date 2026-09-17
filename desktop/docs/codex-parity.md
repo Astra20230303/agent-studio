@@ -1657,3 +1657,12 @@ keyless modes, asserting the exact Authorization behavior at the local endpoint.
 Both complete and persist their output. Model-list coverage verifies keyless
 local access and rejects missing remote credentials before network dispatch.
 All six targeted acceptance/regression tests pass.
+
+## Provider deletion
+
+Plan and delivery: inactive Providers can be deleted with explicit confirmation,
+removing their stored encrypted credential from the registry. Both renderer and
+main process refuse deletion of the active Provider. Deleting an edited entry
+clears its editor/model selection. Registry tests cover active/missing IDs,
+credential removal and failed persistence leaving the original registry intact.
+Production build passes.
