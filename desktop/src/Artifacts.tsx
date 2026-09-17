@@ -41,7 +41,8 @@ export function ArtifactLink({ path, label, preview = false, children }: { path:
   }}>{children || label}</a>{error && <small role="status">{error}</small>}</>;
   return <span className="artifact-link">
     {file && !file.image && file.root && file.path && open && <button onClick={() => open({ root: file.root!, path: file.path!, line: file.line })}>{children || label}</button>}
-    {file?.image && (preview || !/下载|download/i.test(label)) && <img className="artifact-image" src={file.data} alt={label} />}
+    {file?.image && (preview || !/下载|download/i.test(label)) && <img className="artifact-image" src={file.data} alt={label} onError={() => setError('图片无法解码，文件可能已损坏。')} />}
+    {file && error && <small role="alert">{error}</small>}
     {file ? <a download={file.name} href={file.data}>↓ {preview ? `下载 ${file.name}` : children || label}</a> : <span title={path}>{error || `正在读取 ${label}…`}</span>}
   </span>;
 }

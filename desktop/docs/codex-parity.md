@@ -1449,3 +1449,7 @@ acceptance uses restored messages and real artifactRequest against a temporary
 PNG: decoded image, correct root, download, missing-file retry and nonlocal path
 rejection pass. Production build passes. Workspace boundary/size limits remain;
 this does not add image generation capability.
+Post-commit acceptance adds explicit local-image decode failure feedback to the
+shared artifact renderer. Real corrupt PNG bytes now produce an alert; replacing
+them with valid bytes and rereading clears it and restores a decoded image. The
+expanded full-chat browser acceptance and production build pass.
