@@ -1262,3 +1262,17 @@ A held-response browser test verifies this behavior and subsequent refreshed
 status; existing stage/commit browser regression and production build pass.
 These tests do not establish atomicity against simultaneous external Git commands
 between the HEAD check and git switch, nor native Electron/provider acceptance.
+
+## Planned delivery: track a remote branch locally
+
+The branch panel will list fetched remote branches, excluding symbolic aliases.
+Users choose an exact remote ref and a new local name; create-and-switch establishes
+an explicit upstream without overwriting existing branches. Reject stale source
+HEAD/remote tips and unsafe names. Verify real checkout content, tracking config,
+existing-branch/dirty-file rejection and subsequent push/pull routing in isolated
+repositories; browser checks cover selection, failure recovery and status refresh.
+Implemented: remote ref enumeration excludes symbolic aliases; an explicit new
+local name is validated and created with direct upstream tracking. Five real Git
+tests pass, including actual push/pull against a temporary bare remote, dirty
+checkout rejection and local switching regressions. Remote/local browser flows
+and production build pass; no live hosted remote or native Electron UI claim.

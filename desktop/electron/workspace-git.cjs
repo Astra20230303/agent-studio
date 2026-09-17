@@ -28,11 +28,25 @@ async function workspaceGit(input) {
   if (typeof input?.root !== 'string' || !path.isAbsolute(input.root)) throw Error('请选择工作区目录');
   const cwd = await fs.realpath(input.root);
   const root = (await git(cwd, ['rev-parse', '--show-toplevel'])).trim();
-  if (input.action === 'branches' || input.action === 'switch-branch') {
+  if (['branches', 'switch-branch', 'track-branch'].includes(input.action)) {
     const branches = (await git(root, ['for-each-ref', '--format=%(refname:strip=2)', 'refs/heads/'])).trim().split('\n').filter(Boolean);
     const current = (await git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).catch(() => '')).trim();
     const head = (await git(root, ['rev-parse', '--verify', 'HEAD']).catch(() => '')).trim();
-    if (input.action === 'branches') return { branches, current, head };
+    const remoteBranches = (await git(root, ['for-each-ref', '--format=%(refname)%00%(objectname)%00%(symref)', 'refs/remotes/'])).trim().split('\n').filter(Boolean).map(row => {
+      const [ref, head, symbolic] = row.split('\0'); return { ref, head, symbolic };
+    }).filter(entry => !entry.symbolic).map(({ ref, head }) => ({ ref, head }));
+    if (input.action === 'branches') return { branches, remoteBranches, current, head };
+    if (input.action === 'track-branch') {
+      const remote = remoteBranches.find(entry => entry.ref === input.ref);
+      if (!remote) throw Error('远端分支不存在，请获取远端后刷新分支列表');
+      if (input.expectedBranch !== current || input.expectedHead !== head || input.expectedRemoteHead !== remote.head) throw Error('当前分支或远端提交已变化，请刷新分支列表');
+      if (typeof input.branch !== 'string' || !input.branch || input.branch !== input.branch.trim()) throw Error('请输入有效本地分支名');
+      await git(root, ['check-ref-format', '--branch', input.branch]);
+      await git(root, ['check-ref-format', `refs/heads/${input.branch}`]);
+      if (branches.includes(input.branch)) throw Error('本地分支已存在，请选择其他名称或切换已有分支');
+      await git(root, ['switch', '--no-guess', '--track=direct', '-c', input.branch, '--', remote.ref]);
+      return { branch: input.branch, ...await tracking(root) };
+    }
     if (typeof input.branch !== 'string' || !branches.includes(input.branch)) throw Error('本地分支不存在，请刷新分支列表');
     if (input.expectedBranch !== current || input.expectedHead !== head) throw Error('当前分支或提交已变化，请刷新分支列表');
     await git(root, ['switch', '--no-guess', '--', input.branch]);
