@@ -1,0 +1,7 @@
+.settings-search-row { display: flex; align-items: center; gap: 4px; margin-bottom: 16px; }
+.settings-search-row .settings-search { flex: 1; min-width: 0; margin: 0; border-radius: 6px; }
+.settings-search-row .icon-button { flex: 0 0 30px; width: 30px; height: 30px; }
+.settings-back { display: flex; align-items: center; gap: 8px; }
+.settings-content { min-width: 0; overflow-wrap: anywhere; }
+.settings-content .settings-card { border: 0; padding: 0; border-radius: 0; }
+.dark .settings-mode .settings-content { background: #30302e; }

@@ -753,3 +753,15 @@ during a running turn. A controlled model reply creates a persisted rollout so
 real thread/resume can confirm each updated permission profile; empty threads
 cannot be used for that check. Restart persistence and tool enforcement are not
 established by this resume check.
+
+## Settings navigation and search
+
+Settings now routes to five implemented categories: general, permissions,
+provider configuration, keyboard shortcuts and computer control. Placeholder
+categories that previously repeated general settings are removed from this
+navigation; their missing capabilities remain part of the parity backlog.
+Search matches category names and setting keywords with case-insensitive,
+whitespace-separated terms, routes to matching content, and supports empty
+results, explicit clear and Escape. Permissions have a dedicated section.
+Build and browser acceptance cover routing, Chinese/English queries, no results,
+clear/Escape and preserving permission and shortcut changes across searches.

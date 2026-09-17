@@ -20,6 +20,7 @@ const assert = require('node:assert/strict');
       });
       await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
       await page.getByRole('button', { name: '设置', exact: true }).click();
+      await page.getByRole('button', { name: '权限', exact: true }).click();
       await page.getByRole('radio', { name: label, exact: true }).check();
       await page.getByRole('button', { name: /返回应用/ }).click();
       await page.reload();

@@ -4,6 +4,7 @@ import { useTurnRuntime } from './useTurnRuntime';
 import { useSkillDraft, type SelectedSkill } from './useSkillDraft';
 import { useThreadDraft } from './useThreadDraft';
 import { PermissionSettings, permissionOptions } from './PermissionSettings';
+import { SettingsNavigation } from './SettingsNavigation';
 import { readThreadPermissions, permissionSummary } from './threadPermissions';
 import { KeyboardSettings } from './KeyboardSettings';
 import { ContextUsage, readContextTokens } from './ContextUsage';
@@ -685,9 +686,13 @@ return <section className="page"><h1>{title}</h1><p>本地工作区演示页面�
 }
 
 function SettingsWorkspace({ state, update, toast, onBack }: { state: DesktopState; update: (fn: (next: DesktopState) => void) => void; toast: (text: string) => void; onBack: () => void }) {
-  const [section, setSection] = useState('常规');
-  const items = ['常规', '导入', '外观', '语音', '配置', '个性化', '宠物', '键盘快捷键', '账户', '电脑操控', '插件', '浏览器', '钩子', '连接', 'Git', '环境', 'Worktrees', '已归档的聊天'];
-return <div className="settings-shell"><aside className="settings-sidebar"><button className="settings-back" onClick={onBack}>← <span>返回应用</span></button><input className="settings-search" placeholder="搜索设置..." />{items.map((item, i) => <button key={item} className={`settings-nav ${section === item ? 'active' : ''} ${i === 0 || i === 9 || i === 12 || i === 17 ? 'settings-group-start' : ''}`} onClick={() => setSection(item)}>{item}</button>)}</aside><main className="settings-content"><h1>{section}</h1>{section === '键盘快捷键' ? <KeyboardSettings value={state.sendShortcut} onChange={value => update(next => { next.sendShortcut = value; })} /> : section === '电脑操控' ? <RemoteDesktopPanel /> : section === '配置' ? <ProviderSettings state={state} update={update} toast={toast} /> : <><PermissionSettings value={state.permission} onChange={value => update(next => { next.permission = value; })} /><h2>常规</h2><div className="settings-card"><div className="settings-line"><div><b>主题</b><small>应用界面主题</small></div><select value={state.theme} onChange={e => update(next => { next.theme = e.target.value as DesktopState['theme']; })}><option value="light">浅色</option><option value="dark">深色</option></select></div><div className="settings-line"><div><b>默认模型</b><small>Agent 默认使用的模型</small></div><span>{state.model || '自动选择'}</span></div></div></>}</main></div>;
+  return <SettingsNavigation onBack={onBack}>{section => section === '键盘快捷键'
+    ? <KeyboardSettings value={state.sendShortcut} onChange={value => update(next => { next.sendShortcut = value; })} />
+    : section === '电脑操控' ? <RemoteDesktopPanel />
+    : section === '配置' ? <ProviderSettings state={state} update={update} toast={toast} />
+    : section === '权限' ? <PermissionSettings value={state.permission} onChange={value => update(next => { next.permission = value; })} />
+    : <div className="settings-card"><div className="settings-line"><div><b>主题</b><small>应用界面主题</small></div><select aria-label="主题" value={state.theme} onChange={e => update(next => { next.theme = e.target.value as DesktopState['theme']; })}><option value="light">浅色</option><option value="dark">深色</option></select></div><div className="settings-line"><div><b>默认模型</b><small>Agent 默认使用的模型</small></div><span>{state.model || '自动选择'}</span></div></div>
+  }</SettingsNavigation>;
 }
 
 function ProviderSettings({ state, update, toast }: { state: DesktopState; update: (fn: (next: DesktopState) => void) => void; toast: (text: string) => void }) {
