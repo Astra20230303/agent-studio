@@ -10,11 +10,13 @@ const { findCommand, compatibilityCatalog } = require('../electron/codex-server.
 const { startMiniMaxAdapter } = require('../electron/minimax-adapter.cjs');
 const { restoreMessages } = require('../src/toolActivity.ts');
 
-test('real app-server spawns a child and preserves its lifecycle and result', { timeout: 45000 }, async () => {
+for (const interrupt of [false, true]) test(interrupt ? 'real child can be read and interrupted without interrupting parent' : 'real app-server spawns a child and preserves its lifecycle and result', { timeout: 45000 }, async () => {
   const root = path.resolve(__dirname, '../..');
   const cache = path.join(root, '.project-cache/tmp'); fs.mkdirSync(cache, { recursive: true });
   const profile = fs.mkdtempSync(path.join(cache, 'agent-live-'));
   const events = []; let upstreamError; let childRequests = 0;
+  let childEntered;
+  const childWaiting = new Promise(resolve => { childEntered = resolve; });
   let deliverResult;
   const delivered = new Promise(resolve => { deliverResult = resolve; });
   const model = http.createServer(async (req, res) => {
@@ -29,7 +31,11 @@ test('real app-server spawns a child and preserves its lifecycle and result', { 
       const spawned = body.messages.some(message => message.role === 'tool' && message.tool_call_id === 'spawn-acceptance');
       res.writeHead(200, { 'content-type': 'text/event-stream' });
       let delta; let finish_reason = 'stop';
-      if (child) { childRequests++; delta = { content: 'CHILD_ACCEPTANCE_RESULT' }; }
+      if (child) {
+        childRequests++;
+        if (interrupt) { res.flushHeaders(); childEntered(); return; }
+        delta = { content: 'CHILD_ACCEPTANCE_RESULT' };
+      }
       else if (!spawned) {
         const tool = body.tools.find(tool => /(^|__)spawn_agent$/.test(tool.function.name));
         assert.ok(tool, 'Spawn tool must be available');
@@ -61,12 +67,32 @@ test('real app-server spawns a child and preserves its lifecycle and result', { 
       rpc.on('notification', message => {
         events.push(message);
         if (message.method === 'turn/completed' && message.params.threadId === thread.id) finishParent(message.params.turn);
-        if (message.method === 'item/completed' && message.params.threadId === thread.id && message.params.item.type === 'subAgentActivity' && message.params.item.kind === 'completed') resolve(message.params.item);
+        if (message.method === 'item/completed' && message.params.threadId === thread.id && message.params.item.type === 'subAgentActivity' && message.params.item.kind === (interrupt ? 'started' : 'completed')) resolve(message.params.item);
       });
     });
     completed.catch(() => {});
     await rpc.request('turn/start', { threadId: thread.id, input: [{ type: 'text', text: 'Create one child task for the acceptance check.' }] });
     const activity = await completed;
+    if (interrupt) {
+      await Promise.race([childWaiting, new Promise((_, reject) => rpc.once('closed', reject))]);
+      const childId = activity.agentThreadId;
+      assert.notEqual(childId, thread.id);
+      const before = await rpc.request('thread/read', { threadId: childId, includeTurns: true });
+      assert.equal(before.thread.id, childId);
+      const running = before.thread.turns.find(turn => turn.status === 'inProgress');
+      assert.ok(running, 'thread/read must expose a running child turn');
+      await rpc.request('turn/interrupt', { threadId: childId, turnId: running.id });
+      let after;
+      for (let attempt = 0; attempt < 50; attempt++) {
+        after = await rpc.request('thread/read', { threadId: childId, includeTurns: true });
+        if (after.thread.turns.find(turn => turn.id === running.id)?.status === 'interrupted') break;
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      assert.equal(after.thread.turns.find(turn => turn.id === running.id).status, 'interrupted');
+      assert.ok(!events.some(event => event.method === 'turn/completed' && event.params.threadId === thread.id && event.params.turn.status === 'interrupted'));
+      if (upstreamError) throw upstreamError;
+      return;
+    }
     const parentResult = await Promise.race([delivered, new Promise((_, reject) => rpc.once('closed', reject))]);
     assert.match(parentResult, /Agent message from "\/root\/acceptance" to "\/root"/);
     assert.match(parentResult, /CHILD_ACCEPTANCE_RESULT/);

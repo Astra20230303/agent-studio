@@ -1,5 +1,15 @@
 # Felix capability roadmap
 
+## Real child interruption acceptance
+
+The real app-server fixture now holds a model-spawned child's response open,
+reads its running turn through thread/read(includeTurns), interrupts that exact
+turn and polls until the returned status is interrupted. No child thread/resume
+is issued, matching the activity controls' request path. The parent is not
+interrupted. Both normal child completion and interruption tests pass against
+the real executable and local controlled model endpoint. This verifies execution
+cancellation, not hosted model quality or native Electron UI behavior.
+
 ## Git path and stash safety correction
 
 Audit found that the stash delivery removed literal pathspec protection from all
