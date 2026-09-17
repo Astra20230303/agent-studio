@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
   try {
     const page = await browser.newPage();
     await page.addInitScript(() => {
-      localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ mode: 'work', activeThreadId: 'a', threads: ['a', 'b'].map(id => ({ id, remoteId: id, cwd: 'D:/' + id, title: 'Chat ' + id, status: 'completed', messages: [], updatedAt: '' })) }));
+      localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ mode: 'work', activeThreadId: 'a', threads: ['a', 'b', 'c'].map(id => ({ id, remoteId: id, cwd: id === 'c' ? undefined : 'D:/' + id, title: 'Chat ' + id, status: 'completed', messages: [], updatedAt: '' })) }));
       window.__calls = []; window.__late = [];
       window.desktop = { getProjectRoot: async () => 'D:/wrong-default', listModels: async () => ({ ok: true, models: ['test'] }) };
       window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async (method, params) => {
@@ -35,6 +35,8 @@ const assert = require('node:assert/strict');
     const directories = await page.evaluate(() => window.__calls.filter(c => c.method === 'plugin/list').flatMap(c => c.params.cwds));
     assert.ok(directories.includes('D:/a')); assert.ok(directories.includes('D:/b'));
     assert.ok(!directories.includes('D:/wrong-default'));
+    await page.getByRole('button', { name: 'Chat c', exact: true }).click();
+    await page.waitForFunction(() => window.__calls.some(c => c.method === 'plugin/list' && c.params.cwds.length === 0));
     console.log('PASS: conversation plugin directory, workspace switch and stale catalog isolation');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
