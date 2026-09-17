@@ -1028,3 +1028,7 @@ backend re-enumerates membership and checks the shared Git directory before
 returning the project. Missing/prunable and bare entries cannot be opened.
 Real repository tests verify list/open and preservation of dirty source content;
 browser checks verify the selected entry request and conversation cwd. Build passes.
+Post-commit acceptance distinguishes the primary local checkout from linked
+worktrees by comparing Git/common directories. Locked worktrees remain openable.
+A delayed open response after panel dismissal is ignored, preventing unexpected
+conversation creation. Real Git tests and browser cancellation acceptance pass.

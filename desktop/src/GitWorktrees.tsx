@@ -8,6 +8,8 @@ export function GitWorktrees({ root, onOpen }: { root: string; onOpen: (project:
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const lock = useRef(false);
+  const generation = useRef(0);
+  useEffect(() => { generation.current++; return () => { generation.current++; }; }, [root]);
   useEffect(() => {
     let disposed = false;
     setLoading(true); setError('');
@@ -25,8 +27,10 @@ export function GitWorktrees({ root, onOpen }: { root: string; onOpen: (project:
   const open = async (path: string) => {
     if (lock.current) return;
     lock.current = true; setBusy(true); setError('');
+    const requestGeneration = generation.current;
     try {
       const result = await window.desktop?.workspaceGit?.({ root, action: 'open-worktree', path });
+      if (requestGeneration !== generation.current) return;
       if (!result?.ok) throw Error(result?.error || '无法打开工作树');
       onOpen(result.result);
     } catch (error) { setError(error instanceof Error ? error.message : String(error)); }

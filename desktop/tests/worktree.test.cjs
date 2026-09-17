@@ -12,6 +12,11 @@ test('worktree starts from HEAD and leaves dirty source unchanged', async t => {
   assert.equal(listed.worktrees.length,2);
   const entry = listed.worktrees.find(item=>item.branch==='codex/feature');
   assert.ok(entry);
+  const primary = listed.worktrees.find(item=>item.path!==entry.path);
+  assert.equal((await workspaceGit({root,action:'open-worktree',path:primary.path})).environment,'local');
+  git(['worktree','lock','--reason','keep workspace',project.path]);
+  const locked = (await workspaceGit({root,action:'worktrees'})).worktrees.find(item=>item.path===entry.path);
+  assert.equal(locked.locked,'keep workspace');
   const reopened = await workspaceGit({root,action:'open-worktree',path:entry.path});
   assert.equal(reopened.path,await fs.realpath(project.path));
   await assert.rejects(workspaceGit({root,action:'open-worktree',path:fixture}));

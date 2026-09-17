@@ -44,7 +44,9 @@ async function workspaceGit(input) {
     const destination = await fs.realpath(entry.path);
     const common = async directory => fs.realpath((await git(directory, ['rev-parse', '--path-format=absolute', '--git-common-dir'])).trim());
     if (await common(root) !== await common(destination)) throw Error('工作树已不属于当前仓库');
-    return { id: destination, path: destination, name: `${path.basename(destination)} · ${entry.branch || '游离 HEAD'}`, environment: 'worktree', git: { isRepository: true, branch: entry.branch || entry.head?.slice(0, 8) } };
+    const gitDirectory = await fs.realpath((await git(destination, ['rev-parse', '--absolute-git-dir'])).trim());
+    const environment = gitDirectory === await common(destination) ? 'local' : 'worktree';
+    return { id: destination, path: destination, name: `${path.basename(destination)} · ${entry.branch || '游离 HEAD'}`, environment, git: { isRepository: true, branch: entry.branch || entry.head?.slice(0, 8) } };
   }
   if (input.action === 'history') {
     const refs = (await git(root, ['for-each-ref', '--format=%(refname)', 'refs/heads/', 'refs/remotes/'])).trim().split('\n').filter(Boolean);
