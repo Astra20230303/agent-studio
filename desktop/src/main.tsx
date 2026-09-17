@@ -117,7 +117,11 @@ function App() {
           if (params.willRetry) runtime.apply(params.threadId, { type: 'activity', turnId: params.turnId, activity: '服务暂时不可用，正在重试…' });
           else update(next => {
             const thread = next.threads.find(item => item.remoteId === params.threadId);
-            if (thread) recordTurnFailure(thread, params.turnId, params.error);
+            if (thread) {
+              recordTurnFailure(thread, params.turnId, params.error);
+              const currentTurn = runtime.read(params.threadId)?.turnId;
+              if (currentTurn && currentTurn !== params.turnId) thread.status = 'running';
+            }
           });
         }
         if (message.method === 'turn/completed') {
@@ -126,7 +130,10 @@ function App() {
             const thread = next.threads.find(item => params.threadId ? item.remoteId === params.threadId : item.id === activeThreadRef.current);
             if (!thread) return;
             finishTools(thread, params.turn?.id, params.turn?.status === 'failed');
-            if (params.turn?.error || params.turn?.status === 'failed') recordTurnFailure(thread, params.turn?.id, params.turn?.error);
+            if (params.turn?.error || params.turn?.status === 'failed') {
+              recordTurnFailure(thread, params.turn?.id, params.turn?.error);
+              if (runtime.read(params.threadId)?.turnId) thread.status = 'running';
+            }
             else thread.status = runtime.read(params.threadId)?.turnId ? 'running' : 'completed';
           });
         }

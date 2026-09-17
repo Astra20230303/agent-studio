@@ -81,5 +81,15 @@ mocked bridge cover two concurrent conversations, cross-thread completion,
 steering payloads/rejection, cancellation routing and resumed active turns.
 Commands: `node --test tests/turn-runtime.test.cjs`,
 `node tests/turn-lifecycle-ui.cjs` (Vite port 5318 or FELIX_TEST_URL).
+Post-commit acceptance found that a late failed completion could mark a newer
+running turn as failed. The fix keeps the historical error while preserving the
+current running status. Expanded browser checks also pass stop failures, a
+completion arriving before the start response, and disconnect control cleanup.
+Production build and 15 focused runtime/message/tool/error tests pass.
+The existing `sidebar-ui.cjs` suite stops at line 81: its `.sidebar-nav` selector
+also includes the footer Settings button but expects only three navigation
+buttons. Both selector and footer predate this feature (baseline 5e9f023);
+the full sidebar suite is therefore not claimed as passing.
+
 Still pending in phase 2: explicit next-turn queue, reconnect UI/backoff and live
 Electron/model acceptance. No claim of full phase 2 completion.

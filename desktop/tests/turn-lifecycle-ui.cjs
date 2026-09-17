@@ -11,6 +11,7 @@ const assert = require('node:assert/strict');
       localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ model: 'test', activeThreadId: 'a', threads: ['a', 'b'].map(id => ({ id, remoteId: id, title: `Thread ${id}`, status: 'completed', pinned: false, archived: false, messages: [], updatedAt: new Date().toISOString() })) }));
       window.__requests = [];
       window.__turns = {};
+      window.__sequence = 0;
       window.desktop = { providerStatus: async () => ({ keyConfigured: true }), listModels: async () => ({ ok: true, models: ['test'] }), getProjectRoot: async () => 'D:\\workspace' };
       window.codex = {
         connect: async () => ({ ok: true }), notify: async () => {},
@@ -18,7 +19,7 @@ const assert = require('node:assert/strict');
           window.__requests.push({ method, params });
           if (method === 'thread/resume') return { ok: true, result: { thread: { id: params.threadId, turns: window.__turns[params.threadId] ? [{ id: window.__turns[params.threadId], status: 'inProgress', items: [] }] : [] } } };
           if (method === 'turn/start') {
-            const id = `${params.threadId}-turn`;
+            const id = `${params.threadId}-turn${window.__sequence++ < 2 ? '' : '-' + window.__sequence}`;
             window.__turns[params.threadId] = id;
             window.__notify({ method: 'turn/started', params: { threadId: params.threadId, turn: { id } } });
             if (window.__instant) {
@@ -32,7 +33,7 @@ const assert = require('node:assert/strict');
           return { ok: true, result: { data: [] } };
         },
         onNotification: fn => { window.__notify = fn; return () => {}; }, onServerRequest: () => () => {},
-        onError: () => () => {}, onStderr: () => () => {}, onClosed: () => () => {},
+        onError: () => () => {}, onStderr: () => () => {}, onClosed: fn => { window.__close = fn; return () => {}; },
       };
     });
     await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
@@ -68,7 +69,26 @@ const assert = require('node:assert/strict');
     await stop.waitFor({ state: 'hidden' });
     await select('b');
     await stop.waitFor();
+    await page.evaluate(() => { window.__failStop = true; });
+    await stop.click();
+    await page.getByText('停止失败：Stop rejected', { exact: true }).waitFor();
+    assert.equal(await stop.isVisible(), true);
+    // An old turn failure must not turn the currently running thread into failed.
+    await page.evaluate(() => window.__notify({ method: 'turn/completed', params: { threadId: 'b', turn: { id: 'older-b-turn', status: 'failed', error: { message: 'Old failure' } } } }));
+    await page.waitForTimeout(50);
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.find(t => t.id === 'b').status), 'running');
+    await select('a');
+    await page.evaluate(() => { window.__instant = true; });
+    await input.fill('Fast completion');
+    await page.getByRole('button', { name: '发送', exact: true }).click();
+    await page.waitForFunction(() => window.__requests.filter(r => r.method === 'turn/start').length === 3);
+    await stop.waitFor({ state: 'hidden' });
+    await select('b');
+    await stop.waitFor();
+    await page.evaluate(() => window.__close());
+    await stop.waitFor({ state: 'hidden' });
+    assert.equal(await page.getByRole('button', { name: '发送', exact: true }).isDisabled(), true);
     assert.deepEqual(errors, []);
-    console.log('PASS: concurrent threads, isolated completion, steering, retained rejected draft, correct stop target, resume');
+    console.log('PASS: concurrent threads, steering/rejection, stop/rejection, resume, late failures, early completion, disconnect');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
