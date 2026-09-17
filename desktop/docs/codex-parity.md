@@ -1637,3 +1637,8 @@ after connection succeeds. In-progress setup subscriptions are cleaned up on
 disconnect and retain the unknown-result error. Browser restart acceptance checks
 unknown while stopped and ready after reconnection, alongside draft preservation
 and busy-turn protection. Sandbox workflow regression and production build pass.
+Post-commit race acceptance delays a readiness response across invalidation and
+a newer query: old ready cannot overwrite new notConfigured. A second test
+disconnects pending setup, verifies both subscriptions are removed, and delivers
+late completion/acknowledgement; status stays unknown with the disconnect error.
+Both pass without additional product correction.
