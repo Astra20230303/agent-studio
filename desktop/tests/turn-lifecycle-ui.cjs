@@ -19,6 +19,7 @@ const assert = require('node:assert/strict');
           window.__requests.push({ method, params });
           if (method === 'thread/resume') return { ok: true, result: { thread: { id: params.threadId, turns: window.__turns[params.threadId] ? [{ id: window.__turns[params.threadId], status: 'inProgress', items: [] }] : [] } } };
           if (method === 'turn/start') {
+            if (window.__delayStart) await new Promise(resolve => { window.__releaseStart = resolve; });
             const id = `${params.threadId}-turn${window.__sequence++ < 2 ? '' : '-' + window.__sequence}`;
             window.__turns[params.threadId] = id;
             window.__notify({ method: 'turn/started', params: { threadId: params.threadId, turn: { id } } });
@@ -95,6 +96,19 @@ const assert = require('node:assert/strict');
     await page.reload();
     await select('b');
     assert.equal(await input.inputValue(), 'Keep this draft');
+    await page.evaluate(() => { window.__delayStart = true; });
+    await input.fill('Delayed B request');
+    await page.getByRole('button', { name: '发送', exact: true }).click();
+    await page.waitForFunction(() => !!window.__releaseStart);
+    await input.fill('Edited while sending');
+    await select('a');
+    await input.fill('Unrelated A draft');
+    await page.evaluate(() => window.__releaseStart());
+    await page.waitForFunction(() => window.__turns.b);
+    assert.equal(await input.inputValue(), 'Unrelated A draft');
+    await select('b');
+    assert.equal(await input.inputValue(), 'Edited while sending');
+    await stop.waitFor();
     assert.deepEqual(errors, []);
     console.log('PASS: concurrent threads, steering/rejection, stop/rejection, resume, late failures, early completion, disconnect');
   } finally { await browser.close(); }

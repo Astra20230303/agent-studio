@@ -101,3 +101,6 @@ creating/forking a thread retain the source draft. Successful sends clear only
 the submitted text in its source draft, preserving edits made while waiting.
 Browser acceptance covers separate drafts and refresh recovery. Plugin and
 attachment draft persistence is not included in this increment.
+Post-commit acceptance also passes a deferred send response after the user edits
+the source draft and switches to another thread: both edited drafts survive and
+the source thread retains its running state. No additional product fix was needed.
