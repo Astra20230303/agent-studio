@@ -2,7 +2,7 @@ const { execFile } = require('node:child_process');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 function git(cwd, args) {
-  return new Promise((resolve, reject) => execFile('git', ['--no-optional-locks', '-c', 'core.quotepath=false', ...args], { cwd, windowsHide: true, encoding: 'utf8', timeout: 15000, maxBuffer: 4 * 1024 * 1024 }, (error, stdout, stderr) => error ? reject(Error(stderr.trim() || error.message)) : resolve(stdout)));
+  return new Promise((resolve, reject) => execFile('git', ['--no-optional-locks', '--literal-pathspecs', '-c', 'core.quotepath=false', ...args], { cwd, windowsHide: true, encoding: 'utf8', timeout: 15000, maxBuffer: 4 * 1024 * 1024 }, (error, stdout, stderr) => error ? reject(Error(stderr.trim() || error.message)) : resolve(stdout)));
 }
 function parseStatus(output) {
   const records = output.split('\0'); const files = [];
@@ -20,7 +20,7 @@ async function workspaceGit(input) {
   const root = (await git(cwd, ['rev-parse', '--show-toplevel'])).trim();
   if (input.action === 'status') {
     const branch = (await git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).catch(() => git(root, ['rev-parse', '--short', 'HEAD']))).trim();
-    return { root, branch, files: parseStatus(await git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=normal'])) };
+    return { root, branch, files: parseStatus(await git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all'])) };
   }
   if (input.action !== 'diff' || typeof input.path !== 'string' || !input.path) throw Error('无效差异请求');
   const entries = parseStatus(await git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all']));

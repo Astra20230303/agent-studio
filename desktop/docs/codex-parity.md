@@ -216,3 +216,6 @@ use argument arrays, bounded output/time and disable external diff/textconv.
 Build, workspace-git.test.cjs (real temporary repository) and git-panel-ui.cjs
 (mocked bridge) pass. This increment is read-only; staging, commits, worktrees
 and native Electron integration are still pending.
+Post-commit acceptance fixes untracked directories to list individual files,
+and enables literal Git pathspecs so special filenames cannot select unrelated
+paths. Real-repository tests include a nested untracked filename with brackets.

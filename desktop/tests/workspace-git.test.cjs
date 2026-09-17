@@ -17,8 +17,12 @@ test('real repository separates staged, unstaged and untracked content', async t
   await fs.writeFile(path.join(root, 'a.txt'), 'staged\n'); git(['add', '.']);
   await fs.writeFile(path.join(root, 'a.txt'), 'working\n');
   await fs.writeFile(path.join(root, 'new file.txt'), 'untracked\n');
+  await fs.mkdir(path.join(root, 'new-dir'));
+  await fs.writeFile(path.join(root, 'new-dir', '[literal].txt'), 'nested\n');
   const status = await workspaceGit({ root, action: 'status' });
   assert.equal(status.files.find(file => file.path === 'a.txt').index, 'M');
+  assert.ok(status.files.some(file => file.path === 'new-dir/[literal].txt'));
+  assert.match((await workspaceGit({ root, action: 'diff', path: 'new-dir/[literal].txt' })).diff, /\+nested/);
   assert.match((await workspaceGit({ root, action: 'diff', path: 'a.txt', staged: true })).diff, /\+staged/);
   assert.match((await workspaceGit({ root, action: 'diff', path: 'a.txt', staged: false })).diff, /\+working/);
   assert.match((await workspaceGit({ root, action: 'diff', path: 'new file.txt' })).diff, /\+untracked/);
