@@ -14,14 +14,16 @@ const fs = require('node:fs');
     await page.exposeFunction('__writeTerminal', (id, data) => manager.write(id, data));
     await page.exposeFunction('__resizeTerminal', (id, cols, rows) => manager.resize(id, cols, rows));
     await page.exposeFunction('__closeTerminal', id => manager.close(id));
-    await page.addInitScript(cwd => {
-      localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeThreadId: 'terminal-test', model: 'test', threads: [{ id: 'terminal-test', title: 'Terminal test', cwd, messages: [], updatedAt: new Date().toISOString() }] }));
+    await page.addInitScript(({ cwd, second }) => {
+      const listeners = new Set();
+      window.__terminalEvent = event => listeners.forEach(listener => listener(event));
+      localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeThreadId: 'terminal-test', model: 'test', threads: [{ id: 'terminal-test', title: 'Terminal test', cwd, messages: [], updatedAt: new Date().toISOString() }, { id: 'second-project', title: 'Second project', cwd: second, messages: [], updatedAt: new Date().toISOString() }] }));
       window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }), terminal: {
         create: window.__createTerminal, write: window.__writeTerminal, resize: window.__resizeTerminal, close: window.__closeTerminal,
-        onData: listener => { window.__terminalEvent = listener; return () => { window.__terminalEvent = undefined; }; }
+        onData: listener => { listeners.add(listener); return () => listeners.delete(listener); }
       }};
       window.codex = { connect: async () => ({ ok: true }), request: async () => ({ ok: true, result: { data: [] } }), notify: async () => ({}), onNotification: () => () => {}, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
-    }, process.cwd());
+    }, { cwd: process.cwd(), second: path.resolve('..') });
     await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
     await page.getByRole('button', { name: '打开终端', exact: true }).click();
     await page.locator('.terminal-panel').getByRole('status').filter({ hasText: '运行中' }).waitFor();
@@ -44,6 +46,21 @@ const fs = require('node:fs');
     assert.equal(ids.length, 1);
     await page.getByRole('button', { name: '隐藏终端' }).click();
     await page.getByRole('button', { name: '打开终端' }).click();
+    assert.deepEqual([...manager.sessions.keys()], ids);
+    await page.getByRole('button', { name: 'Second project', exact: true }).click();
+    await page.getByRole('button', { name: '新建终端', exact: true }).click();
+    await page.getByRole('tabpanel').getByRole('status').filter({ hasText: '运行中' }).waitFor();
+    assert.equal(manager.sessions.size, 2);
+    assert.equal(await page.locator('.terminal-session:not([hidden]) header span').getAttribute('title'), path.resolve('..'));
+    await page.locator('.terminal-session:not([hidden]) .xterm-helper-textarea').focus();
+    await page.keyboard.type("Write-Output ('SECOND_' + 'SESSION')");
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.querySelector('.terminal-session:not([hidden]) .xterm-screen')?.textContent?.includes('SECOND_SESSION'));
+    await page.getByRole('tab', { name: '终端 1', exact: true }).click();
+    assert.equal(await page.locator('.terminal-session:not([hidden]) header span').getAttribute('title'), process.cwd());
+    assert.equal(await page.locator('.terminal-session:not([hidden]) .xterm-screen').evaluate(node => node.textContent.includes('SECOND_SESSION')), false);
+    await page.getByRole('tab', { name: '终端 2', exact: true }).click();
+    await page.getByRole('button', { name: '关闭当前终端', exact: true }).click();
     assert.deepEqual([...manager.sessions.keys()], ids);
     const composer = await page.locator('.composer').boundingBox();
     const panel = await page.locator('.terminal-panel').boundingBox();

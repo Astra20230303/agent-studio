@@ -312,3 +312,9 @@ Real-shell UI acceptance additionally verifies Ctrl+C recovery and composer
 visibility. Terminal assets load on demand; the main bundle is back below 500 KB.
 Multiple terminals and project switching remain future work. The existing whole
 app mobile layout remains cramped; screenshots only establish terminal framing.
+
+Terminal tabs increment: up to eight independent terminal tabs retain their shell
+and output while hidden. New tabs use the currently selected conversation's cwd;
+existing tabs retain their original directory. Closing a tab releases only its
+shell. Real PowerShell browser acceptance covers two isolated outputs, retained
+session IDs and directory binding across conversation changes. Build passes.

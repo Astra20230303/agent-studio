@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { Play, Square, X } from 'lucide-react';
+import { Play, Plus, Square, X, Trash2 } from 'lucide-react';
 import '@xterm/xterm/css/xterm.css';
 import './terminal.css';
 export type TerminalEvent = { id: string; type: 'data' | 'exit'; data?: string; code?: number };
@@ -13,6 +13,23 @@ export type TerminalBridge = {
   onData: (listener: (event: TerminalEvent) => void) => () => void;
 };
 export function TerminalPanel({ cwd, open, onClose }: { cwd?: string; open: boolean; onClose: () => void }) {
+  const next = useRef(2);
+  const [tabs, setTabs] = useState(() => [{ id: 1, cwd }]);
+  const [selected, setSelected] = useState(1);
+  const add = () => { const id = next.current++; setTabs(current => [...current, { id, cwd }]); setSelected(id); };
+  const remove = () => {
+    const remaining = tabs.filter(tab => tab.id !== selected);
+    setTabs(remaining); setSelected(remaining[remaining.length - 1]?.id || 0);
+  };
+  return <section className="terminal-panel" hidden={!open} aria-label="终端">
+    <div className="terminal-tabs"><div role="tablist" aria-label="终端会话">{tabs.map(tab => <button key={tab.id} role="tab" id={`terminal-tab-${tab.id}`} aria-controls={`terminal-session-${tab.id}`} aria-selected={selected === tab.id} title={tab.cwd} onClick={() => setSelected(tab.id)}>终端 {tab.id}</button>)}</div>
+      <button title="新建终端" aria-label="新建终端" disabled={tabs.length >= 8} onClick={add}><Plus size={16} /></button>
+      <button title="关闭当前终端" aria-label="关闭当前终端" disabled={!tabs.length} onClick={remove}><Trash2 size={16} /></button>
+      <button title="隐藏终端" aria-label="隐藏终端" onClick={onClose}><X size={16} /></button></div>
+    {tabs.map(tab => <TerminalSession key={tab.id} id={tab.id} cwd={tab.cwd} open={open && selected === tab.id} />)}
+  </section>;
+}
+function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: boolean }) {
   const host = useRef<HTMLDivElement>(null);
   const terminal = useRef<Terminal | null>(null);
   const fit = useRef<FitAddon | null>(null);
@@ -55,11 +72,11 @@ export function TerminalPanel({ cwd, open, onClose }: { cwd?: string; open: bool
     };
   }, [cwd, revision]);
   useEffect(() => { if (open) { fit.current?.fit(); terminal.current?.focus(); } }, [open]);
-  return <section className="terminal-panel" hidden={!open} aria-label="终端">
+  return <section className="terminal-session" hidden={!open} role="tabpanel" id={`terminal-session-${id}`} aria-labelledby={`terminal-tab-${id}`}>
     <header><strong>终端</strong><span title={cwd}>{cwd || '当前项目'}</span><small role="status">{status}</small>
       <button title="重新启动终端" aria-label="重新启动终端" disabled={running} onClick={() => setRevision(value => value + 1)}><Play size={16} /></button>
       <button title="终止终端" aria-label="终止终端" disabled={!running} onClick={() => { if (session.current) void window.desktop?.terminal?.close(session.current).catch(failure => setError(String(failure))); }}><Square size={16} /></button>
-      <button title="隐藏终端" aria-label="隐藏终端" onClick={onClose}><X size={16} /></button></header>
+      </header>
     {error && <p role="alert">{error}</p>}<div ref={host} className="terminal-host" />
   </section>;
 }
