@@ -2,6 +2,7 @@ import { ArtifactLink } from './Artifacts';
 import { UserInputDialog } from './UserInputDialog';
 import { useTurnRuntime } from './useTurnRuntime';
 import { useThreadDraft } from './useThreadDraft';
+import { useThreadList } from './useThreadList';
 import { useTurnQueue } from './useTurnQueue';
 import { TurnQueue } from './TurnQueuePanel';
 import { PlanPanel } from './PlanPanel';
@@ -32,7 +33,7 @@ import { applyToolEvent, finishTools, restoreMessages } from './toolActivity';
 import { ToolActivityGroup, groupMessages } from './ToolActivityView';
 import { MessageActions } from './ReplyActions';
 import { branchSnapshot, isFinalReply, replyText } from './messageActions';
-import { archiveThread, connectCodex, deleteThread, forkThread, interruptTurn, listThreadItems, listThreadTurns, listThreads, resumeThread, setThreadName, startThread, startTurn, subscribeCodex } from './codexClient';
+import { archiveThread, connectCodex, deleteThread, forkThread, interruptTurn, listThreadItems, listThreadTurns, resumeThread, setThreadName, startThread, startTurn, subscribeCodex } from './codexClient';
 import { ExtensionsPage, ExtensionIcon } from './ExtensionsPage';
 import { ThreadButton } from './ThreadButton';
 import { ModePicker } from './ModePicker';
@@ -83,6 +84,7 @@ function App() {
   const [attachments, setAttachments] = useAttachmentDraft(state.activeThreadId);
   const [notice, setNotice] = useState('');
   const [codexStatus, setCodexStatus] = useState<'connecting' | 'connected' | 'offline' | 'error'>('connecting');
+  const threadList = useThreadList(codexStatus === 'connected', setState);
   const reconnectRef = useRef<() => void>(() => {});
   const [connectionError, setConnectionError] = useState('');
   const [remoteThreadId, setRemoteThreadId] = useState<string>();
@@ -107,7 +109,7 @@ function App() {
   const runningTurnId = active?.remoteId ? runtime.threads[active.remoteId]?.turnId : undefined;
   const activity = active?.remoteId ? runtime.threads[active.remoteId]?.activity : undefined;
   const pending = pendingThreads.includes(active?.id || '') || !!active?.remoteId && restoringThread === active.remoteId;
-  const threads = useMemo(() => state.threads.filter(thread => !thread.archived && thread.title.toLowerCase().includes(search.toLowerCase())).slice().reverse(), [state.threads, search]);
+  const threads = useMemo(() => state.threads.filter(thread => !thread.archived && thread.title.toLowerCase().includes(search.toLowerCase())).slice().sort((a, b) => Number(b.pinned) - Number(a.pinned) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt)), [state.threads, search]);
   useEffect(() => { saveState(state); document.documentElement.dataset.theme = state.theme; }, [state]);
   useEffect(() => {
     window.desktop?.providerStatus?.().then((provider: any) => {
@@ -120,18 +122,7 @@ function App() {
     const recovery = createConnectionRecovery({
       connect: connectCodex,
       status: (status, error) => { setCodexStatus(status); setConnectionError(error || ''); },
-      connected: () => {
-        void listThreads().then(listed => {
-          if (disposed) return;
-          const remote = listed?.data || listed?.threads || [];
-          update(next => {
-            for (const item of remote) {
-              if (next.threads.some(local => local.remoteId === item.id)) continue;
-              next.threads.push({ id: `remote-${item.id}`, remoteId: item.id, title: item.name || item.preview || 'Felix 对话', status: item.status?.type === 'active' ? 'running' : 'completed', pinned: false, archived: false, messages: [], updatedAt: new Date((item.updatedAt || 0) * 1000).toISOString() });
-            }
-          });
-        }).catch(error => { if (!disposed) setNotice(`会话列表加载失败：${error.message}`); });
-      },
+      connected: () => {},
     });
     reconnectRef.current = recovery.start;
     const cleanup = subscribeCodex({
@@ -447,6 +438,8 @@ function App() {
         <section aria-labelledby="sidebar-recent"><h2 id="sidebar-recent" className="section">最近</h2>
           {threads.map(thread => <ThreadButton key={thread.id} thread={thread} selected={page === 'chat' && state.activeThreadId === thread.id} onSelect={() => { void selectThread(thread); }} onTogglePin={() => togglePinned(thread.id)} onArchive={() => { void archiveThreadFromSidebar(thread.id); }} onDelete={() => { void deleteThreadFromSidebar(thread.id); }} />)}
           {threads.length === 0 && <div className="empty">{search ? '没有匹配的会话' : '暂无会话'}</div>}
+          {threadList.error && <p role="alert">{threadList.error}</p>}
+          {(threadList.hasMore || threadList.error || threadList.loading) && <button disabled={threadList.loading || codexStatus !== 'connected'} onClick={() => void threadList.loadMore()}>{threadList.loading ? '正在加载会话…' : threadList.error ? '重试加载会话' : '加载更多会话'}</button>}
         </section>
       </div>
       <div className="sidebar-footer"><button className="sidebar-nav" aria-current={page === 'settings' ? 'page' : undefined} onClick={() => setPage('settings')}><Badge aria-hidden="true" /><span>设置</span></button></div>

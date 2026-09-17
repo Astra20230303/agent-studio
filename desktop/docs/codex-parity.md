@@ -411,3 +411,11 @@ and audio playback remain unverified; MCP apps/resources are still pending.
 Acceptance correction scopes media failure to its source so a replacement image
 can render, and serializes structured output only when expanded. Browser acceptance
 verifies invalid PNG followed by a valid replacement; build passes.
+
+## Thread inventory pagination
+
+Sidebar inventory now consumes thread/list cursors through explicit load-more and
+retry controls, deduplicates pages, preserves existing local records and sorts by
+pin/recency. Connection generations ignore stale list responses. Build and mocked
+browser tests pass pagination, failure/retry, deduplication and order. Search still
+covers loaded threads only; remote search and archived inventory remain pending.
