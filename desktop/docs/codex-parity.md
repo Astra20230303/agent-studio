@@ -957,3 +957,6 @@ do not offer editing. Build, filesystem and browser acceptance cover UTF-8 write
 external changes, path boundaries, conflict feedback, retry and cancellation.
 The hash checks are optimistic, not a cross-process lock: another writer can
 still race between the final check and rename. A full IDE editor is not provided.
+Post-commit acceptance covers CRLF files: editing normalizes the textarea view
+but saving restores consistent original CRLF line endings. Unchanged buffers
+remain clean; mixed line-ending files normalize to LF when edited.
