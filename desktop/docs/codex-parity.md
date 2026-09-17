@@ -968,3 +968,5 @@ edits. A successful reload updates the baseline content, hash and line-ending
 preference together; a failed read retains the entire buffer. Build and browser
 acceptance cover canceled discard, read failure, successful reload and subsequent
 save using the new hash rather than the stale revision.
+Post-commit acceptance changes the disk response to binary and truncated text;
+both reloads retain the dirty buffer and report why editing cannot be refreshed.

@@ -48,6 +48,13 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: '重新读取磁盘文件' }).click();
     await page.getByRole('alert').filter({ hasText: 'Read failed' }).waitFor();
     assert.equal(await editor.inputValue(), 'keep until reload succeeds');
+    for (const latest of [{ binary: true }, { text: 'partial', revision: 'partial-hash', truncated: true }]) {
+      await page.evaluate(latest => { window.__readFail = false; window.__latest = latest; }, latest);
+      page.once('dialog', dialog => dialog.accept());
+      await page.getByRole('button', { name: '重新读取磁盘文件' }).click();
+      await page.getByRole('alert').filter({ hasText: '当前编辑内容已保留' }).waitFor();
+      assert.equal(await editor.inputValue(), 'keep until reload succeeds');
+    }
     await page.evaluate(() => { window.__readFail = false; window.__latest = { text: 'disk\nversion', revision: 'disk-revision' }; });
     page.once('dialog', dialog => dialog.accept());
     await page.getByRole('button', { name: '重新读取磁盘文件' }).click();
