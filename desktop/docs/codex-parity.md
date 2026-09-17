@@ -9,6 +9,10 @@ not editable. Failed persistence keeps the editor draft and offers retry. Saved
 or cancelled edits require explicit queue resume. Full chat browser acceptance
 checks storage failure/retry and the actual revised turn/start text; existing FIFO
 and recovery flow and production build pass.
+Post-commit acceptance verifies blank text cannot save without attachments/skills,
+and cancelling a changed draft preserves the original persisted text in paused
+state. The full queue browser flow passes with these additional checks. No product
+correction was needed for these cases.
 
 ## Real child interruption acceptance
 

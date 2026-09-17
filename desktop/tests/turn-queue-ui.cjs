@@ -49,6 +49,16 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: '重试保存队列', exact: true }).waitFor({ state: 'hidden' });
 
     for (const text of ['first', 'second', 'cancel-me']) { await input.fill(text); await add.click(); }
+    await page.getByRole('button', { name: '编辑排队消息：second', exact: true }).click();
+    const cancelledEdit = page.getByRole('dialog', { name: '编辑排队消息', exact: true });
+    await cancelledEdit.getByRole('textbox').fill('');
+    assert.ok(await cancelledEdit.getByRole('button', { name: '保存排队消息' }).isDisabled());
+    await cancelledEdit.getByRole('textbox').fill('discard this draft');
+    await cancelledEdit.getByRole('button', { name: '取消编辑' }).click();
+    assert.deepEqual(await page.evaluate(() => {
+      const item = JSON.parse(localStorage.getItem('felix-turn-queue-v1')).find(item => item.text === 'second');
+      return { text: item.text, status: item.status };
+    }), { text: 'second', status: 'paused' });
     await page.getByRole('button', { name: '编辑排队消息：first', exact: true }).click();
     const edit = page.getByRole('dialog', { name: '编辑排队消息', exact: true });
     await edit.getByRole('textbox', { name: '排队消息正文' }).fill('edited first');
