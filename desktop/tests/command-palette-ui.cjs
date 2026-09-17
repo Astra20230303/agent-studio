@@ -25,6 +25,17 @@ const assert = require('node:assert/strict');
     assert.equal(await input.inputValue(), 'Keep draft');
     await page.keyboard.press('Control+Shift+P'); await search.fill('git'); await page.keyboard.press('Enter');
     await page.getByRole('region', { name: 'Git 变更', exact: true }).waitFor();
+    await page.keyboard.press('Control+Shift+P');
+    await search.fill(''); await page.keyboard.press('ArrowDown');
+    assert.equal(await search.getAttribute('aria-activedescendant'), 'app-command-search');
+    await search.evaluate(el => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true })));
+    assert.ok(await dialog.isVisible());
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.activeElement?.id === 'sidebar-search');
+    await page.setViewportSize({ width: 390, height: 700 });
+    await page.keyboard.press('Control+Shift+P'); await dialog.waitFor();
+    const bounds = await dialog.boundingBox(); assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= 390);
+    await page.keyboard.press('Escape');
     console.log('PASS: command search, empty result, Escape focus, actual new conversation and Git navigation');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

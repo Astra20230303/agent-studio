@@ -1789,3 +1789,5 @@ remains low. The expanded browser flow passes without further product changes.
 ## 可搜索应用命令面板
 
 计划与交付：标题栏或 Ctrl/Command+Shift+P 打开命令面板，中文名称与英文关键词筛选九项现有操作，支持方向键、Enter 执行和 Esc 取消。原生模态框隔离背景输入，取消恢复原焦点。浏览器验证搜索、空结果、新建会话草稿保留及 Git 导航；生产构建通过。
+
+提交后验收：方向键选择后 Enter 聚焦会话搜索；模拟组合输入 Enter 不执行；390px 窗口中命令对话框未越界。命令面板扩展验收与已有应用快捷键回归通过，无额外产品修正。macOS 和原生 IME 仍需实机验证。
