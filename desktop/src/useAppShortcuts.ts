@@ -4,7 +4,7 @@ export function useAppShortcuts(actions: { newChat: () => void; search: () => vo
   useEffect(() => {
     const handle = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.repeat || event.isComposing || event.keyCode === 229 || event.altKey || !(event.ctrlKey || event.metaKey)) return;
-      if (document.querySelector('[aria-modal="true"]') || (event.target as Element)?.closest?.('.xterm')) return;
+      if (document.querySelector('[aria-modal="true"], [role="dialog"], dialog[open]') || (event.target as Element)?.closest?.('.xterm')) return;
       const key = event.key.toLowerCase();
       const action = key === 'k' && !event.shiftKey ? actions.search : event.shiftKey && key === 'o' ? actions.newChat : event.shiftKey && key === 'l' ? actions.composer : undefined;
       if (action) { event.preventDefault(); action(); }
