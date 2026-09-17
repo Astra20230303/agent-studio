@@ -81,6 +81,7 @@ async function workspaceGit(input) {
     return { root, branch, detached: !symbolic, remotes, ...await tracking(root), files: parseStatus(await git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all'])) };
   }
   if (input.action === 'commit') {
+    if ((await git(root, ['diff', '--name-only', '--diff-filter=U', '-z'])).length) throw Error('请先解决并暂存所有冲突文件');
     if (typeof input.message !== 'string' || !input.message.trim() || input.message.length > 10000 || input.message.includes('\0')) throw Error('请填写有效提交说明');
     const staged = await git(root, ['diff', '--cached', '--name-only', '-z']);
     if (!staged) throw Error('没有已暂存的变更');

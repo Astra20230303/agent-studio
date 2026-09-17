@@ -599,3 +599,14 @@ conflict-resolution workflows remain pending.
 Post-commit real-repository acceptance also verifies missing-upstream and detached
 HEAD rejection and preservation of an unrelated staged file during a successful
 fast-forward. All checks pass without additional product changes.
+
+## Git conflict assistance
+
+The Git panel recognizes all seven unmerged porcelain statuses, distinguishes
+them from staged changes, blocks commits with unresolved index entries and offers
+an explicit conflict-assistance draft containing workspace, branch and quoted
+file paths. Existing draft text is preserved and nothing is submitted automatically.
+Build, browser and real merge tests pass conflict identification, commit rejection,
+draft handoff, staging resolved content and completing a two-parent merge commit.
+This is an assistance entry point; automatic resolution and merge/rebase controls
+remain pending.

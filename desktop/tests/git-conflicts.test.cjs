@@ -1,0 +1,28 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const { execFileSync } = require('node:child_process');
+const { workspaceGit } = require('../electron/workspace-git.cjs');
+const { isConflict, conflictPrompt } = require('../src/gitConflicts.ts');
+test('all unmerged states are identified; ordinary changes are excluded', () => {
+  for (const status of ['DD', 'AU', 'UD', 'UA', 'DU', 'AA', 'UU']) assert.ok(isConflict({ index: status[0], working: status[1] }));
+  for (const status of [' M', 'M ', '??', 'D ', 'A ']) assert.equal(isConflict({ index: status[0], working: status[1] }), false);
+  assert.match(conflictPrompt('D:/repo', 'main', [{ path: 'a\nb.txt', index: 'U', working: 'U' }]), /"a\\nb.txt"/);
+});
+test('real merge conflict blocks commit until resolved and staged', async () => {
+  const base = path.resolve(__dirname, '../../.project-cache/tmp'); await fs.mkdir(base, { recursive: true });
+  const root = await fs.mkdtemp(path.join(base, 'git-conflict-'));
+  const git = args => execFileSync('git', args, { cwd: root, windowsHide: true, stdio: 'pipe' }).toString().trim();
+  git(['init', '-b', 'main']); git(['config', 'user.name', 'Test']); git(['config', 'user.email', 'test@example.invalid']);
+  const commit = async text => { await fs.writeFile(path.join(root, 'a.txt'), text); git(['add', '.']); git(['commit', '-m', text]); };
+  await commit('base'); git(['checkout', '-b', 'other']); await commit('other'); git(['checkout', 'main']); await commit('main');
+  assert.throws(() => git(['merge', 'other']));
+  assert.equal((await workspaceGit({ root, action: 'status' })).files.filter(isConflict).length, 1);
+  await assert.rejects(workspaceGit({ root, action: 'commit', message: 'premature' }), /冲突/);
+  await fs.writeFile(path.join(root, 'a.txt'), 'main and other');
+  await workspaceGit({ root, action: 'stage', path: 'a.txt' });
+  assert.equal((await workspaceGit({ root, action: 'status' })).files.filter(isConflict).length, 0);
+  await workspaceGit({ root, action: 'commit', message: 'resolve both' });
+  assert.equal(git(['rev-list', '--parents', '-n', '1', 'HEAD']).split(' ').length, 3);
+});
