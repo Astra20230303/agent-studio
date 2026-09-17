@@ -30,7 +30,22 @@ export function upsertTool(thread: Thread, item: any, turnId?: string, completed
 }
 
 export function applyToolEvent(thread: Thread, method: string, params: any) {
-  if (method === 'item/started' || method === 'item/completed') {
+  if (method === 'item/reasoning/summaryTextDelta' || method === 'item/reasoning/summaryPartAdded') {
+    const index = params.summaryIndex;
+    if (typeof params.itemId !== 'string' || !Number.isSafeInteger(index) || index < 0 || index > 1024) return;
+    if (method.endsWith('summaryTextDelta') && typeof params.delta !== 'string') return;
+    let message = thread.messages.find(message => message.id === `tool-${params.itemId}`);
+    if (message?.tool && (message.tool.rawRecord?.type !== 'reasoning' || message.tool.status !== 'inProgress')) return;
+    if (!message) {
+      upsertTool(thread, { id: params.itemId, type: 'reasoning', summary: [] }, params.turnId);
+      message = thread.messages.find(message => message.id === `tool-${params.itemId}`);
+    }
+    const item = message?.tool?.rawRecord?.item;
+    if (!item) return;
+    const summary = Array.isArray(item.summary) ? [...item.summary] : [];
+    summary[index] = (typeof summary[index] === 'string' ? summary[index] : '') + (method.endsWith('summaryTextDelta') ? params.delta : '');
+    item.summary = summary;
+  } else if (method === 'item/started' || method === 'item/completed') {
     upsertTool(thread, params.item, params.turnId, method === 'item/completed');
   } else if (method === 'item/commandExecution/outputDelta' || method === 'item/fileChange/outputDelta') {
     let message = thread.messages.find(message => message.id === `tool-${params.itemId}`);

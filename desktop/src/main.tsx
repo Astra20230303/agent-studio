@@ -209,7 +209,7 @@ function App() {
           runtime.apply(params.threadId, { type: 'activity', turnId: params.turnId });
           update(next => { const thread = next.threads.find(item => params.threadId ? item.remoteId === params.threadId : item.id === activeThreadRef.current); if (!thread) return; const last = thread.messages.find(message => message.id === `live-${params.itemId}`); if (last?.role === 'assistant') last.content += params.delta; else thread.messages.push({ id: `live-${params.itemId}`, role: 'assistant', turnId: params.turnId, content: params.delta, createdAt: new Date().toISOString() }); thread.status = 'running'; });
         }
-        if (message.method && ['item/started', 'item/completed', 'item/commandExecution/outputDelta', 'item/fileChange/outputDelta', 'item/fileChange/patchUpdated'].includes(message.method)) {
+        if (message.method && ['item/started', 'item/completed', 'item/commandExecution/outputDelta', 'item/fileChange/outputDelta', 'item/fileChange/patchUpdated', 'item/reasoning/summaryTextDelta', 'item/reasoning/summaryPartAdded'].includes(message.method)) {
           update(next => {
             const thread = next.threads.find(item => item.remoteId === params.threadId);
             if (thread) applyToolEvent(thread, message.method!, params);

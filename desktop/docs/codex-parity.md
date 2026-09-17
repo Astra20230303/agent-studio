@@ -1453,3 +1453,12 @@ Post-commit acceptance adds explicit local-image decode failure feedback to the
 shared artifact renderer. Real corrupt PNG bytes now produce an alert; replacing
 them with valid bytes and rereading clears it and restores a decoded image. The
 expanded full-chat browser acceptance and production build pass.
+
+## Reasoning summaries
+
+Plan and delivery: render reasoning records as collapsed summaries, consume indexed
+summary text/part notifications, preserve history, and use completed items as the
+authoritative text. Invalid indices and deltas after completion/interruption are
+ignored. Only server-provided summaries are displayed; absent summaries have an
+explicit empty state. Unit coverage, full-chat browser streaming/disclosure/final
+replacement checks and production build pass. Raw reasoning content is not shown.
