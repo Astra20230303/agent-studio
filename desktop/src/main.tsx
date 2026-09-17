@@ -1,3 +1,4 @@
+import { RenameThread } from './RenameThread';
 import { CommandPalette } from './CommandPalette';
 import { useAppShortcuts } from './useAppShortcuts';
 import { usePluginDraft } from './usePluginDraft';
@@ -135,6 +136,7 @@ function App() {
   const [restoringThread, setRestoringThread] = useState<string>();
   const [approvals, setApprovals] = useState<any[]>([]);
   const approval = approvals[0];
+  const [renameCandidate, setRenameCandidate] = useState<{ id: string; title: string }>();
   const [deleteCandidate, setDeleteCandidate] = useState<string>();
   const [forking, setForking] = useState(false);
   const [providerStatus, setProviderStatus] = useState<any>();
@@ -454,7 +456,16 @@ function App() {
       update(next => { const target = next.threads.find(item => item.id === thread.id); if (target) target.messages = restoreMessages(items, target.messages); });
     } finally { sendingRef.current.delete(thread.id); setPendingThreads(previous => previous.filter(id => id !== thread.id)); }
   };
-  const renameActive = async () => { const thread = state.threads.find(item => item.id === state.activeThreadId); if (!thread) return; const name = window.prompt('重命名会话', thread.title)?.trim(); if (!name || name === thread.title) return; if (thread.remoteId && codexStatus === 'connected') { try { await setThreadName(thread.remoteId, name); } catch (error: any) { toast(`重命名失败：${error.message}`); return; } } update(next => { const item = next.threads.find(value => value.id === thread.id); if (item) { item.title = name; item.titleSource = 'manual'; } }); };
+  const renameActive = () => { if (active) setRenameCandidate({ id: active.id, title: active.title }); };
+  const renameThread = async (name: string) => {
+    const thread = state.threads.find(item => item.id === renameCandidate?.id);
+    if (!thread) throw Error('会话已不存在，请关闭后重试。');
+    if (thread.remoteId) {
+      if (codexStatus !== 'connected') throw Error('请重新连接服务后重试。');
+      await setThreadName(thread.remoteId, name);
+    }
+    update(next => { const target = next.threads.find(item => item.id === thread.id); if (target) { target.title = name; target.titleSource = 'manual'; } });
+  };
   const archiveActive = async () => { const thread = state.threads.find(item => item.id === state.activeThreadId); if (!thread) return; if (thread.remoteId && codexStatus === 'connected') { try { await archiveThread(thread.remoteId); } catch (error: any) { toast(`归档失败：${error.message}`); return; } } update(next => { const item = next.threads.find(value => value.id === thread.id); if (item) { item.archived = true; item.status = 'completed'; } }); setRemoteThreadId(undefined); };
   const performDelete = async (threadId: string) => { const thread = state.threads.find(item => item.id === threadId); if (!thread) return; if (thread.remoteId && codexStatus === 'connected') { try { await deleteThread(thread.remoteId); } catch (error: any) { toast(`删除失败：${error.message}`); return; } } update(next => { next.threads = next.threads.filter(value => value.id !== threadId); if (next.activeThreadId === threadId) next.activeThreadId = undefined; }); setRemoteThreadId(value => value === thread.remoteId ? undefined : value); };
   const deleteActive = async () => { const thread = state.threads.find(item => item.id === state.activeThreadId); if (thread) setDeleteCandidate(thread.id); };
@@ -547,6 +558,7 @@ function App() {
     {queue.saveFailed && <div role="alert" className="state-save-warning">排队消息未能保存，自动发送已暂停。关闭窗口可能丢失更改或恢复旧队列。<button onClick={queue.retry}>重试保存队列</button></div>}
     {attachmentStorage.saveFailed && <div role="alert" className="state-save-warning">附件选择未保存到本机，刷新后可能丢失选择或恢复旧附件。当前仍可编辑和发送。<button onClick={attachmentStorage.retry}>重试保存附件</button></div>}
     {stateSaveFailed && <div role="alert" className="state-save-warning">会话和设置未能保存到本机，刷新或关闭窗口可能丢失当前更改。<button onClick={() => setStateSaveAttempt(attempt => attempt + 1)}>重试保存会话和设置</button></div>}
+    {renameCandidate && <RenameThread key={renameCandidate.id} title={renameCandidate.title} onSave={renameThread} onClose={() => setRenameCandidate(undefined)} />}
     {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} commands={[
       { id: 'new', label: '新建会话', keywords: 'new chat', run: () => { newChat(); requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('textarea[aria-label="消息"]')?.focus()); } },
       { id: 'search', label: '搜索会话', keywords: 'search history', run: () => { setSidebarVisible(true); setShowSearch(true); requestAnimationFrame(() => document.getElementById('sidebar-search')?.focus()); } },
