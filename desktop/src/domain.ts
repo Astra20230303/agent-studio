@@ -13,7 +13,7 @@ export interface Message {
 }
 
 export interface ToolActivity {
-  kind: 'commandExecution' | 'fileChange' | 'collabAgentToolCall' | 'subAgentActivity' | 'mcpToolCall' | 'dynamicToolCall';
+  kind: 'commandExecution' | 'fileChange' | 'collabAgentToolCall' | 'subAgentActivity' | 'mcpToolCall' | 'dynamicToolCall' | 'contextCompaction';
   subAgent?: { kind: string; threadId: string; path: string };
   invocation?: { server?: string; name: string; arguments?: unknown; result?: unknown; error?: unknown; success?: boolean };
   collaboration?: { tool: string; prompt?: string; model?: string; receiverThreadIds: string[]; agentsStates: Record<string, { status: string; message?: string }> };

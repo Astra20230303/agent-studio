@@ -1,7 +1,7 @@
 import type { Message, Thread, ToolActivity } from './domain';
 
 export function upsertTool(thread: Thread, item: any, turnId?: string, completed = false) {
-  if (!item?.id || !['commandExecution', 'fileChange', 'collabAgentToolCall', 'subAgentActivity', 'mcpToolCall', 'dynamicToolCall'].includes(item.type)) return;
+  if (!item?.id || !['commandExecution', 'fileChange', 'collabAgentToolCall', 'subAgentActivity', 'contextCompaction', 'mcpToolCall', 'dynamicToolCall'].includes(item.type)) return;
   const id = `tool-${item.id}`;
   let message = thread.messages.find(message => message.id === id);
   if (!message) {
@@ -54,7 +54,7 @@ export function restoreMessages(items: any[], previous: Message[]): Message[] {
   const thread = { messages: [] as Message[] } as Thread;
   for (const entry of items) {
     const item = entry.item || entry;
-    if (['commandExecution', 'fileChange', 'collabAgentToolCall', 'subAgentActivity', 'mcpToolCall', 'dynamicToolCall'].includes(item.type)) {
+    if (['commandExecution', 'fileChange', 'collabAgentToolCall', 'subAgentActivity', 'contextCompaction', 'mcpToolCall', 'dynamicToolCall'].includes(item.type)) {
       const saved = previous.find(message => message.id === `tool-${item.id}`);
       if (saved) thread.messages.push(structuredClone(saved));
       upsertTool(thread, item, entry.turnId, true);

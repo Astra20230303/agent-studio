@@ -674,3 +674,11 @@ be verified.
 Post-commit browser acceptance verifies that another thread's usage and invalid
 negative counts do not overwrite the current display. A missing context-window
 limit shows the count without inventing a percentage. These checks pass.
+
+Real manual compaction acceptance now completes a turn, requests compaction and
+continues the conversation through the actual app-server and MiniMax adapter with
+a controlled model endpoint. It verifies contextCompaction start/completion and
+the generated summary appearing in the next model request. The UI now retains
+these items and renders running, completed, failed or interrupted compaction
+records. Build and browser acceptance pass. Summary quality with an external
+provider remains unverified.

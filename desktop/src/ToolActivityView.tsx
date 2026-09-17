@@ -6,6 +6,7 @@ import { AgentActivity } from './AgentActivity';
 import { InvocationActivity } from './InvocationActivity';
 
 function ToolRow({ tool, onOpenAgent }: { tool: ToolActivity; onOpenAgent?: (id: string) => void }) {
+  if (tool.kind === 'contextCompaction') return <div className="tool-row" role="status">{tool.status === 'inProgress' ? '正在压缩上下文…' : tool.status === 'completed' ? '上下文压缩已完成' : tool.status === 'failed' ? '上下文压缩失败' : '上下文压缩已中断'}</div>;
   if (tool.kind === 'mcpToolCall' || tool.kind === 'dynamicToolCall') return <InvocationActivity tool={tool} />;
   if (tool.kind === 'collabAgentToolCall' || tool.kind === 'subAgentActivity') return <AgentActivity tool={tool} onOpenAgent={onOpenAgent} />;
   if (tool.kind === 'fileChange') return <>{tool.changes?.map((change, index) => <FileChangeCard key={`${change.path}-${index}`} change={change} applied={tool.status === 'completed'} />)}</>;
