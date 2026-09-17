@@ -1059,3 +1059,13 @@ Post-commit browser acceptance exports a 400-character PowerShell output across
 soft wraps and verifies one intact logical line. Injected save failure and cancel
 responses recover on retry. Restart now clears the prior export notice; real PTY
 regression and the production build pass.
+
+## Workspace content search
+
+File browsing now switches between filename and literal case-insensitive content
+search. Matches show path, line, column and a bounded text snippet; opening a match
+highlights its line in preview. Search skips Git internals and symlinks and accepts
+complete UTF-8 files up to 256 KB, with limits of 200 results, 20000 visited entries
+and roughly 32 MB read per request. Skipped entries and truncation are visible.
+Filesystem tests cover line positions, literal punctuation, binary/large files,
+Git exclusion and result limits; browser navigation/highlighting and build pass.

@@ -24,9 +24,12 @@ async function workspaceFile(root, name = '.', action = 'list', query = '', edit
     } finally { await fs.rm(temporary, { force: true }); }
     return { text: edit.text, revision: revision(Buffer.from(edit.text)), size: Buffer.byteLength(edit.text), truncated: false };
   }
-  if (action === 'search') {
+  if (action === 'search' || action === 'search-content') {
+    const contentSearch = action === 'search-content';
     if (typeof query !== 'string' || !query.trim()) return { entries: [], truncated: false, skipped: 0 };
-    const term = query.trim().replace(/\\/g, '/').toLowerCase();
+    const term = (contentSearch ? query.trim() : query.trim().replace(/\\/g, '/')).toLowerCase();
+    if (term.length > 1000 || term.includes('\n') || term.includes('\r')) throw Error('请输入不超过 1000 字符的单行关键词');
+    let scannedBytes = 0;
     const entries = []; const pending = [target]; let visited = 0; let skipped = 0; let truncated = false;
     while (pending.length && !truncated) {
       const directory = pending.shift();
@@ -42,10 +45,30 @@ async function workspaceFile(root, name = '.', action = 'list', query = '', edit
         if (entry.name === '.git' || entry.isSymbolicLink()) continue;
         const full = path.join(directory, entry.name); const file = path.relative(root, full);
         if (entry.isDirectory()) { pending.push(full); continue; }
-        if (entry.isFile() && file.replace(/\\/g, '/').toLowerCase().includes(term)) entries.push({ name: entry.name, path: file, directory: false, symlink: false });
+        if (!entry.isFile()) continue;
+        if (!contentSearch) {
+          if (file.replace(/\\/g, '/').toLowerCase().includes(term)) entries.push({ name: entry.name, path: file, directory: false, symlink: false });
+          continue;
+        }
+        if (scannedBytes >= 32 * 1024 * 1024) { truncated = true; break; }
+        try {
+          const stat = await fs.stat(full);
+          if (stat.size > 256 * 1024) { skipped++; continue; }
+          const result = await workspaceFile(root, file, 'read');
+          scannedBytes += result.size || 0;
+          if (typeof result.text !== 'string' || !result.revision) { skipped++; continue; }
+          const lines = result.text.split(/\r?\n/);
+          for (let index = 0; index < lines.length; index++) {
+            const column = lines[index].toLowerCase().indexOf(term);
+            if (column < 0) continue;
+            if (entries.length >= 200) { truncated = true; break; }
+            const start = Math.max(0, column - 60);
+            entries.push({ name: entry.name, path: file, directory: false, symlink: false, line: index + 1, column: column + 1, snippet: (start ? '…' : '') + lines[index].slice(start, start + 300) });
+          }
+        } catch { skipped++; }
       }
     }
-    return { entries: entries.sort((a, b) => a.path.localeCompare(b.path)), truncated, skipped };
+    return { entries: entries.sort((a, b) => a.path.localeCompare(b.path) || (a.line || 0) - (b.line || 0)), truncated, skipped };
   }
   if (action === 'list') {
     const entries = await fs.readdir(target, { withFileTypes: true });

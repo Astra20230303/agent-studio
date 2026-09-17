@@ -9,6 +9,7 @@ const assert = require('node:assert/strict');
       window.__reads = [];
       window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }), providerStatus: async () => ({ keyConfigured: true }), workspaceFile: async input => {
         window.__reads.push(input);
+        if (input.action === 'search-content') return {ok:true,result:{entries:[{name:'example.ts',path:'src/example.ts',directory:false,line:2,column:1,snippet:'File content'}]}};
         if (input.action === 'search') return { ok: true, result: { entries: input.query === 'example' ? [{ name: 'example.ts', path: 'src/example.ts', directory: false }] : [] } };
         return { ok: true, result: input.action === 'read' ? { text: '<script>never execute</script>\nFile content', truncated: true } : { entries: input.path === '.' ? [{ name: 'src', path: 'src', directory: true }] : [{ name: 'example.ts', path: 'src/example.ts', directory: false }] } };
       } };
@@ -36,6 +37,12 @@ const assert = require('node:assert/strict');
     await page.getByText('没有匹配文件。', { exact: true }).waitFor();
     await page.getByRole('button', { name: '清除文件查找', exact: true }).click();
     await page.getByRole('button', { name: '▸ src', exact: true }).waitFor();
+    await page.getByRole('combobox',{name:'文件搜索方式'}).selectOption('content');
+    await page.getByRole('textbox',{name:'查找工作区文件'}).fill('File');
+    await page.getByRole('button',{name:'查找文件',exact:true}).click();
+    await page.getByRole('button',{name:'▧ src/example.ts:2:1 · File content',exact:true}).click();
+    await page.locator('.workspace-files pre span').filter({hasText:'File content'}).waitFor();
+    assert.ok(await page.locator('.workspace-files pre span').filter({hasText:'File content'}).getAttribute('style'));
     assert.ok((await page.evaluate(() => window.__reads)).every(item => item.root === 'D:/Project'));
     console.log('PASS: navigation, escaped text preview, truncation notice, attach file, parent navigation');
   } finally { await browser.close(); }
