@@ -1041,3 +1041,7 @@ Enter/Shift+Enter move between matches and Escape restores terminal input focus.
 Search covers retained scrollback (5000 lines), with explicit match/no-match status.
 Real PowerShell browser acceptance verifies output searching and the existing
 interrupt, session switching, resize and restart flows. Production build passes.
+Post-commit acceptance keeps a query open while PowerShell emits a delayed match;
+the search now refreshes after parsed terminal writes. Toggling the toolbar closed
+uses the same selection cleanup and focus restoration as Escape. Real PTY browser
+regression and build pass after these changes.

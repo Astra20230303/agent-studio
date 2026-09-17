@@ -50,6 +50,8 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
     setFound(Boolean(previous ? search.current?.findPrevious(query) : search.current?.findNext(query, { incremental })));
   };
   const closeFind = () => { setFinding(false); search.current?.clearDecorations(); terminal.current?.clearSelection(); terminal.current?.focus(); };
+  const refreshSearch = useRef(() => {});
+  refreshSearch.current = () => { if (finding && query) find(false, true); };
   useEffect(() => { if (finding) { searchInput.current?.focus(); find(false, true); } }, [finding, query]);
   const session = useRef<string | undefined>(undefined);
   const [revision, setRevision] = useState(0);
@@ -64,6 +66,7 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
     const searchAddon = new SearchAddon();
     term.loadAddon(searchAddon); search.current = searchAddon;
     term.loadAddon(addon); term.open(host.current); terminal.current = term; fit.current = addon;
+    const parsed = term.onWriteParsed(() => refreshSearch.current());
     let disposed = false;
     let ownedId: string | undefined;
     const pending: TerminalEvent[] = [];
@@ -86,7 +89,7 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
       pending.forEach(receive); pending.length = 0; resize(); if (visible.current) term.focus();
     }).catch(report);
     return () => {
-      disposed = true; off(); input.dispose(); observer.disconnect(); term.dispose();
+      disposed = true; off(); input.dispose(); parsed.dispose(); observer.disconnect(); term.dispose();
       terminal.current = null; fit.current = null; session.current = undefined;
       search.current = null;
       if (ownedId) void bridge.close(ownedId).catch(() => {});
@@ -97,7 +100,7 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f' && !event.altKey) { event.preventDefault(); event.stopPropagation(); setFinding(true); searchInput.current?.focus(); }
   }}>
     <header><strong>终端</strong><span title={cwd}>{cwd || '当前项目'}</span><small role="status">{status}</small>
-      <button title="查找终端输出" aria-label="查找终端输出" onClick={() => setFinding(value => !value)}>⌕</button>
+      <button title="查找终端输出" aria-label="查找终端输出" onClick={() => finding ? closeFind() : setFinding(true)}>⌕</button>
       <button title="重新启动终端" aria-label="重新启动终端" disabled={running} onClick={() => setRevision(value => value + 1)}><Play size={16} /></button>
       <button title="终止终端" aria-label="终止终端" disabled={!running} onClick={() => { if (session.current) void window.desktop?.terminal?.close(session.current).catch(failure => setError(String(failure))); }}><Square size={16} /></button>
       </header>
