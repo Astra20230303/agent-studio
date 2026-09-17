@@ -1,10 +1,14 @@
+import { ArtifactLink } from './Artifacts';
 import { RemoteDesktopPanel } from './RemoteDesktopPanel';
+import { RemoteBrowser } from './RemoteBrowser';
+import { Globe } from 'lucide-react';
 import { Fragment, StrictMode, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { appendMessage, automaticThreadTitle, createThread, ensureThreadTitle, loadState, saveState } from './store';
 import type { DesktopState } from './domain';
 import { failureMessage, recordTurnFailure } from './turnFailure';
+import { EffortPicker } from './EffortPicker';
 import { ModelPicker, useModelCatalog } from './ModelPicker';
 import { applyToolEvent, finishTools, restoreMessages } from './toolActivity';
 import { ToolActivityGroup, groupMessages } from './ToolActivityView';
@@ -39,6 +43,11 @@ function App() {
   const [composerPlugins, setComposerPlugins] = useState<Plugin[]>([]);
   const [page, setPage] = useState<Page>('chat');
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [browserOpen, setBrowserOpen] = useState(false);
+  useEffect(() => {
+    const desktop = window.desktop as typeof window.desktop & { onRemoteOpen?: (listener: () => void) => () => void };
+    return desktop?.onRemoteOpen?.(() => setBrowserOpen(true));
+  }, []);
   const navigation = useNavigationHistory(
     { page, threadId: page === 'chat' ? state.activeThreadId : undefined },
     location => !location.threadId || state.threads.some(thread => thread.id === location.threadId && !thread.archived),
@@ -150,7 +159,7 @@ function App() {
       const local = state.threads.find(item => item.id === localId);
       let threadId = remoteThreadId || local?.remoteId;
       const createRemoteThread = async () => {
-        const started = await startThread({ effort: effortForModel(state.model), model, modelProvider, cwd, permission: state.permission });
+        const started = await startThread({ effort: state.reasoningEffort, model, modelProvider, cwd, permission: state.permission });
         const id = started.thread?.id;
         if (!id) throw new Error('没有返回 thread id');
         setRemoteThreadId(id);
@@ -162,13 +171,13 @@ function App() {
       if (automaticTitle) void setThreadName(threadId, automaticTitle).catch(() => toast('标题已保存在本地，远端同步失败。'));
       let turn;
       const plugins = composerPlugins.map(plugin => ({ id: plugin.id, name: plugin.name }));
-      try { turn = await startTurn({ threadId, text, plugins, model, modelProvider, effort: effortForModel(state.model), cwd }); }
+      try { turn = await startTurn({ threadId, text, plugins, model, modelProvider, effort: state.reasoningEffort, cwd }); }
       catch (error: any) {
         const message = String(error?.message || error);
         if (!/thread\s+not\s+found|unknown\s+thread|no\s+such\s+thread/i.test(message)) throw error;
         threadId = await createRemoteThread();
         if (!threadId) throw new Error('没有返回 thread id');
-        turn = await startTurn({ threadId, text, plugins, model, modelProvider, effort: effortForModel(state.model), cwd });
+        turn = await startTurn({ threadId, text, plugins, model, modelProvider, effort: state.reasoningEffort, cwd });
       }
       if (!completedTurns.current.has(turn.turn?.id)) setRunningTurnId(turn.turn?.id);
     } catch (error: any) {
@@ -251,7 +260,7 @@ function App() {
         <button className="titlebar-icon" aria-label="后退" title="后退" disabled={!navigation.canGoBack} onClick={() => navigateHistory(-1)}><ArrowLeft aria-hidden="true" /></button>
         <button className="titlebar-icon" aria-label="前进" title="前进" disabled={!navigation.canGoForward} onClick={() => navigateHistory(1)}><ArrowRight aria-hidden="true" /></button>
       </div>
-      <nav aria-label="应用菜单"><button>文件</button><button>编辑</button><button>视图</button><button>帮助</button></nav><WindowControls />
+      <nav aria-label="应用菜单"><button>文件</button><button>编辑</button><button>视图</button><button>帮助</button></nav><button className="remote-browser-toggle" aria-label="浏览器" title="浏览器" aria-expanded={browserOpen} aria-controls="remote-browser" onClick={() => setBrowserOpen(value => !value)}><Globe size={17} /></button><WindowControls />
     </header>
     <div className="desktop-body"><aside id="workspace-sidebar" className="sidebar" aria-label="侧栏" hidden={!sidebarVisible}>
       <div className="brand-row"><ModePicker mode={state.mode} onChange={mode => update(next => { next.mode = mode; })} /><button className="sidebar-search-toggle" aria-label="搜索" title="搜索会话" aria-expanded={showSearch} aria-controls="sidebar-search" onClick={() => { setShowSearch(value => !value); setSearch(''); }}><Search aria-hidden="true" /></button></div>
@@ -270,24 +279,24 @@ function App() {
       </div>
       <div className="sidebar-footer"><button className="sidebar-nav" aria-current={page === 'settings' ? 'page' : undefined} onClick={() => setPage('settings')}><Badge aria-hidden="true" /><span>设置</span></button></div>
     </aside>
-      <main>{!!active?.messages.length && page === 'chat' && <div className="thread-toolbar global-thread-toolbar"><span>{active.title}</span><div><button onClick={renameActive}>重命名</button><button onClick={forkActive}>分叉</button><button onClick={archiveActive}>归档</button><button onClick={deleteActive}>删除</button></div></div>}{page === 'chat' ? <Chat mode={state.mode} permission={state.permission} onOpenPlugins={() => setPage('plugins')} composerPlugins={composerPlugins} setComposerPlugins={setComposerPlugins} active={active} input={input} setInput={setInput} send={send} cancel={cancel} running={Boolean(runningTurnId)} activity={activity} model={state.model} catalog={catalog} update={update} attachments={attachments} addAttachment={addAttachment} showModel={showModel} setShowModel={setShowModel} showProjects={showProjects} setShowProjects={setShowProjects} toast={toast} projectId={state.activeProjectId} projects={state.projects} status={codexStatus} onForkMessage={forkFromMessage} /> : page === 'scheduled' ? <ScheduledPage models={availableModels} loadingModels={catalog.loading} refreshModels={catalog.refresh} /> : page === 'plugins' ? <ExtensionsPage connected={codexStatus === 'connected'} /> : <Workspace page={page} state={state} models={availableModels} update={update} toast={toast} providerStatus={providerStatus} onBack={() => { setPage('chat'); setSidebarVisible(true); }} />}</main>
+      <main>{!!active?.messages.length && page === 'chat' && <div className="thread-toolbar global-thread-toolbar"><span>{active.title}</span><div><button onClick={renameActive}>重命名</button><button onClick={forkActive}>分叉</button><button onClick={archiveActive}>归档</button><button onClick={deleteActive}>删除</button></div></div>}{page === 'chat' ? <Chat mode={state.mode} permission={state.permission} onOpenPlugins={() => setPage('plugins')} composerPlugins={composerPlugins} setComposerPlugins={setComposerPlugins} active={active} input={input} setInput={setInput} send={send} cancel={cancel} running={Boolean(runningTurnId)} activity={activity} model={state.model} reasoningEffort={state.reasoningEffort} catalog={catalog} update={update} attachments={attachments} addAttachment={addAttachment} showModel={showModel} setShowModel={setShowModel} showProjects={showProjects} setShowProjects={setShowProjects} toast={toast} projectId={state.activeProjectId} projects={state.projects} status={codexStatus} onForkMessage={forkFromMessage} /> : page === 'scheduled' ? <ScheduledPage models={availableModels} loadingModels={catalog.loading} refreshModels={catalog.refresh} /> : page === 'plugins' ? <ExtensionsPage connected={codexStatus === 'connected'} /> : <Workspace page={page} state={state} models={availableModels} update={update} toast={toast} providerStatus={providerStatus} onBack={() => { setPage('chat'); setSidebarVisible(true); }} />}</main>
+      <RemoteBrowser open={browserOpen} onClose={() => setBrowserOpen(false)} />
     </div>{notice && <div className="toast">{notice}</div>}{approval && <ApprovalDialog request={approval} onDecision={respondApproval} />}{deleteCandidate && <DeleteDialog thread={state.threads.find(item => item.id === deleteCandidate)} onCancel={() => setDeleteCandidate(undefined)} onConfirm={() => { const id = deleteCandidate; setDeleteCandidate(undefined); void performDelete(id); }} />}
   </div>;
 }
 
-function effortForModel(model: string) { return model.includes('低') ? 'low' : model.includes('中') ? 'medium' : 'high'; }
 function modelId(model: string) { return model.split(' · ')[0]; }
 
 function cleanAssistantText(value: string) { return replyText(value); }
 
 function inlineMarkdown(value: string) {
-  const parts = value.split(/(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|~~[^~]+~~|\[[^\]]+\]\([^\s)]+\))/g);
+  const parts = value.split(/(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|~~[^~]+~~|\[[^\]]+\]\((?:<[^>]+>|[^)]+)\))/g);
   return parts.map((part, index) => {
     if (part.startsWith('`') && part.endsWith('`')) return <code key={index}>{part.slice(1, -1)}</code>;
     if ((part.startsWith('**') && part.endsWith('**')) || (part.startsWith('__') && part.endsWith('__'))) return <strong key={index}>{part.slice(2, -2)}</strong>;
     if (part.startsWith('~~') && part.endsWith('~~')) return <del key={index}>{part.slice(2, -2)}</del>;
-    const link = part.match(/^\[([^\]]+)\]\(([^\s)]+)\)$/);
-    if (link) return <a key={index} href={link[2]} target="_blank" rel="noreferrer">{link[1]}</a>;
+    const link = part.match(/^\[([^\]]+)\]\((?:<([^>]+)>|([^)]+))\)$/);
+    if (link) return <ArtifactLink key={index} path={link[2] || link[3]} label={link[1]} />;
     return <Fragment key={index}>{part}</Fragment>;
   });
 }
@@ -324,6 +333,8 @@ function MarkdownMessage({ content }: { content: string }) {
     const fence = line.match(/^\s*```(.*)$/);
     if (fence) { if (code) flushCode(); else { flushParagraph(); code = []; language = fence[1].trim(); } return; }
     if (code) { code.push(line); return; }
+    const image = line.match(/^!\[([^\]]*)\]\((?:<([^>]+)>|(.+))\)$/);
+    if (image) { flushParagraph(); blocks.push(<ArtifactLink key={`image-${index}`} path={image[2] || image[3]} label={image[1] || '预览'} preview />); return; }
     if (!line.trim()) { flushTable(); flushParagraph(); return; }
     if (line.includes('|')) {
       const cells = tableCells(line);
@@ -376,7 +387,7 @@ function ApprovalDialog({ request, onDecision }: { request: any; onDecision: (de
   return <div className="approval-backdrop"><section className="approval-dialog"><h2>{title}</h2><p>{reason}</p>{params.command && <pre>{params.command}</pre>}{params.cwd && <small>{params.cwd}</small>}<div className="approval-actions"><button onClick={() => onDecision(isInput ? 'cancel' : 'decline')}>{isInput ? '取消' : '拒绝'}</button><button className="primary" onClick={() => onDecision('accept')}>{isInput ? '提交' : '允许'}</button></div></section></div>;
 }
 
-function Chat({ mode, permission, onOpenPlugins, composerPlugins, setComposerPlugins, onForkMessage, catalog, active, input, setInput, send, cancel, running, activity, model, update, attachments, addAttachment, showModel, setShowModel, showProjects, setShowProjects, toast, projectId, projects, status }: { mode: DesktopState['mode']; permission: DesktopState['permission']; onOpenPlugins: () => void; composerPlugins: Plugin[]; setComposerPlugins: (plugins: Plugin[]) => void; onForkMessage: (messageId: string) => Promise<void>; catalog: ReturnType<typeof useModelCatalog>; active: DesktopState['threads'][number] | undefined; input: string; setInput: (value: string) => void; send: () => void; cancel: () => void; running: boolean; activity?: string; model: string; update: (fn: (next: DesktopState) => void) => void; attachments: string[]; addAttachment: () => void; showModel: boolean; setShowModel: (value: boolean) => void; showProjects: boolean; setShowProjects: (value: boolean) => void; toast: (text: string) => void; projectId?: string; projects: DesktopState['projects']; status: string }) {
+function Chat({ mode, permission, onOpenPlugins, composerPlugins, setComposerPlugins, onForkMessage, catalog, active, input, setInput, send, cancel, running, activity, model, reasoningEffort, update, attachments, addAttachment, showModel, setShowModel, showProjects, setShowProjects, toast, projectId, projects, status }: { mode: DesktopState['mode']; permission: DesktopState['permission']; onOpenPlugins: () => void; composerPlugins: Plugin[]; setComposerPlugins: (plugins: Plugin[]) => void; onForkMessage: (messageId: string) => Promise<void>; catalog: ReturnType<typeof useModelCatalog>; active: DesktopState['threads'][number] | undefined; input: string; setInput: (value: string) => void; send: () => void; cancel: () => void; running: boolean; activity?: string; model: string; reasoningEffort: DesktopState['reasoningEffort']; update: (fn: (next: DesktopState) => void) => void; attachments: string[]; addAttachment: () => void; showModel: boolean; setShowModel: (value: boolean) => void; showProjects: boolean; setShowProjects: (value: boolean) => void; toast: (text: string) => void; projectId?: string; projects: DesktopState['projects']; status: string }) {
   const textarea = useRef<HTMLTextAreaElement>(null);
   const threadView = useRef<HTMLDivElement>(null);
   const followLatest = useRef(true);
@@ -457,8 +468,8 @@ function Chat({ mode, permission, onOpenPlugins, composerPlugins, setComposerPlu
           if (!event.repeat && canSend) send();
         }} placeholder={status === 'connected' ? '随心输入' : '等待 Codex app-server…'} />
       <div className="composer-footer">
-        <div className="composer-left"><button className="icon-button" onClick={addAttachment} title="添加附件" aria-label="添加附件"><Plus aria-hidden="true" /></button><div className="permission-picker"><button className="permission-status" aria-expanded={permissionOpen} onClick={() => setPermissionOpen(value => !value)}><ShieldAlert aria-hidden="true" />{permissionOptions.find(item => item[0] === permission)?.[1]}<span className="status-dot connected" /></button>{permissionOpen && <div className="permission-menu"><h3>如何批准 Felix 操作？</h3>{permissionOptions.map(([value, label, description]) => <button key={value} className={permission === value ? 'selected' : ''} onClick={() => { update(next => { next.permission = value; }); setPermissionOpen(false); }}><ShieldAlert aria-hidden="true" /><span><b>{label}</b><small>{description}</small></span></button>)}</div>}</div><span className="connection-status" role="status" title={status === 'connected' ? '已连接' : status} aria-label={status === 'connected' ? '已连接' : status}><i className={`status-dot ${status}`} /></span></div>
-        <div className="composer-right"><ModelPicker catalog={catalog} selected={model} open={showModel} setOpen={setShowModel} onSelect={id => update(next => { next.model = id; })} /><button className="send" title={running ? '停止生成' : '发送（Enter），Shift+Enter 换行'} aria-label={running ? '停止生成' : '发送'} disabled={!running && !canSend} onClick={running ? cancel : send}>{running ? <Square aria-hidden="true" /> : <ArrowUp aria-hidden="true" />}</button></div>
+        <div className="composer-left"><button className="icon-button" onClick={addAttachment} title="添加附件" aria-label="添加附件"><Plus aria-hidden="true" /></button><div className="permission-picker"><button className="permission-status" aria-expanded={permissionOpen} onClick={() => setPermissionOpen(value => !value)}><ShieldAlert aria-hidden="true" />{permissionOptions.find(item => item[0] === permission)?.[1]}</button>{permissionOpen && <div className="permission-menu"><h3>如何批准 Felix 操作？</h3>{permissionOptions.map(([value, label, description]) => <button key={value} className={permission === value ? 'selected' : ''} onClick={() => { update(next => { next.permission = value; }); setPermissionOpen(false); }}><ShieldAlert aria-hidden="true" /><span><b>{label}</b><small>{description}</small></span></button>)}</div>}</div><span className="connection-status" role="status" title={status === 'connected' ? '已连接' : status} aria-label={status === 'connected' ? '已连接' : status}><i className={`status-dot ${status}`} /></span></div>
+        <div className="composer-right"><EffortPicker model={model} value={reasoningEffort} onChange={value => update(next => { next.reasoningEffort = value; })} /><ModelPicker catalog={catalog} selected={model} open={showModel} setOpen={setShowModel} onSelect={id => update(next => { next.model = id; })} /><button className="send" title={running ? '停止生成' : '发送（Enter），Shift+Enter 换行'} aria-label={running ? '停止生成' : '发送'} disabled={!running && !canSend} onClick={running ? cancel : send}>{running ? <Square aria-hidden="true" /> : <ArrowUp aria-hidden="true" />}</button></div>
       </div>
     </div>
   </div></div>;
@@ -557,5 +568,5 @@ function ProviderSettings({ state, update, toast }: { state: DesktopState; updat
   </div>;
 }
 
-declare global { interface Window { desktop?: WindowFrameBridge & { toggleMaximize: () => Promise<{ maximized?: boolean }>; minimize?: () => Promise<void>; close?: () => Promise<void>; providerStatus?: () => Promise<any>; saveProvider?: (input: { id?: string; activate?: boolean; name: string; baseUrl: string; apiKey: string; model: string }) => Promise<{ ok: boolean; id?: string; error?: string }>; listProviders?: () => Promise<any[]>; activateProvider?: (id: string) => Promise<{ ok: boolean; model?: string; error?: string }>; listModels?: (input?: { id?: string; baseUrl: string; apiKey: string }) => Promise<any>; getProjectRoot?: () => Promise<string>; pickFiles?: () => Promise<string[]>; readExtensionFile?: (path: string, kind: 'image' | 'skill') => Promise<any>; listTasks?: () => Promise<any>; saveTask?: (input: any) => Promise<any>; setTaskStatus?: (id: string, status: string) => Promise<any>; runTask?: (id: string) => Promise<any>; cancelTask?: (id: string) => Promise<any>; deleteTask?: (id: string) => Promise<any>; taskDetail?: (id: string) => Promise<any>; onTasksChanged?: (listener: (message?: { error?: string }) => void) => () => void }; codex?: any } }
+declare global { interface Window { desktop?: WindowFrameBridge & { artifact?: (input: any) => Promise<any>; toggleMaximize: () => Promise<{ maximized?: boolean }>; minimize?: () => Promise<void>; close?: () => Promise<void>; providerStatus?: () => Promise<any>; saveProvider?: (input: { id?: string; activate?: boolean; name: string; baseUrl: string; apiKey: string; model: string }) => Promise<{ ok: boolean; id?: string; error?: string }>; listProviders?: () => Promise<any[]>; activateProvider?: (id: string) => Promise<{ ok: boolean; model?: string; error?: string }>; listModels?: (input?: { id?: string; baseUrl: string; apiKey: string }) => Promise<any>; getProjectRoot?: () => Promise<string>; pickFiles?: () => Promise<string[]>; readExtensionFile?: (path: string, kind: 'image' | 'skill') => Promise<any>; listTasks?: () => Promise<any>; saveTask?: (input: any) => Promise<any>; setTaskStatus?: (id: string, status: string) => Promise<any>; runTask?: (id: string) => Promise<any>; cancelTask?: (id: string) => Promise<any>; deleteTask?: (id: string) => Promise<any>; taskDetail?: (id: string) => Promise<any>; onTasksChanged?: (listener: (message?: { error?: string }) => void) => () => void }; codex?: any } }
 createRoot(document.getElementById('root')!).render(<StrictMode><WindowFrame><App /></WindowFrame></StrictMode>);

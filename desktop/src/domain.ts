@@ -63,6 +63,7 @@ export interface LlmProvider {
 }
 
 export interface DesktopState {
+  reasoningEffort: 'low' | 'medium' | 'high';
   mode: 'code' | 'work';
   activeThreadId?: string;
   activeProjectId?: string;

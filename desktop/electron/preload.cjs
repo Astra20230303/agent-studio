@@ -18,6 +18,13 @@ contextBridge.exposeInMainWorld('desktop', {
   activateProvider: id => ipcRenderer.invoke('desktop:activate-provider', id),
   listModels: input => ipcRenderer.invoke('desktop:list-models', input),
   remoteAction: action => ipcRenderer.invoke('desktop:remote-action', action),
+  remoteStatus: () => ipcRenderer.invoke('desktop:remote-status'),
+  onRemoteOpen: listener => {
+    const handler = () => listener();
+    ipcRenderer.on('desktop:remote-open', handler);
+    return () => ipcRenderer.removeListener('desktop:remote-open', handler);
+  },
+  artifact: input => ipcRenderer.invoke('desktop:artifact', input),
   getProjectRoot: () => ipcRenderer.invoke('desktop:project-root'),
   pickFiles: () => ipcRenderer.invoke('desktop:pick-files'),
   readExtensionFile: (path, kind) => ipcRenderer.invoke('desktop:extension-file', { path, kind }),

@@ -7,6 +7,7 @@ const id = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
 
 export const defaultState = (): DesktopState => ({
   mode: 'code',
+  reasoningEffort: 'low',
   theme: 'light',
   model: '',
   permission: 'on-request',
@@ -19,6 +20,7 @@ export const defaultState = (): DesktopState => ({
 export function loadState(): DesktopState {
   try {
     const state: DesktopState = { ...defaultState(), ...JSON.parse(localStorage.getItem(KEY) ?? '{}') };
+    state.reasoningEffort = ['low', 'medium', 'high'].includes(state.reasoningEffort) ? state.reasoningEffort : 'low';
     state.mode = state.mode === 'work' ? 'work' : 'code';
     state.permission = ['on-request', 'workspace-write', 'danger-full-access'].includes(state.permission) ? state.permission : 'on-request';
     state.providers = Array.isArray(state.providers) ? state.providers : [];

@@ -16,6 +16,13 @@ async function translate(chunks, defs = convertRequest(request()).definitions) {
   return events;
 }
 
+test('forwards explicit reasoning effort without overriding provider defaults', () => {
+  for (const effort of ['low', 'medium', 'high']) {
+    assert.equal(convertRequest({ ...request(), reasoning: { effort } }).body.reasoning_effort, effort);
+  }
+  assert.equal(Object.hasOwn(convertRequest(request()).body, 'reasoning_effort'), false);
+});
+
 test('preserves system instructions, tool schema, call ID, and tool results in next request', () => {
   const input = request([
     { role: 'developer', content: [{ type: 'input_text', text: 'Approval required' }] },

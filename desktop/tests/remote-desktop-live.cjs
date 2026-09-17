@@ -12,7 +12,7 @@ const assert = require('node:assert/strict');
       globalThis.fetch = (url, options) => {
         if (String(url).endsWith('/chat/completions')) {
           const body = JSON.parse(options.body);
-          globalThis.remoteTestRequests.push({ model: body.model, tools: body.tools?.map(tool => tool.function.name), images: body.messages.flatMap(message => Array.isArray(message.content) ? message.content.filter(part => part.type === 'image_url') : []).length });
+          globalThis.remoteTestRequests.push({ at: new Date().toISOString(), model: body.model, effort: body.reasoning_effort, tools: body.tools?.map(tool => tool.function.name), images: body.messages.flatMap(message => Array.isArray(message.content) ? message.content.filter(part => part.type === 'image_url') : []).length });
           console.log('REQUEST: ' + JSON.stringify(globalThis.remoteTestRequests.at(-1)));
         }
         return originalFetch(url, options);
@@ -21,7 +21,9 @@ const assert = require('node:assert/strict');
     const page = await app.firstWindow();
     page.on('console', message => { if (message.text().startsWith('LIVE:')) console.log(message.text()); });
     await page.waitForTimeout(2500);
-    const result = await page.evaluate(async model => {
+    const tool = process.env.FELIX_TEST_LOCAL === '1' ? 'local_desktop' : 'remote_desktop';
+    const startedAt = Date.now();
+    const result = await page.evaluate(async ({ model, tool }) => {
       const events = [];
       let finish;
       const done = new Promise(resolve => finish = resolve);
@@ -36,16 +38,19 @@ const assert = require('node:assert/strict');
       const response = await window.codex.request('thread/start', { model, modelProvider: 'minimax', sandbox: 'danger-full-access', approvalPolicy: 'never', ephemeral: true });
       if (!response.ok) throw new Error(JSON.stringify(response));
       id = response.result.thread.id;
-      await window.codex.request('turn/start', { threadId: id, input: [{ type: 'text', text: '请使用 remote_desktop 连接远程桌面并截图，描述你实际看到的内容，然后仅把鼠标移动到截图坐标100,100。不点击、不输入、不修改文件。' }] });
+      await window.codex.request('turn/start', { threadId: id, effort: 'low', input: [{ type: 'text', text: `请使用 ${tool} 连接${tool === 'local_desktop' ? 'Windows本机' : '远程'}桌面并截图，描述你实际看到的内容，然后仅把鼠标移动到截图坐标100,100。不点击、不输入、不修改文件。` }] });
       const timer = setTimeout(() => finish({ status: 'timeout' }), 180000);
       const turn = await done; clearTimeout(timer); unsub();
       if (turn.status === 'timeout') await window.codex.request('turn/interrupt', { threadId: id });
       return { turn, events };
-    }, process.env.FELIX_TEST_MODEL || 'gpt-6-astra');
-    console.log('Provider request metadata:', await app.evaluate(() => globalThis.remoteTestRequests));
+    }, { model: process.env.FELIX_TEST_MODEL || 'gpt-6-astra', tool });
+    console.log('Elapsed seconds:', (Date.now() - startedAt) / 1000);
+    const requests = await app.evaluate(() => globalThis.remoteTestRequests);
+    console.log('Provider request metadata:', requests);
+    assert.ok(requests.length > 0 && requests.every(request => request.effort === 'low'), 'Low reasoning effort did not reach provider');
     console.log(JSON.stringify(result, (key, value) => key === 'data' && typeof value === 'string' && value.length > 1000 ? '[image]' : value, 2));
     assert.equal(result.turn.status, 'completed');
-    for (const action of ['connect', 'move']) assert.ok(result.events.some(e => e.type === 'mcpToolCall' && e.tool === 'remote_desktop' && e.arguments.type === action && e.status === 'completed' && !e.error && e.result?.content?.some(part => part.type === 'image')), `Missing successful ${action} with image`);
+    for (const action of ['connect', 'move']) assert.ok(result.events.some(e => e.type === 'mcpToolCall' && e.tool === tool && e.arguments.type === action && e.status === 'completed' && !e.error && e.result?.content?.some(part => part.type === 'image')), `Missing successful ${action} with image`);
     assert.ok((await app.evaluate(() => globalThis.remoteTestRequests)).some(request => request.images >= 2), 'Model did not receive both observations');
   } finally { await app.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

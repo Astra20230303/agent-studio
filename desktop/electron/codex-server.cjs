@@ -67,11 +67,12 @@ function ensureProjectConfig(codexHome, projectRoot) {
     ''
   ].join('\n');
   const remoteSection = '[mcp_servers.felix_remote_desktop]';
+  existing = existing.replace(/(\[mcp_servers\.felix_remote_desktop\][\s\S]*?)(?=\n\s*\[|$)/, section => section.replace(/tool_timeout_sec\s*=\s*\d+/, 'tool_timeout_sec = 360'));
   const remoteConfig = existing.includes(remoteSection) ? '' : [
     '', remoteSection,
     `command = ${tomlString(nodeCommand())}`,
     `args = [${tomlString(path.join(projectRoot, 'desktop', 'electron', 'remote-desktop-mcp.cjs'))}]`,
-    'enabled = true', 'startup_timeout_sec = 20', 'tool_timeout_sec = 60',
+    'enabled = true', 'startup_timeout_sec = 20', 'tool_timeout_sec = 360',
     'env_vars = ["FELIX_REMOTE_ENDPOINT", "FELIX_REMOTE_TOKEN"]', '',
   ].join('\n');
   fs.writeFileSync(configPath, existing.replace(/\s*$/, '') + suffix + remoteConfig, 'utf8');

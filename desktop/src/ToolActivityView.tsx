@@ -1,19 +1,10 @@
+import { FileChangeCard } from './Artifacts';
 import { ChevronRight, FilePenLine, TerminalSquare } from 'lucide-react';
 import type { Message, ToolActivity } from './domain';
 import { toolLabel } from './toolActivity';
 
-function FileChange({ change, applied }: { change: NonNullable<ToolActivity['changes']>[number]; applied: boolean }) {
-  const kind = typeof change.kind === 'string' ? change.kind : change.kind?.type;
-  const label = !applied ? '文件变更' : kind === 'add' ? '已创建' : kind === 'delete' ? '已删除' : '已编辑';
-  const lines = change.diff?.split('\n') || [];
-  const added = lines.filter(line => line.startsWith('+') && !line.startsWith('+++')).length;
-  const removed = lines.filter(line => line.startsWith('-') && !line.startsWith('---')).length;
-  return <details className="tool-file"><summary><FilePenLine size={14} /><span>{label} {change.path}</span>{change.diff && <span className="diff-count"><em>+{added}</em> <b>-{removed}</b></span>}<ChevronRight className="disclosure" size={13} /></summary>
-    <pre>{change.diff || '未提供差异内容'}</pre>
-  </details>;
-}
-
 function ToolRow({ tool }: { tool: ToolActivity }) {
+  if (tool.kind === 'fileChange') return <>{tool.changes?.map((change, index) => <FileChangeCard key={`${change.path}-${index}`} change={change} applied={tool.status === 'completed'} />)}</>;
   const failed = tool.status === 'failed' || (tool.exitCode != null && tool.exitCode !== 0);
   const label = toolLabel(tool);
   const title = tool.kind === 'commandExecution' ? tool.command || '命令' : tool.changes?.map(change => change.path).join('，') || '文件';
@@ -27,7 +18,6 @@ function ToolRow({ tool }: { tool: ToolActivity }) {
     <div className="tool-detail">
       {tool.kind === 'commandExecution' && <pre className="tool-command">{tool.command}</pre>}
       <div className="tool-meta">{tool.cwd && <span>{tool.cwd}</span>}{tool.exitCode != null && <span>退出码 {tool.exitCode}</span>}{tool.durationMs != null && <span>用时 {(tool.durationMs / 1000).toFixed(1)} 秒</span>}</div>
-      {tool.kind === 'fileChange' && tool.changes?.map((change, index) => <FileChange key={`${change.path}-${index}`} change={change} applied={tool.status === 'completed'} />)}
       {tool.output ? <pre className="tool-output">{tool.output}</pre> : tool.kind === 'commandExecution' && <p>{tool.status === 'inProgress' ? '等待输出…' : '无输出'}</p>}
     </div>
   </details>;

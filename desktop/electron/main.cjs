@@ -8,6 +8,8 @@ const { TaskScheduler } = require('./task-scheduler.cjs');
 const { createTaskRunner } = require('./task-runner.cjs');
 const { wireWindowFrame } = require('./window-frame.cjs');
 const { RemoteDesktop, startRemoteBridge } = require('./remote-desktop.cjs');
+const { LocalDesktop } = require('./local-desktop.cjs');
+const { globalShortcut } = require('electron');
 const customFrame = process.platform === 'win32' && Number(require('node:os').release().split('.')[2]) < 22000;
 
 const projectRoot = path.resolve(__dirname, '../..');
@@ -20,6 +22,9 @@ else app.quit();
 
 function startDesktop() {
 const remoteDesktop = new RemoteDesktop();
+const localDesktop = new LocalDesktop();
+remoteDesktop.on('open', () => sendToWindow('desktop:remote-open', {}));
+ipcMain.handle('desktop:remote-status', () => remoteDesktop.status());
 ipcMain.handle('desktop:remote-action', async (_event, action) => {
   if (action.type === 'connect') remoteDesktop.enabled = true;
   if (action.type === 'disconnect') remoteDesktop.enabled = false;
@@ -145,6 +150,13 @@ ipcMain.handle('desktop:list-models', async (_event, input) => {
   try { return await listMiniMaxModels(providerCredentials(input)); }
   catch (error) { return { ok: false, models: [], error: error.message }; }
 });
+ipcMain.handle('desktop:artifact', async (_event, input) => {
+  try {
+    const { readArtifact, undoArtifact } = require('./artifacts.cjs');
+    if (input.action === 'undo') { await undoArtifact(projectRoot, input.change); return { ok: true }; }
+    return { ok: true, result: await readArtifact(projectRoot, input.path) };
+  } catch (error) { return { ok: false, error: error.message }; }
+});
 ipcMain.handle('desktop:project-root', () => projectRoot);
 ipcMain.handle('desktop:pick-files', async event => {
   const win = BrowserWindow.fromWebContents(event.sender);
@@ -189,10 +201,11 @@ ipcMain.handle('codex:respond', (_event, { id, result, error }) => {
 ipcMain.handle('codex:stop', () => { codex.stop(); return { ok: true }; });
 
 app.whenReady().then(async () => {
-  const bridge = await startRemoteBridge(remoteDesktop);
+  const bridge = await startRemoteBridge({ run: action => action?.target === 'local' ? localDesktop.run(action) : remoteDesktop.run(action) });
+  globalShortcut.register('Control+Alt+Escape', () => localDesktop.stop());
   process.env.FELIX_REMOTE_ENDPOINT = bridge.endpoint;
   process.env.FELIX_REMOTE_TOKEN = bridge.token;
-  app.on('will-quit', () => { bridge.server.close(); void remoteDesktop.stop(); });
+  app.on('will-quit', () => { globalShortcut.unregisterAll(); localDesktop.stop(); bridge.server.close(); void remoteDesktop.stop(); });
   scheduler.start();
   Menu.setApplicationMenu(null);
   createWindow();

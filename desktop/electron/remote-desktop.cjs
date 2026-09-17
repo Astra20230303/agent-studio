@@ -1,10 +1,19 @@
 const http = require('node:http');
 const { randomBytes } = require('node:crypto');
 const { chromium } = require('playwright');
+const { EventEmitter } = require('node:events');
+const { RemoteSetup } = require('./remote-setup.cjs');
 
-class RemoteDesktop {
-  constructor() { this.browser = null; this.page = null; this.connected = false; this.enabled = false; this.queue = Promise.resolve(); this.generation = 0; }
-  async stop() {
+class RemoteDesktop extends EventEmitter {
+  constructor() { super(); this.setup = new RemoteSetup(); this.phase = ''; this.browser = null; this.page = null; this.connected = false; this.enabled = false; this.queue = Promise.resolve(); this.generation = 0; this.url = 'http://127.0.0.1:16080/vnc.html'; }
+  async status() {
+    const page = this.page;
+    const connected = page ? await page.evaluate(async () => Boolean((await import('/app/ui.js')).default.connected)).catch(() => false) : false;
+    return { connected, url: this.url, phase: this.phase };
+  }
+  async stop(closeTunnel = true) {
+    if (closeTunnel) this.setup.stop();
+    this.phase = '';
     this.generation++;
     const browser = this.browser;
     this.browser = null; this.page = null; this.connected = false;
@@ -16,23 +25,34 @@ class RemoteDesktop {
     // The Agent may establish the explicitly configured local tunnel itself.
     // The settings panel remains an optional preview; disconnect disables the
     // controller until a new explicit connect action is requested.
-    if (action.type === 'connect') this.enabled = true;
+    if (action.type === 'connect' || action.type === 'prepare') this.enabled = true;
     if (!this.enabled) return Promise.reject(new Error('Remote control is stopped. Ask Felix to connect to the configured noVNC URL first.'));
     const generation = this.generation;
     const result = this.queue.then(() => {
       if (generation !== this.generation) throw new Error('Remote control stopped; reconnect explicitly.');
-      return this.execute(action);
+      return this.execute(action).catch(error => { this.phase = error.message; throw error; });
     });
     this.queue = result.catch(() => {});
     return result;
   }
   async execute(action) {
-    if (action.type === 'connect') {
-      if (this.page) await this.stop();
+    if (action.type === 'prepare') {
+      await this.stop();
       const generation = this.generation;
-      const url = new URL(action.url || 'http://127.0.0.1:16080/vnc.html');
+      this.emit('open');
+      const url = await this.setup.prepare(action, phase => { this.phase = phase; });
+      if (generation !== this.generation || !this.enabled) throw new Error('Remote setup was stopped.');
+      return this.execute({ type: 'connect', url });
+    }
+    if (action.type === 'connect') {
+      if (this.page) await this.stop(false);
+      this.phase = '正在连接远程桌面…';
+      this.emit('open');
+      const generation = this.generation;
+      const url = new URL(action.url || this.url);
       if (!['127.0.0.1', 'localhost'].includes(url.hostname) || !['http:', 'https:'].includes(url.protocol)) throw new Error('Use a local SSH tunnel URL.');
-      const browser = await chromium.launch({ channel: 'msedge', headless: false });
+      this.url = url.href;
+      const browser = await chromium.launch({ channel: 'msedge', headless: true });
       if (generation !== this.generation || !this.enabled) { await browser.close(); throw new Error('Remote control stopped; reconnect explicitly.'); }
       this.browser = browser;
       this.browser.on('disconnected', () => { if (generation === this.generation) { this.connected = false; this.page = null; this.browser = null; this.generation++; } });
@@ -40,6 +60,10 @@ class RemoteDesktop {
       this.page.setDefaultTimeout(15000);
       url.searchParams.set('autoconnect', 'true');
       url.searchParams.set('resize', 'scale');
+      url.searchParams.set('host', url.hostname);
+      url.searchParams.set('port', url.port || (url.protocol === 'https:' ? '443' : '80'));
+      url.searchParams.set('encrypt', url.protocol === 'https:' ? 'true' : 'false');
+      url.searchParams.set('path', 'websockify');
       await this.page.goto(url.href);
       // noVNC owns VNC authentication and input translation; no credentials are passed to the model.
       await this.page.waitForFunction(async () => {
@@ -50,6 +74,7 @@ class RemoteDesktop {
       await this.page.locator('#noVNC_transition').waitFor({ state: 'hidden' });
       await this.page.addStyleTag({ content: '#noVNC_control_bar_anchor, #noVNC_status { display: none !important; }' });
       this.connected = true;
+      this.phase = '';
     } else {
       if (!this.page || !await this.page.evaluate(async () => (await import('/app/ui.js')).default.connected)) {
         this.connected = false;

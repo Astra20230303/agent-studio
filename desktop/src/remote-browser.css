@@ -1,0 +1,28 @@
+.desktop-titlebar .remote-browser-toggle{margin-left:auto;display:grid;place-items:center;width:30px;height:28px;border-radius:7px;-webkit-app-region:no-drag}
+.desktop-titlebar .remote-browser-toggle[aria-expanded=true],.desktop-titlebar .remote-browser-toggle:hover{background:#e5e7e9;color:#333}
+.desktop-titlebar .remote-browser-toggle+.window-controls{margin-left:0}
+.remote-browser{display:flex;flex-direction:column;flex:0 0 46%;min-width:320px;min-height:0;border-left:1px solid #e1e3e5;background:#fff;overflow:hidden;color:#45494d}
+.remote-browser[hidden]{display:none}
+.remote-browser.expanded{position:absolute;inset:0;z-index:12;width:100%;border:0}
+.remote-browser-toolbar{height:44px;display:flex;align-items:center;gap:9px;padding:0 12px;border-bottom:1px solid #e9eaec;flex-shrink:0}
+.remote-browser-toolbar>span{flex:1;font-size:13px}
+.remote-browser-tab{display:flex;align-items:center;gap:8px;background:#f5f5f5;border-radius:10px;padding:8px;max-width:220px;margin-right:auto}
+.settings-mode:has(.remote-browser:not([hidden])) .settings-shell{position:relative;inset:auto;flex:1;min-height:0}
+.settings-mode:has(.remote-browser:not([hidden])) .settings-sidebar{width:170px}
+.settings-mode:has(.remote-browser:not([hidden])) .settings-content{padding:28px 20px}
+.dark .remote-browser-tab{background:#383b3d}
+.remote-browser button{border:0;background:transparent;color:inherit;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;border-radius:6px;padding:6px}
+.remote-browser button:hover{background:#edf0f2}.remote-browser button:disabled{opacity:.4;cursor:default}
+.remote-browser-address{display:flex;gap:8px;align-items:center;padding:9px 12px;background:#f7f8f9;font-size:11px;overflow-wrap:anywhere}
+.remote-browser-address span{margin-left:auto;white-space:nowrap;color:#748177}
+.remote-browser iframe{flex:1;width:100%;min-height:0;border:0;background:#313131}
+.remote-browser-empty{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;padding:24px;text-align:center;color:#858a90}
+.remote-browser-empty h3,.remote-browser-empty p{margin:0}.remote-browser-empty p{font-size:13px}.remote-browser-empty button{padding:9px 16px;border:1px solid #dfe2e5;color:#444}
+.remote-browser footer{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;font-size:11px;color:#8a8f94;border-top:1px solid #e9eaec}
+.remote-browser-error{font-size:12px;color:#b54545;margin:0;padding:10px;overflow-wrap:anywhere}
+.desktop-body{position:relative}
+.dark .remote-browser{background:#292b2d;color:#ddd;border-color:#45484b}.dark .remote-browser-address{background:#333537}.dark .remote-browser-toolbar,.dark .remote-browser footer{border-color:#45484b}
+.dark .remote-browser button:hover{background:#414548}
+.desktop-app:has(.remote-browser:not([hidden])) .thread-view{padding-left:24px;padding-right:24px}
+.desktop-app:has(.remote-browser:not([hidden])) .composer{width:calc(100% - 32px)}
+.desktop-app:has(.remote-browser:not([hidden])) #workspace-sidebar{width:220px;min-width:220px;flex-basis:220px}

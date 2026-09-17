@@ -78,6 +78,7 @@ function convertRequest(input) {
   }
   return { definitions, body: {
     model: input.model, messages, stream: true, reasoning_split: true,
+    ...(input.reasoning?.effort ? { reasoning_effort: input.reasoning.effort } : {}),
     ...(tools.length ? { tools, tool_choice: choice || 'auto', ...(input.parallel_tool_calls == null ? {} : { parallel_tool_calls: input.parallel_tool_calls }) } : {}),
     ...(input.temperature == null ? {} : { temperature: input.temperature })
   } };
