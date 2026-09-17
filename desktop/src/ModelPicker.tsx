@@ -5,22 +5,24 @@ export function useModelCatalog() {
   const [models, setModels] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const pending = useRef(false);
+  const generation = useRef(0);
   const refresh = useCallback(async () => {
-    if (pending.current) return;
-    pending.current = true;
+    const revision = ++generation.current;
     setLoading(true);
+    setModels([]);
     setError('');
     try {
       const result = await window.desktop?.listModels?.();
+      if (revision !== generation.current) return;
       if (!result?.ok || !result.models?.length) throw new Error(result?.error || '无法获取模型列表。');
       setModels(result.models);
     } catch (err) {
+      if (revision !== generation.current) return;
       setModels([]);
       setError(err instanceof Error ? err.message : '无法获取模型列表。');
-    } finally { pending.current = false; setLoading(false); }
+    } finally { if (revision === generation.current) setLoading(false); }
   }, []);
-  useEffect(() => { const changed = () => { void refresh(); }; changed(); window.addEventListener('provider-changed', changed); return () => window.removeEventListener('provider-changed', changed); }, [refresh]);
+  useEffect(() => { const changed = () => { void refresh(); }; changed(); window.addEventListener('provider-changed', changed); return () => { generation.current++; window.removeEventListener('provider-changed', changed); }; }, [refresh]);
   return { models, loading, error, refresh };
 }
 
