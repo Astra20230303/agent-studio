@@ -9,7 +9,14 @@ async function workspaceFile(root, name = '.', action = 'list') {
   if (action === 'list') {
     const entries = await fs.readdir(target, { withFileTypes: true });
     const visible = entries.filter(entry => entry.name !== '.git').sort((a, b) => Number(b.isDirectory()) - Number(a.isDirectory()) || a.name.localeCompare(b.name));
-    return { entries: visible.slice(0, 1000).map(entry => ({ name: entry.name, path: path.join(relative, entry.name), directory: entry.isDirectory(), symlink: entry.isSymbolicLink() })), truncated: visible.length > 1000 };
+    const listed = await Promise.all(visible.slice(0, 1000).map(async entry => {
+      let directory = entry.isDirectory();
+      if (entry.isSymbolicLink()) {
+        try { directory = (await fs.stat(path.join(target, entry.name))).isDirectory(); } catch { /* Dangling links remain selectable and report a read error. */ }
+      }
+      return { name: entry.name, path: path.join(relative, entry.name), directory, symlink: entry.isSymbolicLink() };
+    }));
+    return { entries: listed.sort((a, b) => Number(b.directory) - Number(a.directory) || a.name.localeCompare(b.name)), truncated: visible.length > 1000 };
   }
   if (action !== 'read') throw Error('不支持的文件操作');
   const handle = await fs.open(target, 'r');
@@ -19,7 +26,15 @@ async function workspaceFile(root, name = '.', action = 'list') {
     const mime = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp' }[path.extname(target).toLowerCase()];
     if (mime) {
       if (stat.size > 10 * 1024 * 1024) throw Error('图片超过 10 MB，无法预览');
-      return { image: `data:${mime};base64,${(await handle.readFile()).toString('base64')}`, size: stat.size };
+      const bytes = Buffer.alloc(stat.size + 1);
+      let total = 0;
+      while (total < bytes.length) {
+        const { bytesRead } = await handle.read(bytes, total, bytes.length - total, total);
+        if (!bytesRead) break;
+        total += bytesRead;
+      }
+      if (total > stat.size) throw Error('文件正在变化，请刷新后重试');
+      return { image: `data:${mime};base64,${bytes.subarray(0, total).toString('base64')}`, size: total };
     }
     const buffer = Buffer.alloc(Math.min(stat.size, 256 * 1024));
     const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);

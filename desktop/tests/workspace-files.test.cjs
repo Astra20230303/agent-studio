@@ -19,4 +19,10 @@ test('real files: directories, bounded text, binary detection and path boundarie
   await assert.rejects(workspaceFile(root, '..'), /路径/);
   await assert.rejects(workspaceFile(root, '.git'), /路径/);
   await assert.rejects(workspaceFile(root, 'nested', 'read'), /文件/);
+  assert.equal((await workspaceFile(root, 'nested')).entries.length, 0);
+  await fs.symlink(path.join(root, 'nested'), path.join(root, 'linked'), process.platform === 'win32' ? 'junction' : 'dir');
+  assert.equal((await workspaceFile(root)).entries.find(item => item.name === 'linked').directory, true);
+  assert.equal((await workspaceFile(root, 'linked')).entries.length, 0);
+  await fs.symlink(base, path.join(root, 'outside'), process.platform === 'win32' ? 'junction' : 'dir');
+  await assert.rejects(workspaceFile(root, 'outside'), /路径/);
 });

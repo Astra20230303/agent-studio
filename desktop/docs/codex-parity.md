@@ -202,3 +202,7 @@ outside the selected root. Binary content and truncated previews are explicit.
 Build, workspace-files.test.cjs (real temporary files) and workspace-files-ui.cjs
 (mocked bridge) pass navigation, file reading, path boundaries and attachment.
 Native Electron IPC end-to-end acceptance remains pending.
+Post-commit acceptance adds explicit empty-directory feedback, navigable directory
+links with realpath containment on access, and bounded image reads even if the
+file grows during preview. Real junction/symlink tests verify internal navigation
+and rejection of external targets.
