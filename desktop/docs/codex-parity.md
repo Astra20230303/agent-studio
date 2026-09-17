@@ -269,3 +269,10 @@ Acceptance correction: cf889f7 was pushed after a build pass but before the
 browser test passed, because the new test had a syntax error. The follow-up fixes
 that test and actually runs it successfully; the earlier browser-pass claim was
 premature. This is a delivery-process defect, not evidence of live MCP validation.
+
+MCP validation increment: Ajv plus ajv-formats validates the final response
+against the requested schema before submission. Required properties, numeric
+bounds/integer types, enums and date-time formats are covered by independent
+tests, including false boolean values and non-finite numbers. Production build,
+two schema tests and the MCP browser workflow pass. Electron remains at its
+previous locked version; only validation dependencies were added.

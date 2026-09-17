@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { validateMcpContent } from './mcpValidation';
 export function McpForm({ request, onSubmit }: { request: any; onSubmit: (action: string, content?: Record<string, unknown>) => Promise<void> }) {
   const params = request.params || {};
   const schema = params.requestedSchema;
@@ -11,6 +12,10 @@ export function McpForm({ request, onSubmit }: { request: any; onSubmit: (action
     lock.current = true; setBusy(true); setError('');
     try {
       const content = Object.fromEntries(fields.filter(([key]) => values[key] !== undefined && values[key] !== '').map(([key, field]) => [key, ['number', 'integer'].includes(field.type) ? Number(values[key]) : values[key]]));
+      if (action === 'accept') {
+        const validationError = validateMcpContent(schema, content);
+        if (validationError) throw Error(validationError);
+      }
       await onSubmit(action, action === 'accept' ? content : undefined);
     } catch (error) { setError(error instanceof Error ? error.message : String(error)); }
     finally { lock.current = false; setBusy(false); }

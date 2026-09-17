@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "cron-parser": "5.4.0",
     "electron": "latest",
     "lucide-react": "latest",
