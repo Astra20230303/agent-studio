@@ -345,3 +345,8 @@ supports error reporting and retry. Requests carry the active remote thread ID.
 Production build, URL scheme validation and mocked browser acceptance pass for
 pagination, OAuth handoff/completion and reload failure/retry. Third-party OAuth
 and live MCP server connectivity are not yet end-to-end verified.
+Acceptance correction separates inventory loading from action busy state and
+ignores stale OAuth responses after completion or context changes. Links clear
+when connection/thread context changes. The browser test now delivers completion
+before the login response and verifies the old link does not reappear. Build and
+the expanded MCP workflow pass; bundle-size warning remains.

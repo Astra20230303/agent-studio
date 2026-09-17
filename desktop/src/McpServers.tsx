@@ -6,15 +6,17 @@ const labels: Record<string, string> = { connected: '已连接', starting: '正�
 export function McpServers({ connected, threadId, onBack }: { connected: boolean; threadId?: string; onBack: () => void }) {
   const [servers, setServers] = useState<Server[]>([]);
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [acting, setActing] = useState(false);
+  const busy = loading || acting;
   const [notice, setNotice] = useState('');
   const [links, setLinks] = useState<Record<string, string>>({});
   const generation = useRef(0);
   const lock = useRef(false);
   const refresh = useCallback(async () => {
     const token = ++generation.current;
-    if (!connected) { setServers([]); return; }
-    setBusy(true); setError('');
+    if (!connected) { setServers([]); setLoading(false); return; }
+    setLoading(true); setError('');
     try {
       const all: Server[] = []; let cursor: string | undefined; const seen = new Set<string>();
       do {
@@ -26,9 +28,10 @@ export function McpServers({ connected, threadId, onBack }: { connected: boolean
       } while (cursor);
       setServers(all);
     } catch (error) { if (token === generation.current) setError(String(error)); }
-    finally { if (token === generation.current) setBusy(false); }
+    finally { if (token === generation.current) setLoading(false); }
   }, [connected, threadId]);
   useEffect(() => { void refresh(); return () => { generation.current++; }; }, [refresh]);
+  useEffect(() => { setLinks({}); setNotice(''); }, [connected, threadId]);
   useEffect(() => window.codex?.onNotification((event: any) => {
     if (event.method !== 'mcpServer/oauthLogin/completed' || (event.params.threadId || undefined) !== threadId) return;
     const result = event.params;
@@ -37,18 +40,20 @@ export function McpServers({ connected, threadId, onBack }: { connected: boolean
     void refresh();
   }), [refresh, threadId]);
   const action = async (name?: string) => {
-    if (lock.current) return;
-    lock.current = true; setBusy(true); setError('');
+    if (lock.current || !connected) return;
+    const token = generation.current;
+    lock.current = true; setActing(true); setError('');
     try {
       if (name) {
         const result = await extensionRequest<{ authorizationUrl: string }>('mcpServer/oauth/login', { name, threadId });
+        if (token !== generation.current) return;
         const url = new URL(result.authorizationUrl);
         if (!['https:', 'http:'].includes(url.protocol)) throw Error('不支持的登录链接');
         setLinks(current => ({ ...current, [name]: url.href }));
         setNotice('请在浏览器完成登录，然后返回此处。');
-      } else { await extensionRequest('config/mcpServer/reload', {}); setNotice('已请求重新加载 MCP 配置'); await refresh(); }
-    } catch (error) { setError(String(error)); }
-    finally { lock.current = false; setBusy(false); }
+      } else { await extensionRequest('config/mcpServer/reload', {}); if (token !== generation.current) return; setNotice('已请求重新加载 MCP 配置'); await refresh(); }
+    } catch (error) { if (token === generation.current) setError(String(error)); }
+    finally { lock.current = false; setActing(false); }
   };
   return <section className="extensions"><div className="ext-scroll"><div className="ext-content">
     <button onClick={onBack}>返回扩展</button><h1>MCP 服务</h1>
