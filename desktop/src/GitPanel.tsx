@@ -40,7 +40,7 @@ export function GitPanel({ root, onClose, onWorktree, onReview }: { root?: strin
       if (action === 'stash-pop') setNotice('已恢复最近一次工作区暂存');
       if (action === 'merge-branch') setNotice(`已合并 ${branch}`);
       setSelected(undefined); setSnapshot(undefined); setRevision(value => value + 1);
-    } catch (error) { setError(error instanceof Error ? error.message : String(error)); }
+    } catch (error) { const message = error instanceof Error ? error.message : String(error); setError(message); if (action === 'merge-branch') { setSelected(undefined); setSnapshot(undefined); setRevision(value => value + 1); setTimeout(() => setError(message), 0); } }
     finally { lock.current = false; setBusy(false); }
   };
   useEffect(() => {

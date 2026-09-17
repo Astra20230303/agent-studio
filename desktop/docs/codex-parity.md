@@ -1312,3 +1312,7 @@ branch after branch/HEAD guards. Fast-forward and divergent repositories pass;
 conflicting merges preserve Git's conflict state and output, while self/ stale
 requests are rejected. Browser conflict acceptance, six Git backend regressions
 and production build pass.
+Post-commit acceptance refreshes Git status automatically after a failed or
+conflicting merge while preserving the actionable conflict error. Browser
+acceptance verifies both the refreshed status request and visible error; real
+merge/stash regressions and production build pass.
