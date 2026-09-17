@@ -1605,3 +1605,8 @@ start calls share one promise; stop aborts pending startup and closes active
 adapter connections. Main-process IPC awaits startup. Real app-server lifecycle
 tests verify two profiles use distinct ports, both initialize/list models,
 pending startup cancels, and stopping/restarting one leaves the other running.
+Post-commit acceptance rebuilds the directory package, occupies former fixed
+port 15821 with an unrelated HTTP service, and repeats real local-provider tool
+execution plus UI history restoration after restart. The test passes with the
+dynamic-port artifact; provider isolation no longer depends on that port being
+free. Existing full-access test limitations still apply.

@@ -36,6 +36,10 @@ const path = require('node:path');
     } catch (error) { upstreamError = error; res.end('data: [DONE]\n\n'); }
   });
   server.listen(0,'127.0.0.1'); await require('node:events').once(server,'listening');
+  const occupied = require('node:http').createServer((_req, res) => res.end('unrelated service'));
+  const blocked = require('node:events').once(occupied, 'listening');
+  occupied.listen(15821, '127.0.0.1');
+  try { await blocked; } catch (error) { if (error.code !== 'EADDRINUSE') throw error; }
   try {
     app = await electron.launch({ executablePath: path.join(directory, 'Felix.exe'), args: [], cwd: profile, env, timeout: 30000 });
     const page = await app.firstWindow(); const errors = [];
@@ -79,6 +83,6 @@ const path = require('node:path');
     assert.equal(restored.task.runs.length, 0);
     assert.equal(fs.existsSync(path.join(directory, 'resources/.project-cache')), false);
     console.log('PASS: packaged local provider, real conversation tool execution, persisted history and UI restoration');
-  } finally { if (app) await app.close(); server.closeAllConnections(); await new Promise(resolve=>server.close(resolve)); fs.rmSync(profile, { recursive: true, force: true }); }
+  } finally { if (app) await app.close(); occupied.closeAllConnections(); await new Promise(resolve=>occupied.close(resolve)); server.closeAllConnections(); await new Promise(resolve=>server.close(resolve)); fs.rmSync(profile, { recursive: true, force: true }); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
 
