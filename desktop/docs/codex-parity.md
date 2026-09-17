@@ -1297,3 +1297,18 @@ pass.
 Post-commit acceptance adds stash availability to Git status. Restore is now
 disabled when no stash exists, avoiding a late error; the empty-state browser
 check, two real-repository stash tests and production build pass.
+
+## Planned delivery: merge a local branch
+
+The Git panel will enumerate local branches and merge a selected branch into the
+current branch. The operation checks the captured branch and HEAD, rejects merging
+into itself, uses Git's normal fast-forward/merge behavior, and reports conflicts
+without resetting files; the existing conflict viewer remains available. Real
+repositories verify fast-forward, divergent merge commit, conflict preservation
+and stale guards. Browser acceptance covers selection, payload, failure and status
+refresh.
+Implemented and verified: Git panel merges an exact local branch into the current
+branch after branch/HEAD guards. Fast-forward and divergent repositories pass;
+conflicting merges preserve Git's conflict state and output, while self/ stale
+requests are rejected. Browser conflict acceptance, six Git backend regressions
+and production build pass.

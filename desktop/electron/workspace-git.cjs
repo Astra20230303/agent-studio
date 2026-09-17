@@ -2,7 +2,7 @@ const { execFile } = require('node:child_process');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 function git(cwd, args, network = false) {
-  return new Promise((resolve, reject) => execFile('git', ['--no-optional-locks', '-c', 'core.quotepath=false', ...args], { cwd, windowsHide: true, encoding: 'utf8', timeout: network ? 60000 : 15000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' }, maxBuffer: 4 * 1024 * 1024 }, (error, stdout, stderr) => error ? reject(Error(stderr.trim() || error.message)) : resolve(stdout)));
+  return new Promise((resolve, reject) => execFile('git', ['--no-optional-locks', '-c', 'core.quotepath=false', ...args], { cwd, windowsHide: true, encoding: 'utf8', timeout: network ? 60000 : 15000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' }, maxBuffer: 4 * 1024 * 1024 }, (error, stdout, stderr) => error ? reject(Error([stderr, stdout].map(value => value.trim()).filter(Boolean).join('\n') || error.message)) : resolve(stdout)));
 }
 async function tracking(root) {
   const ref = (await git(root, ['symbolic-ref', '-q', 'HEAD']).catch(() => '')).trim();
@@ -28,6 +28,16 @@ async function workspaceGit(input) {
   if (typeof input?.root !== 'string' || !path.isAbsolute(input.root)) throw Error('请选择工作区目录');
   const cwd = await fs.realpath(input.root);
   const root = (await git(cwd, ['rev-parse', '--show-toplevel'])).trim();
+  if (input.action === 'merge-branch') {
+    const current = (await git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).catch(() => '')).trim();
+    const head = (await git(root, ['rev-parse', '--verify', 'HEAD']).catch(() => '')).trim();
+    if (!current || input.expectedBranch !== current || input.expectedHead !== head) throw Error('当前分支或提交已变化，请刷新 Git 变更');
+    const branches = (await git(root, ['for-each-ref', '--format=%(refname:strip=2)', 'refs/heads/'])).trim().split('\n').filter(Boolean);
+    if (typeof input.branch !== 'string' || !branches.includes(input.branch)) throw Error('目标本地分支不存在，请刷新');
+    if (input.branch === current) throw Error('不能将当前分支合并到自身');
+    await git(root, ['merge', '--no-edit', '--', input.branch]);
+    return { branch: current, commit: (await git(root, ['rev-parse', 'HEAD'])).trim() };
+  }
   if (input.action === 'stash' || input.action === 'stash-pop') {
     const branch = (await git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).catch(() => '')).trim();
     const head = (await git(root, ['rev-parse', '--verify', 'HEAD']).catch(() => '')).trim();
@@ -156,9 +166,11 @@ async function workspaceGit(input) {
   if (input.action === 'status') {
     const symbolic = (await git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).catch(() => '')).trim();
     const branch = symbolic || (await git(root, ['rev-parse', '--short', 'HEAD'])).trim();
+    const head = (await git(root, ['rev-parse', '--verify', 'HEAD']).catch(() => '')).trim();
+    const branches = (await git(root, ['for-each-ref', '--format=%(refname:strip=2)', 'refs/heads/'])).trim().split('\n').filter(Boolean);
     const remotes = (await git(root, ['remote'])).trim().split('\n').filter(Boolean);
     const stashAvailable = Boolean((await git(root, ['stash', 'list', '--format=%gd']).catch(() => '')).trim());
-    return { root, branch, detached: !symbolic, remotes, stashAvailable, ...await tracking(root), files: parseStatus(await git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all'])) };
+    return { root, branch, branches, head, detached: !symbolic, remotes, stashAvailable, ...await tracking(root), files: parseStatus(await git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all'])) };
   }
   if (input.action === 'commit') {
     if ((await git(root, ['diff', '--name-only', '--diff-filter=U', '-z'])).length) throw Error('请先解决并暂存所有冲突文件');
