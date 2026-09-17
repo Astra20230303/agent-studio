@@ -22,13 +22,16 @@ test('relocated runtime initializes real app-server without a source tree', { ti
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'felix-runtime-'));
   const bundle = path.join(scratch, 'runtime with spaces');
   const home = path.join(scratch, 'profile');
-  fs.mkdirSync(path.join(bundle, 'bin'), { recursive: true }); fs.mkdirSync(home);
+  fs.mkdirSync(home);
   const suffix = process.platform === 'win32' ? '.exe' : '';
-  fs.copyFileSync(findCommand(source).command, path.join(bundle, 'bin', 'codex' + suffix));
-  fs.copyFileSync(process.execPath, path.join(bundle, 'bin', 'node' + suffix));
-  fs.copyFileSync(path.join(source, 'codex-upstream/codex-rs/models-manager/models.json'), path.join(bundle, 'models.json'));
-  fs.mkdirSync(path.join(bundle, 'electron'));
-  for (const file of ['web-search-mcp.cjs', 'remote-desktop-mcp.cjs']) fs.copyFileSync(path.join(source, 'desktop/electron', file), path.join(bundle, 'electron', file));
+  const { bundleRuntime } = require('../scripts/bundle-runtime.cjs');
+  const manifest = bundleRuntime({ projectRoot: source, output: bundle });
+  for (const [relative, entry] of Object.entries(manifest.files)) {
+    const bytes = fs.readFileSync(path.join(bundle, relative));
+    assert.equal(bytes.length, entry.size);
+    assert.equal(require('node:crypto').createHash('sha256').update(bytes).digest('hex'), entry.sha256);
+  }
+  assert.throws(() => bundleRuntime({ projectRoot: source, output: bundle }), /already exists/);
   let child, rpc;
   try {
     fs.writeFileSync(path.join(home, 'config.toml'), '[mcp_servers.custom]\ncommand = "custom-command"\n\n[mcp_servers.felix_remote_desktop]\ncommand = "old-node"\nargs = ["old-script"]\nenabled = false\nstartup_timeout_sec = 45\n');

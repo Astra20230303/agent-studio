@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "bundle:runtime": "node scripts/bundle-runtime.cjs",
     "desktop": "electron .",
     "desktop:dev": "concurrently \"vite\" \"wait-on http://127.0.0.1:${VITE_PORT:-5317} && electron . --dev\""
   },

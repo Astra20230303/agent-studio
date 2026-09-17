@@ -1529,3 +1529,15 @@ and checks initialize/tools-list responses. Existing custom MCP commands, remote
 enabled=false and startup timeout survive managed path updates; repeating the
 update is byte-stable. All eight runtime/config/scheduled-run tests pass. This
 verifies bridge startup, not remote desktop actions or network search results.
+
+## Runtime bundle assembly
+
+Plan and delivery: pnpm run bundle:runtime [absolute-output] assembles the local
+Codex executable, the invoking Node binary, model catalog, MCP scripts and Codex
+license. Default output is .project-cache/felix-runtime. Existing destinations
+are refused; inputs and model catalog are checked before creating output. A
+manifest records platform, architecture, reported versions, sizes and SHA-256.
+The relocation test now consumes this builder and checks hashes before starting
+real app-server and both MCP bridges. Runtime artifact was built locally and
+startup checks pass. This is local assembly, not a redistributable release:
+Node/third-party license collection, installer and signing remain outstanding.
