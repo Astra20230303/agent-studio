@@ -2,7 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { checkWindowsSandbox, sandboxSnapshot, setupWindowsSandbox, subscribeSandbox } from './windowsSandbox';
 export function WindowsSandboxSettings({ cwd }: { cwd?: string }) {
   const state = useSyncExternalStore(subscribeSandbox, sandboxSnapshot);
-  const [mode, setMode] = useState<'elevated' | 'unelevated'>('elevated');
+  const [mode, setMode] = useState<'elevated' | 'unelevated'>(() => sandboxSnapshot().mode || 'elevated');
   const supported = window.desktop?.platform === 'win32';
   useEffect(() => { if (supported) void checkWindowsSandbox(); }, [supported]);
   if (!supported) return null;

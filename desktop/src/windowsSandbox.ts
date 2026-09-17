@@ -1,4 +1,4 @@
-type State = { status: string; busy: boolean; notice: string; error: string };
+type State = { status: string; busy: boolean; notice: string; error: string; mode?: 'elevated' | 'unelevated' };
 let state: State = { status: 'unknown', busy: false, notice: '', error: '' };
 const listeners = new Set<() => void>();
 const publish = (patch: Partial<State>) => { state = { ...state, ...patch }; listeners.forEach(listener => listener()); };
@@ -23,7 +23,7 @@ export async function setupWindowsSandbox(mode: 'elevated' | 'unelevated', cwd?:
   const bridge = window.codex;
   if (!bridge?.onNotification || !bridge?.onClosed) { publish({ error: '沙箱设置需要 app-server 连接' }); return; }
   const token = ++generation;
-  publish({ busy: true, error: '', notice: '正在启动沙箱设置…' });
+  publish({ busy: true, mode, error: '', notice: '正在启动沙箱设置…' });
   let settled = false;
   let offNotification = () => {};
   let offClosed = () => {};

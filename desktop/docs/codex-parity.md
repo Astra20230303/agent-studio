@@ -1113,3 +1113,7 @@ when the user presses the setup control.
 Real isolated app-server tests verify notConfigured and unelevated ready states;
 browser bridge tests cover setup completion/failure/retry and navigation. Build
 passes. Actual OS provisioning and sandbox enforcement remain unverified.
+Post-commit acceptance preserves the requested setup mode across settings remounts.
+Browser tests also deliver completion before setupStart responds and disconnect
+while setup is pending: completion is not overwritten and disconnect reports an
+unknown result. Build passes; OS provisioning/enforcement is still not claimed.
