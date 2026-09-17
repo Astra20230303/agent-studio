@@ -335,3 +335,13 @@ metadata or a truncated tail cannot acquire source coordinates. Three parser
 tests cover multiple hunks, empty ranges and missing-newline markers. Browser
 acceptance additionally asserts no turn starts when appending feedback. Build
 passes with a bundle-size warning (main bundle slightly over 500 KB).
+
+## MCP connection management
+
+The extensions page now exposes paginated MCP inventory, runtime/auth state,
+tool discovery failures and tool descriptions. OAuth login produces a system
+browser link and completion notifications refresh inventory. Configuration reload
+supports error reporting and retry. Requests carry the active remote thread ID.
+Production build, URL scheme validation and mocked browser acceptance pass for
+pagination, OAuth handoff/completion and reload failure/retry. Third-party OAuth
+and live MCP server connectivity are not yet end-to-end verified.

@@ -22,6 +22,7 @@ if (app.requestSingleInstanceLock()) startDesktop();
 else app.quit();
 
 function startDesktop() {
+ipcMain.handle('desktop:open-external', (_event, url) => require('electron').shell.openExternal(require('./external-url.cjs').externalUrl(url)));
 const remoteDesktop = new RemoteDesktop();
 const localDesktop = new LocalDesktop();
 const terminals = registerTerminalIpc(ipcMain, message => sendToWindow('terminal:data', message), projectRoot);

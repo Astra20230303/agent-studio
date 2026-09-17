@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('desktop', {
   customFrame: process.argv.includes('--felix-soft-frame'),
+  openExternal: url => ipcRenderer.invoke('desktop:open-external', url),
   windowState: () => ipcRenderer.invoke('window:state'),
   resizeFrame: input => ipcRenderer.send('window:resize-frame', input),
   onWindowState: listener => {

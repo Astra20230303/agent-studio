@@ -3,6 +3,7 @@ import { BookOpen, Check, ChevronRight, Download, LoaderCircle, MoreHorizontal, 
 import type { Plugin, PluginCatalog, PluginDetail, Skill } from './extensions';
 import { canInstall, extensionDescription, extensionName, extensionRequest, flattenPlugins, isPublicPlugin, matchesExtension, pluginSelector, readExtensionFile, setPluginEnabled, skillKey } from './extensions';
 import './extensions.css';
+import { McpServers } from './McpServers';
 
 type Selection = { kind: 'plugin'; item: Plugin } | { kind: 'skill'; item: Skill };
 type SkillsResponse = { data: { skills: Skill[]; errors: { path: string; message: string }[] }[] };
@@ -23,7 +24,8 @@ export function ExtensionIcon({ item }: { item: Plugin | Skill }) {
   return <span className="ext-icon">{image ? <img src={image} alt="" onError={() => setImage('')} /> : 'description' in item ? <BookOpen size={22} /> : <Puzzle size={22} />}</span>;
 }
 
-export function ExtensionsPage({ connected }: { connected: boolean }) {
+export function ExtensionsPage({ connected, threadId }: { connected: boolean; threadId?: string }) {
+  const [mcpOpen, setMcpOpen] = useState(false);
   const [tab, setTab] = useState<'plugins' | 'skills'>('plugins');
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<'public' | 'personal'>('public');
@@ -120,7 +122,9 @@ export function ExtensionsPage({ connected }: { connected: boolean }) {
     <span className="ext-state" aria-label={skill.parent ? '未安装' : skill.enabled ? '已启用' : '已停用'}>{skill.parent ? <Download size={16} /> : skill.enabled ? <Check size={17} /> : <span className="ext-disabled-dot" />}</span>
   </button>;
 
+  if (mcpOpen) return <McpServers connected={connected} threadId={threadId} onBack={() => setMcpOpen(false)} />;
   return <section className="extensions">
+    <button onClick={() => setMcpOpen(true)}>管理 MCP 服务</button>
     <nav className="ext-tabs" role="tablist" aria-label="扩展类型">{(['plugins', 'skills'] as const).map(value => <button key={value} id={`ext-tab-${value}`} role="tab" tabIndex={tab === value ? 0 : -1} aria-selected={tab === value} aria-controls="ext-panel" onKeyDown={event => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) { event.preventDefault(); const next = event.key === 'Home' ? 'plugins' : event.key === 'End' ? 'skills' : tab === 'plugins' ? 'skills' : 'plugins'; setTab(next); setQuery(''); document.getElementById(`ext-tab-${next}`)?.focus(); } }} onClick={() => { setTab(value); setQuery(''); setNotice(''); }}>{value === 'plugins' ? '插件' : '技能'}</button>)}</nav>
     <div className="ext-scroll" role="tabpanel" id="ext-panel" aria-labelledby={`ext-tab-${tab}`}>
       <div className="ext-content">
