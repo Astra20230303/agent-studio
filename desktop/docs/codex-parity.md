@@ -1777,3 +1777,5 @@ remains low. The expanded browser flow passes without further product changes.
 ## 删除闲置 Git 工作树
 
 计划与交付：列表提供路径确认后删除附属工作树，保留分支提交。后端限定当前仓库登记目标并检查 realpath、HEAD、锁定、当前/主工作树及未提交/未跟踪/忽略文件，最终调用非强制 git worktree remove。真实临时仓库保护与删除测试、生产构建通过。既有会话记录保留，已删除目录无法继续执行工作区任务。
+
+提交后验收：模拟桥接浏览器覆盖取消无请求、失败保留确认、成功重试与列表刷新、发送 expectedHead。真实仓库创建/重新打开及脏源目录保护回归通过。所有实际删除仅针对临时测试仓库；无需额外产品修正。
