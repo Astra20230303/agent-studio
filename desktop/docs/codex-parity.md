@@ -441,3 +441,10 @@ archives them, pages inventory, restores and resumes, and exercises the actual
 frontend list/unarchive functions. It passes together with both browser suites
 and build. Empty threads have no persisted rollout until a turn is recorded and
 cannot be archived on this server; the UI reports that server error.
+
+Live history/fork acceptance extends the same isolated app-server fixture to the
+frontend listThreadTurns, listThreadItems and forkThread functions. It verifies
+user/final reply content, single-item cursor traversal equivalence, fork-at-turn
+content and unchanged source history. The real binary passes all checks using a
+controlled local model endpoint. No product correction was required for these
+interfaces. This does not establish live provider quality or full desktop UI flow.

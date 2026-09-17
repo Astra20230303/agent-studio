@@ -50,7 +50,7 @@ test('real app-server archives, paginates and restores isolated conversations', 
     const archived = await rpc.request('thread/list', { modelProviders: [], archived: true, limit: 100 });
     assert.deepEqual(archived.data.map(thread => thread.id), [ids[1]]);
     const source = fs.readFileSync(path.resolve(__dirname, '../src/codexClient.ts'), 'utf8');
-    const compiled = require('node:module').stripTypeScriptTypes(source).replace(/^import .*;\r?\n/gm, '').replace(/\bexport /g, '') + '\nObject.assign(exports, { listThreads, listArchivedThreads, unarchiveThread });';
+    const compiled = require('node:module').stripTypeScriptTypes(source).replace(/^import .*;\r?\n/gm, '').replace(/\bexport /g, '') + '\nObject.assign(exports, { listThreads, listArchivedThreads, unarchiveThread, listThreadTurns, listThreadItems, forkThread });';
     const client = {};
     require('node:vm').runInNewContext(compiled, { exports: client, require: () => ({}), window: { codex: { request: async (method, params) => ({ ok: true, result: await rpc.request(method, params) }) } } });
     assert.deepEqual((await client.listArchivedThreads()).data.map(thread => thread.id), [ids[1]]);
@@ -60,6 +60,25 @@ test('real app-server archives, paginates and restores isolated conversations', 
     const active = await rpc.request('thread/list', { modelProviders: [], archived: false, limit: 100 });
     assert.ok(active.data.some(thread => thread.id === ids[0]));
     assert.equal((await rpc.request('thread/resume', { threadId: ids[0] })).thread.id, ids[0]);
+    const turns = await client.listThreadTurns(ids[0]);
+    assert.equal(turns.data.length, 1);
+    assert.ok(turns.data[0].items.some(item => item.type === 'agentMessage' && item.text.includes('Archive test completed.')));
+    const items = await client.listThreadItems(ids[0]);
+    assert.ok(items.data.some(entry => entry.item.type === 'userMessage'));
+    assert.ok(items.data.some(entry => entry.item.type === 'agentMessage'));
+    const paged = [];
+    let cursor;
+    do {
+      const page = await rpc.request('thread/items/list', { threadId: ids[0], limit: 1, sortDirection: 'asc', ...(cursor ? { cursor } : {}) });
+      paged.push(...page.data); assert.notEqual(page.nextCursor, cursor);
+      cursor = page.nextCursor;
+    } while (cursor);
+    assert.deepEqual(paged.map(entry => entry.item.id), items.data.map(entry => entry.item.id));
+    const fork = await client.forkThread(ids[0], turns.data[0].id);
+    assert.ok(fork.thread.id); assert.notEqual(fork.thread.id, ids[0]);
+    const branch = await client.listThreadItems(fork.thread.id);
+    assert.ok(branch.data.some(entry => entry.item.type === 'agentMessage' && entry.item.text.includes('Archive test completed.')));
+    assert.deepEqual((await client.listThreadItems(ids[0])).data.map(entry => entry.item.id), items.data.map(entry => entry.item.id));
   } finally {
     clearTimeout(timer);
     const exited = child.exitCode === null ? once(child, 'exit').catch(() => {}) : Promise.resolve();
