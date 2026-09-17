@@ -22,6 +22,14 @@ const assert = require('node:assert/strict');
     await page.evaluate(() => window.__notify({ method: 'item/completed', params: { threadId: 'parent', turnId: 'turn', item: { id: 'spawn', type: 'collabAgentToolCall', status: 'completed', agentsStates: { child: { status: 'completed', message: 'Verified child result' } } } } }));
     await page.getByText('Verified child result', { exact: true }).waitFor();
     assert.equal(await page.getByRole('button', { name: '打开 Agent child', exact: true }).count(), 1);
+    for (const kind of ['started', 'interacted', 'interrupted', 'completed']) {
+      await page.evaluate(kind => window.__notify({ method: 'item/completed', params: { threadId: 'parent', turnId: 'turn', item: { id: `activity-${kind}`, type: 'subAgentActivity', kind, agentThreadId: 'activity-child', agentPath: '/root/reviewer' } } }), kind);
+    }
+    for (const label of ['子 Agent 已启动', '子 Agent 有新交互', '子 Agent 已中断', '子 Agent 已完成']) await page.getByText(label, { exact: true }).waitFor();
+    await page.getByRole('button', { name: '打开 Agent activity-child', exact: true }).first().click();
+    await page.waitForFunction(() => window.__calls.some(call => call.method === 'thread/resume' && call.params.threadId === 'activity-child'));
+    await page.getByRole('button', { name: 'Parent', exact: true }).click();
+    await page.getByText('子 Agent 已启动', { exact: true }).waitFor();
     await page.getByRole('button', { name: '切换侧栏' }).count().then(async count => { if (count) await page.getByRole('button', { name: '切换侧栏' }).click(); });
     await page.setViewportSize({ width: 960, height: 720 });
     await page.evaluate(() => window.__notify({ method: 'item/completed', params: { threadId: 'parent', turnId: 'turn', item: { id: 'long', type: 'collabAgentToolCall', tool: 'wait', status: 'completed', receiverThreadIds: ['child-' + 'x'.repeat(200)], agentsStates: {} } } }));

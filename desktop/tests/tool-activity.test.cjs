@@ -3,6 +3,20 @@ const assert = require('node:assert/strict');
 const { applyToolEvent, finishTools, restoreMessages } = require('../src/toolActivity.ts');
 const makeThread = () => ({ messages: [{ id: 'before', role: 'assistant', content: 'Checking files' }] });
 
+test('sub-agent activity preserves event semantics, identity and history', () => {
+  const thread = makeThread();
+  const item = { id: 'event', type: 'subAgentActivity', kind: 'started', agentThreadId: 'child', agentPath: '/root/review' };
+  applyToolEvent(thread, 'item/completed', { turnId: 'turn', item });
+  applyToolEvent(thread, 'item/completed', { turnId: 'turn', item });
+  assert.equal(thread.messages.length, 2);
+  assert.deepEqual(thread.messages[1].tool.subAgent, { kind: 'started', threadId: 'child', path: '/root/review' });
+  finishTools(thread, 'turn', true);
+  assert.equal(thread.messages[1].tool.subAgent.kind, 'started');
+  const restored = restoreMessages([{ turnId: 'turn', item }], thread.messages);
+  assert.equal(restored.length, 1);
+  assert.deepEqual(restored[0].tool.subAgent, thread.messages[1].tool.subAgent);
+});
+
 test('history restores explicit skill references without treating them as text', () => {
   const [message] = restoreMessages([{ type: 'userMessage', id: 'u', content: [{ type: 'text', text: 'Use this skill' }, { type: 'skill', name: 'sample', path: 'D:/sample/SKILL.md' }] }], []);
   assert.equal(message.content, 'Use this skill');

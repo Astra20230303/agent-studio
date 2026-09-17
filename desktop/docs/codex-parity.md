@@ -628,3 +628,13 @@ Post-commit acceptance inserts real binary and oversized objects into unmerged
 index stages and verifies fallback responses without text content. Browser
 acceptance also verifies failed reads followed by explicit successful retry.
 Both pass without further product changes.
+
+## Sub-agent lifecycle records
+
+Felix now retains and renders the upstream subAgentActivity item alongside older
+collabAgentToolCall records. Started/interacted/interrupted/completed events show
+the agent path and open the child conversation. Activity kind is independent of
+item/completed delivery, so a started event does not appear as a finished task.
+Build, reducer/history tests and browser acceptance pass all four event labels,
+deduplication, child navigation and parent-record retention. Actual model-driven
+multi-agent lifecycle acceptance remains pending.
