@@ -7,6 +7,8 @@ export function GitWorktrees({ root, onOpen }: { root: string; onOpen: (project:
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [removing, setRemoving] = useState<Worktree>();
+  const [notice, setNotice] = useState('');
   const lock = useRef(false);
   const generation = useRef(0);
   useEffect(() => { generation.current++; return () => { generation.current++; }; }, [root]);
@@ -24,22 +26,26 @@ export function GitWorktrees({ root, onOpen }: { root: string; onOpen: (project:
     })();
     return () => { disposed = true; };
   }, [root, revision]);
-  const open = async (path: string) => {
+  const open = async (path: string, remove = false) => {
     if (lock.current) return;
     lock.current = true; setBusy(true); setError('');
     const requestGeneration = generation.current;
     try {
-      const result = await window.desktop?.workspaceGit?.({ root, action: 'open-worktree', path });
+      const result = await window.desktop?.workspaceGit?.({ root, action: remove ? 'remove-worktree' : 'open-worktree', path, ...(remove ? { expectedHead: removing?.head } : {}) });
       if (requestGeneration !== generation.current) return;
       if (!result?.ok) throw Error(result?.error || '无法打开工作树');
-      onOpen(result.result);
+      if (remove) { setRemoving(undefined); setNotice(`已删除工作树 ${path}，分支与提交保留。`); setRevision(value => value + 1); }
+      else onOpen(result.result);
     } catch (error) { setError(error instanceof Error ? error.message : String(error)); }
     finally { lock.current = false; setBusy(false); }
   };
   return <section aria-label="已有工作树"><h3>已有工作树</h3><button disabled={loading || busy} onClick={() => setRevision(value => value + 1)}>刷新工作树</button>
+    {notice && <p role="status">{notice}</p>}
+    {removing && <div role="alert"><p>删除工作树目录 {removing.path}？分支和提交记录将保留。</p><button disabled={busy} onClick={() => void open(removing.path, true)}>确认删除工作树</button><button disabled={busy} onClick={() => setRemoving(undefined)}>取消删除工作树</button></div>}
     {error && <p role="alert">{error}</p>}{loading ? <p>正在读取工作树…</p> : entries.map(entry => <div key={entry.path}>
       <p>{entry.path}</p><p>{entry.bare ? '裸仓库' : entry.branch || `游离 HEAD · ${entry.head?.slice(0, 8) || ''}`}{entry.locked ? ' · 已锁定' : ''}{entry.prunable ? ' · 已失效' : ''}</p>
       <button disabled={busy || entry.bare || !!entry.prunable} onClick={() => void open(entry.path)} aria-label={`在工作树开始会话 ${entry.path}`}>在此开始会话</button>
+      <button disabled={busy || entry.bare || !!entry.prunable || entry.locked !== undefined || entry.path.replaceAll('\\', '/').toLowerCase() === root.replaceAll('\\', '/').toLowerCase()} onClick={() => { setRemoving(entry); setError(''); setNotice(''); }} aria-label={`删除工作树 ${entry.path}`}>删除工作树</button>
     </div>)}
   </section>;
 }

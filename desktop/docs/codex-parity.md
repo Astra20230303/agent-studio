@@ -1773,3 +1773,7 @@ remains low. The expanded browser flow passes without further product changes.
 计划与交付：Ctrl/Command+Shift+O 新建会话、Ctrl/Command+K 搜索会话、Ctrl/Command+Shift+L 聚焦消息，设置中列出快捷键。忽略弹窗、终端、组合输入、重复及已处理按键。浏览器验收覆盖新会话与草稿保留、隐藏侧栏搜索、消息聚焦和组合输入保护；生产构建通过。
 
 提交后修正：初始保护遗漏原生 dialog；现在同时识别打开的原生 dialog、ARIA dialog 和 modal。真实归档窗口打开时不创建会话；模拟终端目标及重复按键不触发。浏览器验收改为等待实际焦点切换，扩展测试与构建通过。macOS 原生快捷键行为尚未实机验证。
+
+## 删除闲置 Git 工作树
+
+计划与交付：列表提供路径确认后删除附属工作树，保留分支提交。后端限定当前仓库登记目标并检查 realpath、HEAD、锁定、当前/主工作树及未提交/未跟踪/忽略文件，最终调用非强制 git worktree remove。真实临时仓库保护与删除测试、生产构建通过。既有会话记录保留，已删除目录无法继续执行工作区任务。

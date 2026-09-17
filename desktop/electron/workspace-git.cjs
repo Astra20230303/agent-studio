@@ -85,7 +85,7 @@ async function workspaceGit(input) {
     await git(root, ['switch', '--no-guess', '--', input.branch]);
     return { branch: input.branch };
   }
-  if (input.action === 'worktrees' || input.action === 'open-worktree') {
+  if (['worktrees', 'open-worktree', 'remove-worktree'].includes(input.action)) {
     const output = await git(root, ['worktree', 'list', '--porcelain', '-z']);
     const worktrees = output.split('\0\0').filter(Boolean).map(record => {
       const entry = {};
@@ -103,6 +103,14 @@ async function workspaceGit(input) {
     if (await common(root) !== await common(destination)) throw Error('工作树已不属于当前仓库');
     const gitDirectory = await fs.realpath((await git(destination, ['rev-parse', '--absolute-git-dir'])).trim());
     const environment = gitDirectory === await common(destination) ? 'local' : 'worktree';
+    if (input.action === 'remove-worktree') {
+      if (destination === await fs.realpath(root) || environment !== 'worktree') throw Error('不能删除当前或主工作树');
+      if (entry.locked !== undefined) throw Error('工作树已锁定，请先在 Git 中解锁');
+      if (input.expectedHead !== entry.head) throw Error('工作树提交已变化，请刷新后重试');
+      if ((await git(destination, ['status', '--porcelain', '--untracked-files=all', '--ignored'])).trim()) throw Error('工作树包含未提交、未跟踪或忽略文件，请先处理后重试');
+      await git(root, ['worktree', 'remove', '--', destination]);
+      return { removed: entry.path };
+    }
     return { id: destination, path: destination, name: `${path.basename(destination)} · ${entry.branch || '游离 HEAD'}`, environment, git: { isRepository: true, branch: entry.branch || entry.head?.slice(0, 8) } };
   }
   if (input.action === 'history') {
