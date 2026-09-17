@@ -557,3 +557,14 @@ only in SKILL.md's body reaches the model request, the turn completes, and actua
 thread/items/list history restores the skill name/path through restoreMessages.
 `node --test tests/skill-live.test.cjs` passes. This proves skill loading and model
 transport, not instruction-following quality of an external model provider.
+
+## Git remote operations
+
+The Git panel shows configured upstream and ahead/behind counts, fetches remote
+refs and pushes the current HEAD to the configured remote branch without force.
+Missing upstream and detached HEAD cannot push; errors remain visible for retry.
+Build, real local bare-repository tests and browser acceptance pass different
+local/upstream branch names, successful push, fetched divergence, rejected
+non-fast-forward push, missing upstream and retry. Counts reflect locally known
+remote refs until fetched. First publication, pull/merge UI and authenticated
+network-provider integration remain pending.

@@ -1,0 +1,34 @@
+const { chromium } = require('playwright');
+const assert = require('node:assert/strict');
+(async () => {
+  const browser = await chromium.launch({ channel: 'msedge', headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.addInitScript(() => {
+      localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeProjectId: 'p', projects: [{ id: 'p', name: 'Repo', path: 'D:/repo' }], threads: [] }));
+      window.__calls = []; window.__rejectPush = true;
+      window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }), workspaceGit: async input => {
+        window.__calls.push(input);
+        if (input.action === 'push' && window.__rejectPush) return { ok: false, error: 'non-fast-forward' };
+        return { ok: true, result: input.action === 'status' ? { root: 'D:/repo', branch: 'main', upstream: window.__untracked ? undefined : 'origin/target', remote: 'origin', ahead: 1, behind: 2, files: [] } : { upstream: 'origin/target' } };
+      } };
+      window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async () => ({ ok: true, result: { data: [] } }), onNotification: () => () => {}, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
+    });
+    await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
+    await page.getByRole('button', { name: '查看 Git 变更', exact: true }).click();
+    await page.getByText('上游：origin/target · 领先 1 · 落后 2', { exact: true }).waitFor();
+    await page.getByRole('button', { name: '获取远端', exact: true }).click();
+    await page.getByRole('status').filter({ hasText: '远端信息已更新' }).waitFor();
+    await page.getByRole('button', { name: '推送到上游', exact: true }).click();
+    await page.getByRole('alert').filter({ hasText: 'non-fast-forward' }).waitFor();
+    await page.evaluate(() => { window.__rejectPush = false; });
+    await page.getByRole('button', { name: '推送到上游', exact: true }).click();
+    await page.getByRole('status').filter({ hasText: '已推送到 origin/target' }).waitFor();
+    await page.evaluate(() => { window.__untracked = true; });
+    await page.getByRole('button', { name: '刷新变更', exact: true }).click();
+    await page.getByText('未配置上游分支', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: '推送到上游', exact: true }).isDisabled(), true);
+    assert.ok(await page.evaluate(() => window.__calls.every(call => call.root === 'D:/repo')));
+    console.log('PASS: upstream counts, fetch, rejected push/retry and missing-upstream guard');
+  } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });
