@@ -55,6 +55,8 @@ test('real app-server archives, paginates and restores isolated conversations', 
     require('node:vm').runInNewContext(compiled, { exports: client, require: () => ({}), window: { codex: { request: async (method, params) => ({ ok: true, result: await rpc.request(method, params) }) } } });
     assert.deepEqual((await client.listArchivedThreads()).data.map(thread => thread.id), [ids[1]]);
     assert.ok((await client.listThreads()).data.some(thread => thread.id === ids[0]));
+    assert.deepEqual((await client.listThreads(undefined, 'Archive acceptance 0')).data.map(thread => thread.id), [ids[0]]);
+    assert.equal((await client.listThreads(undefined, 'unmatched-title-12345')).data.length, 0);
     await client.unarchiveThread(ids[1]);
     assert.equal((await client.listArchivedThreads()).data.length, 0);
     const active = await rpc.request('thread/list', { modelProviders: [], archived: false, limit: 100 });

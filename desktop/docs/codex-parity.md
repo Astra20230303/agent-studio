@@ -448,3 +448,10 @@ user/final reply content, single-item cursor traversal equivalence, fork-at-turn
 content and unchanged source history. The real binary passes all checks using a
 controlled local model endpoint. No product correction was required for these
 interfaces. This does not establish live provider quality or full desktop UI flow.
+
+Remote title search: sidebar queries thread/list searchTerm after a 300ms debounce,
+restarts pagination when the query changes and discards outdated responses. Local
+title matches remain available and server matches include unloaded conversations.
+Real app-server acceptance verifies matching and empty results; browser acceptance
+checks delayed stale responses and clearing search. Build passes. This is title
+substring search, not conversation-body full-text search.

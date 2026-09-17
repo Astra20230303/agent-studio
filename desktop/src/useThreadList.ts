@@ -3,7 +3,9 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { DesktopState } from './domain';
 import { listThreads } from './codexClient';
 
-export function useThreadList(connected: boolean, setState: Dispatch<SetStateAction<DesktopState>>) {
+export function useThreadList(connected: boolean, setState: Dispatch<SetStateAction<DesktopState>>, search = '') {
+  const query = search.trim();
+  const [matches, setMatches] = useState<{ query: string; ids: string[] }>({ query: '', ids: [] });
   const [cursor, setCursor] = useState<string>();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -15,10 +17,11 @@ export function useThreadList(connected: boolean, setState: Dispatch<SetStateAct
     const generation = epoch.current;
     lock.current = true; setLoading(true); setError('');
     try {
-      const result = await listThreads(next);
+      const result = await listThreads(next, query);
       if (generation !== epoch.current) return;
       const nextCursor = result.nextCursor || undefined;
       if (nextCursor && (nextCursor === next || seen.current.has(nextCursor))) throw Error('会话分页游标重复，请重新连接后重试。');
+      setMatches(previous => ({ query, ids: [...new Set([...(next && previous.query === query ? previous.ids : []), ...(result.data || result.threads || []).filter((item: any) => typeof item?.id === 'string').map((item: any) => item.id)])] }));
       setState(previous => {
         if (generation !== epoch.current) return previous;
         const threads = [...previous.threads];
@@ -37,11 +40,13 @@ export function useThreadList(connected: boolean, setState: Dispatch<SetStateAct
       setCursor(nextCursor);
     } catch (error) { if (generation === epoch.current) setError(error instanceof Error ? error.message : String(error)); }
     finally { if (generation === epoch.current) { lock.current = false; setLoading(false); } }
-  }, [connected, setState]);
+  }, [connected, setState, query]);
   useEffect(() => {
     epoch.current++; lock.current = false; seen.current.clear(); setCursor(undefined); setError(''); setLoading(false);
-    if (connected) void load();
-    return () => { epoch.current++; };
+    setMatches({ query, ids: [] });
+    if (connected && !query) void load();
+    const timer = connected && query ? setTimeout(() => void load(), 300) : undefined;
+    return () => { clearTimeout(timer); epoch.current++; };
   }, [connected, load]);
-  return { loading, error, hasMore: !!cursor, loadMore: () => load(cursor) };
+  return { matchingIds: matches.query === query ? matches.ids : [], loading, error, hasMore: !!cursor, loadMore: () => load(cursor) };
 }

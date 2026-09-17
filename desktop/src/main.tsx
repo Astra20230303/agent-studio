@@ -86,7 +86,7 @@ function App() {
   const [attachments, setAttachments] = useAttachmentDraft(state.activeThreadId);
   const [notice, setNotice] = useState('');
   const [codexStatus, setCodexStatus] = useState<'connecting' | 'connected' | 'offline' | 'error'>('connecting');
-  const threadList = useThreadList(codexStatus === 'connected', setState);
+  const threadList = useThreadList(codexStatus === 'connected', setState, search);
   const reconnectRef = useRef<() => void>(() => {});
   const [connectionError, setConnectionError] = useState('');
   const [remoteThreadId, setRemoteThreadId] = useState<string>();
@@ -111,7 +111,7 @@ function App() {
   const runningTurnId = active?.remoteId ? runtime.threads[active.remoteId]?.turnId : undefined;
   const activity = active?.remoteId ? runtime.threads[active.remoteId]?.activity : undefined;
   const pending = pendingThreads.includes(active?.id || '') || !!active?.remoteId && restoringThread === active.remoteId;
-  const threads = useMemo(() => state.threads.filter(thread => !thread.archived && thread.title.toLowerCase().includes(search.toLowerCase())).slice().sort((a, b) => Number(b.pinned) - Number(a.pinned) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt)), [state.threads, search]);
+  const threads = useMemo(() => state.threads.filter(thread => !thread.archived && (thread.title.toLowerCase().includes(search.trim().toLowerCase()) || !!thread.remoteId && threadList.matchingIds.includes(thread.remoteId))).slice().sort((a, b) => Number(b.pinned) - Number(a.pinned) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt)), [state.threads, search, threadList.matchingIds]);
   useEffect(() => { saveState(state); document.documentElement.dataset.theme = state.theme; }, [state]);
   useEffect(() => {
     window.desktop?.providerStatus?.().then((provider: any) => {

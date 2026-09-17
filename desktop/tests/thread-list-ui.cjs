@@ -11,6 +11,8 @@ const assert = require('node:assert/strict');
       window.codex = { connect: async () => ({ ok: true }), request: async (method, params) => {
         window.__calls.push({ method, params });
         if (method === 'thread/list') {
+          if (params.searchTerm === 'slow') return new Promise(resolve => { window.__resolveSlow = () => resolve({ ok: true, result: { data: [{ id: 'stale', name: 'Stale result', updatedAt: 50 }] } }); });
+          if (params.searchTerm) return { ok: true, result: { data: [{ id: 'hidden', name: 'Remote match', updatedAt: 40 }] } };
           if (params.cursor && window.__fail) return { ok: false, error: { message: 'Page unavailable' } };
           return { ok: true, result: params.cursor ? { data: [{ id: 'new', name: 'Newest', updatedAt: 30 }, { id: 'old', name: 'Older', updatedAt: 10 }, { id: 'invalid', name: 'Invalid timestamp', updatedAt: 'invalid' }, null] } : { data: [{ id: 'new', name: 'Newest', updatedAt: 30 }, { id: 'mid', name: 'Middle', updatedAt: 20 }], nextCursor: 'older-page' } };
         }
@@ -27,6 +29,15 @@ const assert = require('node:assert/strict');
     assert.deepEqual(await page.locator('.recent').evaluateAll(nodes => nodes.map(node => node.getAttribute('aria-label'))), ['Newest', 'Middle', 'Older', 'Invalid timestamp']);
     assert.equal(await page.getByRole('button', { name: '加载更多会话' }).count(), 0);
     assert.equal(await page.evaluate(() => window.__calls.filter(call => call.method === 'thread/list' && call.params.cursor === 'older-page').length), 2);
+    await page.getByRole('button', { name: '搜索', exact: true }).click();
+    await page.getByRole('textbox', { name: '搜索最近会话' }).fill('slow');
+    await page.waitForFunction(() => window.__resolveSlow);
+    await page.getByRole('textbox', { name: '搜索最近会话' }).fill('hidden');
+    await page.getByRole('button', { name: 'Remote match', exact: true }).waitFor();
+    await page.evaluate(() => window.__resolveSlow());
+    assert.equal(await page.getByRole('button', { name: 'Stale result', exact: true }).count(), 0);
+    await page.getByRole('textbox', { name: '搜索最近会话' }).fill('');
+    await page.getByRole('button', { name: 'Newest', exact: true }).waitFor();
     console.log('PASS: thread pagination, retry, deduplication and recency ordering');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
