@@ -206,3 +206,13 @@ Post-commit acceptance adds explicit empty-directory feedback, navigable directo
 links with realpath containment on access, and bounded image reads even if the
 file grows during preview. Real junction/symlink tests verify internal navigation
 and rejection of external targets.
+
+## Feature 5a: Git status and diffs
+
+Git panel reads the current workspace repository, branch and changed paths.
+Staged and working changes have separate previews; untracked text is readable.
+Porcelain NUL records preserve spaces and rename source paths. Git subprocesses
+use argument arrays, bounded output/time and disable external diff/textconv.
+Build, workspace-git.test.cjs (real temporary repository) and git-panel-ui.cjs
+(mocked bridge) pass. This increment is read-only; staging, commits, worktrees
+and native Electron integration are still pending.

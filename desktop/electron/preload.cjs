@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('desktop', {
   artifact: input => ipcRenderer.invoke('desktop:artifact', input),
   getProjectRoot: () => ipcRenderer.invoke('desktop:project-root'),
   workspaceFile: input => ipcRenderer.invoke('desktop:workspace-file', input),
+  workspaceGit: input => ipcRenderer.invoke('desktop:workspace-git', input),
   pickProject: () => ipcRenderer.invoke('desktop:pick-project'),
   pickFiles: () => ipcRenderer.invoke('desktop:pick-files'),
   readExtensionFile: (path, kind) => ipcRenderer.invoke('desktop:extension-file', { path, kind }),

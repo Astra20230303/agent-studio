@@ -158,6 +158,10 @@ ipcMain.handle('desktop:artifact', async (_event, input) => {
   } catch (error) { return { ok: false, error: error.message }; }
 });
 ipcMain.handle('desktop:project-root', () => projectRoot);
+ipcMain.handle('desktop:workspace-git', async (_event, input) => {
+  try { return { ok: true, result: await require('./workspace-git.cjs').workspaceGit(input) }; }
+  catch (error) { return { ok: false, error: error.message }; }
+});
 ipcMain.handle('desktop:workspace-file', async (_event, input) => {
   try { return { ok: true, result: await require('./workspace-files.cjs').workspaceFile(input.root, input.path, input.action) }; }
   catch (error) { return { ok: false, error: error.message }; }

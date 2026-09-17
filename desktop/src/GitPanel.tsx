@@ -1,0 +1,23 @@
+import { useEffect, useState } from 'react';
+import './workspaceFiles.css';
+type ChangedFile = { path: string; original?: string; index: string; working: string; untracked: boolean };
+export function GitPanel({ root, onClose }: { root?: string; onClose: () => void }) {
+  const [snapshot, setSnapshot] = useState<{ branch: string; root: string; files: ChangedFile[] }>();
+  const [selected, setSelected] = useState<{ path: string; staged: boolean }>();
+  const [diff, setDiff] = useState('');
+  const [error, setError] = useState('');
+  const [revision, setRevision] = useState(0);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    let disposed = false; setError(''); setDiff(''); setLoading(true);
+    if (!root) { setLoading(false); return; }
+    void window.desktop?.workspaceGit?.({ root, action: selected ? 'diff' : 'status', ...selected }).then(result => {
+      if (disposed) return;
+      if (!result?.ok) throw Error(result?.error || '无法读取 Git');
+      if (selected) setDiff((result.result.diff || '此区域没有差异。') + (result.result.truncated ? '\n…内容已截断' : ''));
+      else setSnapshot(result.result);
+    }).catch(error => { if (!disposed) setError(error.message); }).finally(() => { if (!disposed) setLoading(false); });
+    return () => { disposed = true; };
+  }, [root, selected, revision]);
+  return <section className="workspace-files git-panel" aria-label="Git 变更"><header><b>Git 变更</b><button onClick={() => { setSelected(undefined); setSnapshot(undefined); setRevision(value => value + 1); }}>刷新变更</button><button aria-label="关闭 Git 面板" onClick={onClose}>×</button></header><small>{snapshot?.root || root || '请先选择项目目录'}</small>{snapshot && <p>分支：{snapshot.branch}</p>}{error && <p role="alert">{error}</p>}{loading && <p>正在读取…</p>}{selected ? <><button onClick={() => setSelected(undefined)}>返回变更</button><h3>{selected.staged ? '已暂存' : '未暂存'} · {selected.path}</h3><pre>{diff.split('\n').map((line, index) => <span key={index} style={{ color: line.startsWith('+') ? '#22834c' : line.startsWith('-') ? '#c74444' : undefined }}>{line}{'\n'}</span>)}</pre></> : snapshot?.files.map(file => <div key={file.path}><p>{file.original ? `${file.original} → ` : ''}{file.path}</p>{file.index !== ' ' && !file.untracked && <button onClick={() => setSelected({ path: file.path, staged: true })}>已暂存 {file.index}</button>}{(file.working !== ' ' || file.untracked) && <button onClick={() => setSelected({ path: file.path, staged: false })}>{file.untracked ? '未跟踪' : `未暂存 ${file.working}`}</button>}</div>)}{snapshot && !snapshot.files.length && <p>工作区没有变更。</p>}</section>;
+}
