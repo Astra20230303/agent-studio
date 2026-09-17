@@ -1145,3 +1145,8 @@ preserves drafts; automatic recovery is suspended until the stop response, then
 the normal bounded reconnect/restore flow resumes. Browser tests hold the stop
 response to verify sequencing, block restart during a running turn and check the
 draft afterward. Connection recovery tests and production build pass.
+Post-commit acceptance adds explicit connection status beside the restart control.
+A repeated click while stop is pending sends no second stop, and completion makes
+exactly one new connection (no leftover automatic retry). Injected stop failure
+shows an error and the recovery flow remains usable; drafts still survive.
+Browser acceptance and production build pass.
