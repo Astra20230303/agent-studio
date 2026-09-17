@@ -1546,3 +1546,12 @@ manifest entries, host platform/architecture and every file hash/size. Tests
 detect a modified MCP script and an incomplete manifest, then verify recovery.
 The generated local artifact passes verification. Hashes detect accidental
 corruption relative to the manifest; they do not provide publisher authenticity.
+
+## Runtime license collection and failed assembly
+
+Plan and delivery: include Codex NOTICE and the complete Node LICENSE downloaded
+from the official repository tag matching the bundled executable version. Record
+the source URL and hash both documents; verification requires them. Download or
+copy failure does not leave a completed-looking output directory. The existing
+runtime smoke test still starts the assembled binaries and bridges successfully.
+Rust dependency license inventory and release packaging remain outstanding.

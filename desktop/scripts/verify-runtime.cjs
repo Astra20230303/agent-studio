@@ -7,6 +7,7 @@ function verifyRuntime(root) {
   if (manifest.version !== 1 || manifest.platform !== process.platform || manifest.arch !== process.arch) throw new Error('Runtime manifest version/platform/architecture mismatch');
   const suffix = process.platform === 'win32' ? '.exe' : '';
   const required = [`bin/codex${suffix}`, `bin/node${suffix}`, 'models.json', 'electron/web-search-mcp.cjs', 'electron/remote-desktop-mcp.cjs', 'licenses/codex-LICENSE'];
+  required.push('licenses/codex-NOTICE', 'licenses/node-LICENSE');
   if (!manifest.files || required.some(file => !manifest.files[file])) throw new Error('Runtime manifest is incomplete');
   for (const [relative, entry] of Object.entries(manifest.files)) {
     if (path.isAbsolute(relative) || relative.includes('\\') || relative.split('/').some(part => !part || part === '.' || part === '..')) throw new Error('Invalid runtime manifest path');

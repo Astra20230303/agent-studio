@@ -25,7 +25,7 @@ test('relocated runtime initializes real app-server without a source tree', { ti
   fs.mkdirSync(home);
   const suffix = process.platform === 'win32' ? '.exe' : '';
   const { bundleRuntime } = require('../scripts/bundle-runtime.cjs');
-  const manifest = bundleRuntime({ projectRoot: source, output: bundle });
+  const manifest = await bundleRuntime({ projectRoot: source, output: bundle });
   const { verifyRuntime } = require('../scripts/verify-runtime.cjs');
   assert.deepEqual(verifyRuntime(bundle), manifest);
   for (const [relative, entry] of Object.entries(manifest.files)) {
@@ -33,7 +33,7 @@ test('relocated runtime initializes real app-server without a source tree', { ti
     assert.equal(bytes.length, entry.size);
     assert.equal(require('node:crypto').createHash('sha256').update(bytes).digest('hex'), entry.sha256);
   }
-  assert.throws(() => bundleRuntime({ projectRoot: source, output: bundle }), /already exists/);
+  await assert.rejects(bundleRuntime({ projectRoot: source, output: bundle }), /already exists/);
   let child, rpc;
   try {
     fs.writeFileSync(path.join(home, 'config.toml'), '[mcp_servers.custom]\ncommand = "custom-command"\n\n[mcp_servers.felix_remote_desktop]\ncommand = "old-node"\nargs = ["old-script"]\nenabled = false\nstartup_timeout_sec = 45\n');
