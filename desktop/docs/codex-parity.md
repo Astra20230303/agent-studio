@@ -1201,3 +1201,7 @@ images and code copy. Raw HTML is rendered as text, never injected into the DOM;
 entities decode in prose while inline/fenced code stays literal. Browser tests
 cover rich structures and inert scripts; prior narrow table acceptance and build
 pass. The obsolete custom table parser and its isolated test were removed.
+Post-commit acceptance preserves nested emphasis in link labels through the
+existing artifact component. Unsafe-scheme links cannot become executable anchors.
+Code-copy regression passes long/tilde/unfinished fences, exact copy and failure
+retry; rich Markdown browser acceptance and production build also pass.

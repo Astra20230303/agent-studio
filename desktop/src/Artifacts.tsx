@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { ToolActivity } from './domain';
 import './artifacts.css';
 
-export function ArtifactLink({ path, label, preview = false }: { path: string; label: string; preview?: boolean }) {
+export function ArtifactLink({ path, label, preview = false, children }: { path: string; label: string; preview?: boolean; children?: ReactNode }) {
   const [file, setFile] = useState<{ name: string; data: string; image: boolean }>();
   const [error, setError] = useState('');
   const remote = /^https?:\/\//i.test(path);
@@ -16,10 +16,10 @@ export function ArtifactLink({ path, label, preview = false }: { path: string; l
     }).catch(error => { if (active) setError(String(error)); });
     return () => { active = false; };
   }, [path, remote]);
-  if (remote) return preview ? <img className="artifact-image" src={path} alt={label} /> : <a href={path} target="_blank" rel="noreferrer">{label}</a>;
+  if (remote) return preview ? <img className="artifact-image" src={path} alt={label} /> : <a href={path} target="_blank" rel="noreferrer">{children || label}</a>;
   return <span className="artifact-link">
     {file?.image && (preview || !/下载|download/i.test(label)) && <img className="artifact-image" src={file.data} alt={label} />}
-    {file ? <a download={file.name} href={file.data}>↓ {preview ? `下载 ${file.name}` : label}</a> : <span title={path}>{error || `正在读取 ${label}…`}</span>}
+    {file ? <a download={file.name} href={file.data}>↓ {preview ? `下载 ${file.name}` : children || label}</a> : <span title={path}>{error || `正在读取 ${label}…`}</span>}
   </span>;
 }
 

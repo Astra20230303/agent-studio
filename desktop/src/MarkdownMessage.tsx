@@ -38,7 +38,7 @@ function renderTokens(tokens: Token[], depth = 0): ReactNode {
         const table = token as Tokens.Table;
         node = <div className="md-table-wrap" role="region" aria-label="消息表格" tabIndex={0}><table className="md-table"><thead><tr>{table.header.map((cell, column) => <th key={column} scope="col" style={{ textAlign: table.align[column] || undefined }}>{children(cell.tokens)}</th>)}</tr></thead><tbody>{table.rows.map((row, key) => <tr key={key}>{row.map((cell, column) => <td key={column} style={{ textAlign: table.align[column] || undefined }}>{children(cell.tokens)}</td>)}</tr>)}</tbody></table></div>; break;
       }
-      case 'link': node = <ArtifactLink path={decode(token.href)} label={decode(token.text)} />; break;
+      case 'link': node = <ArtifactLink path={decode(token.href)} label={decode(token.text)}>{children(token.tokens)}</ArtifactLink>; break;
       case 'image': node = <ArtifactLink path={decode(token.href)} label={decode(token.text) || '预览'} preview />; break;
       case 'html': node = token.text; break;
       case 'text': node = token.tokens ? children(token.tokens) : decode(token.text); break;

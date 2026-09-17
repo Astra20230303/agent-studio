@@ -1,4 +1,3 @@
-import { ArtifactLink } from './Artifacts';
 import { UserInputDialog } from './UserInputDialog';
 import { useTurnRuntime } from './useTurnRuntime';
 import { useSkillDraft, type SelectedSkill } from './useSkillDraft';
@@ -48,7 +47,7 @@ import { ModelPicker, useModelCatalog } from './ModelPicker';
 import { applyToolEvent, finishTools, restoreMessages } from './toolActivity';
 import { ToolActivityGroup, groupMessages } from './ToolActivityView';
 import { MessageActions } from './ReplyActions';
-import { branchSnapshot, isFinalReply, replyText } from './messageActions';
+import { branchSnapshot, isFinalReply } from './messageActions';
 import { listAllThreadItems, updateThreadPermission, archiveThread, connectCodex, deleteThread, forkThread, interruptTurn, listThreadItems, listThreadTurns, resumeThread, setThreadName, startThread, startTurn, subscribeCodex } from './codexClient';
 import { ExtensionsPage, ExtensionIcon } from './ExtensionsPage';
 import { ThreadButton } from './ThreadButton';
