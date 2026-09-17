@@ -1095,3 +1095,8 @@ Each history direction retains at most 100 snapshots and 4M UTF-16 code units.
 New edits discard redo history; successful disk reload establishes a new baseline.
 Unit tests cover branching and limits; browser tests undo/redo replacements and
 indentation alongside save conflict/reload regressions. Build passes.
+Post-commit acceptance groups composition updates into one undo transaction.
+Synthetic browser composition events verify one-step Chinese input undo/redo;
+native IME interaction remains unverified. Browser tests also retain history after
+save conflict and verify both history directions clear after successful reload.
+Production build passes.

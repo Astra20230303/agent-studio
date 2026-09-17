@@ -11,10 +11,11 @@ export function FileEditor({ root, path, initial, onClose, onSaved }: { root: st
   const originalText = baseline.text.replace(/\r\n/g, '\n');
   const useCRLF = baseline.text.includes('\r\n') && !baseline.text.replace(/\r\n/g, '').includes('\n');
   const [history, setHistory] = useState(() => newEditorHistory(originalText));
+  const composition = useRef<typeof history | null>(null);
   const text = history.text;
   const setText = (value: string) => setHistory(current => editHistory(current, value));
   const navigateHistory = (redo = false) => {
-    if (operation.current) return;
+    if (operation.current || composition.current) return;
     setHistory(current => stepHistory(current, redo));
     editor.current?.focus();
   };
@@ -60,5 +61,8 @@ export function FileEditor({ root, path, initial, onClose, onSaved }: { root: st
     const next = indentSelection(text, input.selectionStart, input.selectionEnd, event.shiftKey);
     setText(next.text);
     requestAnimationFrame(() => editor.current?.setSelectionRange(next.start, next.end));
-  }} spellCheck={false} value={text} disabled={busy} onChange={event => setText(event.target.value)} /><span role="status">{tabNavigation ? 'Tab 焦点导航已开启' : 'Tab 缩进已开启'}</span>{error && <p role="alert">{error}</p>}<div><CopyText source={text} label="复制编辑内容" /><button disabled={busy} onClick={() => void reload()}>重新读取磁盘文件</button><button disabled={busy} onClick={close}>取消编辑</button><button disabled={busy || !dirty} onClick={() => void save()}>{busy ? '正在保存…' : '保存文件'}</button></div></dialog>;
+  }} spellCheck={false} value={text} disabled={busy} onCompositionStart={() => { composition.current = history; }} onCompositionEnd={event => {
+    const before = composition.current; composition.current = null;
+    if (before) setHistory(editHistory(before, event.currentTarget.value));
+  }} onChange={event => { const value = event.target.value; if (composition.current) setHistory(current => ({ ...current, text: value })); else setText(value); }} /><span role="status">{tabNavigation ? 'Tab 焦点导航已开启' : 'Tab 缩进已开启'}</span>{error && <p role="alert">{error}</p>}<div><CopyText source={text} label="复制编辑内容" /><button disabled={busy} onClick={() => void reload()}>重新读取磁盘文件</button><button disabled={busy} onClick={close}>取消编辑</button><button disabled={busy || !dirty} onClick={() => void save()}>{busy ? '正在保存…' : '保存文件'}</button></div></dialog>;
 }
