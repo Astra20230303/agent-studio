@@ -568,3 +568,7 @@ local/upstream branch names, successful push, fetched divergence, rejected
 non-fast-forward push, missing upstream and retry. Counts reflect locally known
 remote refs until fetched. First publication, pull/merge UI and authenticated
 network-provider integration remain pending.
+Post-commit acceptance sets push.default=matching and advances an unrelated local
+branch; the explicit upstream push leaves that remote branch unchanged and
+preserves dirty working files. The existing Git line-review browser regression
+also passes. No product correction was needed for these cases.
