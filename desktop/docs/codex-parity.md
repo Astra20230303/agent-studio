@@ -530,3 +530,7 @@ instead of always querying the application repository. Build and browser tests
 pass all three directory cases. The existing isolated real app-server extension
 test also passes plugin install, discovery, skill enable/disable, restart
 persistence and uninstall. Model use of installed skills remains separate work.
+Post-commit live acceptance creates different .agents/skills entries in two
+isolated projects and verifies that each skills/list request discovers its own
+skill while excluding the other project's skill. The process restart test now
+waits for child exit before starting the replacement. All assertions pass.
