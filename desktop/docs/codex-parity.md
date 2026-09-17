@@ -518,3 +518,6 @@ writes clear the warning. Build and injected browser quota-failure acceptance
 verify retained text, successful retry, continued turn submission and no uncaught
 renderer errors. This does not increase the local storage quota or guarantee
 persistence while storage remains unavailable.
+Post-commit acceptance also verifies automatic recovery on the next edit after
+storage becomes writable. The full MCP resource browser/draft browser regression
+passes, including reload persistence and explicit turn submission.
