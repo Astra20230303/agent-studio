@@ -1,4 +1,6 @@
 import { ArtifactLink } from './Artifacts';
+import { UserInputDialog } from './UserInputDialog';
+import type { UserAnswers } from './UserInputDialog';
 import { RemoteDesktopPanel } from './RemoteDesktopPanel';
 import { RemoteBrowser } from './RemoteBrowser';
 import { Globe } from 'lucide-react';
@@ -61,7 +63,8 @@ function App() {
   const [codexStatus, setCodexStatus] = useState<'connecting' | 'connected' | 'offline' | 'error'>('connecting');
   const [remoteThreadId, setRemoteThreadId] = useState<string>();
   const [runningTurnId, setRunningTurnId] = useState<string>();
-  const [approval, setApproval] = useState<any>();
+  const [approvals, setApprovals] = useState<any[]>([]);
+  const approval = approvals[0];
   const [deleteCandidate, setDeleteCandidate] = useState<string>();
   const [activity, setActivity] = useState<string>();
   const [providerStatus, setProviderStatus] = useState<any>();
@@ -117,7 +120,7 @@ function App() {
           });
         }
       },
-      serverRequest: message => setApproval(message),
+      serverRequest: message => setApprovals(pending => pending.some(item => item.id === message.id) ? pending : [...pending, message]),
       error: error => { setCodexStatus('error'); setNotice(`Codex 通信错误：${error?.message || '未知错误'}`); },
       stderr: text => {
         for (const line of String(text || '').split('\n').filter(Boolean)) {
@@ -125,7 +128,7 @@ function App() {
           catch { if (/MINIMAX_API_KEY/.test(line)) setNotice(failureMessage(line)); }
         }
       },
-      closed: () => setCodexStatus('offline')
+      closed: () => { setCodexStatus('offline'); setApprovals([]); }
     });
     (async () => {
       let lastError: any;
@@ -188,18 +191,20 @@ function App() {
   const cancel = () => { const activeRemoteId = state.threads.find(item => item.id === activeThreadRef.current)?.remoteId || remoteThreadId; if (activeRemoteId && runningTurnId) interruptTurn(activeRemoteId, runningTurnId).catch(() => undefined); };
   const newChat = () => { setRemoteThreadId(undefined); update(next => createThread(next)); setInput(''); setComposerPlugins([]); setAttachments([]); setPage('chat'); };
   const selectThread = async (thread: DesktopState['threads'][number]) => { update(next => { next.activeThreadId = thread.id; }); setRemoteThreadId(thread.remoteId); setPage('chat'); if (thread.remoteId && codexStatus === 'connected') { try { let items: any[] = []; try { let cursor: string | undefined; do { const page = await listThreadItems(thread.remoteId, cursor); items.push(...(page?.data || page?.items || [])); cursor = page?.nextCursor || undefined; } while (cursor); } catch { const loaded = await resumeThread(thread.remoteId); items = loaded?.thread?.turns?.flatMap((turn: any) => turn.items || []) || []; } update(next => { const local = next.threads.find(item => item.id === thread.id); if (!local) return; if (local.status !== 'running') { local.messages = restoreMessages(items, local.messages); ensureThreadTitle(local); } }); } catch (error: any) { toast(`恢复线程失败：${error.message}`); } } };
-  const respondApproval = async (decision: string) => {
+  const respondApproval = async (decision: string, answers?: UserAnswers) => {
     if (!approval) return;
     let result: any = { decision };
     if (approval.method === 'item/permissions/requestApproval') {
       result = decision === 'accept' ? { scope: 'turn', permissions: approval.params?.permissions || {} } : { scope: 'turn', permissions: {} };
     } else if (approval.method === 'item/tool/requestUserInput') {
-      result = { answers: Object.fromEntries((approval.params?.questions || []).map((question: any) => [question.id, []])) };
+      result = { answers: answers || Object.fromEntries((approval.params?.questions || []).map((question: any) => [question.id, { answers: [] }])) };
     } else if (approval.method === 'mcpServer/elicitation/request') {
       result = { action: decision === 'accept' ? 'accept' : decision === 'cancel' ? 'cancel' : 'decline', content: null };
     }
-    await window.codex?.respond(approval.id, result);
-    setApproval(undefined);
+    if (!window.codex) throw new Error('app-server 尚未连接。');
+    const response = await window.codex.respond(approval.id, result);
+    if (!response?.ok) throw new Error(response?.error?.message || response?.error || '提交失败，请重试。');
+    setApprovals(pending => pending.filter(item => item.id !== approval.id));
   };
   const renameActive = async () => { const thread = state.threads.find(item => item.id === state.activeThreadId); if (!thread) return; const name = window.prompt('重命名会话', thread.title)?.trim(); if (!name || name === thread.title) return; if (thread.remoteId && codexStatus === 'connected') { try { await setThreadName(thread.remoteId, name); } catch (error: any) { toast(`重命名失败：${error.message}`); return; } } update(next => { const item = next.threads.find(value => value.id === thread.id); if (item) { item.title = name; item.titleSource = 'manual'; } }); };
   const archiveActive = async () => { const thread = state.threads.find(item => item.id === state.activeThreadId); if (!thread) return; if (thread.remoteId && codexStatus === 'connected') { try { await archiveThread(thread.remoteId); } catch (error: any) { toast(`归档失败：${error.message}`); return; } } update(next => { const item = next.threads.find(value => value.id === thread.id); if (item) { item.archived = true; item.status = 'completed'; } }); setRemoteThreadId(undefined); };
@@ -376,7 +381,8 @@ function DeleteDialog({ thread, onCancel, onConfirm }: { thread?: DesktopState['
   </div>;
 }
 
-function ApprovalDialog({ request, onDecision }: { request: any; onDecision: (decision: string) => void }) {
+function ApprovalDialog({ request, onDecision }: { request: any; onDecision: (decision: string, answers?: UserAnswers) => Promise<void> }) {
+  if (request.method === 'item/tool/requestUserInput') return <UserInputDialog key={request.id} request={request} onDecision={onDecision} />;
   const params = request.params || {};
   const isFile = request.method === 'item/fileChange/requestApproval';
   const isInput = request.method === 'item/tool/requestUserInput';

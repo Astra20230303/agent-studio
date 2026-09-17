@@ -1,0 +1,10 @@
+.user-input-dialog{max-height:calc(100dvh - 40px);overflow:auto;border-radius:8px;overflow-wrap:anywhere}
+.user-input-dialog fieldset{min-width:0;margin:18px 0;padding:0;border:0}
+.user-input-dialog legend{font-size:14px;font-weight:600}
+.question-option{display:flex;align-items:flex-start;gap:9px;padding:8px 0;font-size:14px;cursor:pointer}
+.question-option input{flex:none;margin-top:4px}
+.question-option span{min-width:0}
+.question-option small{display:block;margin-top:4px;line-height:1.5}
+.question-text{width:100%;min-width:0;padding:9px;border:1px solid #aaa;border-radius:4px;background:transparent;color:inherit}
+.user-input-dialog button:disabled{opacity:.5;cursor:default}
+.user-input-dialog [role=alert]{color:#bd3030}
