@@ -188,3 +188,7 @@ Successful sends clear submitted attachments, while rejected sends retain them.
 Build, attachments.test.cjs and attachments-ui.cjs pass protocol and mocked-bridge
 acceptance across ordinary, steering and queued requests. Actual file decoding
 and model vision depend on app-server/provider support and remain unverified.
+Post-commit acceptance fixes attachment draft ownership on the first send from
+the welcome screen, preserves selections added while the picker is pending,
+and displays attachment filenames in messages/queue entries. The browser test
+now starts without an existing thread and verifies failure retention and labels.

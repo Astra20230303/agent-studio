@@ -9,6 +9,6 @@ export function useAttachmentDraft(threadId?: string) {
   });
   const id = threadId || 'new';
   useEffect(() => { localStorage.setItem('felix-attachments-v1', JSON.stringify(drafts)); }, [drafts]);
-  const set = (value: SetStateAction<string[]>) => setDrafts(previous => ({ ...previous, [id]: typeof value === 'function' ? value(previous[id] || []) : value }));
+  const set = (value: SetStateAction<string[]>, target = id) => setDrafts(previous => ({ ...previous, [target]: typeof value === 'function' ? value(previous[target] || []) : value }));
   return [drafts[id] || [], set] as const;
 }

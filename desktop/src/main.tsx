@@ -246,7 +246,7 @@ function App() {
     sendingRef.current.add(lockId);
     let localId = existing?.id;
     const automaticTitle = automaticThreadTitle(existing, text);
-    if (!existing) { const draft = structuredClone(state); const created = createThread(draft); localId = created.id; update(next => { next.threads.push(created); next.activeThreadId = created.id; }); }
+    if (!existing) { const draft = structuredClone(state); const created = createThread(draft); localId = created.id; setAttachments(attachments, localId); setAttachments([]); update(next => { next.threads.push(created); next.activeThreadId = created.id; }); }
     setPendingThreads(previous => [...previous, localId!]);
     const messageId = crypto.randomUUID();
     try {
@@ -294,7 +294,7 @@ function App() {
         thread.status = runtime.read(threadId!)?.turnId ? 'running' : 'completed';
       });
       setInput(current => current === input ? '' : current);
-      setAttachments(current => current.filter(path => !attachments.includes(path)));
+      setAttachments(current => current.filter(path => !attachments.includes(path)), localId);
       if (activeThreadRef.current === localId) setComposerPlugins([]);
     } catch (error: any) {
       update(next => { const thread = next.threads.find(item => item.id === localId); if (thread) thread.messages = thread.messages.filter(item => item.id !== messageId); });
@@ -392,8 +392,7 @@ function App() {
   const addAttachment = async () => {
     const picked = await window.desktop?.pickFiles?.();
     if (!picked?.length) return;
-    const next = [...new Set([...attachments, ...picked])];
-    setAttachments(next);
+    setAttachments(current => [...new Set([...current, ...picked])]);
   };
   const navigateHistory = (direction: -1 | 1) => {
     const location = navigation.move(direction);
@@ -593,7 +592,7 @@ function Chat({ removeAttachment, busy, mode, permission, onOpenPlugins, compose
   ];
   return <div className={`chat-layout${workMode ? ' work-mode' : ''}${workMode && empty ? ' work-new-chat' : ''}`}>{active?.messages.length ? <div className="thread-view" ref={threadView}>{groupMessages(active.messages).map(group => {
     const message = group[0];
-    return message.tool ? <ToolActivityGroup key={message.id} messages={group} /> : <div className={`message ${message.role}`} key={message.id}>{message.role === 'assistant' ? <><MarkdownMessage content={message.content} />{isFinalReply(active.messages, active.messages.indexOf(message)) && <MessageActions content={message.content} disabled={running || active.status === 'running' || status !== 'connected' || !active.remoteId} onFork={() => onForkMessage(message.id)} onError={toast} />}</> : <div className="user-text">{message.content}</div>}</div>;
+    return message.tool ? <ToolActivityGroup key={message.id} messages={group} /> : <div className={`message ${message.role}`} key={message.id}>{message.role === 'assistant' ? <><MarkdownMessage content={message.content} />{isFinalReply(active.messages, active.messages.indexOf(message)) && <MessageActions content={message.content} disabled={running || active.status === 'running' || status !== 'connected' || !active.remoteId} onFork={() => onForkMessage(message.id)} onError={toast} />}</> : <div className="user-text">{message.content}{message.attachments?.map(path => <div key={path} className="message-attachment" title={path}>📎 {path.replace(/^.*[\\/]/, '')}</div>)}</div>}</div>;
   })}{activity && <div className={`activity${activity === '正在思考…' ? ' thinking' : ''}`}>{activity}</div>}</div> : !workMode && <div className="welcome">
     <div className="welcome-content">
       <div className="welcome-mark" role="img" aria-label="Felix" title="Felix" tabIndex={0}><Badge className="welcome-badge" aria-hidden="true" /><Terminal className="welcome-terminal" aria-hidden="true" /></div>
