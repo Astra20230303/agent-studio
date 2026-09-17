@@ -1,34 +1,70 @@
-# Electron + React + TypeScript 迁移骨架
+# Felix 桌面应用
 
-这里是正式桌面工程的目标结构：Electron 负责窗口和本地能力，React 负责 Codex Desktop 的多页面 UI，TypeScript 负责线程、项目和自动化状态模型，Vite 负责开发和构建。
+Felix 的正式桌面工程，使用 Electron、React、TypeScript 和 Vite。项目定位、能力范围与实施方向见 [根 README](../README.md)。根目录 `index.html` 仅保留为早期原型。
 
-开发模式默认使用 `http://127.0.0.1:5317`，也可以用 `VITE_PORT=xxxx` 覆盖。
+## 安装与启动
 
-当前仓库根目录的 `index.html` 仍是可直接运行的零依赖验证原型；`desktop/` 是后续真实工程化迁移的隔离骨架，避免在依赖不可用时破坏已经验证的原型。
-
-## 真实 Codex app-server
-
-Electron 主进程会启动 `codex app-server --stdio`，并将 `CODEX_HOME` 默认放在
-`../.project-cache/codex-home`。查找顺序是项目内 binary、Windows Codex 安装、PATH；
-也可以通过 `CODEX_APP_SERVER_COMMAND` 指定其它 executable。渲染器完成
-`initialize`/`initialized` 握手，支持 thread、turn、流式 `item/agentMessage/delta`
-以及 `turn/interrupt`。没有可用 binary 或登录时，界面会显示连接状态，不会出现空白窗口。
-
-## MiniMax 中国服务
-
-项目包含一个本地兼容适配层，将 Codex 的 `/v1/responses` 请求转换为 MiniMax
-`/v1/chat/completions` 并转发流式结果。密钥只从当前进程的 `MINIMAX_API_KEY`
-读取，不写入仓库或配置文件。
+在仓库根目录执行：
 
 ```powershell
-$env:MINIMAX_API_KEY = '<your MiniMax key>'
-pnpm run desktop
+pnpm --dir desktop install
+pnpm --dir desktop build
+.\desktop\start-desktop.ps1
 ```
 
-建议迁移顺序：
+启动脚本会在 Electron 包存在但可执行文件缺失时尝试下载 Electron；未安装依赖或未构建界面时会明确报错。
 
-1. 将根原型的 CSS tokens 和布局组件拆为 React components。
-2. 用 `src/domain.ts` 的类型替代页面内的隐式对象。
-3. 用 `src/store.ts` 的接口替换根原型的多组 localStorage key。
-4. 接入 Electron preload 的线程、项目、文件和窗口 IPC。
-5. 再接入真实线程、Git provider 和 automation connector。
+启动还需要项目内的 Codex 可执行程序。主进程优先使用 `.project-cache/bin/codex.exe`，其次使用 `codex-upstream/codex-rs/target/debug` 或 `target/release` 内的程序。`CODEX_APP_SERVER_COMMAND` 可覆盖路径，但必须指向项目内的文件。不会回退到系统安装的 Codex。
+
+开发时可在两个 PowerShell 窗口中分别执行：
+
+```powershell
+# 窗口一：在 desktop 目录启动前端
+pnpm exec vite --port 5317
+```
+
+```powershell
+# 窗口二：同样在 desktop 目录启动 Electron
+pnpm exec electron . --dev
+```
+
+## 模型与数据
+
+- 在 **设置 → 配置** 中新增、编辑和启用模型渠道；支持模型列表读取与独立的推理强度选择。
+- 模型适配器将 Responses 请求转换为兼容的 Chat Completions 请求，保持工具调用与结果回传链路。
+- Provider API Key 使用 Electron `safeStorage` 加密保存在 `.project-cache/electron-user-data/provider.json`。
+- Codex 配置、会话与缓存使用 `.project-cache/codex-home`；Electron 用户数据使用 `.project-cache/electron-user-data`。
+- 会话界面状态保存在本应用的 localStorage；不要提交本地运行数据或密钥。
+
+## 代码入口
+
+| 文件 | 职责 |
+| --- | --- |
+| `src/main.tsx` | 应用界面、会话交互与通知处理 |
+| `src/codexClient.ts` | app-server 客户端调用 |
+| `electron/main.cjs` / `preload.cjs` | Electron 生命周期及 IPC 桥接 |
+| `electron/codex-server.cjs` | 项目 Codex 进程启动、配置与适配器连接 |
+| `electron/minimax-adapter.cjs` | 模型协议转换；文件名保留历史命名，实际用于兼容渠道 |
+| `electron/local-desktop.cjs` / `.ps1` | Windows 截图与原生输入 |
+| `electron/remote-desktop.cjs` / `remote-setup.cjs` | noVNC 控制、远程环境准备与隧道 |
+| `electron/artifacts.cjs` | 项目内产物读取与文件变更撤销 |
+| `electron/task-scheduler.cjs` | 定时任务调度与运行记录 |
+
+## 验证
+
+在 `desktop` 目录执行：
+
+```powershell
+pnpm build
+node --test tests/artifacts.test.cjs tests/tool-bridge.test.cjs tests/provider-registry.test.cjs tests/custom-provider.test.cjs tests/remote-setup.test.cjs
+```
+
+`tests/*-ui.cjs` 包含 Playwright 界面测试；部分旧用例需要随界面变化同步更新，不能将所有脚本视为已通过的验收结果。`local-desktop.cjs` 和远程桌面真实环境测试会操作实际桌面，请在适合测试的环境中运行。
+
+## 相关说明
+
+- [模型工具协议桥接](docs/minimax-tool-bridge.md)
+- [插件与技能集成](docs/extensions.md)
+- [定时任务](docs/scheduled-tasks.md)
+
+这些专项文档可能保留早期实现说明；具体接口与行为以当前源码及测试结果为准。
