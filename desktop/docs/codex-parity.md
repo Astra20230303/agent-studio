@@ -1333,3 +1333,7 @@ Implemented and verified: local branch deletion is limited to exact enumerated
 non-current branches and delegates to `git branch -d`, so unmerged history is
 protected. Two isolated repository tests cover successful deletion, current and
 unmerged rejection, and stale HEAD. Browser acceptance and production build pass.
+Post-commit acceptance adds explicit success feedback after branch deletion while
+retaining automatic list refresh. Browser acceptance now covers protection error,
+retry success and visible confirmation; real deletion tests and production build
+pass.

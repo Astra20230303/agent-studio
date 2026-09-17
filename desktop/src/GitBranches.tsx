@@ -7,6 +7,7 @@ export function GitBranches({ root, onSwitched, onBusyChange }: { root: string; 
   const [localName, setLocalName] = useState('');
   const [deleteName, setDeleteName] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [revision, setRevision] = useState(0);
   const locked = useRef(false);
@@ -29,12 +30,12 @@ export function GitBranches({ root, onSwitched, onBusyChange }: { root: string; 
   const switchBranch = async (track = false, deleting = false) => {
     const remote = snapshot?.remoteBranches?.find(entry => entry.ref === remoteRef);
     if (locked.current || !snapshot || (deleting ? !deleteName : track ? !remote || !localName.trim() : !target)) return;
-    locked.current = true; setBusy(true); onBusyChange(true); setError('');
+    locked.current = true; setBusy(true); onBusyChange(true); setError(''); setNotice('');
     try {
       const result = await window.desktop?.workspaceGit?.({ root, action: deleting ? 'delete-branch' : track ? 'track-branch' : 'switch-branch', branch: deleting ? deleteName : track ? localName : target, expectedBranch: snapshot.current, expectedHead: snapshot.head, ...(track ? { ref: remote!.ref, expectedRemoteHead: remote!.head } : {}) });
       if (!mounted.current) return;
       if (!result?.ok) throw Error(result?.error || '无法切换分支');
-      if (deleting) { setRevision(value => value + 1); setDeleteName(''); setError(''); } else onSwitched(result.result.branch);
+      if (deleting) { setRevision(value => value + 1); setDeleteName(''); setError(''); setNotice(`已删除本地分支 ${deleteName}`); } else onSwitched(result.result.branch);
     } catch (error) { if (mounted.current) setError(error instanceof Error ? error.message : String(error)); }
     finally { locked.current = false; onBusyChange(false); if (mounted.current) setBusy(false); }
   };
@@ -42,6 +43,7 @@ export function GitBranches({ root, onSwitched, onBusyChange }: { root: string; 
     <h3>切换本地分支</h3>
     {snapshot && <p>当前：{snapshot.current || `游离 HEAD ${snapshot.head.slice(0, 8)}`}</p>}
     {error && <p role="alert">{error}</p>}
+    {notice && <p role="status">{notice}</p>}
     {!snapshot && !error && <p role="status">正在读取分支…</p>}
     <button disabled={busy} onClick={() => setRevision(value => value + 1)}>刷新分支列表</button>
     {snapshot && <form onSubmit={event => { event.preventDefault(); void switchBranch(); }}>
