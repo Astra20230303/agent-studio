@@ -6,7 +6,7 @@ const { chromium } = require('playwright');
     const page = await browser.newPage(); const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.addInitScript(() => {
-      localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ model: 'test', projects: [], threads: [] }));
+      if (!localStorage.getItem('codex-desktop-state-v1')) localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ model: 'test', projects: [], threads: [] }));
       window.__failState = true; window.__calls = [];
       const original = Storage.prototype.setItem;
       Storage.prototype.setItem = function (key, value) {
@@ -35,6 +35,21 @@ const { chromium } = require('playwright');
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')));
     assert.equal(saved.theme, 'dark');
     assert.ok(saved.threads.some(thread => thread.messages.some(message => message.content === 'Send despite state storage failure')));
+    await page.getByRole('button', { name: '设置', exact: true }).click();
+    await page.evaluate(() => { window.__failState = true; });
+    await page.getByRole('combobox', { name: '主题', exact: true }).selectOption('light');
+    await retry.waitFor();
+    await page.evaluate(() => { window.__failState = false; });
+    await page.getByRole('button', { name: '权限', exact: true }).click();
+    await page.getByRole('radio', { name: '帮我审批', exact: true }).check();
+    await retry.waitFor({ state: 'detached' });
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).theme), 'light');
+    await page.reload();
+    await page.getByRole('button', { name: '设置', exact: true }).click();
+    assert.equal(await page.getByRole('combobox', { name: '主题', exact: true }).inputValue(), 'light');
+    await page.getByRole('button', { name: '权限', exact: true }).click();
+    assert.equal(await page.getByRole('radio', { name: '帮我审批', exact: true }).isChecked(), true);
+    assert.ok(await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.some(thread => thread.messages.some(message => message.content === 'Send despite state storage failure'))));
     assert.deepEqual(errors, []);
     console.log('PASS: state write failure preserves settings, conversation creation and sending; retry saves latest state');
   } finally { await browser.close(); }

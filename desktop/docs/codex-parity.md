@@ -779,3 +779,6 @@ with retry saving the latest in-memory snapshot. Build and browser fault injecti
 verify quota failures, theme changes, creating/sending a conversation and recovery
 without renderer errors. Unsaved data still cannot survive closing the app;
 this is failure recovery, not a larger-capacity storage migration.
+Post-commit acceptance repeats the failure after manual recovery, verifies the
+next state change automatically saves all pending changes, then reloads to check
+the saved theme, permission default and conversation text survive.
