@@ -2,6 +2,7 @@ export type ThreadStatus = 'idle' | 'running' | 'needs_input' | 'completed' | 'f
 export type AutomationStatus = 'active' | 'paused' | 'failed';
 
 export interface Message {
+  attachments?: string[];
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;

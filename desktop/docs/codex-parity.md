@@ -177,3 +177,14 @@ Post-commit acceptance fixes the project label/metadata to follow the selected
 conversation rather than the global project. A remote thread without a known
 root shows a neutral workspace label instead of falsely claiming Felix's root.
 Browser regression switches back to a preexisting thread with another directory.
+
+## Feature 4b: attachments
+
+PNG/JPEG/WebP/GIF paths are transmitted as app-server localImage inputs. Other
+files become explicit quoted local path references for agent file tools; they
+are not claimed as uploaded or embedded document content. Attachment-only input,
+removal, per-thread persisted drafts, steering and queued sends are supported.
+Successful sends clear submitted attachments, while rejected sends retain them.
+Build, attachments.test.cjs and attachments-ui.cjs pass protocol and mocked-bridge
+acceptance across ordinary, steering and queued requests. Actual file decoding
+and model vision depend on app-server/provider support and remain unverified.

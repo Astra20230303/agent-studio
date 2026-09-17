@@ -1,4 +1,5 @@
 export type QueuedTurn = {
+  attachments?: string[];
   cwd?: string;
   planningMode?: 'default' | 'plan';
   id: string; localId: string; threadId: string; text: string; model: string;

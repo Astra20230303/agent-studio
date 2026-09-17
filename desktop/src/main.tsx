@@ -6,6 +6,7 @@ import { useTurnQueue } from './useTurnQueue';
 import { TurnQueue } from './TurnQueuePanel';
 import { PlanPanel } from './PlanPanel';
 import { workspaceFor } from './workspace';
+import { useAttachmentDraft } from './useAttachmentDraft';
 import { readPlan } from './planning';
 import { createConnectionRecovery } from './connectionRecovery';
 import './connection.css';
@@ -68,7 +69,7 @@ function App() {
   const [showSearch, setShowSearch] = useState(false);
   const [showModel, setShowModel] = useState(false);
   const [showProjects, setShowProjects] = useState(false);
-  const [attachments, setAttachments] = useState<string[]>([]);
+  const [attachments, setAttachments] = useAttachmentDraft(state.activeThreadId);
   const [notice, setNotice] = useState('');
   const [codexStatus, setCodexStatus] = useState<'connecting' | 'connected' | 'offline' | 'error'>('connecting');
   const reconnectRef = useRef<() => void>(() => {});
@@ -200,9 +201,9 @@ function App() {
   const toast = (text: string) => { setNotice(text); window.setTimeout(() => setNotice(''), 1500); };
   const update = (fn: (next: DesktopState) => void) => setState(previous => { const next = structuredClone(previous); fn(next); return next; });
   const enqueue = () => {
-    if (!input.trim() || !active?.remoteId || !runningTurnId) return;
-    queue.change(items => [...items, { id: crypto.randomUUID(), localId: active.id, threadId: active.remoteId!, text: input.trim(), model: modelId(state.model), effort: state.reasoningEffort, cwd: workspaceFor(state, active), planningMode: active.planningMode || 'default', plugins: composerPlugins.map(({ id, name }) => ({ id, name })), waitingOn: runningTurnId, status: 'waiting' }]);
-    setInput(''); setComposerPlugins([]);
+    if ((!input.trim() && !attachments.length) || !active?.remoteId || !runningTurnId) return;
+    queue.change(items => [...items, { id: crypto.randomUUID(), localId: active.id, threadId: active.remoteId!, text: input.trim(), attachments: [...attachments], model: modelId(state.model), effort: state.reasoningEffort, cwd: workspaceFor(state, active), planningMode: active.planningMode || 'default', plugins: composerPlugins.map(({ id, name }) => ({ id, name })), waitingOn: runningTurnId, status: 'waiting' }]);
+    setInput(''); setAttachments([]); setComposerPlugins([]);
   };
   useEffect(() => {
     if (codexStatus !== 'connected') return;
@@ -214,10 +215,10 @@ function App() {
       sendingRef.current.add(item.localId);
       queue.change(items => items.map(entry => entry.id === item.id ? { ...entry, status: 'sending', error: undefined } : entry));
       setPendingThreads(previous => [...previous, item.localId]);
-      update(next => { const target = next.threads.find(thread => thread.id === item.localId); if (target) target.messages.push({ id: item.id, role: 'user', content: item.text, createdAt: new Date().toISOString() }); });
+      update(next => { const target = next.threads.find(thread => thread.id === item.localId); if (target) target.messages.push({ id: item.id, role: 'user', content: item.text, attachments: item.attachments, createdAt: new Date().toISOString() }); });
       void (async () => {
         try {
-          const result = await startTurn({ threadId: item.threadId, text: item.text, model: item.model, effort: item.effort, plugins: item.plugins, planningMode: item.planningMode || 'default', cwd: item.cwd });
+          const result = await startTurn({ threadId: item.threadId, text: item.text, attachments: item.attachments, model: item.model, effort: item.effort, plugins: item.plugins, planningMode: item.planningMode || 'default', cwd: item.cwd });
           const turn = result.turn;
           if (!turn?.id) throw new Error('服务未返回回合编号，请检查会话记录。');
           runtime.apply(item.threadId, { type: 'start', turnId: turn.id });
@@ -236,7 +237,7 @@ function App() {
     }
   }, [queue.items, codexStatus, runtime.threads, pendingThreads, state.threads]);
   const send = async () => {
-    const text = input.trim(); if (!text || pending) return;
+    const text = input.trim(); if ((!text && !attachments.length) || pending) return;
     if (catalog.loading || !availableModels.includes(state.model)) { setNotice(catalog.error || '请等待模型列表加载并选择模型。'); setShowModel(true); return; }
     if (codexStatus !== 'connected') { setNotice('app-server 尚未连接，请稍后重试。'); return; }
     const existing = state.threads.find(item => item.id === state.activeThreadId);
@@ -269,17 +270,17 @@ function App() {
       update(next => {
         const thread = next.threads.find(item => item.id === localId);
         if (!thread) return;
-        thread.messages.push({ id: messageId, role: 'user', content: text, createdAt: new Date().toISOString() });
+        thread.messages.push({ id: messageId, role: 'user', content: text, attachments: [...attachments], createdAt: new Date().toISOString() });
         ensureThreadTitle(thread);
         thread.updatedAt = new Date().toISOString();
       });
       let turn;
       const plugins = composerPlugins.map(plugin => ({ id: plugin.id, name: plugin.name }));
       if (runningTurnId) {
-        const result = await steerTurn(threadId, runningTurnId, text, plugins);
+        const result = await steerTurn(threadId, runningTurnId, text, plugins, attachments);
         turn = { turn: { id: result.turnId } };
       } else {
-        turn = await startTurn({ threadId, text, plugins, model, modelProvider, effort: state.reasoningEffort, cwd, planningMode: existing?.planningMode || 'default' });
+        turn = await startTurn({ threadId, text, attachments, plugins, model, modelProvider, effort: state.reasoningEffort, cwd, planningMode: existing?.planningMode || 'default' });
       }
       if (turn.turn?.id) {
         runtime.apply(threadId, { type: 'start', turnId: turn.turn.id });
@@ -293,6 +294,7 @@ function App() {
         thread.status = runtime.read(threadId!)?.turnId ? 'running' : 'completed';
       });
       setInput(current => current === input ? '' : current);
+      setAttachments(current => current.filter(path => !attachments.includes(path)));
       if (activeThreadRef.current === localId) setComposerPlugins([]);
     } catch (error: any) {
       update(next => { const thread = next.threads.find(item => item.id === localId); if (thread) thread.messages = thread.messages.filter(item => item.id !== messageId); });
@@ -306,7 +308,7 @@ function App() {
     queue.change(items => items.map(item => item.localId === active?.id ? { ...item, status: 'paused', error: '已停止，队列暂停。' } : item));
     if (active?.remoteId && runningTurnId) void interruptTurn(active.remoteId, runningTurnId).catch(error => setNotice(`停止失败：${error.message}`));
   };
-  const newChat = () => { setRemoteThreadId(undefined); update(next => createThread(next)); setComposerPlugins([]); setAttachments([]); setPage('chat'); };
+  const newChat = () => { setRemoteThreadId(undefined); update(next => createThread(next)); setComposerPlugins([]); setPage('chat'); };
   const selectThread = async (thread: DesktopState['threads'][number]) => { update(next => { next.activeThreadId = thread.id; }); setComposerPlugins([]); setPage('chat'); };
   useEffect(() => {
     const threadId = active?.remoteId;
@@ -431,7 +433,7 @@ function App() {
       </div>
       <div className="sidebar-footer"><button className="sidebar-nav" aria-current={page === 'settings' ? 'page' : undefined} onClick={() => setPage('settings')}><Badge aria-hidden="true" /><span>设置</span></button></div>
     </aside>
-      <main>{page === 'chat' && <><div className="planning-controls"><label>协作模式 <select aria-label="协作模式" value={active?.planningMode || 'default'} disabled={Boolean(runningTurnId) || pending} onChange={event => { const mode = event.target.value as 'default' | 'plan'; update(next => { const thread = next.threads.find(item => item.id === next.activeThreadId) || createThread(next); thread.planningMode = mode; }); }}><option value="default">直接执行</option><option value="plan">先规划</option></select></label>{active?.planningMode === 'plan' && <span>先讨论方案，再切换执行</span>}{active?.planningMode === 'plan' && active.messages.some(message => message.id.startsWith('plan-')) && <button title={input.trim() ? '请先发送或清空当前草稿' : '准备执行计划的指令'} disabled={Boolean(runningTurnId) || pending || Boolean(input.trim())} onClick={() => { update(next => { const thread = next.threads.find(item => item.id === next.activeThreadId); if (thread) thread.planningMode = 'default'; }); setInput('请按照刚才确认的计划逐步实现，并验证结果。'); }}>按计划执行</button>}</div><PlanPanel plan={active?.plan} /></>}{page === 'chat' && <><TurnQueue items={queue.items.filter(item => item.localId === active?.id)} disabled={codexStatus !== 'connected' || pending} onRemove={id => queue.change(items => items.filter(item => item.id !== id))} onResume={() => queue.change(items => items.map(item => item.localId === active?.id && item.status === 'paused' ? { ...item, status: runningTurnId ? 'waiting' : 'ready', waitingOn: runningTurnId, error: undefined } : item))} />{runningTurnId && <button className="queue-message" disabled={!input.trim() || pending || codexStatus !== 'connected'} onClick={enqueue}>本轮完成后发送</button>}</>}{!!active?.messages.length && page === 'chat' && <div className="thread-toolbar global-thread-toolbar"><span>{active.title}</span><div><button onClick={renameActive}>重命名</button><button onClick={forkActive}>分叉</button><button onClick={archiveActive}>归档</button><button onClick={deleteActive}>删除</button></div></div>}{page === 'chat' ? <Chat busy={pending} mode={state.mode} permission={state.permission} onOpenPlugins={() => setPage('plugins')} composerPlugins={composerPlugins} setComposerPlugins={setComposerPlugins} active={active} input={input} setInput={setInput} send={send} cancel={cancel} running={Boolean(runningTurnId)} activity={activity} model={state.model} reasoningEffort={state.reasoningEffort} catalog={catalog} update={update} attachments={attachments} addAttachment={addAttachment} showModel={showModel} setShowModel={setShowModel} showProjects={showProjects} setShowProjects={setShowProjects} toast={toast} projectId={state.activeProjectId} projects={state.projects} status={codexStatus} onForkMessage={forkFromMessage} /> : page === 'scheduled' ? <ScheduledPage models={availableModels} loadingModels={catalog.loading} refreshModels={catalog.refresh} /> : page === 'plugins' ? <ExtensionsPage connected={codexStatus === 'connected'} /> : <Workspace page={page} state={state} models={availableModels} update={update} toast={toast} providerStatus={providerStatus} onBack={() => { setPage('chat'); setSidebarVisible(true); }} />}</main>
+      <main>{page === 'chat' && <><div className="planning-controls"><label>协作模式 <select aria-label="协作模式" value={active?.planningMode || 'default'} disabled={Boolean(runningTurnId) || pending} onChange={event => { const mode = event.target.value as 'default' | 'plan'; update(next => { const thread = next.threads.find(item => item.id === next.activeThreadId) || createThread(next); thread.planningMode = mode; }); }}><option value="default">直接执行</option><option value="plan">先规划</option></select></label>{active?.planningMode === 'plan' && <span>先讨论方案，再切换执行</span>}{active?.planningMode === 'plan' && active.messages.some(message => message.id.startsWith('plan-')) && <button title={input.trim() ? '请先发送或清空当前草稿' : '准备执行计划的指令'} disabled={Boolean(runningTurnId) || pending || Boolean(input.trim())} onClick={() => { update(next => { const thread = next.threads.find(item => item.id === next.activeThreadId); if (thread) thread.planningMode = 'default'; }); setInput('请按照刚才确认的计划逐步实现，并验证结果。'); }}>按计划执行</button>}</div><PlanPanel plan={active?.plan} /></>}{page === 'chat' && <><TurnQueue items={queue.items.filter(item => item.localId === active?.id)} disabled={codexStatus !== 'connected' || pending} onRemove={id => queue.change(items => items.filter(item => item.id !== id))} onResume={() => queue.change(items => items.map(item => item.localId === active?.id && item.status === 'paused' ? { ...item, status: runningTurnId ? 'waiting' : 'ready', waitingOn: runningTurnId, error: undefined } : item))} />{runningTurnId && <button className="queue-message" disabled={(!input.trim() && !attachments.length) || pending || codexStatus !== 'connected'} onClick={enqueue}>本轮完成后发送</button>}</>}{!!active?.messages.length && page === 'chat' && <div className="thread-toolbar global-thread-toolbar"><span>{active.title}</span><div><button onClick={renameActive}>重命名</button><button onClick={forkActive}>分叉</button><button onClick={archiveActive}>归档</button><button onClick={deleteActive}>删除</button></div></div>}{page === 'chat' ? <Chat removeAttachment={path => setAttachments(current => current.filter(item => item !== path))} busy={pending} mode={state.mode} permission={state.permission} onOpenPlugins={() => setPage('plugins')} composerPlugins={composerPlugins} setComposerPlugins={setComposerPlugins} active={active} input={input} setInput={setInput} send={send} cancel={cancel} running={Boolean(runningTurnId)} activity={activity} model={state.model} reasoningEffort={state.reasoningEffort} catalog={catalog} update={update} attachments={attachments} addAttachment={addAttachment} showModel={showModel} setShowModel={setShowModel} showProjects={showProjects} setShowProjects={setShowProjects} toast={toast} projectId={state.activeProjectId} projects={state.projects} status={codexStatus} onForkMessage={forkFromMessage} /> : page === 'scheduled' ? <ScheduledPage models={availableModels} loadingModels={catalog.loading} refreshModels={catalog.refresh} /> : page === 'plugins' ? <ExtensionsPage connected={codexStatus === 'connected'} /> : <Workspace page={page} state={state} models={availableModels} update={update} toast={toast} providerStatus={providerStatus} onBack={() => { setPage('chat'); setSidebarVisible(true); }} />}</main>
       <RemoteBrowser open={browserOpen} onClose={() => setBrowserOpen(false)} />
     </div>{notice && <div className="toast">{notice}</div>}{approval && <ApprovalDialog request={approval} onDecision={respondApproval} />}{deleteCandidate && <DeleteDialog thread={state.threads.find(item => item.id === deleteCandidate)} onCancel={() => setDeleteCandidate(undefined)} onConfirm={() => { const id = deleteCandidate; setDeleteCandidate(undefined); void performDelete(id); }} />}
   </div>;
@@ -540,12 +542,12 @@ function ApprovalDialog({ request, onDecision }: { request: any; onDecision: (de
   return <div className="approval-backdrop"><section className="approval-dialog"><h2>{title}</h2><p>{reason}</p>{params.command && <pre>{params.command}</pre>}{params.cwd && <small>{params.cwd}</small>}<div className="approval-actions"><button onClick={() => onDecision(isInput ? 'cancel' : 'decline')}>{isInput ? '取消' : '拒绝'}</button><button className="primary" onClick={() => onDecision('accept')}>{isInput ? '提交' : '允许'}</button></div></section></div>;
 }
 
-function Chat({ busy, mode, permission, onOpenPlugins, composerPlugins, setComposerPlugins, onForkMessage, catalog, active, input, setInput, send, cancel, running, activity, model, reasoningEffort, update, attachments, addAttachment, showModel, setShowModel, showProjects, setShowProjects, toast, projectId, projects, status }: { busy: boolean; mode: DesktopState['mode']; permission: DesktopState['permission']; onOpenPlugins: () => void; composerPlugins: Plugin[]; setComposerPlugins: (plugins: Plugin[]) => void; onForkMessage: (messageId: string) => Promise<void>; catalog: ReturnType<typeof useModelCatalog>; active: DesktopState['threads'][number] | undefined; input: string; setInput: (value: string) => void; send: () => void; cancel: () => void; running: boolean; activity?: string; model: string; reasoningEffort: DesktopState['reasoningEffort']; update: (fn: (next: DesktopState) => void) => void; attachments: string[]; addAttachment: () => void; showModel: boolean; setShowModel: (value: boolean) => void; showProjects: boolean; setShowProjects: (value: boolean) => void; toast: (text: string) => void; projectId?: string; projects: DesktopState['projects']; status: string }) {
+function Chat({ removeAttachment, busy, mode, permission, onOpenPlugins, composerPlugins, setComposerPlugins, onForkMessage, catalog, active, input, setInput, send, cancel, running, activity, model, reasoningEffort, update, attachments, addAttachment, showModel, setShowModel, showProjects, setShowProjects, toast, projectId, projects, status }: { removeAttachment: (path: string) => void; busy: boolean; mode: DesktopState['mode']; permission: DesktopState['permission']; onOpenPlugins: () => void; composerPlugins: Plugin[]; setComposerPlugins: (plugins: Plugin[]) => void; onForkMessage: (messageId: string) => Promise<void>; catalog: ReturnType<typeof useModelCatalog>; active: DesktopState['threads'][number] | undefined; input: string; setInput: (value: string) => void; send: () => void; cancel: () => void; running: boolean; activity?: string; model: string; reasoningEffort: DesktopState['reasoningEffort']; update: (fn: (next: DesktopState) => void) => void; attachments: string[]; addAttachment: () => void; showModel: boolean; setShowModel: (value: boolean) => void; showProjects: boolean; setShowProjects: (value: boolean) => void; toast: (text: string) => void; projectId?: string; projects: DesktopState['projects']; status: string }) {
   const textarea = useRef<HTMLTextAreaElement>(null);
   const threadView = useRef<HTMLDivElement>(null);
   const followLatest = useRef(true);
   const composing = useRef(false);
-  const canSend = Boolean(input.trim()) && !busy && status === 'connected' && !catalog.loading && catalog.models.includes(model);
+  const canSend = Boolean(input.trim() || attachments.length) && !busy && status === 'connected' && !catalog.loading && catalog.models.includes(model);
   const [workingDirectory, setWorkingDirectory] = useState<string>();
   const [permissionOpen, setPermissionOpen] = useState(false);
   const permissionOptions = [
@@ -612,7 +614,7 @@ function Chat({ busy, mode, permission, onOpenPlugins, composerPlugins, setCompo
     </div>
     <div className="composer">
       {composerPlugins.length > 0 && <div className="composer-plugin-chips" aria-label="本次使用的插件">{composerPlugins.map(plugin => <span key={plugin.id}><ExtensionIcon item={plugin} /><span>{extensionName(plugin)}</span><button aria-label={`移除 ${extensionName(plugin)}`} onClick={() => setComposerPlugins(composerPlugins.filter(item => item.id !== plugin.id))}><X /></button></span>)}</div>}
-      {attachments.length > 0 && <div className="attachment-list">{attachments.map(name => <span key={name} title={name}>{name.replace(/^.*[\\/]/, '')}</span>)}</div>}
+      {attachments.length > 0 && <div className="attachment-list">{attachments.map(name => <span key={name} title={name}>{name.replace(/^.*[\\/]/, '')}<button aria-label={`移除附件：${name}`} onClick={() => removeAttachment(name)}>×</button></span>)}</div>}
       <textarea ref={textarea} aria-label="消息" value={input} onChange={event => setInput(event.target.value)}
         onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }}
         onKeyDown={event => {
