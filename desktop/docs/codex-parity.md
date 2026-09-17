@@ -979,3 +979,6 @@ spaces. Ctrl/Meta+M switches Tab back to focus navigation, with visible status.
 Save/reload share an immediate operation lock to reject overlapping actions.
 Build and browser acceptance cover multiline indentation, focus escape and
 shortcut save using the current revision and line endings.
+Post-commit acceptance verifies newline-boundary selections, leading tabs/spaces,
+empty first lines and caret insertion. A delayed save confirms repeated Ctrl+S
+does not send a second write while the first request is pending.

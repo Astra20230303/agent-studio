@@ -10,7 +10,7 @@ const assert = require('node:assert/strict');
       window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }), workspaceFile: async input => {
         if (input.action === 'read' && window.__readFail) return { ok: false, error: 'Read failed' };
         if (input.action === 'read' && window.__latest) return { ok: true, result: window.__latest };
-        if (input.action === 'write') { window.__writes.push(input); return window.__fail ? { ok: false, error: '文件已被外部修改' } : { ok: true, result: { text: input.edit.text, revision: 'new' } }; }
+        if (input.action === 'write') { window.__writes.push(input); if (window.__hold) await new Promise(resolve => { window.__release = resolve; }); return window.__fail ? { ok: false, error: '文件已被外部修改' } : { ok: true, result: { text: input.edit.text, revision: 'new' } }; }
         return { ok: true, result: input.action === 'read' ? { text: 'original\r\nline', revision: 'old' } : { entries: [{ name: 'file.txt', path: 'file.txt' }] } };
       } };
     });
@@ -70,7 +70,12 @@ const assert = require('node:assert/strict');
     await editor.press('Tab');
     assert.equal(await editor.evaluate(element => element === document.activeElement), false);
     await editor.focus();
+    await page.evaluate(() => { window.__hold = true; });
     await editor.press('Control+s');
+    await page.waitForFunction(() => Boolean(window.__release));
+    await page.getByRole('dialog', { name: '编辑工作区文件' }).dispatchEvent('keydown', { key: 's', ctrlKey: true, bubbles: true });
+    assert.equal(await page.evaluate(() => window.__writes.length), 3);
+    await page.evaluate(() => { window.__hold = false; window.__release(); });
     await editor.waitFor({ state: 'detached' });
     assert.deepEqual(await page.evaluate(() => window.__writes.at(-1).edit), { text: 'edited\nversion', revision: 'disk-revision' });
     console.log('PASS: edit/save, conflict preservation, retry and confirmed discard without write');
