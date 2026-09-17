@@ -32,6 +32,17 @@ const assert = require('node:assert/strict');
     await page.evaluate(() => window.__finish());
     await page.waitForFunction(() => !JSON.parse(localStorage.getItem('felix-plugin-drafts-v1')).a);
     await chips.getByText('Plugin B', { exact: true }).waitFor();
+    await page.evaluate(() => {
+      window.__setItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function(key, value) { if (key === 'felix-plugin-drafts-v1') throw new Error('disk full'); return window.__setItem.call(this, key, value); };
+    });
+    await page.getByRole('button', { name: '移除 Plugin B', exact: true }).click();
+    await page.getByRole('button', { name: '重试保存插件选择', exact: true }).waitFor();
+    assert.ok(await page.evaluate(() => JSON.parse(localStorage.getItem('felix-plugin-drafts-v1')).b.length === 1));
+    await page.evaluate(() => Storage.prototype.setItem = window.__setItem);
+    await page.getByRole('button', { name: '重试保存插件选择', exact: true }).click();
+    await page.waitForFunction(() => !JSON.parse(localStorage.getItem('felix-plugin-drafts-v1')).b);
+    await page.reload(); assert.equal(await page.getByLabel('本次使用的插件').count(), 0);
     console.log('PASS: independent persisted plugin drafts and delayed source-only send cleanup');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
