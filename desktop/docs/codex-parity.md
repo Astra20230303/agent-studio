@@ -401,3 +401,10 @@ pending, as does live tool-provider end-to-end acceptance.
 Acceptance correction distinguishes explicit null from an omitted field when
 merging tool updates, so cleared errors/results do not linger and null arguments
 remain visible as null. Three state/history tests, browser workflow and build pass.
+
+Tool media increment: text blocks render directly, raster image and audio blocks
+offer native previews, and structured results remain expandable. MCP base64 and
+dynamic data/HTTPS media are supported; executable schemes, SVG and oversized
+inline payloads are not previewed. Build and parser tests pass; browser acceptance
+decodes an inline PNG and verifies unsupported-media fallback. Live provider media
+and audio playback remain unverified; MCP apps/resources are still pending.

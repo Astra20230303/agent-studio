@@ -1,4 +1,5 @@
 import type { ToolActivity } from './domain';
+import { ToolResult } from './ToolResult';
 
 function display(value: unknown) { return typeof value === 'string' ? value : JSON.stringify(value, null, 2); }
 export function InvocationActivity({ tool }: { tool: ToolActivity }) {
@@ -12,7 +13,7 @@ export function InvocationActivity({ tool }: { tool: ToolActivity }) {
     <div className="tool-detail">{tool.durationMs != null && <small>用时 {(tool.durationMs / 1000).toFixed(1)} 秒</small>}
       <h4>参数</h4><pre className="tool-output">{display(call.arguments === undefined ? {} : call.arguments)}</pre>
       {call.error != null && <pre className="tool-output" role="alert">{display(call.error)}</pre>}
-      {call.result != null && <><h4>结果</h4><pre className="tool-output">{display(call.result)}</pre></>}
+      {call.result != null && <><h4>结果</h4><ToolResult result={call.result} /></>}
     </div>
   </details>;
 }

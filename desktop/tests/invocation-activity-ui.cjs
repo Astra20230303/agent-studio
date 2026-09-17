@@ -17,11 +17,15 @@ const assert = require('node:assert/strict');
     await page.getByText(/"q": "example"/).waitFor();
     await page.evaluate(() => window.__notify({ method: 'item/completed', params: { threadId: 'parent', turnId: 't', item: { id: 'm', type: 'mcpToolCall', status: 'completed', result: { content: [{ type: 'text', text: 'Search result' }] } } } }));
     await page.getByText('search · query · 已完成', { exact: true }).waitFor();
-    await page.getByText(/"text": "Search result"/).waitFor();
+    await page.getByText('Search result', { exact: true }).waitFor();
     await page.evaluate(() => window.__notify({ method: 'item/completed', params: { threadId: 'parent', turnId: 't', item: { id: 'd', type: 'dynamicToolCall', tool: 'dynamic', status: 'completed', success: false, contentItems: [{ type: 'inputText', text: 'Failure detail' }] } } }));
     await page.getByText('dynamic · 失败', { exact: true }).click();
-    await page.getByText(/Failure detail/).waitFor();
+    await page.getByText('Failure detail', { exact: true }).waitFor();
     assert.equal(await page.locator('.tool-row').count(), 2);
+    await page.evaluate(() => window.__notify({ method: 'item/completed', params: { threadId: 'parent', turnId: 't', item: { id: 'image', type: 'mcpToolCall', tool: 'screenshot', status: 'completed', result: { content: [{ type: 'image', mimeType: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a1f8AAAAASUVORK5CYII=' }, { type: 'image', mimeType: 'image/svg+xml', data: 'YQ==' }] } } } }));
+    await page.getByText('screenshot · 已完成', { exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('img[alt="工具返回的图片"]')?.naturalWidth === 1);
+    await page.getByText('媒体无法预览，请查看结构化结果。', { exact: true }).waitFor();
     console.log('PASS: MCP running/completed details and dynamic failure display');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
