@@ -47,3 +47,11 @@ async function undoArtifact(root, change) {
   await run(true); await run(false);
 }
 module.exports = { readArtifact, undoArtifact, resolveArtifact };
+async function artifactRequest(defaultRoot, input) {
+  const root = input?.root === undefined ? defaultRoot : input.root;
+  if (typeof root !== 'string' || !path.isAbsolute(root)) throw Error('无效工作区目录');
+  if (input?.action === 'undo') { await undoArtifact(root, input.change); return {}; }
+  if (input?.action !== 'read') throw Error('无效文件操作');
+  return readArtifact(root, input.path);
+}
+module.exports.artifactRequest = artifactRequest;

@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { ToolActivity } from './domain';
 import './artifacts.css';
 import { messageLinkKind } from './messageLink';
+export const ArtifactWorkspaceContext = createContext<string | undefined>(undefined);
 
 export function ArtifactLink({ path, label, preview = false, children }: { path: string; label: string; preview?: boolean; children?: ReactNode }) {
+  const root = useContext(ArtifactWorkspaceContext);
   const [file, setFile] = useState<{ name: string; data: string; image: boolean }>();
   const [error, setError] = useState('');
   const kind = messageLinkKind(path);
@@ -13,12 +15,12 @@ export function ArtifactLink({ path, label, preview = false, children }: { path:
     setFile(undefined); setError('');
     if (kind !== 'file') return () => { version.current++; };
     let active = true;
-    window.desktop?.artifact?.({ path, action: 'read' }).then(result => {
+    window.desktop?.artifact?.({ root, path, action: 'read' }).then(result => {
       if (!active) return;
       if (result?.ok) setFile(result.result); else setError(result?.error || '无法读取文件');
     }).catch(error => { if (active) setError(String(error)); });
     return () => { active = false; version.current++; };
-  }, [path, kind]);
+  }, [path, kind, root]);
   if (kind === 'unsupported') return <span title={`不支持的链接：${path}`}>{children || label}</span>;
   if (kind === 'anchor') return <><a href={path} onClick={event => {
     event.preventDefault();
@@ -41,6 +43,7 @@ export function ArtifactLink({ path, label, preview = false, children }: { path:
 }
 
 export function FileChangeCard({ change, applied }: { change: NonNullable<ToolActivity['changes']>[number]; applied: boolean }) {
+  const root = useContext(ArtifactWorkspaceContext);
   const [review, setReview] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -52,7 +55,7 @@ export function FileChangeCard({ change, applied }: { change: NonNullable<ToolAc
   const kind = typeof change.kind === 'string' ? change.kind : change.kind?.type;
   const undo = async () => {
     setBusy(true); setError('');
-    try { const result = await window.desktop?.artifact?.({ action: 'undo', change }); if (!result?.ok) throw Error(result?.error || '无法撤销'); setUndone(true); setConfirm(false); }
+    try { const result = await window.desktop?.artifact?.({ root, action: 'undo', change }); if (!result?.ok) throw Error(result?.error || '无法撤销'); setUndone(true); setConfirm(false); }
     catch (error) { setError(error instanceof Error ? error.message : String(error)); }
     finally { setBusy(false); }
   };

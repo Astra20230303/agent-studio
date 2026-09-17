@@ -170,9 +170,7 @@ ipcMain.handle('desktop:list-models', async (_event, input) => {
 });
 ipcMain.handle('desktop:artifact', async (_event, input) => {
   try {
-    const { readArtifact, undoArtifact } = require('./artifacts.cjs');
-    if (input.action === 'undo') { await undoArtifact(projectRoot, input.change); return { ok: true }; }
-    return { ok: true, result: await readArtifact(projectRoot, input.path) };
+    return { ok: true, result: await require('./artifacts.cjs').artifactRequest(projectRoot, input) };
   } catch (error) { return { ok: false, error: error.message }; }
 });
 ipcMain.handle('desktop:project-root', () => projectRoot);

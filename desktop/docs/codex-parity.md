@@ -1219,3 +1219,12 @@ Post-commit acceptance clears state when a rendered link target changes and igno
 late external-open failures belonging to the old target. A browser component
 fixture holds the old request, changes the URL and rejects the old request to
 verify no stale failure appears. Rich message regression and production build pass.
+
+## Artifact workspace binding
+
+Message file links and file-change undo now carry the conversation workspace
+through React context into the artifact IPC handler. Previously both operations
+always used Felix's repository root. Explicit workspace roots must be absolute;
+existing realpath and project-boundary checks still apply. Backend tests read and
+undo same-named files in two directories without touching the other workspace.
+Browser navigation verifies each conversation's artifact request root. Build passes.
