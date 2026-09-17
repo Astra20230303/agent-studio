@@ -549,3 +549,11 @@ Acceptance corrections restore structured skill references from user-message
 history and display selected skills in the queue. Expanded browser acceptance
 verifies exact skill inputs for turn/steer and automatic queued turn/start;
 history restoration tests and build pass. Live model consumption remains pending.
+
+Live skill transport acceptance now runs the actual frontend userInput helper
+against the project app-server with an isolated project skill and a controlled
+local model endpoint through the MiniMax adapter. It asserts that a marker found
+only in SKILL.md's body reaches the model request, the turn completes, and actual
+thread/items/list history restores the skill name/path through restoreMessages.
+`node --test tests/skill-live.test.cjs` passes. This proves skill loading and model
+transport, not instruction-following quality of an external model provider.
