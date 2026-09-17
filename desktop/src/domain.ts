@@ -12,7 +12,8 @@ export interface Message {
 }
 
 export interface ToolActivity {
-  kind: 'commandExecution' | 'fileChange';
+  kind: 'commandExecution' | 'fileChange' | 'collabAgentToolCall';
+  collaboration?: { tool: string; prompt?: string; model?: string; receiverThreadIds: string[]; agentsStates: Record<string, { status: string; message?: string }> };
   status: string;
   command?: string;
   cwd?: string;

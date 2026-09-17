@@ -360,3 +360,12 @@ not treated as proof of remote workflow completion. Live server flow is pending.
 Acceptance correction adds initial focus, keyboard containment and focus return.
 Browser checks verify forward/backward Tab cycling around enabled controls and
 dialog bounds at 390px. Build and the URL workflow pass after the correction.
+
+## Agent collaboration records
+
+Collaboration tool lifecycle items now survive live updates and history restore.
+The transcript shows operation, task, model and last-known child status/result,
+separately from tool-call completion. Child links select or create a local thread
+entry and resume the actual remote child conversation. Build, two state/history
+tests and mocked browser navigation acceptance pass. Model-driven spawning and
+newer SubAgentActivity events remain unverified/unimplemented respectively.

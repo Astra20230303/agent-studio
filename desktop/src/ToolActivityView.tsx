@@ -2,8 +2,10 @@ import { FileChangeCard } from './Artifacts';
 import { ChevronRight, FilePenLine, TerminalSquare } from 'lucide-react';
 import type { Message, ToolActivity } from './domain';
 import { toolLabel } from './toolActivity';
+import { AgentActivity } from './AgentActivity';
 
-function ToolRow({ tool }: { tool: ToolActivity }) {
+function ToolRow({ tool, onOpenAgent }: { tool: ToolActivity; onOpenAgent?: (id: string) => void }) {
+  if (tool.kind === 'collabAgentToolCall') return <AgentActivity tool={tool} onOpenAgent={onOpenAgent} />;
   if (tool.kind === 'fileChange') return <>{tool.changes?.map((change, index) => <FileChangeCard key={`${change.path}-${index}`} change={change} applied={tool.status === 'completed'} />)}</>;
   const failed = tool.status === 'failed' || (tool.exitCode != null && tool.exitCode !== 0);
   const label = toolLabel(tool);
@@ -23,13 +25,13 @@ function ToolRow({ tool }: { tool: ToolActivity }) {
   </details>;
 }
 
-export function ToolActivityGroup({ messages }: { messages: Message[] }) {
+export function ToolActivityGroup({ messages, onOpenAgent }: { messages: Message[]; onOpenAgent?: (id: string) => void }) {
   const commands = messages.filter(message => message.tool?.kind === 'commandExecution').length;
   const files = messages.reduce((sum, message) => sum + (message.tool?.changes?.length || 0), 0);
   const running = messages.some(message => message.tool?.status === 'inProgress');
   return <section className="tool-activity" aria-label="执行记录"><details open>
     <summary className="tool-group-summary"><TerminalSquare size={14} /><span>{running ? '正在执行' : '执行记录'}{commands > 0 && ` · ${commands} 个命令`}{files > 0 && ` · ${files} 个文件`}</span><ChevronRight className="disclosure" size={13} /></summary>
-    {messages.map(message => message.tool && <ToolRow key={message.id} tool={message.tool} />)}
+    {messages.map(message => message.tool && <ToolRow key={message.id} tool={message.tool} onOpenAgent={onOpenAgent} />)}
   </details></section>;
 }
 
