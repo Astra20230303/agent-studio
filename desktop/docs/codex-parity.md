@@ -465,3 +465,8 @@ form chunk is separate. Build no longer reports the 500 KB warning. A loading
 dialog and error boundary retain the approval workflow on chunk failure, including
 cancellation retry. Primitive/multiple-choice workflows and injected chunk-failure
 browser acceptance pass. These size results are not startup-time measurements.
+Post-commit acceptance serves the actual production dist on an isolated local
+server. It asserts no form-chunk request on startup, a request on elicitation,
+recoverable chunk failure, and successful form loading/submission after reload.
+No further product correction was necessary; this verifies the packaged chunk
+boundaries rather than relying solely on Vite development behavior.
