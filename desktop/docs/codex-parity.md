@@ -1697,3 +1697,13 @@ the prior snapshot and authoritative empty text replacing provisional content.
 Empty text handling was corrected. Runtime fixture cleanup now retries transient
 Windows file locks after child exit. All 19 selected registry, history, sandbox
 race and runtime tests, full-chat history acceptance and production build pass.
+
+## Per-conversation model selection
+
+Plan and delivery: each conversation persists its selected model. New threads
+snapshot the default; legacy threads use the default until restored or selected.
+Resume imports the server model only when no local selection exists. Composer,
+turn/start and queued input use the conversation choice; choosing another thread's
+model no longer changes the global default. Browser acceptance verifies two-thread
+isolation, reload, outgoing request and queue model snapshot. Build passes.
+Provider credentials remain global; unavailable models require a new selection.
