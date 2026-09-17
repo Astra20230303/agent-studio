@@ -12,7 +12,7 @@ import { useAttachmentDraft } from './useAttachmentDraft';
 import { WorkspaceFiles } from './WorkspaceFiles';
 import { GitPanel } from './GitPanel';
 import { ApprovalPrompt } from './ApprovalPrompt';
-import { McpForm } from './McpForm';
+import { LazyMcpForm as McpForm } from './LazyMcpForm';
 import { McpUrl } from './McpUrl';
 import { readPlan } from './planning';
 import { createConnectionRecovery } from './connectionRecovery';

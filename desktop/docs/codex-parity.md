@@ -458,3 +458,10 @@ substring search, not conversation-body full-text search.
 Acceptance correction includes debounce time in loading state and suppresses
 empty-result text until loading finishes. Expanded browser acceptance and build
 pass, avoiding a misleading empty state while the remote query is pending.
+
+Startup loading increment: MCP form/schema validation loads on demand, reducing
+the main production bundle from about 517 KB to 386 KB (gzip 121 KB); the 132 KB
+form chunk is separate. Build no longer reports the 500 KB warning. A loading
+dialog and error boundary retain the approval workflow on chunk failure, including
+cancellation retry. Primitive/multiple-choice workflows and injected chunk-failure
+browser acceptance pass. These size results are not startup-time measurements.
