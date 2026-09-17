@@ -37,6 +37,23 @@ const assert = require('node:assert/strict');
     await page.evaluate(() => { window.__writeFail = false; window.__queue.retry(); });
     await page.waitForFunction(() => !window.__queue.saveFailed);
     assert.equal(await page.evaluate(() => localStorage.getItem('felix-turn-queue-v1')), '[]');
+    await page.evaluate(() => {
+      window.__queue.change(() => [{ ...window.__item, status: 'sending' }, { ...window.__item, id: 'waiting', status: 'waiting' }]);
+      window.__writeFail = true;
+      window.__queue.finish('other-thread', 'other-turn', true);
+    });
+    await page.waitForFunction(() => window.__queue.saveFailed);
+    assert.deepEqual(await page.evaluate(() => window.__queue.items.map(item => item.status)), ['sending', 'paused']);
+    assert.equal(await page.evaluate(() => window.__queue.change(items => [...items, { ...window.__item, id: 'new' }], true)), false);
+    assert.deepEqual(await page.evaluate(() => window.__queue.read().map(item => item.status)), ['sending', 'paused']);
+    await page.evaluate(() => { window.__writeFail = false; window.__queue.retry(); });
+    await page.waitForFunction(() => !window.__queue.saveFailed);
+    assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('felix-turn-queue-v1')).map(item => item.status)), ['sending', 'paused']);
+    await page.evaluate(() => { window.__writeFail = true; window.__queue.change(items => items.filter(item => item.id !== 'q')); });
+    await page.waitForFunction(() => window.__queue.items.length === 1);
+    await page.evaluate(() => { window.__writeFail = false; window.__queue.retry(); });
+    await page.waitForFunction(() => !window.__queue.saveFailed);
+    assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('felix-turn-queue-v1')).map(item => item.id)), ['waiting']);
     assert.deepEqual(errors, []);
     console.log('PASS: unread queue protected, failed enqueue/send blocked, in-memory removal and retry persisted');
   } finally { await browser.close(); }

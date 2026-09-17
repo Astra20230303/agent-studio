@@ -1481,3 +1481,11 @@ The browser integration now resolves the conflict entirely to ours, stages via
 the UI, checks error clearing, and completes an empty-diff merge commit with two
 parents. Merge controls re-enable afterward. Existing real-Git merge regression
 tests and production build also pass.
+
+## Queue persistence during active dispatch
+
+Plan and delivery: preserve existing sending entries during queue write failures;
+only unsent entries pause. A newly attempted dispatch still requires successful
+persistence. Hook browser fault injection verifies in-flight status survives
+unrelated completion, rejected enqueue and save retry, while confirmed removal
+is not resurrected after another failed write. Production build passes.

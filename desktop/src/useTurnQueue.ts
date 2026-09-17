@@ -18,7 +18,10 @@ export function useTurnQueue() {
     // Persist before exposing a state transition that could dispatch work.
     try { localStorage.setItem(key, JSON.stringify(next)); }
     catch {
-      const paused = (requireSaved ? ref.current : next).map(item => ({ ...item, status: 'paused' as const, error: '队列保存失败，请核对会话记录后继续。' }));
+      // A persistence failure cannot cancel an already dispatched request.
+      const paused = (requireSaved ? ref.current : next).map(item =>
+        item.status === 'sending' && ref.current.some(previous => previous.id === item.id && previous.status === 'sending')
+          ? item : { ...item, status: 'paused' as const, error: '队列保存失败，请核对会话记录后继续。' });
       ref.current = paused; setItems(paused); setSaveFailed(true); return false;
     }
     ref.current = next; setItems(next);
