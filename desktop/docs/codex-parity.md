@@ -1390,3 +1390,8 @@ unfinished merge, and commit permits an empty staged diff only while a merge is
 pending. Unresolved conflicts still block submission. Acceptance must verify a
 real conflicting merge resolved entirely to ours creates two-parent history and
 that an ordinary empty commit remains rejected.
+Verified: real Git creates the two-parent merge commit after resolving to ours;
+unresolved conflicts and ordinary empty commits remain blocked. Browser workflow
+and existing write regressions pass. Post-commit acceptance removes the misleading
+clean-worktree message while MERGE_HEAD exists, then verifies it returns after
+completion. Browser acceptance and production build pass.
