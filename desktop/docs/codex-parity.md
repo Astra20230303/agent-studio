@@ -318,3 +318,7 @@ and output while hidden. New tabs use the currently selected conversation's cwd;
 existing tabs retain their original directory. Closing a tab releases only its
 shell. Real PowerShell browser acceptance covers two isolated outputs, retained
 session IDs and directory binding across conversation changes. Build passes.
+Acceptance correction: a background session finishing startup no longer takes
+focus. Tabs support arrow/Home/End navigation with a single tab stop. The real
+shell browser test verifies keyboard selection/focus and recreating a terminal
+after all tabs have been closed; production build passes again.

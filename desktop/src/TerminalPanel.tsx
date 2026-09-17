@@ -22,7 +22,12 @@ export function TerminalPanel({ cwd, open, onClose }: { cwd?: string; open: bool
     setTabs(remaining); setSelected(remaining[remaining.length - 1]?.id || 0);
   };
   return <section className="terminal-panel" hidden={!open} aria-label="终端">
-    <div className="terminal-tabs"><div role="tablist" aria-label="终端会话">{tabs.map(tab => <button key={tab.id} role="tab" id={`terminal-tab-${tab.id}`} aria-controls={`terminal-session-${tab.id}`} aria-selected={selected === tab.id} title={tab.cwd} onClick={() => setSelected(tab.id)}>终端 {tab.id}</button>)}</div>
+    <div className="terminal-tabs"><div role="tablist" aria-label="终端会话">{tabs.map((tab, index) => <button key={tab.id} role="tab" tabIndex={selected === tab.id ? 0 : -1} id={`terminal-tab-${tab.id}`} aria-controls={`terminal-session-${tab.id}`} aria-selected={selected === tab.id} title={tab.cwd} onClick={() => setSelected(tab.id)} onKeyDown={event => {
+      const target = event.key === 'ArrowRight' ? (index + 1) % tabs.length : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : undefined;
+      if (target === undefined) return;
+      event.preventDefault(); setSelected(tabs[target].id);
+      document.getElementById(`terminal-tab-${tabs[target].id}`)?.focus();
+    }}>终端 {tab.id}</button>)}</div>
       <button title="新建终端" aria-label="新建终端" disabled={tabs.length >= 8} onClick={add}><Plus size={16} /></button>
       <button title="关闭当前终端" aria-label="关闭当前终端" disabled={!tabs.length} onClick={remove}><Trash2 size={16} /></button>
       <button title="隐藏终端" aria-label="隐藏终端" onClick={onClose}><X size={16} /></button></div>
@@ -30,6 +35,8 @@ export function TerminalPanel({ cwd, open, onClose }: { cwd?: string; open: bool
   </section>;
 }
 function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: boolean }) {
+  const visible = useRef(open);
+  visible.current = open;
   const host = useRef<HTMLDivElement>(null);
   const terminal = useRef<Terminal | null>(null);
   const fit = useRef<FitAddon | null>(null);
@@ -63,7 +70,7 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
       ownedId = result.id;
       if (disposed) { void bridge.close(ownedId).catch(() => {}); return; }
       session.current = ownedId; setRunning(true); setStatus('运行中');
-      pending.forEach(receive); pending.length = 0; resize(); term.focus();
+      pending.forEach(receive); pending.length = 0; resize(); if (visible.current) term.focus();
     }).catch(report);
     return () => {
       disposed = true; off(); input.dispose(); observer.disconnect(); term.dispose();
@@ -71,7 +78,7 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
       if (ownedId) void bridge.close(ownedId).catch(() => {});
     };
   }, [cwd, revision]);
-  useEffect(() => { if (open) { fit.current?.fit(); terminal.current?.focus(); } }, [open]);
+  useEffect(() => { if (open) { fit.current?.fit(); if (document.activeElement?.getAttribute('role') !== 'tab') terminal.current?.focus(); } }, [open]);
   return <section className="terminal-session" hidden={!open} role="tabpanel" id={`terminal-session-${id}`} aria-labelledby={`terminal-tab-${id}`}>
     <header><strong>终端</strong><span title={cwd}>{cwd || '当前项目'}</span><small role="status">{status}</small>
       <button title="重新启动终端" aria-label="重新启动终端" disabled={running} onClick={() => setRevision(value => value + 1)}><Play size={16} /></button>
