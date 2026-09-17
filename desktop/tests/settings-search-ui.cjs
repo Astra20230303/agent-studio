@@ -35,6 +35,15 @@ const assert = require('node:assert/strict');
     assert.equal(await search.inputValue(), '');
     await nav.getByRole('button', { name: '键盘快捷键', exact: true }).click();
     assert.equal(await page.getByRole('combobox', { name: '发送快捷键' }).inputValue(), 'mod-enter');
+    for (const width of [1280, 960]) {
+      await page.setViewportSize({ width, height: 800 });
+      await search.fill('API KEY');
+      await page.getByRole('heading', { name: '配置', exact: true }).waitFor();
+      const layout = await page.locator('.settings-content').evaluate(element => ({ background: getComputedStyle(element).backgroundColor, width: element.clientWidth, scrollWidth: element.scrollWidth }));
+      assert.notEqual(layout.background, 'rgb(255, 255, 255)');
+      assert.ok(layout.scrollWidth <= layout.width + 1, `settings content overflows at ${width}px`);
+    }
+    await page.screenshot({ path: '../.project-cache/settings-search-acceptance.png' });
     console.log('PASS: settings category routing, keyword search, empty/clear/Escape and preserved changes');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

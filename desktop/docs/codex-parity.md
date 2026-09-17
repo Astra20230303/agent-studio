@@ -765,3 +765,7 @@ whitespace-separated terms, routes to matching content, and supports empty
 results, explicit clear and Escape. Permissions have a dedicated section.
 Build and browser acceptance cover routing, Chinese/English queries, no results,
 clear/Escape and preserving permission and shortcut changes across searches.
+Post-commit acceptance checks 960px/1280px desktop layout and dark settings
+backgrounds, plus the existing shortcut workflow. Screenshot inspection removed
+duplicate native/custom search-clear controls and corrected dark navigation
+selection colors. Provider inputs retain their existing horizontal text scrolling.
