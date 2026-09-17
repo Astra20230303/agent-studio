@@ -3,6 +3,20 @@ const assert = require('node:assert/strict');
 const { applyToolEvent, finishTools, restoreMessages } = require('../src/toolActivity.ts');
 const makeThread = () => ({ messages: [{ id: 'before', role: 'assistant', content: 'Checking files' }] });
 
+test('raw record restoration preserves fields while ordinary messages stay on their dedicated path', () => {
+  const thread = makeThread();
+  applyToolEvent(thread, 'item/started', { turnId: 't', item: { id: 'raw', type: 'newOperation', input: 'original' } });
+  for (const type of ['userMessage', 'agentMessage', 'plan']) applyToolEvent(thread, 'item/completed', { item: { id: type, type, text: 'text' } });
+  assert.equal(thread.messages.length, 2);
+  const restored = restoreMessages([{ turnId: 't', item: { id: 'raw', type: 'newOperation', output: 'done' } }, { item: { id: 'reply', type: 'agentMessage', text: 'Final' } }], thread.messages);
+  assert.equal(restored.length, 2);
+  assert.equal(restored[0].tool.kind, 'rawRecord');
+  assert.deepEqual(restored[0].tool.rawRecord.item, { id: 'raw', type: 'newOperation', input: 'original', output: 'done' });
+  assert.equal(restored[0].tool.turnId, 't');
+  assert.equal(restored[1].content, 'Final');
+  assert.equal(restored[1].tool, undefined);
+});
+
 test('sub-agent activity preserves event semantics, identity and history', () => {
   const thread = makeThread();
   const item = { id: 'event', type: 'subAgentActivity', kind: 'started', agentThreadId: 'child', agentPath: '/root/review' };

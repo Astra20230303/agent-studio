@@ -880,3 +880,5 @@ copied and searched alongside other tool records. Text and plan messages retain
 their dedicated paths. Build, browser acceptance and existing tool-history tests
 verify live/history display, merged fields, copy and search. This fallback does
 not replace dedicated views or interpret unknown operations.
+Post-commit acceptance verifies restoration merges omitted fields, keeps turn
+identity and avoids duplicating user/assistant/plan messages as raw records.
