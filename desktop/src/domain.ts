@@ -79,7 +79,7 @@ export interface DesktopState {
   mode: 'code' | 'work';
   activeThreadId?: string;
   activeProjectId?: string;
-  theme: 'light' | 'dark';
+  theme: 'light' | 'dark' | 'system';
   sendShortcut?: 'enter' | 'mod-enter';
   model: string;
   permission: 'on-request' | 'workspace-write' | 'danger-full-access';

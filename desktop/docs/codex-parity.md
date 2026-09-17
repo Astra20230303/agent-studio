@@ -920,3 +920,13 @@ restoration, repeated clicks, retained drafts and one subscription under StrictM
 The native OS click itself remains outside this browser fixture's coverage.
 Post-commit acceptance rejects empty/non-string navigation payloads and confirms
 notification routing does not send a turn or unarchive a remote conversation.
+
+## Follow system theme
+
+General settings offer system/light/dark appearance. System selection follows
+prefers-color-scheme changes without overwriting the saved preference, while
+manual selections remain fixed. The resolved theme also sets the document color
+scheme for browser controls. Build and browser media-emulation acceptance verify
+live changes, reload persistence, manual override and returning to system mode.
+Native Windows appearance toggling remains outside this emulated test; terminal
+colors currently retain their dedicated dark palette.

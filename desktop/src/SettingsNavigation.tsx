@@ -3,7 +3,7 @@ import { ArrowLeft, X } from 'lucide-react';
 import './settings-navigation.css';
 
 const sections = [
-  { name: '常规', keywords: '主题 外观 浅色 深色 默认模型 theme appearance model' },
+  { name: '常规', keywords: '主题 外观 浅色 深色 跟随系统 默认模型 theme appearance system model' },
   { name: '权限', keywords: '审批 沙箱 只读 工作区 写入 完全访问 自动审查 permissions sandbox approval' },
   { name: '通知', keywords: '完成 失败 输入 审批 后台 notification' },
   { name: '配置', keywords: '渠道 模型 密钥 连接 provider api key base url model' },

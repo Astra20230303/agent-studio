@@ -22,6 +22,7 @@ export function loadState(): DesktopState {
     const state: DesktopState = { ...defaultState(), ...JSON.parse(localStorage.getItem(KEY) ?? '{}') };
     state.reasoningEffort = ['low', 'medium', 'high'].includes(state.reasoningEffort) ? state.reasoningEffort : 'low';
     state.mode = state.mode === 'work' ? 'work' : 'code';
+    state.theme = ['light', 'dark', 'system'].includes(state.theme) ? state.theme : 'light';
     state.sendShortcut = state.sendShortcut === 'mod-enter' ? 'mod-enter' : 'enter';
     state.permission = ['on-request', 'workspace-write', 'danger-full-access'].includes(state.permission) ? state.permission : 'on-request';
     state.providers = Array.isArray(state.providers) ? state.providers : [];

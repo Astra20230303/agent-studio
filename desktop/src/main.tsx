@@ -7,6 +7,7 @@ import { PermissionSettings, permissionOptions } from './PermissionSettings';
 import { ConversationFind } from './ConversationFind';
 import { CodeBlock } from './CodeBlock';
 import { NotificationSettings } from './NotificationSettings';
+import { useTheme } from './useTheme';
 import { selectNotifiedThread } from './notificationNavigation';
 import { ConversationExport } from './ConversationExport';
 import { SettingsNavigation } from './SettingsNavigation';
@@ -72,6 +73,7 @@ function projectLabel(pathOrName?: string) {
 
 function App() {
   const [state, setState] = useState<DesktopState>(() => { const loaded = loadState(); loaded.model = modelId(loaded.model); return loaded; });
+  const effectiveTheme = useTheme(state.theme);
   const [stateSaveFailed, setStateSaveFailed] = useState(false);
   const [stateSaveAttempt, setStateSaveAttempt] = useState(0);
   const [input, setInput, draftStorage] = useThreadDraft(state.activeThreadId);
@@ -135,7 +137,6 @@ function App() {
   const pending = pendingThreads.includes(active?.id || '') || !!active?.remoteId && restoringThread === active.remoteId;
   const threads = useMemo(() => state.threads.filter(thread => !thread.archived && (thread.title.toLowerCase().includes(search.trim().toLowerCase()) || !!thread.remoteId && threadList.matchingIds.includes(thread.remoteId))).slice().sort((a, b) => Number(b.pinned) - Number(a.pinned) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt)), [state.threads, search, threadList.matchingIds]);
   useEffect(() => { setStateSaveFailed(!saveState(state)); }, [state, stateSaveAttempt]);
-  useEffect(() => { document.documentElement.dataset.theme = state.theme; }, [state.theme]);
   useEffect(() => {
     window.desktop?.providerStatus?.().then((provider: any) => {
       setProviderStatus(provider);
@@ -476,7 +477,7 @@ function App() {
     });
     setComposerPlugins([]); setPage('chat');
   };
-  return <div className={`desktop-app ${state.theme} ${page === 'settings' ? 'settings-mode' : ''} ${terminalOpen ? 'terminal-visible' : ''}`}>
+  return <div className={`desktop-app ${effectiveTheme} ${page === 'settings' ? 'settings-mode' : ''} ${terminalOpen ? 'terminal-visible' : ''}`}>
     {attachmentStorage.saveFailed && <div role="alert" className="state-save-warning">附件选择未保存到本机，刷新后可能丢失选择或恢复旧附件。当前仍可编辑和发送。<button onClick={attachmentStorage.retry}>重试保存附件</button></div>}
     {stateSaveFailed && <div role="alert" className="state-save-warning">会话和设置未能保存到本机，刷新或关闭窗口可能丢失当前更改。<button onClick={() => setStateSaveAttempt(attempt => attempt + 1)}>重试保存会话和设置</button></div>}
     <header className="desktop-titlebar">
@@ -734,7 +735,7 @@ function SettingsWorkspace({ state, update, toast, onBack }: { state: DesktopSta
     : section === '通知' ? <NotificationSettings />
     : section === '配置' ? <ProviderSettings state={state} update={update} toast={toast} />
     : section === '权限' ? <PermissionSettings value={state.permission} onChange={value => update(next => { next.permission = value; })} />
-    : <div className="settings-card"><div className="settings-line"><div><b>主题</b><small>应用界面主题</small></div><select aria-label="主题" value={state.theme} onChange={e => update(next => { next.theme = e.target.value as DesktopState['theme']; })}><option value="light">浅色</option><option value="dark">深色</option></select></div><div className="settings-line"><div><b>默认模型</b><small>Agent 默认使用的模型</small></div><span>{state.model || '自动选择'}</span></div></div>
+    : <div className="settings-card"><div className="settings-line"><div><b>主题</b><small>应用界面主题</small></div><select aria-label="主题" value={state.theme} onChange={e => update(next => { next.theme = e.target.value as DesktopState['theme']; })}><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></div><div className="settings-line"><div><b>默认模型</b><small>Agent 默认使用的模型</small></div><span>{state.model || '自动选择'}</span></div></div>
   }</SettingsNavigation>;
 }
 
