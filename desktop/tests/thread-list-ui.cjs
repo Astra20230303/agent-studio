@@ -10,6 +10,10 @@ const assert = require('node:assert/strict');
       window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }) };
       window.codex = { connect: async () => ({ ok: true }), request: async (method, params) => {
         window.__calls.push({ method, params });
+        if(method==='thread/search') {
+          if(params.searchTerm==='slow')return new Promise(resolve=>{window.__resolveSlow=()=>resolve({ok:true,result:{data:[{thread:{id:'stale',name:'Stale result',updatedAt:50},snippet:'slow'}]}});});
+          return {ok:true,result:{data:[{thread:{id:'hidden',name:'Remote match',updatedAt:40},snippet:'hidden content <script>plain text</script>'}]}};
+        }
         if (method === 'thread/list') {
           if (params.searchTerm === 'slow') return new Promise(resolve => { window.__resolveSlow = () => resolve({ ok: true, result: { data: [{ id: 'stale', name: 'Stale result', updatedAt: 50 }] } }); });
           if (params.searchTerm) return { ok: true, result: { data: [{ id: 'hidden', name: 'Remote match', updatedAt: 40 }] } };
@@ -36,6 +40,7 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(() => window.__resolveSlow);
     await page.getByRole('textbox', { name: '搜索最近会话' }).fill('hidden');
     await page.getByRole('button', { name: 'Remote match', exact: true }).waitFor();
+    await page.getByText('hidden content <script>plain text</script>',{exact:true}).waitFor();
     await page.evaluate(() => window.__resolveSlow());
     assert.equal(await page.getByRole('button', { name: 'Stale result', exact: true }).count(), 0);
     await page.getByRole('textbox', { name: '搜索最近会话' }).fill('');

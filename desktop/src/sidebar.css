@@ -258,3 +258,4 @@
 @media (prefers-reduced-motion: reduce) {
   .desktop-body .sidebar button { transition: none; }
 }
+.thread-search-snippet{margin:0 14px 9px;font-size:12px;line-height:1.4;opacity:.75;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}

@@ -63,6 +63,8 @@ test(`real permission configuration through Felix client (Windows sandbox: ${win
     });
     await rpc.request('turn/start', { threadId: created.thread.id, input: [{ type: 'text', text: 'Reply briefly.' }] });
     await completed;
+    const found = await rpc.request('thread/search', { searchTerm: 'Permission acceptance', limit: 100, sortKey: 'recency_at' });
+    assert.ok(found.data.some(item => item.thread.id === created.thread.id && item.snippet.includes('Permission acceptance')));
     for (const [permission, sandbox, reviewer, approvalPolicy] of [
       ['danger-full-access', 'dangerFullAccess', 'user', 'never'],
       ['workspace-write', 'workspaceWrite', 'auto_review', 'on-request'],

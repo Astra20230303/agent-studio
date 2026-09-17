@@ -1150,3 +1150,14 @@ A repeated click while stop is pending sends no second stop, and completion make
 exactly one new connection (no leftover automatic retry). Injected stop failure
 shows an error and the recovery flow remains usable; drafts still survive.
 Browser acceptance and production build pass.
+
+## Cross-conversation content search
+
+Sidebar search now calls app-server thread/search for persisted message content
+and displays escaped matching snippets beside results. Pagination, duplicate
+suppression and stale-query guards remain in place. Local loaded message text is
+also matched, including offline. Scope is non-archived interactive conversations;
+server support for the experimental search API is required for remote results.
+A real isolated app-server/model fixture verifies searching assistant content whose
+text is absent from the title. Browser tests verify snippet escaping and ignore a
+late prior query. Thread pagination/retry checks and production build pass.

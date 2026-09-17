@@ -154,7 +154,7 @@ function App() {
     finally { restartingRef.current = false; setRestarting(false); reconnectRef.current(); }
   };
   const pending = pendingThreads.includes(active?.id || '') || !!active?.remoteId && restoringThread === active.remoteId;
-  const threads = useMemo(() => state.threads.filter(thread => !thread.archived && (thread.title.toLowerCase().includes(search.trim().toLowerCase()) || !!thread.remoteId && threadList.matchingIds.includes(thread.remoteId))).slice().sort((a, b) => Number(b.pinned) - Number(a.pinned) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt)), [state.threads, search, threadList.matchingIds]);
+  const threads = useMemo(() => state.threads.filter(thread => !thread.archived && (thread.title.toLowerCase().includes(search.trim().toLowerCase()) || thread.messages.some(message => message.content.toLowerCase().includes(search.trim().toLowerCase())) || !!thread.remoteId && threadList.matchingIds.includes(thread.remoteId))).slice().sort((a, b) => Number(b.pinned) - Number(a.pinned) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt)), [state.threads, search, threadList.matchingIds]);
   useEffect(() => { setStateSaveFailed(!saveState(state)); }, [state, stateSaveAttempt]);
   useEffect(() => {
     window.desktop?.providerStatus?.().then((provider: any) => {
@@ -511,8 +511,9 @@ function App() {
     {codexStatus !== 'connected' && <div className="connection-banner" role="status"><span>{codexStatus === 'connecting' ? '正在连接工作区…' : '工作区连接已断开，草稿已保留。'}{connectionError && ` ${connectionError}`}</span><button disabled={codexStatus === 'connecting'} onClick={() => reconnectRef.current()}>重新连接</button></div>}
     <div className="desktop-body"><aside id="workspace-sidebar" className="sidebar" aria-label="侧栏" hidden={!sidebarVisible}>
       <div className="brand-row"><ModePicker mode={state.mode} onChange={mode => update(next => { next.mode = mode; })} /><button className="sidebar-search-toggle" aria-label="搜索" title="搜索会话" aria-expanded={showSearch} aria-controls="sidebar-search" onClick={() => { setShowSearch(value => !value); setSearch(''); }}><Search aria-hidden="true" /></button></div>
-      {showSearch && <input id="sidebar-search" autoFocus className="side-search" aria-label="搜索最近会话" placeholder="搜索最近会话" value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') { setShowSearch(false); setSearch(''); } }} />}
+      {showSearch && <input id="sidebar-search" autoFocus className="side-search" aria-label="搜索最近会话" placeholder="搜索会话标题或内容" value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') { setShowSearch(false); setSearch(''); } }} />}
       <button className="sidebar-nav" onClick={newChat}><SquarePen aria-hidden="true" /><span>新对话</span></button>
+      {showSearch && <small>搜索未归档会话；离线时仅匹配本机已加载内容。</small>}
       <button className="sidebar-nav" aria-current={page === 'scheduled' ? 'page' : undefined} onClick={() => setPage('scheduled')}><Clock3 aria-hidden="true" /><span>已安排</span></button>
       <button className="sidebar-nav" aria-current={page === 'plugins' ? 'page' : undefined} onClick={() => setPage('plugins')}><Puzzle aria-hidden="true" /><span>插件</span></button>
       <div className="sidebar-scroll">
@@ -520,7 +521,7 @@ function App() {
           {state.activeProjectId ? <div className="sidebar-project" title={projectLabel(state.projects.find(project => project.id === state.activeProjectId)?.name ?? state.activeProjectId)}><FolderOpen aria-hidden="true" /><span>{projectLabel(state.projects.find(project => project.id === state.activeProjectId)?.name ?? state.activeProjectId)}</span></div> : <div className="empty">没有项目</div>}
         </section>
         <section aria-labelledby="sidebar-recent"><h2 id="sidebar-recent" className="section">最近</h2>
-          {threads.map(thread => <ThreadButton key={thread.id} thread={thread} selected={page === 'chat' && state.activeThreadId === thread.id} onSelect={() => { void selectThread(thread); }} onTogglePin={() => togglePinned(thread.id)} onArchive={() => { void archiveThreadFromSidebar(thread.id); }} onDelete={() => { void deleteThreadFromSidebar(thread.id); }} />)}
+          {threads.map(thread => <div key={thread.id}><ThreadButton thread={thread} selected={page === 'chat' && state.activeThreadId === thread.id} onSelect={() => { void selectThread(thread); }} onTogglePin={() => togglePinned(thread.id)} onArchive={() => { void archiveThreadFromSidebar(thread.id); }} onDelete={() => { void deleteThreadFromSidebar(thread.id); }} />{search.trim() && thread.remoteId && threadList.snippets[thread.remoteId] && <p className="thread-search-snippet">{threadList.snippets[thread.remoteId].slice(0, 300)}</p>}</div>)}
           {threads.length === 0 && !threadList.loading && !threadList.error && <div className="empty">{search ? '没有匹配的会话' : '暂无会话'}</div>}
           {threadList.error && <p role="alert">{threadList.error}</p>}
           {(threadList.hasMore || threadList.error || threadList.loading) && <button disabled={threadList.loading || codexStatus !== 'connected'} onClick={() => void threadList.loadMore()}>{threadList.loading ? '正在加载会话…' : threadList.error ? '重试加载会话' : '加载更多会话'}</button>}
