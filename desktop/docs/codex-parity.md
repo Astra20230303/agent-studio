@@ -470,3 +470,14 @@ server. It asserts no form-chunk request on startup, a request on elicitation,
 recoverable chunk failure, and successful form loading/submission after reload.
 No further product correction was necessary; this verifies the packaged chunk
 boundaries rather than relying solely on Vite development behavior.
+
+## Live MCP transport acceptance
+
+`node tests/mcp-live.test.cjs` launches the project app-server with an isolated
+CODEX_HOME and two local stdio MCP fixtures. It verifies single-entry inventory
+pagination, tool schema and authentication fields, direct thread-scoped calls,
+text and structured results, tool errors followed by successful recovery, runtime
+connection state, and inventory changes after config/mcpServer/reload. The real
+binary passes; no product protocol correction was required. This covers direct
+RPC tool transport, not model-selected tool execution, external OAuth providers,
+or MCP apps/resources. The existing MCP page browser regression also passes.

@@ -1,0 +1,87 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { spawn } = require('node:child_process');
+const { once } = require('node:events');
+const { CodexRpc } = require('../electron/codex-rpc.cjs');
+const { findCommand } = require('../electron/codex-server.cjs');
+
+// Run the fixture through the same stdio transport as a configured MCP server.
+if (process.argv.includes('--fixture')) {
+  require('node:readline').createInterface({ input: process.stdin }).on('line', line => {
+    const message = JSON.parse(line);
+    if (message.id === undefined) return;
+    let result;
+    switch (message.method) {
+      case 'initialize': result = { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'felix-acceptance', version: '1.0.0' } }; break;
+      case 'ping': result = {}; break;
+      case 'tools/list': result = { tools: [{ name: 'echo', description: 'Acceptance echo', inputSchema: { type: 'object', properties: { text: { type: 'string' }, fail: { type: 'boolean' } }, required: ['text'] } }] }; break;
+      case 'tools/call': {
+        const { text, fail } = message.params.arguments;
+        result = { content: [{ type: 'text', text: fail ? 'Fixture failure' : text }], structuredContent: { echoed: text }, isError: !!fail };
+        break;
+      }
+      default:
+        process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: message.id, error: { code: -32601, message: 'Unknown method' } }) + '\n');
+        return;
+    }
+    process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: message.id, result }) + '\n');
+  });
+} else {
+  main().catch(error => { console.error(error); process.exitCode = 1; });
+}
+
+async function main() {
+  const root = path.resolve(__dirname, '../..');
+  const scratchRoot = path.join(root, '.project-cache/tmp');
+  fs.mkdirSync(scratchRoot, { recursive: true });
+  const home = fs.mkdtempSync(path.join(scratchRoot, 'mcp-live-'));
+  const config = names => names.map(name => `[mcp_servers.${name}]\ncommand = ${JSON.stringify(process.execPath)}\nargs = [${JSON.stringify(__filename)}, "--fixture"]\nstartup_timeout_sec = 15\ntool_timeout_sec = 15\n`).join('\n');
+  fs.writeFileSync(path.join(home, 'config.toml'), config(['acceptance_a', 'acceptance_b']));
+  const child = spawn(findCommand(root).command, ['app-server', '--stdio'], { cwd: home, env: { ...process.env, CODEX_HOME: home, TEMP: home, TMP: home }, windowsHide: true });
+  const exited = once(child, 'exit');
+  const rpc = new CodexRpc(child);
+  const timer = setTimeout(() => rpc.close(), 60000);
+  try {
+    await rpc.request('initialize', { clientInfo: { name: 'mcp_acceptance', version: '1' }, capabilities: { experimentalApi: true } });
+    rpc.notify('initialized', {});
+    const inventory = async threadId => {
+      const entries = []; const cursors = new Set(); let cursor;
+      do {
+        const page = await rpc.request('mcpServerStatus/list', { threadId, cursor, limit: 1, detail: 'toolsAndAuthOnly' });
+        assert.ok(page.data.length <= 1);
+        entries.push(...page.data);
+        cursor = page.nextCursor;
+        if (cursor) { assert.ok(!cursors.has(cursor), 'Inventory cursor must advance'); cursors.add(cursor); }
+      } while (cursor);
+      return entries;
+    };
+    const initial = await inventory();
+    assert.deepEqual(initial.map(entry => entry.name).sort(), ['acceptance_a', 'acceptance_b']);
+    for (const entry of initial) {
+      assert.equal(entry.authStatus, 'unsupported');
+      assert.equal(entry.toolsError, null);
+      assert.ok(Object.values(entry.tools).some(tool => tool.name === 'echo' && tool.inputSchema.required.includes('text')));
+    }
+    const { thread } = await rpc.request('thread/start', { cwd: home, ephemeral: true, approvalPolicy: 'never', sandbox: 'read-only' });
+    const call = (text, fail = false) => rpc.request('mcpServer/tool/call', { threadId: thread.id, server: 'acceptance_a', tool: 'echo', arguments: { text, fail } });
+    const success = await call('Felix MCP acceptance');
+    assert.deepEqual(success.content, [{ type: 'text', text: 'Felix MCP acceptance' }]);
+    assert.deepEqual(success.structuredContent, { echoed: 'Felix MCP acceptance' });
+    assert.equal(success.isError, false);
+    const failure = await call('error case', true);
+    assert.equal(failure.isError, true);
+    assert.equal(failure.content[0].text, 'Fixture failure');
+    assert.equal((await call('recovered')).content[0].text, 'recovered');
+    const active = await inventory(thread.id);
+    assert.equal(active.find(entry => entry.name === 'acceptance_a').runtimeStatus, 'connected');
+    fs.writeFileSync(path.join(home, 'config.toml'), config(['acceptance_a', 'acceptance_c']));
+    await rpc.request('config/mcpServer/reload', {});
+    assert.deepEqual((await inventory()).map(entry => entry.name).sort(), ['acceptance_a', 'acceptance_c']);
+    console.log('PASS: real app-server MCP discovery, pagination, schema, calls, error recovery, runtime state and config reload.');
+  } finally {
+    clearTimeout(timer);
+    rpc.close();
+    await exited;
+  }
+}
