@@ -821,3 +821,7 @@ details expanded. Auto-follow pauses while a query is active. The UI explicitly
 limits scope to loaded records; fetching/searching unloaded history remains work.
 Build and browser acceptance cover text, tool output, attachment paths, cycling,
 keyboard navigation, no results and close focus.
+Post-commit acceptance adds a long transcript and injects a streaming response:
+the selected tool record keeps its scroll position. Starting a new conversation
+clears the search field and outline. The first new-thread check used an obsolete
+button name and was corrected to the current UI label before passing.

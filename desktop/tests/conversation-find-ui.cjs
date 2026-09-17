@@ -10,8 +10,10 @@ const assert = require('node:assert/strict');
         { id: 'tool', role: 'assistant', content: '', tool: { kind: 'commandExecution', status: 'completed', command: 'test', output: 'needle output' } },
         { id: 'reply', role: 'assistant', content: 'NEEDLE answer' },
       ];
-      localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeThreadId: 'a', threads: [{ id: 'a', title: 'Search conversation', messages, status: 'completed', updatedAt: '' }] }));
+      for (let i = 0; i < 30; i++) messages.push({ id: `filler-${i}`, role: 'assistant', content: `Filler paragraph ${i}\n\nMore content for scroll testing.` });
+      localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeThreadId: 'a', threads: [{ id: 'a', remoteId: 'remote-a', title: 'Search conversation', messages, status: 'completed', updatedAt: '' }] }));
       window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }) };
+      window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async method => ({ ok: true, result: method === 'thread/resume' ? { thread: { turns: [] } } : { data: [] } }), onNotification: fn => { window.__notify = fn; return () => {}; }, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
     });
     await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
     await page.getByRole('button', { name: '会话内查找', exact: true }).waitFor();
@@ -24,6 +26,10 @@ const assert = require('node:assert/strict');
     await page.getByRole('status').filter({ hasText: '2 / 3 条匹配记录' }).waitFor();
     assert.equal(await page.locator('.conversation-find-match').getAttribute('data-message-id'), 'tool');
     assert.equal(await page.locator('[data-message-id="tool"] details').getAttribute('open'), '');
+    const scrollBefore = await page.locator('.thread-view').evaluate(element => element.scrollTop);
+    await page.evaluate(() => window.__notify({ method: 'item/agentMessage/delta', params: { threadId: 'remote-a', itemId: 'streaming', delta: 'Incoming reply during search' } }));
+    await page.getByText('Incoming reply during search', { exact: true }).waitFor();
+    assert.equal(await page.locator('.thread-view').evaluate(element => element.scrollTop), scrollBefore);
     await input.press('Shift+Enter');
     await page.getByRole('button', { name: '上一个匹配', exact: true }).click();
     await page.getByRole('status').filter({ hasText: '3 / 3 条匹配记录' }).waitFor();
@@ -37,6 +43,11 @@ const assert = require('node:assert/strict');
     await input.press('Escape');
     await input.waitFor({ state: 'detached' });
     assert.equal(await page.getByRole('button', { name: '会话内查找', exact: true }).evaluate(element => element === document.activeElement), true);
+    await page.getByRole('button', { name: '会话内查找', exact: true }).click();
+    await input.fill('needle');
+    await page.getByRole('button', { name: '新对话', exact: true }).click();
+    await input.waitFor({ state: 'detached' });
+    assert.equal(await page.locator('.conversation-find-match').count(), 0);
     console.log('PASS: conversation find matches text/tools/attachments, opens tools, cycles and supports keyboard/no-results/close');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
