@@ -1276,3 +1276,7 @@ local name is validated and created with direct upstream tracking. Five real Git
 tests pass, including actual push/pull against a temporary bare remote, dirty
 checkout rejection and local switching regressions. Remote/local browser flows
 and production build pass; no live hosted remote or native Electron UI claim.
+Post-commit acceptance adds an actionable empty-remote message and verifies a
+selected remote disappearing on refresh. Its stale selection is cleared, the
+local name draft survives, submission stays disabled, and a later refreshed ref
+can be selected and checked out. Browser acceptance and build pass.

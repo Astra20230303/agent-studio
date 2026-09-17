@@ -51,6 +51,7 @@ export function GitBranches({ root, onSwitched, onBusyChange }: { root: string; 
     {snapshot && <form onSubmit={event => { event.preventDefault(); void switchBranch(true); }}>
       <h3>从远端分支创建本地分支</h3>
       <p>显示上次获取的远端分支；可返回 Git 变更获取最新远端信息。</p>
+      {!snapshot.remoteBranches?.length && <p role="status">暂无已获取的远端分支。请先配置远端并获取远端信息。</p>}
       <label>远端分支<select aria-label="远端分支" value={remoteRef} disabled={busy} onChange={event => setRemoteRef(event.target.value)}><option value="">选择远端分支</option>{snapshot.remoteBranches?.map(entry => <option key={entry.ref} value={entry.ref}>{entry.ref.slice(13)}</option>)}</select></label>
       <label>本地分支名称<input aria-label="本地分支名称" value={localName} disabled={busy} onChange={event => setLocalName(event.target.value)} /></label>
       {localName && snapshot.branches.includes(localName) && <p>本地分支已存在，请选择其他名称。</p>}
