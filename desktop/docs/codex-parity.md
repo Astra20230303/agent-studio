@@ -1316,3 +1316,7 @@ Post-commit acceptance refreshes Git status automatically after a failed or
 conflicting merge while preserving the actionable conflict error. Browser
 acceptance verifies both the refreshed status request and visible error; real
 merge/stash regressions and production build pass.
+Post-commit acceptance confirms that a failed/conflicting merge triggers an
+automatic status refresh while retaining the conflict error for the user. The
+browser test verifies both requests and visible feedback; production build and
+four isolated merge/stash tests pass.
