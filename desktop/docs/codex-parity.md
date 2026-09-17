@@ -1055,3 +1055,7 @@ prevents concurrent exports. The UI reports success, cancellation and failures.
 Real PowerShell browser tests inspect exported content; filesystem tests cover
 UTF-8 writes, canceled saves and disk errors. Build passes. Native dialog clicking
 has not been manually verified.
+Post-commit browser acceptance exports a 400-character PowerShell output across
+soft wraps and verifies one intact logical line. Injected save failure and cancel
+responses recover on retry. Restart now clears the prior export notice; real PTY
+regression and the production build pass.

@@ -98,7 +98,7 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
     const input = term.onData(data => { if (session.current) void bridge.write(session.current, data).catch(report); });
     const resize = () => { if (!host.current?.clientWidth) return; addon.fit(); if (session.current) void bridge.resize(session.current, term.cols, term.rows).catch(report); };
     const observer = new ResizeObserver(resize); observer.observe(host.current);
-    setStatus('正在启动'); setError(''); setRunning(false);
+    setStatus('正在启动'); setError(''); setExportNotice(''); setRunning(false);
     void bridge.create(cwd).then(result => {
       if (!result.ok) throw Error('终端启动失败');
       ownedId = result.id;

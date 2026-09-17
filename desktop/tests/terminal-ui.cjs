@@ -19,7 +19,7 @@ const fs = require('node:fs');
       window.__terminalEvent = event => listeners.forEach(listener => listener(event));
       localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeThreadId: 'terminal-test', model: 'test', threads: [{ id: 'terminal-test', title: 'Terminal test', cwd, messages: [], updatedAt: new Date().toISOString() }, { id: 'second-project', title: 'Second project', cwd: second, messages: [], updatedAt: new Date().toISOString() }] }));
       window.__exports=[];
-      window.desktop = { saveTerminal:async input=>{window.__exports.push(input);return {ok:true};}, listModels: async () => ({ ok: true, models: ['test'] }), terminal: {
+      window.desktop = { saveTerminal:async input=>{window.__exports.push(input);return window.__saveResult || {ok:true};}, listModels: async () => ({ ok: true, models: ['test'] }), terminal: {
         create: window.__createTerminal, write: window.__writeTerminal, resize: window.__resizeTerminal, close: window.__closeTerminal,
         onData: listener => { listeners.add(listener); return () => listeners.delete(listener); }
       }};
@@ -39,6 +39,19 @@ const fs = require('node:fs');
     assert.match(exported.content,/FELIX_PTY_OK/);
     assert.equal(exported.content.includes('\x1b'),false);
     assert.match(exported.filename,/^terminal-1-.*\.txt$/);
+    await page.evaluate(()=>{window.__saveResult={ok:false,error:'disk unavailable'};});
+    await page.getByRole('button',{name:'导出终端日志',exact:true}).click();
+    await page.getByText('导出失败：disk unavailable',{exact:true}).waitFor();
+    await page.evaluate(()=>{window.__saveResult={ok:true,canceled:true};});
+    await page.getByRole('button',{name:'导出终端日志',exact:true}).click();
+    await page.getByText('已取消导出',{exact:true}).waitFor();
+    await page.evaluate(()=>{window.__saveResult={ok:true};});
+    manager.write([...manager.sessions.keys()][0], "Write-Output ('WRAP_BEGIN' + ('x' * 400) + 'WRAP_END')\r");
+    await page.waitForFunction(()=>document.querySelector('.xterm-screen')?.textContent?.includes('x'.repeat(50)));
+    await page.getByRole('button',{name:'导出终端日志',exact:true}).click();
+    await page.getByText('已导出当前终端缓冲区',{exact:true}).waitFor();
+    assert.ok((await page.evaluate(()=>window.__exports.at(-1).content)).includes('WRAP_BEGIN'+'x'.repeat(400)+'WRAP_END'));
+
     await page.locator('.xterm-helper-textarea').focus();
     await page.keyboard.press('Control+f');
     const search = page.getByRole('textbox',{name:'查找终端输出内容',exact:true});
@@ -106,6 +119,7 @@ const fs = require('node:fs');
     assert.equal(manager.sessions.size, 0);
     await page.getByRole('button', { name: '重新启动终端' }).click();
     await page.locator('.terminal-panel').getByRole('status').filter({ hasText: '运行中' }).waitFor();
+    assert.equal(await page.getByText('已导出当前终端缓冲区',{exact:true}).count(),0);
     await page.getByRole('button', { name: '关闭当前终端', exact: true }).click();
     assert.equal(await page.getByRole('tab').count(), 0);
     await page.getByRole('button', { name: '新建终端', exact: true }).click();
