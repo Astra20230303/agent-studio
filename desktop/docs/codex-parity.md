@@ -481,3 +481,15 @@ connection state, and inventory changes after config/mcpServer/reload. The real
 binary passes; no product protocol correction was required. This covers direct
 RPC tool transport, not model-selected tool execution, external OAuth providers,
 or MCP apps/resources. The existing MCP page browser regression also passes.
+
+## MCP resource browser
+
+The MCP page now offers an optional full resource inventory, named resource reads,
+template discovery and a URI field for parameterized resources. Text is rendered
+literally; blobs use the existing restricted image/audio renderer and structured
+fallback. Read failures can be retried. Refresh, connection changes and thread
+changes invalidate pending reads. Build and browser acceptance pass discovery,
+read retry, custom URI and literal HTML handling. The real project app-server test
+also verifies resource/template inventory and reads with and without a thread ID.
+Interactive MCP apps, template parameter forms and attaching resources to chat
+remain pending.

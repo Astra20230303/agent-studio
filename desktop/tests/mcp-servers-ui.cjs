@@ -10,6 +10,11 @@ const assert = require('node:assert/strict');
       window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }), openExternal: async url => window.__opened.push(url) };
       window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async (method, params) => {
         window.__calls.push({ method, params });
+        if (method === 'mcpServerStatus/list' && params.detail === 'full') return { ok: true, result: { data: [{ name: 'local', authStatus: 'unsupported', resources: [{ uri: 'fixture://readme', name: 'Readme' }], resourceTemplates: [{ uriTemplate: 'fixture://notes/{id}', name: 'Notes' }] }] } };
+        if (method === 'mcpServer/resource/read') {
+          if (!window.__resourceRetried) { window.__resourceRetried = true; return { ok: false, error: 'Resource temporarily unavailable' }; }
+          return { ok: true, result: { contents: [{ uri: params.uri, text: '<script>unsafe()</script>Resource text' }] } };
+        }
         if (method === 'mcpServerStatus/list') return { ok: true, result: params.cursor ? { data: [{ name: 'local', authStatus: 'unsupported', runtimeStatus: 'connected', tools: { read: {} } }] } : { data: [{ name: 'cloud', authStatus: 'notLoggedIn', runtimeStatus: 'authenticationRequired', toolsError: 'Authentication needed', tools: {} }], nextCursor: 'page2' } };
         if (method === 'mcpServer/oauth/login') { if (window.__early) window.__notify({ method: 'mcpServer/oauthLogin/completed', params: { name: 'cloud', success: true, threadId: null } }); return { ok: true, result: { authorizationUrl: 'https://example.com/login?state=test' } }; }
         if (method === 'config/mcpServer/reload' && window.__failReload) return { ok: false, error: 'Reload failed' };
@@ -38,5 +43,17 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(() => ![...document.querySelectorAll('button')].find(button => button.textContent === '登录 cloud')?.disabled);
     assert.equal(await page.getByRole('button', { name: '打开 cloud 登录页面' }).count(), 0);
     console.log('PASS: MCP pagination, OAuth link, completion refresh and reload retry');
+    await page.getByRole('checkbox', { name: '显示资源目录' }).check();
+    await page.getByRole('button', { name: 'Readme', exact: true }).click();
+    await page.getByRole('alert').filter({ hasText: 'Resource temporarily unavailable' }).waitFor();
+    await page.getByRole('button', { name: '读取资源', exact: true }).click();
+    await page.locator('.tool-output').filter({ hasText: '<script>unsafe()</script>Resource text' }).waitFor();
+    assert.equal(await page.locator('[aria-label="资源内容"] script').count(), 0);
+    await page.getByLabel('local 资源 URI').fill('fixture://notes/42');
+    await page.getByRole('button', { name: '读取资源', exact: true }).click();
+    await page.getByLabel('资源内容').getByText('fixture://notes/42', { exact: true }).waitFor();
+    await page.getByRole('checkbox', { name: '显示资源目录' }).uncheck();
+    assert.equal(await page.getByLabel('资源内容').count(), 0);
+    console.log('PASS: MCP resource discovery, read failure/retry, literal text, custom URI and dismissal');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

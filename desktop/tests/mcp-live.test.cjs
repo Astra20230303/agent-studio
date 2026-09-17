@@ -13,7 +13,10 @@ if (process.argv.includes('--fixture')) {
     if (message.id === undefined) return;
     let result;
     switch (message.method) {
-      case 'initialize': result = { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'felix-acceptance', version: '1.0.0' } }; break;
+      case 'initialize': result = { protocolVersion: '2024-11-05', capabilities: { tools: {}, resources: {} }, serverInfo: { name: 'felix-acceptance', version: '1.0.0' } }; break;
+      case 'resources/list': result = { resources: [{ uri: 'fixture://readme', name: 'Readme', mimeType: 'text/plain' }] }; break;
+      case 'resources/templates/list': result = { resourceTemplates: [{ uriTemplate: 'fixture://notes/{id}', name: 'Notes' }] }; break;
+      case 'resources/read': result = { contents: [{ uri: message.params.uri, mimeType: 'text/plain', text: 'Felix resource acceptance' }] }; break;
       case 'ping': result = {}; break;
       case 'tools/list': result = { tools: [{ name: 'echo', description: 'Acceptance echo', inputSchema: { type: 'object', properties: { text: { type: 'string' }, fail: { type: 'boolean' } }, required: ['text'] } }] }; break;
       case 'tools/call': {
@@ -75,10 +78,18 @@ async function main() {
     assert.equal((await call('recovered')).content[0].text, 'recovered');
     const active = await inventory(thread.id);
     assert.equal(active.find(entry => entry.name === 'acceptance_a').runtimeStatus, 'connected');
+    const full = await rpc.request('mcpServerStatus/list', { threadId: thread.id, detail: 'full' });
+    const resourceServer = full.data.find(entry => entry.name === 'acceptance_a');
+    assert.equal(resourceServer.resources[0].uri, 'fixture://readme');
+    assert.equal(resourceServer.resourceTemplates[0].uriTemplate, 'fixture://notes/{id}');
+    for (const threadId of [undefined, thread.id]) {
+      const resource = await rpc.request('mcpServer/resource/read', { threadId, server: 'acceptance_a', uri: 'fixture://readme' });
+      assert.deepEqual(resource.contents, [{ uri: 'fixture://readme', mimeType: 'text/plain', text: 'Felix resource acceptance' }]);
+    }
     fs.writeFileSync(path.join(home, 'config.toml'), config(['acceptance_a', 'acceptance_c']));
     await rpc.request('config/mcpServer/reload', {});
     assert.deepEqual((await inventory()).map(entry => entry.name).sort(), ['acceptance_a', 'acceptance_c']);
-    console.log('PASS: real app-server MCP discovery, pagination, schema, calls, error recovery, runtime state and config reload.');
+    console.log('PASS: real app-server MCP discovery, pagination, schema, calls, error recovery, resources, runtime state and config reload.');
   } finally {
     clearTimeout(timer);
     rpc.close();
