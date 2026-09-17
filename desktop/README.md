@@ -1,6 +1,6 @@
 # Felix 桌面应用
 
-Felix 的正式桌面工程，使用 Electron、React、TypeScript 和 Vite。项目定位、能力范围与实施方向见 [根 README](../README.md)。根目录 `index.html` 仅保留为早期原型。
+Felix 个人 Agent 平台的桌面客户端，使用 Electron、React、TypeScript 和 Vite，为模型接入、任务执行、工具扩展及本机与远程电脑操控提供统一入口。项目定位、能力范围与实施方向见 [根 README](../README.md)。根目录 `index.html` 仅保留为早期原型。
 
 ## 安装与启动
 
