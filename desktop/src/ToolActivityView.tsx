@@ -3,8 +3,10 @@ import { ChevronRight, FilePenLine, TerminalSquare } from 'lucide-react';
 import type { Message, ToolActivity } from './domain';
 import { toolLabel } from './toolActivity';
 import { AgentActivity } from './AgentActivity';
+import { InvocationActivity } from './InvocationActivity';
 
 function ToolRow({ tool, onOpenAgent }: { tool: ToolActivity; onOpenAgent?: (id: string) => void }) {
+  if (tool.kind === 'mcpToolCall' || tool.kind === 'dynamicToolCall') return <InvocationActivity tool={tool} />;
   if (tool.kind === 'collabAgentToolCall') return <AgentActivity tool={tool} onOpenAgent={onOpenAgent} />;
   if (tool.kind === 'fileChange') return <>{tool.changes?.map((change, index) => <FileChangeCard key={`${change.path}-${index}`} change={change} applied={tool.status === 'completed'} />)}</>;
   const failed = tool.status === 'failed' || (tool.exitCode != null && tool.exitCode !== 0);

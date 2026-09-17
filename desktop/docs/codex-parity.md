@@ -389,3 +389,12 @@ Post-commit acceptance rejects non-string workspace values and verifies missing,
 relative and file paths fail before credentials or child startup. Write-permission
 confirmation now names the saved task directory. All 15 scheduler/runner tests,
 including real app-server context and cancellation checks, and build pass.
+
+## MCP and dynamic tool records
+
+Tool lifecycle/history now preserves MCP and dynamic calls, arguments, structured
+results, duration and errors. Transcript details distinguish transport/tool failure
+from successful completion, including dynamic success=false and MCP isError.
+Build, two state/history tests and mocked browser lifecycle acceptance pass.
+Results currently use a structured text view; rich MCP app/media rendering remains
+pending, as does live tool-provider end-to-end acceptance.

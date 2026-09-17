@@ -12,7 +12,8 @@ export interface Message {
 }
 
 export interface ToolActivity {
-  kind: 'commandExecution' | 'fileChange' | 'collabAgentToolCall';
+  kind: 'commandExecution' | 'fileChange' | 'collabAgentToolCall' | 'mcpToolCall' | 'dynamicToolCall';
+  invocation?: { server?: string; name: string; arguments?: unknown; result?: unknown; error?: unknown; success?: boolean };
   collaboration?: { tool: string; prompt?: string; model?: string; receiverThreadIds: string[]; agentsStates: Record<string, { status: string; message?: string }> };
   status: string;
   command?: string;

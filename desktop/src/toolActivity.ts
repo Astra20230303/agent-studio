@@ -1,7 +1,7 @@
 import type { Message, Thread, ToolActivity } from './domain';
 
 export function upsertTool(thread: Thread, item: any, turnId?: string, completed = false) {
-  if (!item?.id || !['commandExecution', 'fileChange', 'collabAgentToolCall'].includes(item.type)) return;
+  if (!item?.id || !['commandExecution', 'fileChange', 'collabAgentToolCall', 'mcpToolCall', 'dynamicToolCall'].includes(item.type)) return;
   const id = `tool-${item.id}`;
   let message = thread.messages.find(message => message.id === id);
   if (!message) {
@@ -13,6 +13,7 @@ export function upsertTool(thread: Thread, item: any, turnId?: string, completed
   message.tool = {
     ...previous,
     kind: item.type,
+    invocation: ['mcpToolCall', 'dynamicToolCall'].includes(item.type) ? { server: item.server ?? item.namespace ?? previous?.invocation?.server, name: item.tool ?? previous?.invocation?.name, arguments: item.arguments ?? previous?.invocation?.arguments, result: item.result ?? item.contentItems ?? previous?.invocation?.result, error: item.error ?? previous?.invocation?.error, success: item.success ?? previous?.invocation?.success } : undefined,
     collaboration: item.type === 'collabAgentToolCall' ? { tool: item.tool ?? previous?.collaboration?.tool, prompt: item.prompt ?? previous?.collaboration?.prompt, model: item.model ?? previous?.collaboration?.model, receiverThreadIds: item.receiverThreadIds ?? previous?.collaboration?.receiverThreadIds ?? [], agentsStates: item.agentsStates ?? previous?.collaboration?.agentsStates ?? {} } : undefined,
     status: item.status || (completed ? 'completed' : previous?.status || 'inProgress'),
     turnId: turnId ?? previous?.turnId,
@@ -52,7 +53,7 @@ export function restoreMessages(items: any[], previous: Message[]): Message[] {
   const thread = { messages: [] as Message[] } as Thread;
   for (const entry of items) {
     const item = entry.item || entry;
-    if (['commandExecution', 'fileChange', 'collabAgentToolCall'].includes(item.type)) {
+    if (['commandExecution', 'fileChange', 'collabAgentToolCall', 'mcpToolCall', 'dynamicToolCall'].includes(item.type)) {
       const saved = previous.find(message => message.id === `tool-${item.id}`);
       if (saved) thread.messages.push(structuredClone(saved));
       upsertTool(thread, item, entry.turnId, true);
