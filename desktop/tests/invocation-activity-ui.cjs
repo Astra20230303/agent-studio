@@ -26,6 +26,11 @@ const assert = require('node:assert/strict');
     await page.getByText('screenshot · 已完成', { exact: true }).click();
     await page.waitForFunction(() => document.querySelector('img[alt="工具返回的图片"]')?.naturalWidth === 1);
     await page.getByText('媒体无法预览，请查看结构化结果。', { exact: true }).waitFor();
+    await page.evaluate(() => window.__notify({ method: 'item/completed', params: { threadId: 'parent', turnId: 't', item: { id: 'image', type: 'mcpToolCall', status: 'completed', result: { content: [{ type: 'image', mimeType: 'image/png', data: 'YQ==' }] } } } }));
+    await page.getByText('媒体无法预览，请查看结构化结果。', { exact: true }).waitFor();
+    await page.evaluate(() => window.__notify({ method: 'item/completed', params: { threadId: 'parent', turnId: 't', item: { id: 'image', type: 'mcpToolCall', status: 'completed', result: { content: [{ type: 'image', mimeType: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a1f8AAAAASUVORK5CYII=' }] } } } }));
+    await page.waitForFunction(() => document.querySelector('img[alt="工具返回的图片"]')?.naturalWidth === 1);
+    assert.equal(await page.getByText('媒体无法预览，请查看结构化结果。', { exact: true }).count(), 0);
     console.log('PASS: MCP running/completed details and dynamic failure display');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -408,3 +408,6 @@ dynamic data/HTTPS media are supported; executable schemes, SVG and oversized
 inline payloads are not previewed. Build and parser tests pass; browser acceptance
 decodes an inline PNG and verifies unsupported-media fallback. Live provider media
 and audio playback remain unverified; MCP apps/resources are still pending.
+Acceptance correction scopes media failure to its source so a replacement image
+can render, and serializes structured output only when expanded. Browser acceptance
+verifies invalid PNG followed by a valid replacement; build passes.
