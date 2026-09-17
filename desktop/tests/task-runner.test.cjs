@@ -10,12 +10,14 @@ const { TaskScheduler } = require('../electron/task-scheduler.cjs');
 const root = path.resolve(__dirname, '../..');
 const task = { name: 'Runner integration', model: 'MiniMax-M2.1', prompt: 'Print FELIX_SCHEDULE_OK using a read-only shell command and report the result.', permission: 'read-only' };
 
-test('real project Codex executes a scheduled tool request and persists final output', { timeout: 60000 }, async () => {
+for (const apiKey of ['local-test', '']) {
+test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local'})`, { timeout: 60000 }, async () => {
   const workspace = fs.mkdtempSync(path.join(root, '.project-cache/tmp/task-workspace-'));
   const dataRoot = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'felix-runner-data-'));
   let requests = 0, upstreamError;
   const server = http.createServer(async (req, res) => {
     try {
+      assert.equal(req.headers.authorization, apiKey ? `Bearer ${apiKey}` : undefined);
       let raw = ''; for await (const chunk of req) raw += chunk;
       const body = JSON.parse(raw); requests++;
       res.writeHead(200, { 'content-type': 'text/event-stream' });
@@ -37,7 +39,7 @@ test('real project Codex executes a scheduled tool request and persists final ou
   });
   server.listen(0, '127.0.0.1'); await once(server, 'listening');
   try {
-    const runner = createTaskRunner(root, { dataRoot, apiKey: () => 'local-test', upstream: `http://127.0.0.1:${server.address().port}`, timeoutMs: 45000 });
+    const runner = createTaskRunner(root, { dataRoot, apiKey: () => apiKey, upstream: `http://127.0.0.1:${server.address().port}`, timeoutMs: 45000 });
     const directory = fs.mkdtempSync(path.join(root, '.project-cache/tmp/task-real-runner-'));
     let clock = Date.now();
     const scheduler = new TaskScheduler({ directory, runner, now: () => clock });
@@ -57,6 +59,8 @@ test('real project Codex executes a scheduled tool request and persists final ou
     assert.equal(restarted.detail(saved.id).status, 'completed'); await restarted.stop();
   } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
 });
+
+}
 
 test('missing key fails explicitly before launching a Codex process', async () => {
   const runner = createTaskRunner(root, { apiKey: () => '' });

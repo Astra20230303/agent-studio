@@ -1652,3 +1652,8 @@ remote credentials. Existing saved keys remain preserved on blank edits, and
 keyless requests omit Authorization. Registry/boundary/scheduled regression,
 production build and a relocated packaged keyless conversation with actual tool
 output and history restoration pass. Artifact: felix-desktop-keyless.
+Post-commit acceptance runs the real scheduled tool fixture in authenticated and
+keyless modes, asserting the exact Authorization behavior at the local endpoint.
+Both complete and persist their output. Model-list coverage verifies keyless
+local access and rejects missing remote credentials before network dispatch.
+All six targeted acceptance/regression tests pass.
