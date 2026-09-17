@@ -39,7 +39,7 @@ export function ArchivedThreads({ threads, connected, onRestore, onClose }: { th
     finally { lock.current = false; setRestoring(''); }
   };
   const local = threads.filter(thread => thread.archived);
-  const entries = [...local, ...remote.filter(thread => !threads.some(item => item.remoteId === thread.remoteId))];
+  const entries = [...local, ...remote.filter(thread => !local.some(item => item.remoteId === thread.remoteId)).map(thread => ({ ...thread, ...threads.find(item => item.remoteId === thread.remoteId), archived: true }))];
   return <dialog ref={dialog} className="task-modal" aria-label="归档会话" onCancel={event => { event.preventDefault(); onClose(); }}><header><h2>归档会话</h2><button aria-label="关闭归档会话" title="关闭" onClick={onClose}><X size={16} /></button></header>
     {error && <p role="alert">{error}</p>}{!connected && <p role="status">未连接，远端归档暂不可用。</p>}
     <button disabled={!connected || loading || !!restoring} onClick={() => void load()}>刷新归档</button>

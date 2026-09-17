@@ -428,3 +428,6 @@ unarchive action. Local-only records can be restored without a server request;
 remote restoration updates local visibility only after success and retains local
 messages. Build and mocked browser acceptance pass pagination, deduplication,
 restore failure/retry and history preservation. Live server acceptance remains.
+Acceptance correction keeps server-archived records visible when local cache still
+says active, while retaining local metadata. The browser test reproduces this
+disagreement and restores the record without duplication; build passes.
