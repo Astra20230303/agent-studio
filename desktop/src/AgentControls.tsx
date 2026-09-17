@@ -14,7 +14,10 @@ export function AgentControls({ threadId }: { threadId: string }) {
       if (message.method === 'turn/started' || message.method === 'turn/completed') {
         generation.current++;
         const turn = message.params.turn;
-        setState({ status: turn.status, turnId: turn.status === 'inProgress' ? turn.id : undefined });
+        setState(current => {
+          if (message.method === 'turn/completed' && current?.turnId && current.turnId !== turn.id) return current;
+          return { status: turn.status, turnId: turn.status === 'inProgress' ? turn.id : undefined };
+        });
         setNotice('');
       }
     });

@@ -1379,3 +1379,6 @@ Post-commit acceptance invalidates queried status on disconnect and disables
 interrupt until refreshed. The existing activity navigation/history test now
 models multiple notification subscribers like the real bridge; it passes along
 with control acceptance. Actual model-spawned child interruption remains unverified.
+Post-commit acceptance fixes late completion notifications from an older child
+turn replacing a newer running turn in the controls. Browser ordering regression
+and production build pass; interruption still re-reads before acting.

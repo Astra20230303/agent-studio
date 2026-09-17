@@ -7,5 +7,10 @@ assert.ok(await stop.isDisabled());await refresh.click();await panel.getByText('
 await page.evaluate(()=>window.__event({method:'turn/completed',params:{threadId:'child',turn:{id:'turn-two',status:'interrupted'}}}));await panel.getByText('查询状态：已中断').waitFor();assert.ok(await stop.isDisabled());
 await page.evaluate(()=>window.__fail=true);await refresh.click();await panel.getByRole('alert').getByText('offline').waitFor();await page.evaluate(()=>{window.__fail=false;window.__hold=true;});await refresh.click();await page.waitForFunction(()=>!!window.__release);await page.evaluate(()=>{window.__event({method:'turn/completed',params:{threadId:'child',turn:{id:'turn-two',status:'completed'}}});window.__release();});await panel.getByText('查询状态：已完成').waitFor();await page.waitForFunction(()=>!document.querySelector('#agent-test button').disabled);assert.ok(await stop.isDisabled());
 await page.evaluate(()=>{window.__hold=false;});await refresh.click();await panel.getByText('查询状态：运行中').waitFor();await page.evaluate(()=>window.__closed());await panel.getByRole('alert').getByText('连接已断开，请重连后刷新子任务状态').waitFor();assert.ok(await stop.isDisabled());
-console.log('PASS: child refresh, fresh-turn interrupt, ack, failure and late snapshot guards');
+await page.evaluate(()=>{
+  window.__event({method:'turn/started',params:{threadId:'child',turn:{id:'new-turn',status:'inProgress'}}});
+  window.__event({method:'turn/completed',params:{threadId:'child',turn:{id:'old-turn',status:'interrupted'}}});
+});
+await panel.getByText('查询状态：运行中').waitFor();assert.ok(await stop.isEnabled());
+console.log('PASS: child refresh, fresh-turn interrupt, ack, failure, late snapshot and stale completion guards');
 }finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});
