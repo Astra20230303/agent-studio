@@ -24,7 +24,7 @@ export function ExtensionIcon({ item }: { item: Plugin | Skill }) {
   return <span className="ext-icon">{image ? <img src={image} alt="" onError={() => setImage('')} /> : 'description' in item ? <BookOpen size={22} /> : <Puzzle size={22} />}</span>;
 }
 
-export function ExtensionsPage({ connected, threadId, cwd, onAddToDraft }: { connected: boolean; threadId?: string; cwd?: string; onAddToDraft?: (text: string) => void }) {
+export function ExtensionsPage({ connected, threadId, cwd, onAddToDraft, onSelectSkill }: { connected: boolean; threadId?: string; cwd?: string; onSelectSkill?: (skill: { name: string; path: string }) => void; onAddToDraft?: (text: string) => void }) {
   const [mcpOpen, setMcpOpen] = useState(false);
   const [tab, setTab] = useState<'plugins' | 'skills'>('plugins');
   const [query, setQuery] = useState('');
@@ -156,11 +156,11 @@ export function ExtensionsPage({ connected, threadId, cwd, onAddToDraft }: { con
         </>}
       </div>
     </div>
-    {selection && <ExtensionDialog key={selection.kind + ('id' in selection.item ? selection.item.id : skillKey(selection.item))} selection={selection} close={() => setSelection(undefined)} changed={async message => { setNotice(message); await refresh(); }} />}
+    {selection && <ExtensionDialog onSelectSkill={onSelectSkill} key={selection.kind + ('id' in selection.item ? selection.item.id : skillKey(selection.item))} selection={selection} close={() => setSelection(undefined)} changed={async message => { setNotice(message); await refresh(); }} />}
   </section>;
 }
 
-export function ExtensionDialog({ selection, close, changed }: { selection: Selection; close: () => void; changed: (message: string) => Promise<void> }) {
+export function ExtensionDialog({ selection, close, changed, onSelectSkill }: { onSelectSkill?: (skill: { name: string; path: string }) => void; selection: Selection; close: () => void; changed: (message: string) => Promise<void> }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [detail, setDetail] = useState<PluginDetail>();
   const [item, setItem] = useState(selection.item);
@@ -218,6 +218,7 @@ export function ExtensionDialog({ selection, close, changed }: { selection: Sele
       {plugin && !canInstall(plugin) && !installed && <p className="ext-error">此插件当前不可安装。</p>}
       {confirmRemove && <p className="ext-error" role="alert">卸载后将移除该插件提供的技能和连接。确认卸载？</p>}
       <footer className="ext-dialog-actions">
+        {skill?.path && installed && onSelectSkill && <button disabled={busy || loading || !skill.enabled} onClick={() => onSelectSkill({ name: skill.name, path: skill.path! })}>在聊天中使用</button>}
         {installed ? <><label className="ext-toggle"><input type="checkbox" role="switch" aria-label={skill ? '启用技能' : '启用插件'} checked={item.enabled} onChange={toggle} disabled={busy || loading} /><span>启用</span></label>{plugin && !skill && <button className="ext-danger" disabled={busy || loading} onClick={() => confirmRemove ? void run(async () => { await extensionRequest('plugin/uninstall', { pluginId: plugin.id }); await changed('插件已卸载，仍可重新安装。'); close(); }) : setConfirmRemove(true)}><Trash2 size={15} />{confirmRemove ? '确认卸载' : '卸载'}</button>}{confirmRemove && <button disabled={busy} onClick={() => setConfirmRemove(false)}>取消</button>}</> : <button className="ext-primary" disabled={busy || loading || !detail || !plugin || !canInstall(plugin)} onClick={install}>{busy ? <LoaderCircle size={15} className="action-spinner" /> : <Download size={15} />}{busy ? '正在安装…' : skill ? '安装所属插件' : '安装'}</button>}
         {busy && installed && <LoaderCircle size={16} className="action-spinner" aria-label="正在更新" />}
       </footer>

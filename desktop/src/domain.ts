@@ -3,6 +3,7 @@ export type AutomationStatus = 'active' | 'paused' | 'failed';
 
 export interface Message {
   attachments?: string[];
+  skills?: { name: string; path: string }[];
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;

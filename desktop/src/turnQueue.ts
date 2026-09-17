@@ -1,4 +1,5 @@
 export type QueuedTurn = {
+  skills?: { name: string; path: string }[];
   attachments?: string[];
   cwd?: string;
   planningMode?: 'default' | 'plan';

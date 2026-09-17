@@ -534,3 +534,14 @@ Post-commit live acceptance creates different .agents/skills entries in two
 isolated projects and verifies that each skills/list request discovers its own
 skill while excluding the other project's skill. The process restart test now
 waits for child exit before starting the replacement. All assertions pass.
+
+## Explicit skill selection
+
+Installed enabled skills can be selected from their detail dialog for the current
+chat. Skill drafts persist per conversation, deduplicate by path and support
+removal. Start, steer and queued turns now carry structured skill inputs with
+name and SKILL.md path. Skill-only messages are sendable and successful submission
+clears the selected draft. Build, existing attachment tests and browser acceptance
+pass selection, deduplication, reload persistence, exact turn/start input and
+cleanup. Live model consumption of the skill and history restoration remain to
+be accepted separately.
