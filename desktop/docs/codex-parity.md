@@ -1362,3 +1362,10 @@ only the running turn returned by a fresh read of that child. Keep historical
 activity distinct from queried state. Live turn notifications supersede pending
 reads; interrupt acknowledgement does not imply completion. Browser acceptance
 will verify target identity, late-read guards, failures and acknowledgement.
+Implemented: child controls query thread/read and re-read before turn/interrupt,
+using the returned running turn ID. Browser tests cover stale reads, interrupt
+acknowledgement, error recovery and completion notifications; build passes.
+Post-commit acceptance invalidates queried status on disconnect and disables
+interrupt until refreshed. The existing activity navigation/history test now
+models multiple notification subscribers like the real bridge; it passes along
+with control acceptance. Actual model-spawned child interruption remains unverified.

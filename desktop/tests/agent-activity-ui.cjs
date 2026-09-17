@@ -5,10 +5,10 @@ const assert = require('node:assert/strict');
   try {
     const page = await browser.newPage();
     await page.addInitScript(() => {
-      window.__calls = [];
+      window.__calls = []; const listeners = new Set(); window.__notify = message => listeners.forEach(fn => fn(message));
       localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeThreadId: 'parent', model: 'test', threads: [{ id: 'parent', remoteId: 'parent', title: 'Parent', messages: [], status: 'completed', updatedAt: new Date().toISOString() }] }));
       window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }) };
-      window.codex = { connect: async () => ({ ok: true }), request: async (method, params) => { window.__calls.push({ method, params }); return { ok: true, result: method === 'thread/resume' ? { thread: { id: params.threadId, cwd: 'D:/repo', turns: localStorage.getItem('agent-history-fixture') && params.threadId === 'parent' ? [{ id: 'history-turn', status: 'completed', items: [{ id: 'historic-activity', type: 'subAgentActivity', kind: 'completed', agentThreadId: 'history-child', agentPath: '/root/history' }] }] : [] } } : { data: [] } }; }, notify: async () => ({}), onNotification: fn => { window.__notify = fn; return () => {}; }, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
+      window.codex = { connect: async () => ({ ok: true }), request: async (method, params) => { window.__calls.push({ method, params }); return { ok: true, result: method === 'thread/resume' ? { thread: { id: params.threadId, cwd: 'D:/repo', turns: localStorage.getItem('agent-history-fixture') && params.threadId === 'parent' ? [{ id: 'history-turn', status: 'completed', items: [{ id: 'historic-activity', type: 'subAgentActivity', kind: 'completed', agentThreadId: 'history-child', agentPath: '/root/history' }] }] : [] } } : { data: [] } }; }, notify: async () => ({}), onNotification: fn => { listeners.add(fn); return () => listeners.delete(fn); }, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
     });
     await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
     await page.waitForFunction(() => window.__calls.some(call => call.method === 'thread/resume'));

@@ -18,7 +18,10 @@ export function AgentControls({ threadId }: { threadId: string }) {
         setNotice('');
       }
     });
-    return () => { generation.current++; off?.(); };
+    const closed = window.codex?.onClosed?.(() => {
+      generation.current++; setState(undefined); setNotice(''); setError('连接已断开，请重连后刷新子任务状态');
+    });
+    return () => { generation.current++; off?.(); closed?.(); };
   }, [threadId]);
   const run = async (interrupt = false) => {
     if (lock.current) return;
