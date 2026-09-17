@@ -422,3 +422,9 @@ covers loaded threads only; remote search and archived inventory remain pending.
 Acceptance correction tolerates invalid list timestamps/entries and rechecks the
 connection generation inside the state merge. Pagination and existing reconnect
 browser regressions pass, including draft retention and no replay; build passes.
+
+Archived conversations now have a native modal inventory, pagination, refresh and
+unarchive action. Local-only records can be restored without a server request;
+remote restoration updates local visibility only after success and retains local
+messages. Build and mocked browser acceptance pass pagination, deduplication,
+restore failure/retry and history preservation. Live server acceptance remains.
