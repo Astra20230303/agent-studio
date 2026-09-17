@@ -1,3 +1,4 @@
+import { CommandPalette } from './CommandPalette';
 import { useAppShortcuts } from './useAppShortcuts';
 import { usePluginDraft } from './usePluginDraft';
 import { ArtifactPreview } from './ArtifactPreview';
@@ -113,6 +114,7 @@ function App() {
   );
   const [search, setSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [archivesOpen, setArchivesOpen] = useState(false);
   const [showModel, setShowModel] = useState(false);
   const [showProjects, setShowProjects] = useState(false);
@@ -385,6 +387,7 @@ function App() {
   };
   const newChat = () => { setRemoteThreadId(undefined); update(next => createThread(next)); setPage('chat'); };
   useAppShortcuts({
+    palette: () => setPaletteOpen(true),
     newChat: () => { newChat(); requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('textarea[aria-label="消息"]')?.focus()); },
     search: () => { setSidebarVisible(true); setShowSearch(true); requestAnimationFrame(() => document.getElementById('sidebar-search')?.focus()); },
     composer: () => { setPage('chat'); requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('textarea[aria-label="消息"]')?.focus()); },
@@ -544,13 +547,24 @@ function App() {
     {queue.saveFailed && <div role="alert" className="state-save-warning">排队消息未能保存，自动发送已暂停。关闭窗口可能丢失更改或恢复旧队列。<button onClick={queue.retry}>重试保存队列</button></div>}
     {attachmentStorage.saveFailed && <div role="alert" className="state-save-warning">附件选择未保存到本机，刷新后可能丢失选择或恢复旧附件。当前仍可编辑和发送。<button onClick={attachmentStorage.retry}>重试保存附件</button></div>}
     {stateSaveFailed && <div role="alert" className="state-save-warning">会话和设置未能保存到本机，刷新或关闭窗口可能丢失当前更改。<button onClick={() => setStateSaveAttempt(attempt => attempt + 1)}>重试保存会话和设置</button></div>}
+    {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} commands={[
+      { id: 'new', label: '新建会话', keywords: 'new chat', run: () => { newChat(); requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('textarea[aria-label="消息"]')?.focus()); } },
+      { id: 'search', label: '搜索会话', keywords: 'search history', run: () => { setSidebarVisible(true); setShowSearch(true); requestAnimationFrame(() => document.getElementById('sidebar-search')?.focus()); } },
+      { id: 'files', label: '浏览工作区文件', keywords: 'files workspace', run: () => { setFilesOpen(true); setGitOpen(false); } },
+      { id: 'git', label: '查看 Git 变更', keywords: 'diff commit branch', run: () => { setGitOpen(true); setFilesOpen(false); } },
+      { id: 'terminal', label: '打开终端', keywords: 'terminal shell', run: () => { setTerminalStarted(true); setTerminalOpen(true); } },
+      { id: 'plugins', label: '浏览插件', keywords: 'plugins skills mcp', run: () => setPage('plugins') },
+      { id: 'scheduled', label: '查看已安排任务', keywords: 'scheduled automation', run: () => setPage('scheduled') },
+      { id: 'settings', label: '打开设置', keywords: 'settings provider', run: () => setPage('settings') },
+      { id: 'archives', label: '查看归档会话', keywords: 'archive', run: () => setArchivesOpen(true) },
+    ]} />}
     <header className="desktop-titlebar">
       <div className="titlebar-navigation">
         <button className="titlebar-icon" aria-label={sidebarVisible ? '收起侧栏' : '展开侧栏'} title={sidebarVisible ? '收起侧栏' : '展开侧栏'} aria-expanded={sidebarVisible} aria-controls="workspace-sidebar" onClick={() => setSidebarVisible(value => !value)}><PanelLeft aria-hidden="true" /></button>
         <button className="titlebar-icon" aria-label="后退" title="后退" disabled={!navigation.canGoBack} onClick={() => navigateHistory(-1)}><ArrowLeft aria-hidden="true" /></button>
         <button className="titlebar-icon" aria-label="前进" title="前进" disabled={!navigation.canGoForward} onClick={() => navigateHistory(1)}><ArrowRight aria-hidden="true" /></button>
       </div>
-      <button aria-label="浏览工作区文件" aria-expanded={filesOpen} onClick={() => setFilesOpen(value => !value)}><FolderOpen size={17} /></button><button aria-label="查看 Git 变更" aria-expanded={gitOpen} onClick={() => { setGitOpen(value => !value); setFilesOpen(false); }}><GitBranch size={17} /></button><button aria-label="打开终端" title="终端" aria-expanded={terminalOpen} onClick={() => { if (!terminalStarted) { setTerminalStarted(true); } setTerminalOpen(value => !value); }}><Terminal size={17} /></button><nav aria-label="应用菜单"><button>文件</button><button>编辑</button><button>视图</button><button>帮助</button></nav><button className="remote-browser-toggle" aria-label="浏览器" title="浏览器" aria-expanded={browserOpen} aria-controls="remote-browser" onClick={() => setBrowserOpen(value => !value)}><Globe size={17} /></button><WindowControls />
+      <button aria-label="浏览工作区文件" aria-expanded={filesOpen} onClick={() => setFilesOpen(value => !value)}><FolderOpen size={17} /></button><button aria-label="查看 Git 变更" aria-expanded={gitOpen} onClick={() => { setGitOpen(value => !value); setFilesOpen(false); }}><GitBranch size={17} /></button><button aria-label="打开终端" title="终端" aria-expanded={terminalOpen} onClick={() => { if (!terminalStarted) { setTerminalStarted(true); } setTerminalOpen(value => !value); }}><Terminal size={17} /></button><button aria-label="打开命令面板" title="命令面板（Ctrl/⌘+Shift+P）" onClick={() => setPaletteOpen(true)}>命令</button><nav aria-label="应用菜单"><button>文件</button><button>编辑</button><button>视图</button><button>帮助</button></nav><button className="remote-browser-toggle" aria-label="浏览器" title="浏览器" aria-expanded={browserOpen} aria-controls="remote-browser" onClick={() => setBrowserOpen(value => !value)}><Globe size={17} /></button><WindowControls />
     </header>
     {codexStatus !== 'connected' && <div className="connection-banner" role="status"><span>{codexStatus === 'connecting' ? '正在连接工作区…' : '工作区连接已断开，草稿已保留。'}{connectionError && ` ${connectionError}`}</span><button disabled={codexStatus === 'connecting'} onClick={() => reconnectRef.current()}>重新连接</button></div>}
     <div className="desktop-body"><aside id="workspace-sidebar" className="sidebar" aria-label="侧栏" hidden={!sidebarVisible}>
