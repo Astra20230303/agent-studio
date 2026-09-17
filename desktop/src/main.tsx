@@ -275,7 +275,7 @@ function App() {
       if (!queue.change(items => items.map(entry => entry.id === item.id ? { ...entry, status: 'sending', error: undefined } : entry), true)) continue;
       sendingRef.current.add(item.localId);
       setPendingThreads(previous => [...previous, item.localId]);
-      update(next => { const target = next.threads.find(thread => thread.id === item.localId); if (target) target.messages.push({ id: item.id, role: 'user', content: item.text, attachments: item.attachments, skills: item.skills, createdAt: new Date().toISOString() }); });
+      update(next => { const target = next.threads.find(thread => thread.id === item.localId); if (target) target.messages.push({ id: item.id, role: 'user', content: item.text, attachments: item.attachments, skills: item.skills, plugins: item.plugins, createdAt: new Date().toISOString() }); });
       void (async () => {
         try {
           const result = await startTurn({ threadId: item.threadId, text: item.text, attachments: item.attachments, skills: item.skills, model: item.model, effort: item.effort, plugins: item.plugins, planningMode: item.planningMode || 'default', cwd: item.cwd });
@@ -331,7 +331,7 @@ function App() {
       update(next => {
         const thread = next.threads.find(item => item.id === localId);
         if (!thread) return;
-        thread.messages.push({ id: messageId, role: 'user', content: text, attachments: [...attachments], skills: [...composerSkills], createdAt: new Date().toISOString() });
+        thread.messages.push({ id: messageId, role: 'user', content: text, attachments: [...attachments], skills: [...composerSkills], plugins: composerPlugins.map(({ id, name }) => ({ id, name })), createdAt: new Date().toISOString() });
         ensureThreadTitle(thread);
         thread.updatedAt = new Date().toISOString();
       });
@@ -661,7 +661,7 @@ function Chat({ loadFullHistory, onChangePermission, sendShortcut, composerSkill
   ];
   return <div className={`chat-layout${workMode ? ' work-mode' : ''}${workMode && empty ? ' work-new-chat' : ''}`}>{active && <ConversationFind reset={findReset} key={active.id} messages={active.messages} view={threadView} searching={searchingConversation} loadHistory={active.remoteId && status === 'connected' ? loadFullHistory : undefined} disabled={busy || running} />}{active?.messages.length ? <div className="thread-view" ref={threadView}>{groupMessages(active.messages).map(group => {
     const message = group[0];
-    return message.tool ? <ToolActivityGroup key={message.id} messages={group} onOpenAgent={onOpenAgent} /> : <div className={`message ${message.role}`} key={message.id} data-message-id={message.id}>{message.role === 'assistant' ? <><MarkdownMessage content={message.content} />{isFinalReply(active.messages, active.messages.indexOf(message)) && <MessageActions content={message.content} disabled={busy || running || active.status === 'running' || status !== 'connected' || !active.remoteId} onFork={() => onForkMessage(message.id)} onError={toast} />}</> : <div className="user-text">{message.content}{message.skills?.map(skill => <div key={skill.path} className="message-attachment" title={skill.path}>${skill.name}</div>)}{message.attachments?.map(path => <div key={path} className="message-attachment" title={path}>📎 {path.replace(/^.*[\\/]/, '')}</div>)}</div>}</div>;
+    return message.tool ? <ToolActivityGroup key={message.id} messages={group} onOpenAgent={onOpenAgent} /> : <div className={`message ${message.role}`} key={message.id} data-message-id={message.id}>{message.role === 'assistant' ? <><MarkdownMessage content={message.content} />{isFinalReply(active.messages, active.messages.indexOf(message)) && <MessageActions content={message.content} disabled={busy || running || active.status === 'running' || status !== 'connected' || !active.remoteId} onFork={() => onForkMessage(message.id)} onError={toast} />}</> : <div className="user-text">{message.content}{message.plugins?.map(plugin => <div key={plugin.id} className="message-attachment" title={`plugin://${plugin.id}`}>插件：{plugin.name}</div>)}{message.skills?.map(skill => <div key={skill.path} className="message-attachment" title={skill.path}>${skill.name}</div>)}{message.attachments?.map(path => <div key={path} className="message-attachment" title={path}>📎 {path.replace(/^.*[\\/]/, '')}</div>)}</div>}</div>;
   })}{activity && <div className={`activity${activity === '正在思考…' ? ' thinking' : ''}`}>{activity}</div>}</div> : !workMode && <div className="welcome">
     <div className="welcome-content">
       <div className="welcome-mark" role="img" aria-label="Felix" title="Felix" tabIndex={0}><Badge className="welcome-badge" aria-hidden="true" /><Terminal className="welcome-terminal" aria-hidden="true" /></div>

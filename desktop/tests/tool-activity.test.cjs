@@ -3,6 +3,18 @@ const assert = require('node:assert/strict');
 const { applyToolEvent, finishTools, restoreMessages } = require('../src/toolActivity.ts');
 const makeThread = () => ({ messages: [{ id: 'before', role: 'assistant', content: 'Checking files' }] });
 
+test('plugin mentions restore names and IDs without treating other mentions as plugins', () => {
+  const [message] = restoreMessages([{ id: 'u', type: 'userMessage', content: [
+    { type: 'text', text: 'Use plugin' },
+    { type: 'mention', name: 'Docs', path: 'plugin://docs@local' },
+    { type: 'mention', name: 'Docs', path: 'plugin://docs@local' },
+    { type: 'mention', name: 'Other', path: 'app://other' },
+    { type: 'mention', name: 'Empty', path: 'plugin://' }, null
+  ] }], []);
+  assert.deepEqual(message.plugins, [{ id: 'docs@local', name: 'Docs' }]);
+  assert.equal(message.content, 'Use plugin');
+});
+
 test('raw record restoration preserves fields while ordinary messages stay on their dedicated path', () => {
   const thread = makeThread();
   applyToolEvent(thread, 'item/started', { turnId: 't', item: { id: 'raw', type: 'newOperation', input: 'original' } });

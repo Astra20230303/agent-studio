@@ -27,6 +27,7 @@ const assert = require('node:assert/strict');
     await page.getByRole('textbox', { name: '消息', exact: true }).fill('Use selected plugin');
     await page.getByRole('button', { name: '发送', exact: true }).click();
     await page.waitForFunction(() => !!window.__finish);
+    await page.locator('.message.user').getByText('插件：Plugin A', { exact: true }).waitFor();
     assert.ok(await page.evaluate(() => window.__input.some(item => item.type === 'mention' && item.path === 'plugin://a@local')));
     await page.getByRole('button', { name: 'Chat b', exact: true }).click();
     await page.evaluate(() => window.__finish());

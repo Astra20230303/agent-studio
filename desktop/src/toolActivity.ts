@@ -85,6 +85,7 @@ export function restoreMessages(items: any[], previous: Message[]): Message[] {
         turnId: entry.turnId || previous.find(message => message.id === `live-${item.id}`)?.turnId,
         role: item.type === 'userMessage' ? 'user' : 'assistant',
         attachments: item.type === 'userMessage' ? parts?.filter((part: any) => part.type === 'localImage' && typeof part.path === 'string').map((part: any) => part.path) : undefined,
+        plugins: item.type === 'userMessage' ? [...new Map((parts || []).filter((part: any) => part.type === 'mention' && typeof part.name === 'string' && typeof part.path === 'string' && part.path.startsWith('plugin://') && part.path.length > 9).map((part: any) => [part.path, { id: part.path.slice(9), name: part.name }])).values()] : undefined,
         skills: item.type === 'userMessage' ? parts?.filter((part: any) => part.type === 'skill' && typeof part.name === 'string' && typeof part.path === 'string').map((part: any) => ({ name: part.name, path: part.path })) : undefined,
         content: typeof item.text === 'string' ? item.text : parts?.map((part: any) => typeof part.text === 'string' ? part.text : typeof part.input_text === 'string' ? part.input_text : '').join('') ?? existing?.content ?? '',
         createdAt: existing?.createdAt || new Date().toISOString() } as Message;
