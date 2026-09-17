@@ -8,6 +8,9 @@ send. Pause persists through the existing storage layer, and completion events
 cannot release paused entries. Explicit resume uses the current turn state.
 Three queue unit tests, full chat pause/complete/resume acceptance and production
 build pass; existing FIFO, edit, storage-failure and restore workflows also pass.
+Post-commit full-chat acceptance explicitly counts turn/interrupt calls (zero for
+queue pause) and reloads a manually paused queue. It remains paused with no replay
+until resumed. The expanded browser workflow passes without further product edits.
 
 ## Edit queued messages
 

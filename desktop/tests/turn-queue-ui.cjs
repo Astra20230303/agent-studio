@@ -7,11 +7,12 @@ const assert = require('node:assert/strict');
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     await page.addInitScript(() => {
       localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ model: 'test', activeThreadId: 'a', threads: [{ id: 'a', remoteId: 'a', title: 'A', messages: [], status: 'running', updatedAt: new Date().toISOString() }] }));
-      window.__sent = []; window.__live = 'initial';
+      window.__sent = []; window.__live = 'initial'; window.__interrupts = 0;
       window.desktop = { providerStatus: async () => ({ keyConfigured: true }), listModels: async () => ({ ok: true, models: ['test'] }) };
       window.codex = {
         connect: async () => ({ ok: true }), notify: async () => ({ ok: true }),
         request: async (method, params) => {
+          if (method === 'turn/interrupt') window.__interrupts++;
           if (method === 'thread/resume') return { ok: true, result: { thread: { turns: [{ id: window.__live, status: 'inProgress', items: [] }] } } };
           if (method === 'turn/start') {
             window.__sent.push(params);
@@ -74,6 +75,7 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: '取消排队：cancel-me', exact: true }).click();
     const finish = status => page.evaluate(status => window.__notify({ method: 'turn/completed', params: { threadId: 'a', turn: { id: window.__live, status } } }), status);
     await page.getByRole('button', { name: '暂停队列', exact: true }).click();
+    assert.equal(await page.evaluate(() => window.__interrupts), 0);
     assert.ok(await page.evaluate(() => JSON.parse(localStorage.getItem('felix-turn-queue-v1')).every(item => item.status === 'paused')));
     await finish('completed');
     await page.getByRole('button', { name: '继续队列', exact: true }).waitFor();
@@ -96,6 +98,7 @@ const assert = require('node:assert/strict');
     assert.equal(await page.evaluate(() => window.__sent[2].input[0].text), 'second');
     await page.getByRole('region', { name: '待发送消息' }).waitFor({ state: 'hidden' });
     await input.fill('persisted'); await add.click();
+    await page.getByRole('button', { name: '暂停队列', exact: true }).click();
     await page.reload();
     await page.getByRole('button', { name: '继续队列', exact: true }).waitFor();
     assert.equal(await page.evaluate(() => window.__sent.length), 0);
