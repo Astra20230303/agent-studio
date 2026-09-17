@@ -14,20 +14,23 @@ export function ArchivedThreads({ threads, connected, onRestore, onClose }: { th
   const [restoring, setRestoring] = useState('');
   const lock = useRef(false);
   const generation = useRef(0);
+  const cursors = useRef(new Set<string>());
   useEffect(() => { const element = dialog.current!; element.showModal(); return () => element.close(); }, []);
   const load = async (next?: string) => {
     if (!connected || lock.current) return;
     const token = generation.current;
     lock.current = true; setLoading(true); setError('');
+    if (!next) cursors.current.clear();
     try {
       const response = search ? await searchThreads(search, next, true) : await listArchivedThreads(next);
       if (search && (!Array.isArray(response?.data) || response.data.some((item: any) => !item?.thread?.id || typeof item.snippet !== 'string'))) throw Error('归档搜索结果无效，请重试');
       const result = search ? { ...response, data: response.data.map((item: any) => ({ ...item.thread, snippet: item.snippet })) } : response;
       if (token !== generation.current) return;
-      if (result.nextCursor && result.nextCursor === next) throw Error('归档分页游标重复');
+      if (result.nextCursor && (result.nextCursor === next || cursors.current.has(result.nextCursor))) throw Error('归档分页游标重复');
       const entries: (Thread & { snippet?: string })[] = result.data.map((item: any) => ({ snippet: item.snippet, id: `remote-${item.id}`, remoteId: item.id, title: item.name || item.preview || '归档会话', cwd: item.cwd, status: 'completed', pinned: false, archived: true, messages: [], updatedAt: new Date().toISOString() }));
       setRemote(previous => [...new Map([...(next ? previous : []), ...entries].map(thread => [thread.remoteId, thread])).values()]);
       setCursor(result.nextCursor || undefined);
+      if (result.nextCursor) cursors.current.add(result.nextCursor);
     } catch (error) { if (token === generation.current) setError(String(error)); }
     finally { if (token === generation.current) { lock.current = false; setLoading(false); } }
   };

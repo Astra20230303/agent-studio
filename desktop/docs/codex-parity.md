@@ -1175,3 +1175,6 @@ uses the existing unarchive flow and preserves local history. Searches do not ad
 archived records to the recent-conversation list. A real isolated app-server test
 finds archived assistant content while excluding a restored conversation. Browser
 search/clear/restore regression and production build pass.
+Post-commit acceptance rejects multi-page cursor cycles (A→B→A), beyond an
+immediately repeated cursor. A delayed search result after query clearing cannot
+reappear in the archive list. Browser regression and production build pass.
