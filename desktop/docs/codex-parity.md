@@ -1489,3 +1489,9 @@ only unsent entries pause. A newly attempted dispatch still requires successful
 persistence. Hook browser fault injection verifies in-flight status survives
 unrelated completion, rejected enqueue and save retry, while confirmed removal
 is not resurrected after another failed write. Production build passes.
+Post-commit full-chat acceptance holds turn/start pending while an unrelated
+completion encounters quota failure. Edit/cancel remain disabled, save retry
+preserves sending, acknowledged removal survives a second quota failure, and
+the paused successor dispatches exactly once after explicit resume. The existing
+FIFO/edit/cancel/failure/reload browser regression also passes. These tests use
+a controlled app-server bridge; no additional product correction was needed.
