@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld('desktop', {
   pickProject: () => ipcRenderer.invoke('desktop:pick-project'),
   pickFiles: () => ipcRenderer.invoke('desktop:pick-files'),
   saveConversation: input => ipcRenderer.invoke('desktop:save-conversation', input),
+  saveTerminal: input => ipcRenderer.invoke('desktop:save-terminal', input),
   readExtensionFile: (path, kind) => ipcRenderer.invoke('desktop:extension-file', { path, kind }),
   listTasks: () => ipcRenderer.invoke('tasks:list'),
   saveTask: input => ipcRenderer.invoke('tasks:save', input),

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
+import { terminalText } from './terminalExport';
 import { Play, Plus, Square, X, Trash2 } from 'lucide-react';
 import '@xterm/xterm/css/xterm.css';
 import './terminal.css';
@@ -58,6 +59,23 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
   const [status, setStatus] = useState('正在启动');
   const [error, setError] = useState('');
   const [running, setRunning] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportNotice, setExportNotice] = useState('');
+  const exportLock = useRef(false);
+  const exportLog = async () => {
+    if (!terminal.current || exportLock.current) return;
+    exportLock.current = true; setExporting(true); setExportNotice('');
+    try {
+      const content = terminalText(terminal.current.buffer.active);
+      const filename = `terminal-${id}-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
+      const save = window.desktop?.saveTerminal;
+      if (!save) throw Error('桌面日志导出不可用');
+      const result = await save({ filename, content });
+      if (!result.ok) throw Error(result.error || '导出失败');
+      setExportNotice(result.canceled ? '已取消导出' : '已导出当前终端缓冲区');
+    } catch (error) { setExportNotice(`导出失败：${error instanceof Error ? error.message : String(error)}`); }
+    finally { exportLock.current = false; setExporting(false); }
+  };
   useEffect(() => {
     const bridge = window.desktop?.terminal;
     if (!bridge || !host.current) { setError('桌面终端不可用'); return; }
@@ -101,6 +119,7 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
   }}>
     <header><strong>终端</strong><span title={cwd}>{cwd || '当前项目'}</span><small role="status">{status}</small>
       <button title="查找终端输出" aria-label="查找终端输出" onClick={() => finding ? closeFind() : setFinding(true)}>⌕</button>
+      <button title="导出当前终端缓冲区（最多保留 5000 行历史）" aria-label="导出终端日志" disabled={exporting} onClick={() => void exportLog()}>⇩</button>
       <button title="重新启动终端" aria-label="重新启动终端" disabled={running} onClick={() => setRevision(value => value + 1)}><Play size={16} /></button>
       <button title="终止终端" aria-label="终止终端" disabled={!running} onClick={() => { if (session.current) void window.desktop?.terminal?.close(session.current).catch(failure => setError(String(failure))); }}><Square size={16} /></button>
       </header>
@@ -109,6 +128,6 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
       if (event.key === 'Enter') { event.preventDefault(); find(event.shiftKey); }
       if (event.key === 'Escape') { event.preventDefault(); closeFind(); }
     }} /><span role="status">{query ? found ? '已定位匹配' : '没有匹配' : '范围：当前终端缓冲区'}</span><button aria-label="终端上一个匹配" disabled={!query} onClick={() => find(true)}>↑</button><button aria-label="终端下一个匹配" disabled={!query} onClick={() => find()}>↓</button><button aria-label="关闭终端查找" onClick={closeFind}>×</button></div>}
-    {error && <p role="alert">{error}</p>}<div ref={host} className="terminal-host" />
+    {exportNotice && <p role="status">{exportNotice}</p>}{error && <p role="alert">{error}</p>}<div ref={host} className="terminal-host" />
   </section>;
 }

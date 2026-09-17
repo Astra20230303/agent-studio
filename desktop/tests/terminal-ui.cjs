@@ -18,7 +18,8 @@ const fs = require('node:fs');
       const listeners = new Set();
       window.__terminalEvent = event => listeners.forEach(listener => listener(event));
       localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeThreadId: 'terminal-test', model: 'test', threads: [{ id: 'terminal-test', title: 'Terminal test', cwd, messages: [], updatedAt: new Date().toISOString() }, { id: 'second-project', title: 'Second project', cwd: second, messages: [], updatedAt: new Date().toISOString() }] }));
-      window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }), terminal: {
+      window.__exports=[];
+      window.desktop = { saveTerminal:async input=>{window.__exports.push(input);return {ok:true};}, listModels: async () => ({ ok: true, models: ['test'] }), terminal: {
         create: window.__createTerminal, write: window.__writeTerminal, resize: window.__resizeTerminal, close: window.__closeTerminal,
         onData: listener => { listeners.add(listener); return () => listeners.delete(listener); }
       }};
@@ -32,6 +33,13 @@ const fs = require('node:fs');
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => document.querySelector('.xterm-screen')?.textContent?.includes('FELIX_PTY_OK'));
     assert.ok(events.some(event => event.data?.includes('FELIX_PTY_OK')));
+    await page.getByRole('button',{name:'导出终端日志',exact:true}).click();
+    await page.getByText('已导出当前终端缓冲区',{exact:true}).waitFor();
+    const exported = await page.evaluate(()=>window.__exports[0]);
+    assert.match(exported.content,/FELIX_PTY_OK/);
+    assert.equal(exported.content.includes('\x1b'),false);
+    assert.match(exported.filename,/^terminal-1-.*\.txt$/);
+    await page.locator('.xterm-helper-textarea').focus();
     await page.keyboard.press('Control+f');
     const search = page.getByRole('textbox',{name:'查找终端输出内容',exact:true});
     await search.fill('FELIX_PTY_OK');

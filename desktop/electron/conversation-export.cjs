@@ -10,3 +10,13 @@ async function saveConversation(input, chooseFile) {
   } catch (error) { return { ok: false, error: error.message }; }
 }
 module.exports = { saveConversation };
+async function saveTerminal(input, chooseFile) {
+  try {
+    if (typeof input?.filename !== 'string' || typeof input?.content !== 'string') throw Error('无效的终端日志');
+    const result = await chooseFile({ title: '导出终端缓冲区', defaultPath: path.basename(input.filename), filters: [{ name: 'Text', extensions: ['txt'] }] });
+    if (result.canceled || !result.filePath) return { ok: true, canceled: true };
+    await fs.writeFile(result.filePath, input.content, 'utf8');
+    return { ok: true };
+  } catch (error) { return { ok: false, error: error.message }; }
+}
+module.exports.saveTerminal = saveTerminal;

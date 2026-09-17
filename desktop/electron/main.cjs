@@ -198,6 +198,7 @@ ipcMain.handle('desktop:pick-files', async event => {
   return result.canceled ? [] : result.filePaths;
 });
 ipcMain.handle('desktop:save-conversation', (event, input) => require('./conversation-export.cjs').saveConversation(input, options => dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender), options)));
+ipcMain.handle('desktop:save-terminal', (event, input) => require('./conversation-export.cjs').saveTerminal(input, options => dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender), options)));
 ipcMain.handle('desktop:extension-file', async (_event, { path: filename, kind }) => {
   try { return { ok: true, result: await readExtensionFile(projectRoot, filename, kind) }; }
   catch (error) { return { ok: false, error: error.message }; }

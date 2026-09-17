@@ -1045,3 +1045,13 @@ Post-commit acceptance keeps a query open while PowerShell emits a delayed match
 the search now refreshes after parsed terminal writes. Toggling the toolbar closed
 uses the same selection cleanup and focus restoration as Escape. Real PTY browser
 regression and build pass after these changes.
+
+## Terminal log export
+
+Each terminal can export its active retained buffer to UTF-8 text through a native
+save dialog. ANSI presentation codes are absent and soft-wrapped rows are joined;
+this is a buffer snapshot, not a complete session recording. An immediate lock
+prevents concurrent exports. The UI reports success, cancellation and failures.
+Real PowerShell browser tests inspect exported content; filesystem tests cover
+UTF-8 writes, canceled saves and disk errors. Build passes. Native dialog clicking
+has not been manually verified.
