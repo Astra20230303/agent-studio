@@ -28,6 +28,23 @@ async function workspaceGit(input) {
   if (typeof input?.root !== 'string' || !path.isAbsolute(input.root)) throw Error('请选择工作区目录');
   const cwd = await fs.realpath(input.root);
   const root = (await git(cwd, ['rev-parse', '--show-toplevel'])).trim();
+  if (input.action === 'history') {
+    const offset = input.offset ?? 0;
+    if (!Number.isSafeInteger(offset) || offset < 0 || offset > 100000) throw Error('无效历史页码');
+    if (input.anchor !== undefined && !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(input.anchor)) throw Error('无效提交标识');
+    const anchor = input.anchor || (await git(root, ['rev-parse', '--verify', 'HEAD']).catch(() => '')).trim();
+    if (!anchor) return { commits: [], hasMore: false };
+    const output = await git(root, ['log', '--no-show-signature', '--format=%H%x00%an%x00%aI%x00%s', '-z', '--max-count=31', `--skip=${offset}`, anchor, '--']);
+    const fields = output.split('\0');
+    const commits = [];
+    for (let i = 0; i + 3 < fields.length; i += 4) commits.push({ id: fields[i], author: fields[i + 1], date: fields[i + 2], subject: fields[i + 3] });
+    return { anchor, commits: commits.slice(0, 30), hasMore: commits.length > 30 };
+  }
+  if (input.action === 'commit-detail') {
+    if (typeof input.commit !== 'string' || !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(input.commit)) throw Error('无效提交标识');
+    const detail = await git(root, ['show', '--no-show-signature', '--no-ext-diff', '--no-textconv', '--no-color', '--format=fuller', '--stat', '--patch', '--diff-merges=first-parent', input.commit, '--']);
+    return { detail };
+  }
   if (input.action === 'pull') {
     const currentBranch = () => git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).then(value => value.trim(), () => '');
     const branch = await currentBranch();

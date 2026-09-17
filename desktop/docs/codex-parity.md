@@ -993,3 +993,14 @@ to the same root/path. Build and browser acceptance switch via the notification
 bridge during an unsaved edit, preserve its text and verify the write target.
 Post-commit acceptance switches workspace again before reloading disk content
 and verifies the reload still reads the captured editing workspace.
+
+## Git commit history
+
+Git changes now links to read-only commit history, showing 30 commits per page
+with author/date/subject and full commit metadata/stat/patch details. Pagination
+anchors to the initial commit so new HEAD commits do not shift later pages.
+Commit IDs and offsets are validated; external diff/textconv are disabled.
+Git output is capped at 4 MB and larger details report a read error.
+Temporary repository tests cover empty history, stable pagination after new
+commits, root commit patches and invalid inputs. Browser acceptance covers
+navigation, escaped patch content and pagination; production build passes.
