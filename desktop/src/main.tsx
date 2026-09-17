@@ -91,6 +91,9 @@ function App() {
     const cleanup = subscribeCodex({
       notification: message => {
         const params = message.params || {};
+        if (message.method === 'serverRequest/resolved') {
+          setApprovals(pending => pending.filter(item => item.id !== params.requestId));
+        }
         if (message.method === 'item/agentMessage/delta' && params.delta) {
           setActivity(undefined);
           update(next => { const thread = next.threads.find(item => params.threadId ? item.remoteId === params.threadId : item.id === activeThreadRef.current); if (!thread) return; const last = thread.messages.find(message => message.id === `live-${params.itemId}`); if (last?.role === 'assistant') last.content += params.delta; else thread.messages.push({ id: `live-${params.itemId}`, role: 'assistant', turnId: params.turnId, content: params.delta, createdAt: new Date().toISOString() }); thread.status = 'running'; });

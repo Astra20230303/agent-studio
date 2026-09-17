@@ -52,4 +52,14 @@ missing there. Commit upstream edits there before updating the parent gitlink.
 - Concurrent requests do not overwrite one another; failed sends retain answers.
 - Desktop and narrow viewport show all controls without horizontal overflow.
 
-Status: implementation in progress. Later features remain pending.
+Status: feature 1 implemented. Later features remain pending.
+
+Acceptance (2026-09-17): TypeScript and production build passed. Playwright in
+headless Edge covers protocol payloads, multiple questions, secret masking,
+queued requests, transport failure/retry, cancellation, custom options and
+390px/1280px layouts. Acceptance exposed a stale question after
+`serverRequest/resolved`; the follow-up fix removes that request from the queue.
+Run: `node tests/user-input-ui.cjs` with Vite on port 5318 (or FELIX_TEST_URL).
+Screenshots: `.project-cache/ui-checks/user-input-{desktop,mobile}.png`.
+These are browser tests with a mocked Electron bridge; live model questioning
+and native Electron interaction remain unverified.
