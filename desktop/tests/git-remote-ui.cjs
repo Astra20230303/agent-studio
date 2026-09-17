@@ -9,8 +9,9 @@ const assert = require('node:assert/strict');
       window.__calls = []; window.__rejectPush = true;
       window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }), workspaceGit: async input => {
         window.__calls.push(input);
+        if (input.action === 'publish') { window.__untracked = false; return { ok: true, result: { upstream: 'backup/main' } }; }
         if (input.action === 'push' && window.__rejectPush) return { ok: false, error: 'non-fast-forward' };
-        return { ok: true, result: input.action === 'status' ? { root: 'D:/repo', branch: 'main', upstream: window.__untracked ? undefined : 'origin/target', remote: 'origin', ahead: 1, behind: 2, files: [] } : { upstream: 'origin/target' } };
+        return { ok: true, result: input.action === 'status' ? { root: 'D:/repo', branch: 'main', remotes: ['origin', 'backup'], upstream: window.__untracked ? undefined : 'origin/target', remote: 'origin', ahead: 1, behind: 2, files: [] } : { upstream: 'origin/target' } };
       } };
       window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async () => ({ ok: true, result: { data: [] } }), onNotification: () => () => {}, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
     });
@@ -28,6 +29,12 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: '刷新变更', exact: true }).click();
     await page.getByText('未配置上游分支', { exact: true }).waitFor();
     assert.equal(await page.getByRole('button', { name: '推送到上游', exact: true }).isDisabled(), true);
+    await page.getByRole('combobox', { name: '发布远端', exact: true }).selectOption('backup');
+    await page.getByRole('button', { name: '发布当前分支', exact: true }).click();
+    await page.getByRole('status').filter({ hasText: '已推送到 backup/main' }).waitFor();
+    const publish = await page.evaluate(() => window.__calls.find(call => call.action === 'publish'));
+    assert.equal(publish.remote, 'backup'); assert.equal(publish.expectedBranch, 'main');
+    await page.getByRole('button', { name: '发布当前分支', exact: true }).waitFor({ state: 'detached' });
     assert.ok(await page.evaluate(() => window.__calls.every(call => call.root === 'D:/repo')));
     console.log('PASS: upstream counts, fetch, rejected push/retry and missing-upstream guard');
   } finally { await browser.close(); }

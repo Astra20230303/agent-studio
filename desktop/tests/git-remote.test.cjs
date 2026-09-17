@@ -21,6 +21,15 @@ test('fetch and non-forced push respect explicit upstream and divergence', async
   git(root, ['add', '.']); git(root, ['commit', '-m', 'base']);
   await assert.rejects(workspaceGit({ root, action: 'push' }), /上游/);
   git(root, ['remote', 'add', 'origin', remote]);
+  assert.deepEqual((await workspaceGit({ root, action: 'status' })).remotes, ['origin']);
+  await assert.rejects(workspaceGit({ root, action: 'publish', remote: remote, expectedBranch: 'main' }), /已配置/);
+  await assert.rejects(workspaceGit({ root, action: 'publish', remote: 'origin', expectedBranch: 'stale' }), /分支已变化/);
+  git(root, ['checkout', '-b', 'codex/published']);
+  const published = await workspaceGit({ root, action: 'publish', remote: 'origin', expectedBranch: 'codex/published' });
+  assert.equal(published.upstream, 'origin/codex/published');
+  assert.equal(git(remote, ['rev-parse', 'refs/heads/codex/published']), git(root, ['rev-parse', 'HEAD']));
+  await assert.rejects(workspaceGit({ root, action: 'publish', remote: 'origin', expectedBranch: 'codex/published' }), /已有上游/);
+  git(root, ['checkout', 'main']);
   git(root, ['push', '-u', 'origin', 'main:target']);
   git(root, ['branch', 'unrelated']);
   git(root, ['push', 'origin', 'unrelated']);
@@ -52,4 +61,5 @@ test('fetch and non-forced push respect explicit upstream and divergence', async
   git(root, ['checkout', '--detach']);
   assert.equal((await workspaceGit({ root, action: 'status' })).upstream, undefined);
   await assert.rejects(workspaceGit({ root, action: 'push' }), /上游/);
+  await assert.rejects(workspaceGit({ root, action: 'publish', remote: 'origin', expectedBranch: 'main' }), /游离/);
 });

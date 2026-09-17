@@ -28,6 +28,16 @@ async function workspaceGit(input) {
   if (typeof input?.root !== 'string' || !path.isAbsolute(input.root)) throw Error('请选择工作区目录');
   const cwd = await fs.realpath(input.root);
   const root = (await git(cwd, ['rev-parse', '--show-toplevel'])).trim();
+  if (input.action === 'publish') {
+    const branch = (await git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).catch(() => '')).trim();
+    if (!branch || branch !== input.expectedBranch) throw Error('当前分支已变化或处于游离状态，请刷新');
+    if ((await tracking(root)).upstream) throw Error('当前分支已有上游，请刷新后推送到上游');
+    const remotes = (await git(root, ['remote'])).trim().split('\n');
+    if (typeof input.remote !== 'string' || !input.remote || !remotes.includes(input.remote)) throw Error('请选择已配置的远端');
+    await git(root, ['rev-parse', '--verify', 'HEAD']);
+    await git(root, ['push', '--porcelain', '--set-upstream', '--', input.remote, `refs/heads/${branch}:refs/heads/${branch}`], true);
+    return { upstream: (await tracking(root)).upstream };
+  }
   if (input.action === 'fetch') {
     if (!(await git(root, ['remote'])).trim()) throw Error('尚未配置远端仓库');
     await git(root, ['fetch', '--all'], true);
@@ -51,8 +61,10 @@ async function workspaceGit(input) {
     return { id: destination, path: destination, name: `${path.basename(root)} · ${input.branch}`, environment: 'worktree', git: { isRepository: true, branch: input.branch } };
   }
   if (input.action === 'status') {
-    const branch = (await git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).catch(() => git(root, ['rev-parse', '--short', 'HEAD']))).trim();
-    return { root, branch, ...await tracking(root), files: parseStatus(await git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all'])) };
+    const symbolic = (await git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).catch(() => '')).trim();
+    const branch = symbolic || (await git(root, ['rev-parse', '--short', 'HEAD'])).trim();
+    const remotes = (await git(root, ['remote'])).trim().split('\n').filter(Boolean);
+    return { root, branch, detached: !symbolic, remotes, ...await tracking(root), files: parseStatus(await git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all'])) };
   }
   if (input.action === 'commit') {
     if (typeof input.message !== 'string' || !input.message.trim() || input.message.length > 10000 || input.message.includes('\0')) throw Error('请填写有效提交说明');

@@ -572,3 +572,14 @@ Post-commit acceptance sets push.default=matching and advances an unrelated loca
 branch; the explicit upstream push leaves that remote branch unchanged and
 preserves dirty working files. The existing Git line-review browser regression
 also passes. No product correction was needed for these cases.
+
+## Publish new Git branches
+
+Branches without an upstream now offer a configured-remote selector and explicit
+publish action. Publishing uses the same remote branch name and sets upstream
+tracking through a non-forced push. The backend validates the expected current
+branch, configured remote, existing HEAD and lack of upstream before publication.
+Build, browser and real bare-repository acceptance pass remote selection,
+published commit identity, persisted upstream, stale branch rejection, detached
+HEAD rejection and existing-upstream rejection. Remote creation/configuration and
+pull/merge UI remain pending.
