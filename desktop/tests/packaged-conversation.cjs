@@ -42,7 +42,7 @@ const path = require('node:path');
   try { await blocked; } catch (error) { if (error.code !== 'EADDRINUSE') throw error; }
   try {
     app = await electron.launch({ executablePath: path.join(directory, 'Felix.exe'), args: [], cwd: profile, env, timeout: 30000 });
-    const page = await app.firstWindow(); const errors = [];
+    let page = await app.firstWindow(); const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     assert.equal(await app.evaluate(({ app }) => app.isPackaged), true);
     await page.getByRole('button', { name: '已安排', exact: true }).waitFor();
@@ -63,6 +63,10 @@ const path = require('node:path');
         return completed;
       }, profile);
       assert.equal(setup.success, true, JSON.stringify(setup));
+      await app.close(); app = undefined;
+      app = await electron.launch({ executablePath: path.join(directory, 'Felix.exe'), args: [], cwd: profile, env, timeout: 30000 });
+      page = await app.firstWindow();
+      await page.getByLabel('已连接', { exact: true }).waitFor();
     }
     const result = await page.evaluate(async ({cwd, sandbox}) => {
       window.__completed = null;
@@ -79,6 +83,15 @@ const path = require('node:path');
     const completed = await page.evaluate(() => window.__completed);
     assert.equal(completed.status,'completed',JSON.stringify(completed));
     assert.equal(requests,2);
+    if (sandbox === 'read-only') {
+      const denied = await page.evaluate(cwd => window.codex.request('command/exec', {
+        cwd, command: ['powershell.exe', '-NoProfile', '-Command', "Set-Content -LiteralPath readonly-denied.txt -Value forbidden"],
+        timeoutMs: 15000, sandboxPolicy: { type: 'readOnly', networkAccess: false },
+      }), profile);
+      if (denied.ok) assert.notEqual(denied.result.exitCode, 0, JSON.stringify(denied));
+      else assert.match(JSON.stringify(denied.error), /sandbox denied/i);
+      assert.equal(fs.existsSync(path.join(profile, 'readonly-denied.txt')), false);
+    }
     const history = await page.evaluate(threadId => window.codex.request('thread/read',{threadId,includeTurns:true}),result);
     assert.ok(history.result.thread.turns.some(turn=>turn.items.some(item=>item.type==='commandExecution' && item.aggregatedOutput.includes('PACKAGED_CONVERSATION_OK'))));
     await page.evaluate(threadId => localStorage.setItem('codex-desktop-state-v1',JSON.stringify({activeThreadId:'test',model:'MiniMax-M2.1',threads:[{id:'test',remoteId:threadId,title:'Packaged chat',status:'completed',messages:[],updatedAt:''}]})),result);

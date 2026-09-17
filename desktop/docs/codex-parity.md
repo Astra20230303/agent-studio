@@ -1621,3 +1621,10 @@ all pass. Sandbox settings now automatically query readiness after successful
 setup instead of remaining unknown and requiring manual refresh. Browser setup
 failure/retry/early completion checks and production build pass. This does not
 establish elevated sandbox provisioning or network isolation.
+Post-commit negative acceptance found that setup persists configuration but the
+existing process can still execute direct command/exec without write isolation.
+The UI now explicitly requires reconnecting to activate isolation. Acceptance
+restarts the packaged process after setup, verifies real read-only model tool
+execution, then attempts a write: it returns a nonzero permission-denied result
+and no file is created. Browser feedback regression and production build pass.
+Read success before restart alone must not be interpreted as sandbox enforcement.

@@ -20,12 +20,12 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  await page.getByRole('button',{name:'设置 Windows 沙箱',exact:true}).click();
  await page.evaluate(()=>{window.__readiness='ready';window.__notify({method:'windowsSandbox/setupCompleted',params:{mode:'unelevated',success:true,error:null}});});
  await page.getByText('状态：已就绪',{exact:true}).waitFor();
- await page.getByText('沙箱设置已完成；已有会话权限请单独核对。',{exact:true}).waitFor();
+ await page.getByText('沙箱设置已保存，请重新连接服务以启用隔离；已有会话权限请单独核对。',{exact:true}).waitFor();
  assert.deepEqual(await page.evaluate(()=>window.__calls.filter(x=>x.method==='windowsSandbox/setupStart').map(x=>x.params.mode)),['unelevated','unelevated']);
  assert.equal(await page.getByRole('combobox',{name:'沙箱安装模式',exact:true}).inputValue(),'unelevated');
  await page.evaluate(()=>{window.__early=true;});
  await page.getByRole('button',{name:'设置 Windows 沙箱',exact:true}).click();
- await page.getByText('沙箱设置已完成；已有会话权限请单独核对。',{exact:true}).waitFor();
+ await page.getByText('沙箱设置已保存，请重新连接服务以启用隔离；已有会话权限请单独核对。',{exact:true}).waitFor();
  assert.equal(await page.getByRole('button',{name:'设置 Windows 沙箱',exact:true}).isDisabled(),false);
  await page.evaluate(()=>{window.__early=false;});
  await page.getByRole('button',{name:'设置 Windows 沙箱',exact:true}).click();
