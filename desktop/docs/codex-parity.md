@@ -219,3 +219,11 @@ and native Electron integration are still pending.
 Post-commit acceptance fixes untracked directories to list individual files,
 and enables literal Git pathspecs so special filenames cannot select unrelated
 paths. Real-repository tests include a nested untracked filename with brackets.
+
+## Feature 5b: stage and commit
+
+Git review supports explicit per-file stage/unstage and committing the staged
+index with a user-entered message. Mutation controls prevent duplicate requests,
+refresh status afterward and preserve input on failure. Git errors remain
+visible. No automatic push or unstaged-file inclusion occurs from the commit UI.
+Build, real-repository git-write.test.cjs and browser git-write-ui.cjs pass.
