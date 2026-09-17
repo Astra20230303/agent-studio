@@ -66,3 +66,20 @@ Run: `node tests/user-input-ui.cjs` with Vite on port 5318 (or FELIX_TEST_URL).
 Screenshots: `.project-cache/ui-checks/user-input-{desktop,mobile}.png`.
 These are browser tests with a mocked Electron bridge; live model questioning
 and native Electron interaction remain unverified.
+
+## Feature 2a: concurrent turns and steering
+
+Implemented: independent runtime per remote thread, turn start/completion event
+handling, selected-thread interruption, `turn/steer` with `expectedTurnId`,
+failed submission draft retention, and active-turn restoration on selection.
+Runtime is not persisted as authoritative server state. History responses cannot
+overwrite newer turn events. Missing threads report an error instead of silently
+creating a new conversation and losing context.
+
+Validation: production build, four runtime race tests, and browser tests with a
+mocked bridge cover two concurrent conversations, cross-thread completion,
+steering payloads/rejection, cancellation routing and resumed active turns.
+Commands: `node --test tests/turn-runtime.test.cjs`,
+`node tests/turn-lifecycle-ui.cjs` (Vite port 5318 or FELIX_TEST_URL).
+Still pending in phase 2: explicit next-turn queue, reconnect UI/backoff and live
+Electron/model acceptance. No claim of full phase 2 completion.

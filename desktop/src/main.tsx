@@ -1,5 +1,7 @@
 import { ArtifactLink } from './Artifacts';
 import { UserInputDialog } from './UserInputDialog';
+import { useTurnRuntime } from './useTurnRuntime';
+import { steerTurn } from './codexClient';
 import type { UserAnswers } from './UserInputDialog';
 import { RemoteDesktopPanel } from './RemoteDesktopPanel';
 import { RemoteBrowser } from './RemoteBrowser';
@@ -62,11 +64,12 @@ function App() {
   const [notice, setNotice] = useState('');
   const [codexStatus, setCodexStatus] = useState<'connecting' | 'connected' | 'offline' | 'error'>('connecting');
   const [remoteThreadId, setRemoteThreadId] = useState<string>();
-  const [runningTurnId, setRunningTurnId] = useState<string>();
+  const runtime = useTurnRuntime();
+  const [pendingThreads, setPendingThreads] = useState<string[]>([]);
+  const [restoringThread, setRestoringThread] = useState<string>();
   const [approvals, setApprovals] = useState<any[]>([]);
   const approval = approvals[0];
   const [deleteCandidate, setDeleteCandidate] = useState<string>();
-  const [activity, setActivity] = useState<string>();
   const [providerStatus, setProviderStatus] = useState<any>();
   const catalog = useModelCatalog();
   const availableModels = catalog.models;
@@ -74,11 +77,13 @@ function App() {
     if (!catalog.loading && availableModels.length) setState(current => availableModels.includes(current.model) ? current : { ...current, model: availableModels[0] });
   }, [availableModels, catalog.loading]);
   const activeThreadRef = useRef<string | undefined>(undefined);
-  const sendingRef = useRef(false);
+  const sendingRef = useRef(new Set<string>());
   const forkingRef = useRef(false);
-  const completedTurns = useRef(new Set<string>());
   activeThreadRef.current = state.activeThreadId;
   const active = state.threads.find(thread => thread.id === state.activeThreadId);
+  const runningTurnId = active?.remoteId ? runtime.threads[active.remoteId]?.turnId : undefined;
+  const activity = active?.remoteId ? runtime.threads[active.remoteId]?.activity : undefined;
+  const pending = pendingThreads.includes(active?.id || '') || !!active?.remoteId && restoringThread === active.remoteId;
   const threads = useMemo(() => state.threads.filter(thread => !thread.archived && thread.title.toLowerCase().includes(search.toLowerCase())).slice().reverse(), [state.threads, search]);
   useEffect(() => { saveState(state); document.documentElement.dataset.theme = state.theme; }, [state]);
   useEffect(() => {
@@ -94,8 +99,12 @@ function App() {
         if (message.method === 'serverRequest/resolved') {
           setApprovals(pending => pending.filter(item => item.id !== params.requestId));
         }
+        if (message.method === 'turn/started' && params.threadId && params.turn?.id) {
+          runtime.apply(params.threadId, { type: 'start', turnId: params.turn.id });
+          update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) thread.status = 'running'; });
+        }
         if (message.method === 'item/agentMessage/delta' && params.delta) {
-          setActivity(undefined);
+          runtime.apply(params.threadId, { type: 'activity', turnId: params.turnId });
           update(next => { const thread = next.threads.find(item => params.threadId ? item.remoteId === params.threadId : item.id === activeThreadRef.current); if (!thread) return; const last = thread.messages.find(message => message.id === `live-${params.itemId}`); if (last?.role === 'assistant') last.content += params.delta; else thread.messages.push({ id: `live-${params.itemId}`, role: 'assistant', turnId: params.turnId, content: params.delta, createdAt: new Date().toISOString() }); thread.status = 'running'; });
         }
         if (message.method && ['item/started', 'item/completed', 'item/commandExecution/outputDelta', 'item/fileChange/outputDelta', 'item/fileChange/patchUpdated'].includes(message.method)) {
@@ -105,21 +114,20 @@ function App() {
           });
         }
         if (message.method === 'error') {
-          if (params.willRetry) setActivity('服务暂时不可用，正在重试…');
+          if (params.willRetry) runtime.apply(params.threadId, { type: 'activity', turnId: params.turnId, activity: '服务暂时不可用，正在重试…' });
           else update(next => {
             const thread = next.threads.find(item => item.remoteId === params.threadId);
             if (thread) recordTurnFailure(thread, params.turnId, params.error);
           });
         }
         if (message.method === 'turn/completed') {
-          completedTurns.current.add(params.turn?.id);
-          setRunningTurnId(undefined); setActivity(undefined);
+          if (params.threadId && params.turn?.id) runtime.apply(params.threadId, { type: 'finish', turnId: params.turn.id });
           update(next => {
             const thread = next.threads.find(item => params.threadId ? item.remoteId === params.threadId : item.id === activeThreadRef.current);
             if (!thread) return;
             finishTools(thread, params.turn?.id, params.turn?.status === 'failed');
             if (params.turn?.error || params.turn?.status === 'failed') recordTurnFailure(thread, params.turn?.id, params.turn?.error);
-            else thread.status = 'completed';
+            else thread.status = runtime.read(params.threadId)?.turnId ? 'running' : 'completed';
           });
         }
       },
@@ -131,7 +139,7 @@ function App() {
           catch { if (/MINIMAX_API_KEY/.test(line)) setNotice(failureMessage(line)); }
         }
       },
-      closed: () => { setCodexStatus('offline'); setApprovals([]); }
+      closed: () => { setCodexStatus('offline'); setApprovals([]); runtime.clear(); }
     });
     (async () => {
       let lastError: any;
@@ -145,55 +153,102 @@ function App() {
   const toast = (text: string) => { setNotice(text); window.setTimeout(() => setNotice(''), 1500); };
   const update = (fn: (next: DesktopState) => void) => setState(previous => { const next = structuredClone(previous); fn(next); return next; });
   const send = async () => {
-    const text = input.trim(); if (!text || runningTurnId || sendingRef.current) return;
+    const text = input.trim(); if (!text || pending) return;
     if (catalog.loading || !availableModels.includes(state.model)) { setNotice(catalog.error || '请等待模型列表加载并选择模型。'); setShowModel(true); return; }
     if (codexStatus !== 'connected') { setNotice('app-server 尚未连接，请稍后重试。'); return; }
-    sendingRef.current = true;
+    const existing = state.threads.find(item => item.id === state.activeThreadId);
+    const lockId = existing?.id || 'new-thread';
+    if (sendingRef.current.has(lockId)) return;
+    sendingRef.current.add(lockId);
+    let localId = existing?.id;
+    const automaticTitle = automaticThreadTitle(existing, text);
+    if (!existing) { const draft = structuredClone(state); const created = createThread(draft); localId = created.id; update(next => { next.threads.push(created); next.activeThreadId = created.id; }); }
+    setPendingThreads(previous => [...previous, localId!]);
+    const messageId = crypto.randomUUID();
     try {
       const provider = await window.desktop?.providerStatus?.();
       setProviderStatus(provider);
-      if (!provider?.keyConfigured) { setNotice(failureMessage('MINIMAX_API_KEY')); sendingRef.current = false; return; }
-    } catch { setNotice('无法读取模型配置，请重新启动项目副本。'); sendingRef.current = false; return; }
-    let localId = state.activeThreadId;
-    const existing = state.threads.find(item => item.id === localId);
-    const automaticTitle = automaticThreadTitle(existing, text);
-    if (!existing) { const draft = structuredClone(state); const created = createThread(draft); localId = created.id; update(next => { next.threads.push(created); next.activeThreadId = created.id; }); }
-    update(next => { const thread = next.threads.find(item => item.id === localId); if (thread) { appendMessage(next, thread.id, 'user', text); thread.status = 'running'; } });
-    setInput(''); setComposerPlugins([]); setPage('chat'); setActivity('正在思考…');
-    try {
+      if (!provider?.keyConfigured) throw new Error(failureMessage('MINIMAX_API_KEY'));
       const model = modelId(state.model); const modelProvider = 'minimax'; const cwd = await window.desktop?.getProjectRoot?.();
-      const local = state.threads.find(item => item.id === localId);
-      let threadId = remoteThreadId || local?.remoteId;
+      let threadId = existing?.remoteId;
       const createRemoteThread = async () => {
         const started = await startThread({ effort: state.reasoningEffort, model, modelProvider, cwd, permission: state.permission });
         const id = started.thread?.id;
         if (!id) throw new Error('没有返回 thread id');
-        setRemoteThreadId(id);
         update(next => { const thread = next.threads.find(item => item.id === localId); if (thread) thread.remoteId = id; });
         return id;
       };
       if (!threadId) threadId = await createRemoteThread();
       if (!threadId) throw new Error('没有返回 thread id');
       if (automaticTitle) void setThreadName(threadId, automaticTitle).catch(() => toast('标题已保存在本地，远端同步失败。'));
+      update(next => {
+        const thread = next.threads.find(item => item.id === localId);
+        if (!thread) return;
+        thread.messages.push({ id: messageId, role: 'user', content: text, createdAt: new Date().toISOString() });
+        ensureThreadTitle(thread);
+        thread.updatedAt = new Date().toISOString();
+      });
       let turn;
       const plugins = composerPlugins.map(plugin => ({ id: plugin.id, name: plugin.name }));
-      try { turn = await startTurn({ threadId, text, plugins, model, modelProvider, effort: state.reasoningEffort, cwd }); }
-      catch (error: any) {
-        const message = String(error?.message || error);
-        if (!/thread\s+not\s+found|unknown\s+thread|no\s+such\s+thread/i.test(message)) throw error;
-        threadId = await createRemoteThread();
-        if (!threadId) throw new Error('没有返回 thread id');
+      if (runningTurnId) {
+        const result = await steerTurn(threadId, runningTurnId, text, plugins);
+        turn = { turn: { id: result.turnId } };
+      } else {
         turn = await startTurn({ threadId, text, plugins, model, modelProvider, effort: state.reasoningEffort, cwd });
       }
-      if (!completedTurns.current.has(turn.turn?.id)) setRunningTurnId(turn.turn?.id);
+      if (turn.turn?.id) {
+        runtime.apply(threadId, { type: 'start', turnId: turn.turn.id });
+        if (turn.turn.status && turn.turn.status !== 'inProgress') runtime.apply(threadId, { type: 'finish', turnId: turn.turn.id });
+      }
+      update(next => {
+        const thread = next.threads.find(item => item.id === localId);
+        if (!thread) return;
+        const message = thread.messages.find(item => item.id === messageId);
+        if (message) message.turnId = turn.turn?.id;
+        thread.status = runtime.read(threadId!)?.turnId ? 'running' : 'completed';
+      });
+      if (activeThreadRef.current === localId) { setInput(current => current === input ? '' : current); setComposerPlugins([]); }
     } catch (error: any) {
-      setActivity(undefined);
-      update(next => { const thread = next.threads.find(item => item.id === localId); if (thread) recordTurnFailure(thread, crypto.randomUUID(), error); });
-    } finally { sendingRef.current = false; }
+      update(next => { const thread = next.threads.find(item => item.id === localId); if (thread) thread.messages = thread.messages.filter(item => item.id !== messageId); });
+      setNotice(`${runningTurnId ? '追加指令失败' : '发送失败'}：${error.message || error}`);
+    } finally {
+      sendingRef.current.delete(lockId);
+      setPendingThreads(previous => previous.filter(id => id !== localId));
+    }
   };
-  const cancel = () => { const activeRemoteId = state.threads.find(item => item.id === activeThreadRef.current)?.remoteId || remoteThreadId; if (activeRemoteId && runningTurnId) interruptTurn(activeRemoteId, runningTurnId).catch(() => undefined); };
+  const cancel = () => {
+    if (active?.remoteId && runningTurnId) void interruptTurn(active.remoteId, runningTurnId).catch(error => setNotice(`停止失败：${error.message}`));
+  };
   const newChat = () => { setRemoteThreadId(undefined); update(next => createThread(next)); setInput(''); setComposerPlugins([]); setAttachments([]); setPage('chat'); };
-  const selectThread = async (thread: DesktopState['threads'][number]) => { update(next => { next.activeThreadId = thread.id; }); setRemoteThreadId(thread.remoteId); setPage('chat'); if (thread.remoteId && codexStatus === 'connected') { try { let items: any[] = []; try { let cursor: string | undefined; do { const page = await listThreadItems(thread.remoteId, cursor); items.push(...(page?.data || page?.items || [])); cursor = page?.nextCursor || undefined; } while (cursor); } catch { const loaded = await resumeThread(thread.remoteId); items = loaded?.thread?.turns?.flatMap((turn: any) => turn.items || []) || []; } update(next => { const local = next.threads.find(item => item.id === thread.id); if (!local) return; if (local.status !== 'running') { local.messages = restoreMessages(items, local.messages); ensureThreadTitle(local); } }); } catch (error: any) { toast(`恢复线程失败：${error.message}`); } } };
+  const selectThread = async (thread: DesktopState['threads'][number]) => { update(next => { next.activeThreadId = thread.id; }); setInput(''); setComposerPlugins([]); setPage('chat'); };
+  useEffect(() => {
+    const threadId = active?.remoteId;
+    if (!threadId || codexStatus !== 'connected' || pendingThreads.includes(active.id)) return;
+    let disposed = false;
+    const revision = runtime.read(threadId)?.revision || 0;
+    setRestoringThread(threadId);
+    void (async () => {
+      try {
+        const loaded = await resumeThread(threadId);
+        if (disposed) return;
+        const turns = loaded?.thread?.turns || [];
+        const running = turns.find((turn: any) => turn.status === 'inProgress');
+        // Only use a snapshot that predates no live turn events.
+        if ((runtime.read(threadId)?.revision || 0) !== revision) return;
+        runtime.apply(threadId, { type: 'restore', turnId: running?.id, revision });
+        update(next => {
+          const thread = next.threads.find(item => item.remoteId === threadId);
+          if (!thread) return;
+          const items = turns.flatMap((turn: any) => (turn.items || []).map((item: any) => ({ item, turnId: turn.id })));
+          if (items.length) thread.messages = restoreMessages(items, thread.messages);
+          thread.status = running ? 'running' : 'completed';
+          ensureThreadTitle(thread);
+        });
+      } catch (error: any) { if (!disposed) setNotice(`恢复线程失败：${error.message}`); }
+      finally { if (!disposed) setRestoringThread(current => current === threadId ? undefined : current); }
+    })();
+    return () => { disposed = true; };
+  }, [active?.remoteId, codexStatus]);
   const respondApproval = async (decision: string, answers?: UserAnswers) => {
     if (!approval) return;
     let result: any = { decision };
@@ -287,7 +342,7 @@ function App() {
       </div>
       <div className="sidebar-footer"><button className="sidebar-nav" aria-current={page === 'settings' ? 'page' : undefined} onClick={() => setPage('settings')}><Badge aria-hidden="true" /><span>设置</span></button></div>
     </aside>
-      <main>{!!active?.messages.length && page === 'chat' && <div className="thread-toolbar global-thread-toolbar"><span>{active.title}</span><div><button onClick={renameActive}>重命名</button><button onClick={forkActive}>分叉</button><button onClick={archiveActive}>归档</button><button onClick={deleteActive}>删除</button></div></div>}{page === 'chat' ? <Chat mode={state.mode} permission={state.permission} onOpenPlugins={() => setPage('plugins')} composerPlugins={composerPlugins} setComposerPlugins={setComposerPlugins} active={active} input={input} setInput={setInput} send={send} cancel={cancel} running={Boolean(runningTurnId)} activity={activity} model={state.model} reasoningEffort={state.reasoningEffort} catalog={catalog} update={update} attachments={attachments} addAttachment={addAttachment} showModel={showModel} setShowModel={setShowModel} showProjects={showProjects} setShowProjects={setShowProjects} toast={toast} projectId={state.activeProjectId} projects={state.projects} status={codexStatus} onForkMessage={forkFromMessage} /> : page === 'scheduled' ? <ScheduledPage models={availableModels} loadingModels={catalog.loading} refreshModels={catalog.refresh} /> : page === 'plugins' ? <ExtensionsPage connected={codexStatus === 'connected'} /> : <Workspace page={page} state={state} models={availableModels} update={update} toast={toast} providerStatus={providerStatus} onBack={() => { setPage('chat'); setSidebarVisible(true); }} />}</main>
+      <main>{!!active?.messages.length && page === 'chat' && <div className="thread-toolbar global-thread-toolbar"><span>{active.title}</span><div><button onClick={renameActive}>重命名</button><button onClick={forkActive}>分叉</button><button onClick={archiveActive}>归档</button><button onClick={deleteActive}>删除</button></div></div>}{page === 'chat' ? <Chat busy={pending} mode={state.mode} permission={state.permission} onOpenPlugins={() => setPage('plugins')} composerPlugins={composerPlugins} setComposerPlugins={setComposerPlugins} active={active} input={input} setInput={setInput} send={send} cancel={cancel} running={Boolean(runningTurnId)} activity={activity} model={state.model} reasoningEffort={state.reasoningEffort} catalog={catalog} update={update} attachments={attachments} addAttachment={addAttachment} showModel={showModel} setShowModel={setShowModel} showProjects={showProjects} setShowProjects={setShowProjects} toast={toast} projectId={state.activeProjectId} projects={state.projects} status={codexStatus} onForkMessage={forkFromMessage} /> : page === 'scheduled' ? <ScheduledPage models={availableModels} loadingModels={catalog.loading} refreshModels={catalog.refresh} /> : page === 'plugins' ? <ExtensionsPage connected={codexStatus === 'connected'} /> : <Workspace page={page} state={state} models={availableModels} update={update} toast={toast} providerStatus={providerStatus} onBack={() => { setPage('chat'); setSidebarVisible(true); }} />}</main>
       <RemoteBrowser open={browserOpen} onClose={() => setBrowserOpen(false)} />
     </div>{notice && <div className="toast">{notice}</div>}{approval && <ApprovalDialog request={approval} onDecision={respondApproval} />}{deleteCandidate && <DeleteDialog thread={state.threads.find(item => item.id === deleteCandidate)} onCancel={() => setDeleteCandidate(undefined)} onConfirm={() => { const id = deleteCandidate; setDeleteCandidate(undefined); void performDelete(id); }} />}
   </div>;
@@ -396,12 +451,12 @@ function ApprovalDialog({ request, onDecision }: { request: any; onDecision: (de
   return <div className="approval-backdrop"><section className="approval-dialog"><h2>{title}</h2><p>{reason}</p>{params.command && <pre>{params.command}</pre>}{params.cwd && <small>{params.cwd}</small>}<div className="approval-actions"><button onClick={() => onDecision(isInput ? 'cancel' : 'decline')}>{isInput ? '取消' : '拒绝'}</button><button className="primary" onClick={() => onDecision('accept')}>{isInput ? '提交' : '允许'}</button></div></section></div>;
 }
 
-function Chat({ mode, permission, onOpenPlugins, composerPlugins, setComposerPlugins, onForkMessage, catalog, active, input, setInput, send, cancel, running, activity, model, reasoningEffort, update, attachments, addAttachment, showModel, setShowModel, showProjects, setShowProjects, toast, projectId, projects, status }: { mode: DesktopState['mode']; permission: DesktopState['permission']; onOpenPlugins: () => void; composerPlugins: Plugin[]; setComposerPlugins: (plugins: Plugin[]) => void; onForkMessage: (messageId: string) => Promise<void>; catalog: ReturnType<typeof useModelCatalog>; active: DesktopState['threads'][number] | undefined; input: string; setInput: (value: string) => void; send: () => void; cancel: () => void; running: boolean; activity?: string; model: string; reasoningEffort: DesktopState['reasoningEffort']; update: (fn: (next: DesktopState) => void) => void; attachments: string[]; addAttachment: () => void; showModel: boolean; setShowModel: (value: boolean) => void; showProjects: boolean; setShowProjects: (value: boolean) => void; toast: (text: string) => void; projectId?: string; projects: DesktopState['projects']; status: string }) {
+function Chat({ busy, mode, permission, onOpenPlugins, composerPlugins, setComposerPlugins, onForkMessage, catalog, active, input, setInput, send, cancel, running, activity, model, reasoningEffort, update, attachments, addAttachment, showModel, setShowModel, showProjects, setShowProjects, toast, projectId, projects, status }: { busy: boolean; mode: DesktopState['mode']; permission: DesktopState['permission']; onOpenPlugins: () => void; composerPlugins: Plugin[]; setComposerPlugins: (plugins: Plugin[]) => void; onForkMessage: (messageId: string) => Promise<void>; catalog: ReturnType<typeof useModelCatalog>; active: DesktopState['threads'][number] | undefined; input: string; setInput: (value: string) => void; send: () => void; cancel: () => void; running: boolean; activity?: string; model: string; reasoningEffort: DesktopState['reasoningEffort']; update: (fn: (next: DesktopState) => void) => void; attachments: string[]; addAttachment: () => void; showModel: boolean; setShowModel: (value: boolean) => void; showProjects: boolean; setShowProjects: (value: boolean) => void; toast: (text: string) => void; projectId?: string; projects: DesktopState['projects']; status: string }) {
   const textarea = useRef<HTMLTextAreaElement>(null);
   const threadView = useRef<HTMLDivElement>(null);
   const followLatest = useRef(true);
   const composing = useRef(false);
-  const canSend = Boolean(input.trim()) && !running && status === 'connected' && !catalog.loading && catalog.models.includes(model);
+  const canSend = Boolean(input.trim()) && !busy && status === 'connected' && !catalog.loading && catalog.models.includes(model);
   const [workingDirectory, setWorkingDirectory] = useState<string>();
   const [permissionOpen, setPermissionOpen] = useState(false);
   const permissionOptions = [
@@ -478,7 +533,7 @@ function Chat({ mode, permission, onOpenPlugins, composerPlugins, setComposerPlu
         }} placeholder={status === 'connected' ? '随心输入' : '等待 Codex app-server…'} />
       <div className="composer-footer">
         <div className="composer-left"><button className="icon-button" onClick={addAttachment} title="添加附件" aria-label="添加附件"><Plus aria-hidden="true" /></button><div className="permission-picker"><button className="permission-status" aria-expanded={permissionOpen} onClick={() => setPermissionOpen(value => !value)}><ShieldAlert aria-hidden="true" />{permissionOptions.find(item => item[0] === permission)?.[1]}</button>{permissionOpen && <div className="permission-menu"><h3>如何批准 Felix 操作？</h3>{permissionOptions.map(([value, label, description]) => <button key={value} className={permission === value ? 'selected' : ''} onClick={() => { update(next => { next.permission = value; }); setPermissionOpen(false); }}><ShieldAlert aria-hidden="true" /><span><b>{label}</b><small>{description}</small></span></button>)}</div>}</div><span className="connection-status" role="status" title={status === 'connected' ? '已连接' : status} aria-label={status === 'connected' ? '已连接' : status}><i className={`status-dot ${status}`} /></span></div>
-        <div className="composer-right"><EffortPicker model={model} value={reasoningEffort} onChange={value => update(next => { next.reasoningEffort = value; })} /><ModelPicker catalog={catalog} selected={model} open={showModel} setOpen={setShowModel} onSelect={id => update(next => { next.model = id; })} /><button className="send" title={running ? '停止生成' : '发送（Enter），Shift+Enter 换行'} aria-label={running ? '停止生成' : '发送'} disabled={!running && !canSend} onClick={running ? cancel : send}>{running ? <Square aria-hidden="true" /> : <ArrowUp aria-hidden="true" />}</button></div>
+        <div className="composer-right"><EffortPicker model={model} value={reasoningEffort} onChange={value => update(next => { next.reasoningEffort = value; })} /><ModelPicker catalog={catalog} selected={model} open={showModel} setOpen={setShowModel} onSelect={id => update(next => { next.model = id; })} />{running && <button className="send" title="停止生成" aria-label="停止生成" onClick={cancel}><Square aria-hidden="true" /></button>}<button className="send" title={running ? '追加指令' : '发送'} aria-label={running ? '追加指令' : '发送'} disabled={!canSend} onClick={send}><ArrowUp aria-hidden="true" /></button></div>
       </div>
     </div>
   </div></div>;
