@@ -836,3 +836,5 @@ pagination reader also serves Markdown export. Build and browser acceptance
 verify finding a previously unloaded reply, failed reload preservation and export
 regression. Unknown item types remain available in export but are not rendered
 or searched by the existing message renderer.
+Post-commit acceptance holds a history request, switches to a new conversation,
+then releases both pages and verifies the new conversation remains empty.

@@ -17,6 +17,7 @@ const assert = require('node:assert/strict');
       window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async (method, params) => {
         if (method === 'thread/items/list') {
           window.__pages.push(params);
+          if (window.__hold) await new Promise(resolve => { window.__release = resolve; });
           if (window.__fail) return { ok: false, error: 'History offline' };
           return { ok: true, result: params.cursor ? { data: [{ item: { type: 'agentMessage', id: 'old-reply', text: 'Historical discovery' } }], nextCursor: null } : { data: [{ item: { type: 'userMessage', id: 'old-user', content: [{ type: 'text', text: 'Earlier question' }] } }], nextCursor: 'next' } };
         }
@@ -39,5 +40,14 @@ const assert = require('node:assert/strict');
     await page.getByRole('status').filter({ hasText: '加载失败：History offline' }).waitFor();
     assert.equal(await page.locator('.conversation-find-match').getAttribute('data-message-id'), 'live-old-reply');
     console.log('PASS: paginated historical records become searchable and failed reload preserves transcript');
+    await page.evaluate(() => { window.__fail = false; window.__hold = true; });
+    await page.getByRole('button', { name: '加载完整历史', exact: true }).click();
+    await page.waitForFunction(() => Boolean(window.__release));
+    await page.getByRole('button', { name: '新对话', exact: true }).click();
+    await page.evaluate(() => { window.__hold = false; window.__release(); });
+    await page.waitForFunction(() => window.__pages.length === 5);
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.find(t => t.id !== 'a').messages.length), 0);
+    assert.equal(await page.getByText('Historical discovery', { exact: true }).count(), 0);
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
