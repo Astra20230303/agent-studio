@@ -34,7 +34,7 @@ export function ToolActivityGroup({ messages, onOpenAgent }: { messages: Message
   const running = messages.some(message => message.tool?.status === 'inProgress');
   return <section className="tool-activity" aria-label="执行记录"><details open>
     <summary className="tool-group-summary"><TerminalSquare size={14} /><span>{running ? '正在执行' : '执行记录'}{commands > 0 && ` · ${commands} 个命令`}{files > 0 && ` · ${files} 个文件`}</span><ChevronRight className="disclosure" size={13} /></summary>
-    {messages.map(message => message.tool && <ToolRow key={message.id} tool={message.tool} onOpenAgent={onOpenAgent} />)}
+    {messages.map(message => message.tool && <div key={message.id} data-message-id={message.id}><ToolRow tool={message.tool} onOpenAgent={onOpenAgent} /></div>)}
   </details></section>;
 }
 

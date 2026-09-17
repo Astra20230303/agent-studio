@@ -810,3 +810,14 @@ live/running exports are disabled and cross-client snapshot isolation is not pro
 Post-commit acceptance verifies local-only content and disk-error feedback.
 Local/offline export now has an explicit button label, and Windows reserved
 device filenames are prefixed to make the proposed save name valid.
+
+## Find within a conversation
+
+Conversation find matches loaded message text, attachment/skill paths and tool
+records, without case sensitivity. Results are counted per record and cycle with
+buttons or Enter/Shift+Enter. Ctrl/Meta+F opens the search; Escape closes it and
+returns focus. The selected record is outlined and scrolled into view, with tool
+details expanded. Auto-follow pauses while a query is active. The UI explicitly
+limits scope to loaded records; fetching/searching unloaded history remains work.
+Build and browser acceptance cover text, tool output, attachment paths, cycling,
+keyboard navigation, no results and close focus.

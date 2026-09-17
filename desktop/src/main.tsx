@@ -4,6 +4,7 @@ import { useTurnRuntime } from './useTurnRuntime';
 import { useSkillDraft, type SelectedSkill } from './useSkillDraft';
 import { useThreadDraft } from './useThreadDraft';
 import { PermissionSettings, permissionOptions } from './PermissionSettings';
+import { ConversationFind } from './ConversationFind';
 import { ConversationExport } from './ConversationExport';
 import { SettingsNavigation } from './SettingsNavigation';
 import { readThreadPermissions, permissionSummary } from './threadPermissions';
@@ -602,6 +603,7 @@ function Chat({ onChangePermission, sendShortcut, composerSkills, setComposerSki
   const textarea = useRef<HTMLTextAreaElement>(null);
   const threadView = useRef<HTMLDivElement>(null);
   const followLatest = useRef(true);
+  const searchingConversation = useRef(false);
   const composing = useRef(false);
   const canSend = Boolean(input.trim() || attachments.length || composerSkills.length) && !busy && status === 'connected' && !catalog.loading && catalog.models.includes(model);
   const [workingDirectory, setWorkingDirectory] = useState<string>();
@@ -635,7 +637,7 @@ function Chat({ onChangePermission, sendShortcut, composerSkills, setComposerSki
   useEffect(() => {
     const element = threadView.current;
     if (!element || !messageRevision && !activity) return;
-    if (followLatest.current) element.scrollTo({ top: element.scrollHeight, behavior: 'auto' });
+    if (followLatest.current && !searchingConversation.current) element.scrollTo({ top: element.scrollHeight, behavior: 'auto' });
   }, [messageRevision, activity]);
   const suggestions = [
     { text: '探索并理解代码', icon: Telescope, color: 'explore' },
@@ -643,9 +645,9 @@ function Chat({ onChangePermission, sendShortcut, composerSkills, setComposerSki
     { text: '审查代码并提出修改建议', icon: RefreshCcw, color: 'review' },
     { text: '修复问题和失败', icon: Bug, color: 'fix' },
   ];
-  return <div className={`chat-layout${workMode ? ' work-mode' : ''}${workMode && empty ? ' work-new-chat' : ''}`}>{active?.messages.length ? <div className="thread-view" ref={threadView}>{groupMessages(active.messages).map(group => {
+  return <div className={`chat-layout${workMode ? ' work-mode' : ''}${workMode && empty ? ' work-new-chat' : ''}`}>{active && <ConversationFind key={active.id} messages={active.messages} view={threadView} searching={searchingConversation} />}{active?.messages.length ? <div className="thread-view" ref={threadView}>{groupMessages(active.messages).map(group => {
     const message = group[0];
-    return message.tool ? <ToolActivityGroup key={message.id} messages={group} onOpenAgent={onOpenAgent} /> : <div className={`message ${message.role}`} key={message.id}>{message.role === 'assistant' ? <><MarkdownMessage content={message.content} />{isFinalReply(active.messages, active.messages.indexOf(message)) && <MessageActions content={message.content} disabled={running || active.status === 'running' || status !== 'connected' || !active.remoteId} onFork={() => onForkMessage(message.id)} onError={toast} />}</> : <div className="user-text">{message.content}{message.skills?.map(skill => <div key={skill.path} className="message-attachment" title={skill.path}>${skill.name}</div>)}{message.attachments?.map(path => <div key={path} className="message-attachment" title={path}>📎 {path.replace(/^.*[\\/]/, '')}</div>)}</div>}</div>;
+    return message.tool ? <ToolActivityGroup key={message.id} messages={group} onOpenAgent={onOpenAgent} /> : <div className={`message ${message.role}`} key={message.id} data-message-id={message.id}>{message.role === 'assistant' ? <><MarkdownMessage content={message.content} />{isFinalReply(active.messages, active.messages.indexOf(message)) && <MessageActions content={message.content} disabled={running || active.status === 'running' || status !== 'connected' || !active.remoteId} onFork={() => onForkMessage(message.id)} onError={toast} />}</> : <div className="user-text">{message.content}{message.skills?.map(skill => <div key={skill.path} className="message-attachment" title={skill.path}>${skill.name}</div>)}{message.attachments?.map(path => <div key={path} className="message-attachment" title={path}>📎 {path.replace(/^.*[\\/]/, '')}</div>)}</div>}</div>;
   })}{activity && <div className={`activity${activity === '正在思考…' ? ' thinking' : ''}`}>{activity}</div>}</div> : !workMode && <div className="welcome">
     <div className="welcome-content">
       <div className="welcome-mark" role="img" aria-label="Felix" title="Felix" tabIndex={0}><Badge className="welcome-badge" aria-hidden="true" /><Terminal className="welcome-terminal" aria-hidden="true" /></div>
