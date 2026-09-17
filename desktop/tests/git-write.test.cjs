@@ -11,3 +11,13 @@ test('stage, unstage and commit use explicit paths and preserve current content'
   await workspaceGit({ root, action: 'stage', path: 'a.txt' }); const result = await workspaceGit({ root, action: 'commit', message: 'safe change' }); assert.match(result.commit, /^[0-9a-f]{40}$/); assert.equal(await fs.readFile(path.join(root, 'a.txt'), 'utf8'), 'change');
   await assert.rejects(workspaceGit({ root, action: 'commit', message: '  ' }), /有效提交/);
 });
+test('unstage before the first commit preserves later working changes', async t => {
+  const base = path.resolve(__dirname, '../../.project-cache/tmp'); await fs.mkdir(base, { recursive: true }); const root = await fs.mkdtemp(path.join(base, 'git-unborn-')); t.after(() => fs.rm(root, { recursive: true, force: true }));
+  execFileSync('git', ['init'], { cwd: root, windowsHide: true });
+  await fs.writeFile(path.join(root, 'new.txt'), 'staged');
+  await workspaceGit({ root, action: 'stage', path: 'new.txt' });
+  await fs.writeFile(path.join(root, 'new.txt'), 'newer edits');
+  await workspaceGit({ root, action: 'unstage', path: 'new.txt' });
+  assert.equal(await fs.readFile(path.join(root, 'new.txt'), 'utf8'), 'newer edits');
+  assert.equal((await workspaceGit({ root, action: 'status' })).files[0].untracked, true);
+});

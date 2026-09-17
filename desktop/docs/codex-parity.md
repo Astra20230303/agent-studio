@@ -227,3 +227,6 @@ index with a user-entered message. Mutation controls prevent duplicate requests,
 refresh status afterward and preserve input on failure. Git errors remain
 visible. No automatic push or unstaged-file inclusion occurs from the commit UI.
 Build, real-repository git-write.test.cjs and browser git-write-ui.cjs pass.
+Post-commit acceptance reproduced an unborn-repository unstage failure after
+additional edits. The no-HEAD path now forcibly removes only the cached entry;
+the real-file regression verifies newer working content remains unchanged.

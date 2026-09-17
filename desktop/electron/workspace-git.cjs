@@ -40,7 +40,8 @@ async function workspaceGit(input) {
   if (input.action === 'unstage') {
     if (entry.untracked) throw Error('文件尚未暂存');
     const hasHead = await git(root, ['rev-parse', '--verify', 'HEAD']).then(() => true, () => false);
-    await git(root, hasHead ? ['reset', 'HEAD', '--', ...paths] : ['rm', '--cached', '--', ...paths]);
+    // Before HEAD exists, remove index entries only, preserving working files.
+    await git(root, hasHead ? ['reset', 'HEAD', '--', ...paths] : ['rm', '--cached', '-f', '--', ...paths]);
     return {};
   }
   if (entry.untracked) {
