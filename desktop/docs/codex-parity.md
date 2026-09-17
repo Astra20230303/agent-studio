@@ -795,3 +795,15 @@ the warning explicitly explains.
 Post-commit acceptance reloads after recovery to ensure sent attachments do not
 reappear. It also verifies automatic saving on the next edit after storage
 recovers, then reloads again to confirm only the remaining selection is restored.
+
+## Conversation Markdown export
+
+Idle conversations can be exported to Markdown. Connected remote threads fetch
+every thread/items/list page; failures abort instead of silently exporting a
+partial transcript. Offline/local exports explicitly identify their loaded-only
+scope. Messages preserve Markdown, attachment/skill references remain structured,
+and tool or unknown items retain their raw records in safe-length code fences.
+Desktop uses a native save dialog; browser development uses a Blob download.
+Build, browser pagination/failure acceptance and filesystem tests verify content,
+UTF-8 writes, cancellation and write errors. Attachments are referenced, not copied;
+live/running exports are disabled and cross-client snapshot isolation is not proven.
