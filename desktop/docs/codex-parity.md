@@ -697,3 +697,13 @@ Enter inserting a newline and Ctrl+Enter sending the exact multiline draft.
 Post-commit browser acceptance switches back to Enter, verifies Shift+Enter
 newlines and blocks submission during a simulated composition session. Native
 IME interaction and macOS Command-key behavior still need platform acceptance.
+
+## New-conversation permission settings
+
+Settings now replace decorative permission switches with the same three real
+choices used by the composer. Descriptions reflect read-only/on-request,
+workspace-write/auto-review and unrestricted/no-approval configurations and
+explicitly state that these defaults apply to newly created remote threads.
+Build and browser acceptance verify all three choices, persistence, composer
+consistency and exact thread/start sandbox/approval/reviewer fields. These tests
+verify client configuration, not enforcement of each permission by the server.

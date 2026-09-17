@@ -3,6 +3,7 @@ import { UserInputDialog } from './UserInputDialog';
 import { useTurnRuntime } from './useTurnRuntime';
 import { useSkillDraft, type SelectedSkill } from './useSkillDraft';
 import { useThreadDraft } from './useThreadDraft';
+import { PermissionSettings, permissionOptions } from './PermissionSettings';
 import { KeyboardSettings } from './KeyboardSettings';
 import { ContextUsage, readContextTokens } from './ContextUsage';
 import { useThreadList } from './useThreadList';
@@ -579,11 +580,7 @@ function Chat({ sendShortcut, composerSkills, setComposerSkills, onOpenAgent, re
   const canSend = Boolean(input.trim() || attachments.length || composerSkills.length) && !busy && status === 'connected' && !catalog.loading && catalog.models.includes(model);
   const [workingDirectory, setWorkingDirectory] = useState<string>();
   const [permissionOpen, setPermissionOpen] = useState(false);
-  const permissionOptions = [
-    ['on-request', '按需审批', '编辑外部文件和使用互联网时始终询问'],
-    ['workspace-write', '帮我审批', '仅对检测到的风险操作请求批准'],
-    ['danger-full-access', '完全访问权限', '可不受限制地访问互联网和工作区文件']
-  ] as const;
+
   useEffect(() => {
     let disposed = false;
     window.desktop?.getProjectRoot?.().then(root => {
@@ -671,7 +668,7 @@ return <section className="page"><h1>{title}</h1><p>本地工作区演示页面�
 function SettingsWorkspace({ state, update, toast, onBack }: { state: DesktopState; update: (fn: (next: DesktopState) => void) => void; toast: (text: string) => void; onBack: () => void }) {
   const [section, setSection] = useState('常规');
   const items = ['常规', '导入', '外观', '语音', '配置', '个性化', '宠物', '键盘快捷键', '账户', '电脑操控', '插件', '浏览器', '钩子', '连接', 'Git', '环境', 'Worktrees', '已归档的聊天'];
-return <div className="settings-shell"><aside className="settings-sidebar"><button className="settings-back" onClick={onBack}>← <span>返回应用</span></button><input className="settings-search" placeholder="搜索设置..." />{items.map((item, i) => <button key={item} className={`settings-nav ${section === item ? 'active' : ''} ${i === 0 || i === 9 || i === 12 || i === 17 ? 'settings-group-start' : ''}`} onClick={() => setSection(item)}>{item}</button>)}</aside><main className="settings-content"><h1>{section}</h1>{section === '键盘快捷键' ? <KeyboardSettings value={state.sendShortcut} onChange={value => update(next => { next.sendShortcut = value; })} /> : section === '电脑操控' ? <RemoteDesktopPanel /> : section === '配置' ? <ProviderSettings state={state} update={update} toast={toast} /> : <><h2>权限</h2><div className="settings-card"><div className="settings-line"><b>默认权限</b><span className="toggle on" /></div><div className="settings-line"><b>完整访问权限</b><span className="toggle on" /></div></div><h2>常规</h2><div className="settings-card"><div className="settings-line"><div><b>主题</b><small>应用界面主题</small></div><select value={state.theme} onChange={e => update(next => { next.theme = e.target.value as DesktopState['theme']; })}><option value="light">浅色</option><option value="dark">深色</option></select></div><div className="settings-line"><div><b>默认模型</b><small>Agent 默认使用的模型</small></div><span>{state.model || '自动选择'}</span></div></div></>}</main></div>;
+return <div className="settings-shell"><aside className="settings-sidebar"><button className="settings-back" onClick={onBack}>← <span>返回应用</span></button><input className="settings-search" placeholder="搜索设置..." />{items.map((item, i) => <button key={item} className={`settings-nav ${section === item ? 'active' : ''} ${i === 0 || i === 9 || i === 12 || i === 17 ? 'settings-group-start' : ''}`} onClick={() => setSection(item)}>{item}</button>)}</aside><main className="settings-content"><h1>{section}</h1>{section === '键盘快捷键' ? <KeyboardSettings value={state.sendShortcut} onChange={value => update(next => { next.sendShortcut = value; })} /> : section === '电脑操控' ? <RemoteDesktopPanel /> : section === '配置' ? <ProviderSettings state={state} update={update} toast={toast} /> : <><PermissionSettings value={state.permission} onChange={value => update(next => { next.permission = value; })} /><h2>常规</h2><div className="settings-card"><div className="settings-line"><div><b>主题</b><small>应用界面主题</small></div><select value={state.theme} onChange={e => update(next => { next.theme = e.target.value as DesktopState['theme']; })}><option value="light">浅色</option><option value="dark">深色</option></select></div><div className="settings-line"><div><b>默认模型</b><small>Agent 默认使用的模型</small></div><span>{state.model || '自动选择'}</span></div></div></>}</main></div>;
 }
 
 function ProviderSettings({ state, update, toast }: { state: DesktopState; update: (fn: (next: DesktopState) => void) => void; toast: (text: string) => void }) {
