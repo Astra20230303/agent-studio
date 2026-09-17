@@ -369,3 +369,6 @@ separately from tool-call completion. Child links select or create a local threa
 entry and resume the actual remote child conversation. Build, two state/history
 tests and mocked browser navigation acceptance pass. Model-driven spawning and
 newer SubAgentActivity events remain unverified/unimplemented respectively.
+Acceptance adds long identifier wrapping in child navigation controls and verifies
+completion result updates replace the existing call record without duplicates.
+The expanded browser workflow and build pass at the supported 960px window width.

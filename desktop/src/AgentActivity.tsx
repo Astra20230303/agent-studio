@@ -7,6 +7,6 @@ export function AgentActivity({ tool, onOpenAgent }: { tool: ToolActivity; onOpe
   const ids = [...new Set([...call.receiverThreadIds, ...Object.keys(call.agentsStates)])];
   return <details className="tool-row" open><summary>{operations[call.tool] || call.tool} · 调用{statuses[tool.status] || tool.status}</summary><div className="tool-detail">
     {call.model && <small>模型：{call.model}</small>}{call.prompt && <pre className="tool-output">{call.prompt}</pre>}
-    {ids.map(id => <section key={id} aria-label={`Agent ${id}`}><button disabled={!onOpenAgent} onClick={() => onOpenAgent?.(id)}>打开 Agent {id}</button><p>最近状态：{statuses[call.agentsStates[id]?.status] || call.agentsStates[id]?.status || '未知'}</p>{call.agentsStates[id]?.message && <pre className="tool-output">{call.agentsStates[id].message}</pre>}</section>)}
+    {ids.map(id => <section key={id} aria-label={`Agent ${id}`} style={{ minWidth: 0, overflowWrap: 'anywhere' }}><button style={{ maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'left' }} disabled={!onOpenAgent} onClick={() => onOpenAgent?.(id)}>打开 Agent {id}</button><p>最近状态：{statuses[call.agentsStates[id]?.status] || call.agentsStates[id]?.status || '未知'}</p>{call.agentsStates[id]?.message && <pre className="tool-output">{call.agentsStates[id].message}</pre>}</section>)}
   </div></details>;
 }

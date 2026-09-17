@@ -19,6 +19,15 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: 'Parent', exact: true }).click();
     await page.getByRole('button', { name: '打开 Agent child', exact: true }).waitFor();
     assert.equal(await page.getByText('Review tests', { exact: true }).count(), 1);
+    await page.evaluate(() => window.__notify({ method: 'item/completed', params: { threadId: 'parent', turnId: 'turn', item: { id: 'spawn', type: 'collabAgentToolCall', status: 'completed', agentsStates: { child: { status: 'completed', message: 'Verified child result' } } } } }));
+    await page.getByText('Verified child result', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: '打开 Agent child', exact: true }).count(), 1);
+    await page.getByRole('button', { name: '切换侧栏' }).count().then(async count => { if (count) await page.getByRole('button', { name: '切换侧栏' }).click(); });
+    await page.setViewportSize({ width: 960, height: 720 });
+    await page.evaluate(() => window.__notify({ method: 'item/completed', params: { threadId: 'parent', turnId: 'turn', item: { id: 'long', type: 'collabAgentToolCall', tool: 'wait', status: 'completed', receiverThreadIds: ['child-' + 'x'.repeat(200)], agentsStates: {} } } }));
+    const longButton = page.getByRole('button', { name: /^打开 Agent child-x/ });
+    await longButton.waitFor();
+    assert.ok(await longButton.evaluate(node => node.scrollWidth <= node.clientWidth + 1));
     console.log('PASS: live child status, remote child navigation and preserved parent record');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
