@@ -156,7 +156,7 @@ ipcMain.handle('window:toggle-maximize', async event => {
 });
 ipcMain.handle('window:minimize', event => BrowserWindow.fromWebContents(event.sender)?.minimize());
 ipcMain.handle('window:close', event => BrowserWindow.fromWebContents(event.sender)?.close());
-ipcMain.handle('desktop:provider-status', () => { const provider = readProvider(); return { provider: provider.name || 'MiniMax', endpoint: provider.baseUrl, keyConfigured: Boolean(provider.apiKey) }; });
+ipcMain.handle('desktop:provider-status', () => { const provider = readProvider(); return { provider: provider.name || 'MiniMax', endpoint: provider.baseUrl, keyConfigured: Boolean(provider.apiKey), authRequired: !require('./provider-url.cjs').isLocalProvider(provider.baseUrl) }; });
 ipcMain.handle('desktop:save-provider', (_event, input) => {
   try { const id = saveProvider(input); return { ok: true, id }; }
   catch (error) { return { ok: false, error: error.message }; }
@@ -217,7 +217,7 @@ ipcMain.handle('codex:connect', async () => {
 });
 
 ipcMain.handle('codex:request', async (_event, { method, params }) => {
-  if (method === 'turn/start' && !readProvider().apiKey?.trim()) {
+  if (method === 'turn/start' && !readProvider().apiKey?.trim() && !require('./provider-url.cjs').isLocalProvider(readProvider().baseUrl)) {
     return { ok: false, error: { message: 'Missing environment variable: MINIMAX_API_KEY', code: 'missing_api_key' } };
   }
   try { return { ok: true, result: await (await getRpc()).request(method, params || {}) }; }

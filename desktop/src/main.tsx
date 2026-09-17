@@ -161,7 +161,7 @@ function App() {
   useEffect(() => {
     window.desktop?.providerStatus?.().then((provider: any) => {
       setProviderStatus(provider);
-      if (!provider?.keyConfigured) setNotice(failureMessage('MINIMAX_API_KEY'));
+      if (!provider?.keyConfigured && provider?.authRequired !== false) setNotice(failureMessage('MINIMAX_API_KEY'));
     }).catch(() => undefined);
   }, []);
   useEffect(() => {
@@ -308,7 +308,7 @@ function App() {
     try {
       const provider = await window.desktop?.providerStatus?.();
       setProviderStatus(provider);
-      if (!provider?.keyConfigured) throw new Error(failureMessage('MINIMAX_API_KEY'));
+      if (!provider?.keyConfigured && provider?.authRequired !== false) throw new Error(failureMessage('MINIMAX_API_KEY'));
       const model = modelId(state.model); const modelProvider = 'minimax';
       const cwd = workspaceFor(state, existing) || (!existing?.remoteId ? await window.desktop?.getProjectRoot?.() : undefined);
       update(next => { const thread = next.threads.find(item => item.id === localId); if (thread && cwd) { thread.cwd = cwd; if (!thread.remoteId) thread.projectId = state.activeProjectId; } });
@@ -684,7 +684,7 @@ function SettingsWorkspace({ serviceControl, state, update, toast, onBack }: { s
 }
 
 function ProviderSettings({ state, update, toast }: { state: DesktopState; update: (fn: (next: DesktopState) => void) => void; toast: (text: string) => void }) {
-  type ProviderSummary = { id: string; name: string; baseUrl: string; model: string; enabled: boolean; keyConfigured: boolean };
+  type ProviderSummary = { id: string; name: string; baseUrl: string; model: string; enabled: boolean; keyConfigured: boolean; authRequired?: boolean };
   const [providers, setProviders] = useState<ProviderSummary[]>([]);
   const [draft, setDraft] = useState({ id: '', name: 'RVCompute', baseUrl: 'https://api.rvcompute.com:60000/v1', apiKey: '', model: '' });
   const reload = async () => { setProviders(await window.desktop?.listProviders?.() || []); };
@@ -738,16 +738,16 @@ function ProviderSettings({ state, update, toast }: { state: DesktopState; updat
   };
   return <div className="provider-settings"><h2>Agent LLM Provider</h2>
     {providers.map(provider => <div className="provider-item" key={provider.id}>
-      <div><b>{provider.name}{provider.enabled ? ' · 当前使用' : ''}</b><small>{provider.baseUrl}</small><small>{provider.model || '未选择默认模型'} · {provider.keyConfigured ? '密钥已配置' : '待配置密钥'}</small></div>
+      <div><b>{provider.name}{provider.enabled ? ' · 当前使用' : ''}</b><small>{provider.baseUrl}</small><small>{provider.model || '未选择默认模型'} · {provider.keyConfigured ? '密钥已配置' : provider.authRequired === false ? '本机服务，无密钥' : '待配置密钥'}</small></div>
       <div><button disabled={saving || connecting} onClick={() => { setDraft({ id: provider.id, name: provider.name, baseUrl: provider.baseUrl, model: provider.model, apiKey: '' }); setModels([]); setConnectionError(''); }}>编辑</button>
-      <button disabled={saving || connecting || provider.enabled || !provider.keyConfigured} onClick={() => void activate(provider)}>启用</button></div>
+      <button disabled={saving || connecting || provider.enabled || (!provider.keyConfigured && provider.authRequired !== false)} onClick={() => void activate(provider)}>启用</button></div>
     </div>)}
     <button disabled={saving || connecting} onClick={() => { setDraft({ id: '', name: '', baseUrl: 'https://api.rvcompute.com:60000/v1', apiKey: '', model: '' }); setModels([]); setConnectionError(''); }}><Plus size={14} /> 新增渠道</button>
     <h3>{draft.id ? '编辑渠道' : '新增渠道'}</h3>
     <fieldset className="provider-form" disabled={saving || connecting} style={{ border: 0, padding: 0, minWidth: 0 }}>
       <input aria-label="Provider 名称" placeholder="Provider 名称" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} />
       <input aria-label="Base URL" value={draft.baseUrl} onChange={e => changeConnection('baseUrl', e.target.value)} />
-      <input aria-label="API Key" placeholder="API Key（同一服务留空使用已保存密钥）" type="password" autoComplete="off" value={draft.apiKey} onChange={e => changeConnection('apiKey', e.target.value)} />
+      <input aria-label="API Key" placeholder="API Key（本机服务可留空；同一服务保留已保存密钥）" type="password" autoComplete="off" value={draft.apiKey} onChange={e => changeConnection('apiKey', e.target.value)} />
       <button type="button" onClick={() => void connect()}><RefreshCcw size={14} /> {connecting ? '正在连接…' : '连接并获取模型'}</button>
       {connectionError && <p role="alert" style={{ gridColumn: '1 / -1' }}>{connectionError}</p>}
       {models.length > 0 && <>

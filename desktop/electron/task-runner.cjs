@@ -10,7 +10,7 @@ function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_
   return async (task, { signal, runId }) => {
     const cwd = task.cwd || projectRoot;
     if (!path.isAbsolute(cwd) || !fs.existsSync(cwd) || !fs.statSync(cwd).isDirectory()) throw new Error('任务工作目录不存在或无效，请编辑任务选择有效目录。');
-    if (!apiKey()?.trim()) throw new Error('未配置 MINIMAX_API_KEY，请带密钥重新启动项目副本。');
+    if (!apiKey()?.trim() && !require('./provider-url.cjs').isLocalProvider(typeof upstream === 'function' ? upstream() : upstream)) throw new Error('未配置 MINIMAX_API_KEY，请带密钥重新启动项目副本。');
     const home = path.join(dataRoot, 'scheduled-tasks', 'runs', runId);
     const cache = dataRoot;
     fs.mkdirSync(home, { recursive: true });
@@ -39,7 +39,7 @@ function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_
         child = spawn(command, [...settings.flatMap(setting => ['-c', setting]), 'app-server', '--stdio'], {
           cwd, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
           env: {
-            ...process.env, CODEX_HOME: home, MINIMAX_API_KEY: apiKey(), TEMP: home, TMP: home, TMPDIR: home,
+            ...process.env, CODEX_HOME: home, MINIMAX_API_KEY: apiKey() || 'local-provider-adapter', TEMP: home, TMP: home, TMPDIR: home,
             npm_config_cache: path.join(cache, 'npm-cache'), npm_config_store_dir: path.join(cache, 'pnpm-store'),
             PIP_CACHE_DIR: path.join(cache, 'pip'), UV_CACHE_DIR: path.join(cache, 'uv'),
             CARGO_HOME: path.join(cache, 'cargo'), RUSTUP_HOME: path.join(cache, 'rustup'),

@@ -38,6 +38,15 @@ test('migrates legacy provider and preserves independent channels and secrets', 
     assert.equal(config.listProviders().filter(item => item.enabled).length, 1);
     assert.ok(config.listProviders().every(item => !('secret' in item) && !('apiKey' in item)));
     assert.equal(JSON.parse(fs.readFileSync(path.join(directory, 'provider.json'))).providers.length, 3);
+    const local = config.saveProvider({ name: 'Local', baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '', activate: true });
+    assert.equal(config.readProvider().apiKey, '');
+    assert.equal(config.listProviders().find(item => item.id === local).authRequired, false);
+    assert.equal(config.listProviders().find(item => item.id === local).keyConfigured, false);
+    config.activateProvider(local);
+    assert.throws(() => config.saveProvider({ id: local, baseUrl: 'https://remote.example/v1', apiKey: '' }), /API Key/);
+    config.saveProvider({ id: local, baseUrl: 'http://127.0.0.1:11434/v1', apiKey: 'local-secret' });
+    config.saveProvider({ id: local, baseUrl: 'http://127.0.0.1:11434/v1', apiKey: '' });
+    assert.equal(config.readProvider().apiKey, 'local-secret');
   } finally {
     Module._load = original;
     delete require.cache[filename];

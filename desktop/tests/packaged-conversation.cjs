@@ -15,6 +15,7 @@ const path = require('node:path');
   let app, requests = 0, upstreamError;
   const server = require('node:http').createServer(async (req, res) => {
     try {
+      if (process.env.FELIX_TEST_NO_KEY) assert.equal(req.headers.authorization, undefined);
       if (req.url.endsWith('/models')) { res.end(JSON.stringify({data:[{id:'MiniMax-M2.1'}]})); return; }
       let raw = ''; for await (const chunk of req) raw += chunk;
       const body = JSON.parse(raw); requests++;
@@ -50,7 +51,7 @@ const path = require('node:path');
     assert.equal(connected.ok, true, JSON.stringify(connected));
     const models = await page.evaluate(() => window.codex.request('model/list', {}));
     assert.equal(models.ok, true); assert.ok(models.result.data.length);
-    const provider = await page.evaluate(baseUrl => window.desktop.saveProvider({name:'Local test',baseUrl,apiKey:'local-test',activate:true,model:'MiniMax-M2.1'}), `http://127.0.0.1:${server.address().port}/v1`);
+    const provider = await page.evaluate(({baseUrl,apiKey}) => window.desktop.saveProvider({name:'Local test',baseUrl,apiKey,activate:true,model:'MiniMax-M2.1'}), {baseUrl:`http://127.0.0.1:${server.address().port}/v1`,apiKey:process.env.FELIX_TEST_NO_KEY ? '' : 'local-test'});
     assert.equal(provider.ok,true,JSON.stringify(provider));
     const sandbox = process.env.FELIX_TEST_SANDBOX || 'danger-full-access';
     if (sandbox !== 'danger-full-access') {

@@ -7,4 +7,10 @@ function providerUrl(value) {
   }
   return url.href.replace(/\/+$/, '');
 }
-module.exports = { providerUrl };
+function isLocalProvider(value) {
+  try {
+    const url = new URL(providerUrl(value));
+    return url.hostname === 'localhost' || url.hostname === '[::1]' || /^127(?:\.\d{1,3}){3}$/.test(url.hostname);
+  } catch { return false; }
+}
+module.exports = { providerUrl, isLocalProvider };

@@ -224,14 +224,14 @@ function startMiniMaxAdapter({ port = 15821, apiKey, upstream = 'https://api.min
       if (req.method !== 'POST' || req.url !== '/v1/responses') { fail(404, 'Not found'); return; }
       const requestKey = typeof apiKey === 'function' ? apiKey() : apiKey;
       const requestUpstream = typeof upstream === 'function' ? upstream() : upstream;
-      if (!requestKey) { fail(401, 'Provider API key is not set'); return; }
+      if (!requestKey && !require('./provider-url.cjs').isLocalProvider(requestUpstream)) { fail(401, 'Provider API key is not set'); return; }
       const buffers = [];
       let size = 0;
       for await (const chunk of req) { size += chunk.length; if (size > 16 * 1024 * 1024) { fail(413, 'Request too large'); return; } buffers.push(chunk); }
       let converted;
       try { converted = convertRequest(JSON.parse(Buffer.concat(buffers).toString('utf8'))); } catch (error) { fail(400, error.message); return; }
       const upstreamResponse = await fetch(requestUpstream + '/chat/completions', {
-        method: 'POST', headers: { authorization: 'Bearer ' + requestKey, 'content-type': 'application/json' },
+        method: 'POST', headers: { ...(requestKey ? { authorization: 'Bearer ' + requestKey } : {}), 'content-type': 'application/json' },
         body: JSON.stringify(converted.body), signal: controller.signal
       });
       if (!upstreamResponse.ok) {

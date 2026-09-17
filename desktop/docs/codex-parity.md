@@ -1642,3 +1642,13 @@ a newer query: old ready cannot overwrite new notConfigured. A second test
 disconnects pending setup, verifies both subscriptions are removed, and delivers
 late completion/acknowledgement; status stays unknown with the disconnect error.
 Both pass without additional product correction.
+
+## Keyless local model services
+
+Plan and delivery: loopback Providers may omit API keys; save/activate, model
+listing, interactive and scheduled dispatch accept that state. Remote Providers
+still require credentials. UI distinguishes keyless local services from missing
+remote credentials. Existing saved keys remain preserved on blank edits, and
+keyless requests omit Authorization. Registry/boundary/scheduled regression,
+production build and a relocated packaged keyless conversation with actual tool
+output and history restoration pass. Artifact: felix-desktop-keyless.

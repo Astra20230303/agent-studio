@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { app, safeStorage } = require('electron');
-const { providerUrl } = require('./provider-url.cjs');
+const { providerUrl, isLocalProvider } = require('./provider-url.cjs');
 
 function readRegistry() {
   const file = path.join(app.getPath('userData'), 'provider.json');
@@ -25,7 +25,7 @@ function readProvider() {
 
 function listProviders() {
   const registry = readRegistry();
-  return registry.providers.map(({ secret, ...item }) => ({ ...item, enabled: item.id === registry.activeId, keyConfigured: Boolean(secret || (item.id === 'minimax-cn' && process.env.MINIMAX_API_KEY)) }));
+  return registry.providers.map(({ secret, ...item }) => ({ ...item, enabled: item.id === registry.activeId, authRequired: !isLocalProvider(item.baseUrl), keyConfigured: Boolean(secret || (item.id === 'minimax-cn' && process.env.MINIMAX_API_KEY)) }));
 }
 
 function writeRegistry(registry) {
@@ -38,7 +38,7 @@ function writeRegistry(registry) {
 function activateProvider(id) {
   const registry = readRegistry();
   const provider = decrypt(registry.providers.find(item => item.id === id));
-  if (!provider.apiKey) throw new Error('请先配置此渠道的 API Key');
+  if (!provider.apiKey && !isLocalProvider(provider.baseUrl)) throw new Error('请先配置此渠道的 API Key');
   registry.activeId = id;
   writeRegistry(registry);
   return provider.model;
@@ -47,12 +47,12 @@ function activateProvider(id) {
 function saveProvider(input) {
   const baseUrl = providerUrl(input.baseUrl);
   const apiKey = providerCredentials({ id: input.id, baseUrl, apiKey: input.apiKey }).apiKey;
-  if (!apiKey) throw new Error('请填写 API Key');
-  if (!safeStorage.isEncryptionAvailable()) throw new Error('系统密钥加密不可用');
+  if (!apiKey && !isLocalProvider(baseUrl)) throw new Error('请填写 API Key');
+  if (apiKey && !safeStorage.isEncryptionAvailable()) throw new Error('系统密钥加密不可用');
   const registry = readRegistry();
   const id = input.id || require('node:crypto').randomUUID();
   if (input.id && !registry.providers.some(item => item.id === id)) throw new Error('Provider 不存在');
-  const saved = { id, baseUrl, name: String(input.name || 'Custom'), model: String(input.model || ''), secret: safeStorage.encryptString(apiKey).toString('base64') };
+  const saved = { id, baseUrl, name: String(input.name || 'Custom'), model: String(input.model || ''), secret: apiKey ? safeStorage.encryptString(apiKey).toString('base64') : undefined };
   registry.providers = registry.providers.filter(item => item.id !== id).concat(saved);
   if (input.activate) registry.activeId = id;
   writeRegistry(registry);
@@ -63,8 +63,9 @@ function providerCredentials(input) {
   if (!input) return readProvider();
   const baseUrl = providerUrl(input.baseUrl);
   if (input.apiKey?.trim()) return { baseUrl, apiKey: input.apiKey.trim() };
-  if (!input.id) throw new Error('请填写新渠道的 API Key');
+  if (!input.id) { if (isLocalProvider(baseUrl)) return { baseUrl, apiKey: '' }; throw new Error('请填写新渠道的 API Key'); }
   const saved = decrypt(readRegistry().providers.find(item => item.id === input.id));
+  if (isLocalProvider(baseUrl)) return { baseUrl, apiKey: saved.baseUrl === baseUrl ? saved.apiKey : '' };
   if (saved.baseUrl !== baseUrl || !saved.apiKey) throw new Error('请填写此服务的 API Key');
   return { baseUrl, apiKey: saved.apiKey };
 }
