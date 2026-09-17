@@ -583,3 +583,6 @@ Build, browser and real bare-repository acceptance pass remote selection,
 published commit identity, persisted upstream, stale branch rejection, detached
 HEAD rejection and existing-upstream rejection. Remote creation/configuration and
 pull/merge UI remain pending.
+Post-commit acceptance attempts to publish a divergent same-name remote branch.
+Git rejects the publication, preserves the remote commit and leaves upstream
+unset. The real-repository regression passes without further product changes.

@@ -58,6 +58,10 @@ test('fetch and non-forced push respect explicit upstream and divergence', async
   const before = git(remote, ['rev-parse', 'refs/heads/other']);
   await assert.rejects(workspaceGit({ root, action: 'push' }), /rejected|non-fast-forward|fetch first/i);
   assert.equal(git(remote, ['rev-parse', 'refs/heads/other']), before);
+  git(root, ['checkout', '--no-track', '-b', 'other']);
+  await assert.rejects(workspaceGit({ root, action: 'publish', remote: 'origin', expectedBranch: 'other' }), /rejected|non-fast-forward|fetch first/i);
+  assert.equal(git(remote, ['rev-parse', 'refs/heads/other']), before);
+  assert.equal((await workspaceGit({ root, action: 'status' })).upstream, undefined, 'Failed publication must not establish upstream');
   git(root, ['checkout', '--detach']);
   assert.equal((await workspaceGit({ root, action: 'status' })).upstream, undefined);
   await assert.rejects(workspaceGit({ root, action: 'push' }), /上游/);
