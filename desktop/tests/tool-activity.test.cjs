@@ -3,6 +3,12 @@ const assert = require('node:assert/strict');
 const { applyToolEvent, finishTools, restoreMessages } = require('../src/toolActivity.ts');
 const makeThread = () => ({ messages: [{ id: 'before', role: 'assistant', content: 'Checking files' }] });
 
+test('history restores explicit skill references without treating them as text', () => {
+  const [message] = restoreMessages([{ type: 'userMessage', id: 'u', content: [{ type: 'text', text: 'Use this skill' }, { type: 'skill', name: 'sample', path: 'D:/sample/SKILL.md' }] }], []);
+  assert.equal(message.content, 'Use this skill');
+  assert.deepEqual(message.skills, [{ name: 'sample', path: 'D:/sample/SKILL.md' }]);
+});
+
 test('command stays in order after output, completion and turn completion', () => {
   const thread = makeThread();
   applyToolEvent(thread, 'item/started', { turnId: 't', item: { id: 'c', type: 'commandExecution', command: 'Get-Content README.md', status: 'inProgress' } });

@@ -62,6 +62,7 @@ export function restoreMessages(items: any[], previous: Message[]): Message[] {
         turnId: entry.turnId || previous.find(message => message.id === `live-${item.id}`)?.turnId,
         role: item.type === 'userMessage' ? 'user' : 'assistant',
         attachments: item.type === 'userMessage' ? item.content?.filter((part: any) => part.type === 'localImage' && typeof part.path === 'string').map((part: any) => part.path) : undefined,
+        skills: item.type === 'userMessage' ? item.content?.filter((part: any) => part.type === 'skill' && typeof part.name === 'string' && typeof part.path === 'string').map((part: any) => ({ name: part.name, path: part.path })) : undefined,
         content: item.text || item.content?.map((part: any) => part.text || part.input_text || '').join('') || '',
         createdAt: new Date().toISOString() });
     }

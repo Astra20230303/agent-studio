@@ -545,3 +545,7 @@ clears the selected draft. Build, existing attachment tests and browser acceptan
 pass selection, deduplication, reload persistence, exact turn/start input and
 cleanup. Live model consumption of the skill and history restoration remain to
 be accepted separately.
+Acceptance corrections restore structured skill references from user-message
+history and display selected skills in the queue. Expanded browser acceptance
+verifies exact skill inputs for turn/steer and automatic queued turn/start;
+history restoration tests and build pass. Live model consumption remains pending.
