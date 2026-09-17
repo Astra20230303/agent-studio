@@ -28,6 +28,24 @@ async function workspaceGit(input) {
   if (typeof input?.root !== 'string' || !path.isAbsolute(input.root)) throw Error('请选择工作区目录');
   const cwd = await fs.realpath(input.root);
   const root = (await git(cwd, ['rev-parse', '--show-toplevel'])).trim();
+  if (input.action === 'worktrees' || input.action === 'open-worktree') {
+    const output = await git(root, ['worktree', 'list', '--porcelain', '-z']);
+    const worktrees = output.split('\0\0').filter(Boolean).map(record => {
+      const entry = {};
+      for (const field of record.split('\0').filter(Boolean)) {
+        const split = field.indexOf(' ');
+        entry[split < 0 ? field : field.slice(0, split)] = split < 0 ? true : field.slice(split + 1);
+      }
+      return { path: entry.worktree, branch: entry.branch?.replace(/^refs\/heads\//, ''), head: entry.HEAD, detached: !!entry.detached, bare: !!entry.bare, locked: entry.locked, prunable: entry.prunable };
+    });
+    if (input.action === 'worktrees') return { worktrees };
+    const entry = worktrees.find(item => item.path === input.path);
+    if (!entry || entry.bare || entry.prunable) throw Error('工作树已失效，请刷新列表');
+    const destination = await fs.realpath(entry.path);
+    const common = async directory => fs.realpath((await git(directory, ['rev-parse', '--path-format=absolute', '--git-common-dir'])).trim());
+    if (await common(root) !== await common(destination)) throw Error('工作树已不属于当前仓库');
+    return { id: destination, path: destination, name: `${path.basename(destination)} · ${entry.branch || '游离 HEAD'}`, environment: 'worktree', git: { isRepository: true, branch: entry.branch || entry.head?.slice(0, 8) } };
+  }
   if (input.action === 'history') {
     const refs = (await git(root, ['for-each-ref', '--format=%(refname)', 'refs/heads/', 'refs/remotes/'])).trim().split('\n').filter(Boolean);
     const ref = input.ref ?? 'HEAD';

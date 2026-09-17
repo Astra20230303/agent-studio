@@ -1019,3 +1019,12 @@ types and pagination reset. Remote history explicitly reflects the last fetch.
 Post-commit acceptance deletes a selected branch externally and verifies an
 explicit return-to-HEAD control recovers history without closing the panel.
 Real Git and browser failure/recovery checks pass, as does the production build.
+
+## Reopen existing Git worktrees
+
+Git panel now lists registered worktrees with branch/detached, locked and prunable
+status. Opening a valid entry starts a conversation at its resolved directory;
+backend re-enumerates membership and checks the shared Git directory before
+returning the project. Missing/prunable and bare entries cannot be opened.
+Real repository tests verify list/open and preservation of dirty source content;
+browser checks verify the selected entry request and conversation cwd. Build passes.

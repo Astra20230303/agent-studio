@@ -8,6 +8,13 @@ test('worktree starts from HEAD and leaves dirty source unchanged', async t => {
   const git = (args, cwd = root) => execFileSync('git', args, { cwd, windowsHide: true, encoding: 'utf8' }).trim();
   git(['init']); git(['config', 'user.name', 'Test']); git(['config', 'user.email', 'test@example.invalid']); await fs.writeFile(path.join(root, 'file.txt'), 'committed'); git(['add', '.']); git(['commit', '-m', 'base']); await fs.writeFile(path.join(root, 'file.txt'), 'dirty');
   const project = await workspaceGit({ root, action: 'create-worktree', branch: 'codex/feature' });
+  const listed = await workspaceGit({root,action:'worktrees'});
+  assert.equal(listed.worktrees.length,2);
+  const entry = listed.worktrees.find(item=>item.branch==='codex/feature');
+  assert.ok(entry);
+  const reopened = await workspaceGit({root,action:'open-worktree',path:entry.path});
+  assert.equal(reopened.path,await fs.realpath(project.path));
+  await assert.rejects(workspaceGit({root,action:'open-worktree',path:fixture}));
   assert.equal(project.environment, 'worktree'); assert.equal(git(['branch', '--show-current'], project.path), 'codex/feature');
   assert.equal(await fs.readFile(path.join(project.path, 'file.txt'), 'utf8'), 'committed'); assert.equal(await fs.readFile(path.join(root, 'file.txt'), 'utf8'), 'dirty');
   await assert.rejects(workspaceGit({ root, action: 'create-worktree', branch: 'codex/feature' }), /already exists/);
