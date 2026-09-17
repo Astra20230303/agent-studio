@@ -1,9 +1,10 @@
 export type ThreadPermissions = { sandbox: string; approvalPolicy: string; reviewer: string };
 
 export function readThreadPermissions(response: any): ThreadPermissions | undefined {
-  if (typeof response?.sandbox?.type !== 'string' || response.approvalPolicy == null) return undefined;
+  const sandbox = response?.sandboxPolicy || response?.sandbox;
+  if (typeof sandbox?.type !== 'string' || response.approvalPolicy == null) return undefined;
   return {
-    sandbox: response.sandbox.type,
+    sandbox: sandbox.type,
     approvalPolicy: typeof response.approvalPolicy === 'string' ? response.approvalPolicy : 'custom',
     reviewer: typeof response.approvalsReviewer === 'string' ? response.approvalsReviewer : 'unknown',
   };

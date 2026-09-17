@@ -733,3 +733,17 @@ and changing defaults without relabeling or recreating an existing thread.
 Post-commit acceptance also covers restored permissions, missing response fields
 and resume failure. Restoration clears cached effective permissions before the
 request so failure cannot leave an old full-access label presented as current.
+
+## Change current-thread permissions
+
+The permission menu now separately offers current-thread changes while idle and
+connected. It sends sandbox, approval policy and reviewer together through
+thread/settings/update, then waits for thread/settings/updated before reporting
+effective permissions. Sending is blocked while confirmation is pending; RPC
+rejection, disconnect and a 15-second confirmation timeout surface an error.
+Notifications update the matching thread even when it is not selected.
+New-thread defaults remain unchanged. Real app-server acceptance switches an
+existing thread through all three profiles in both Windows fixture modes and
+checks the returned settings notification. Browser acceptance verifies pending
+state, unrelated-thread isolation, rejection and default preservation. These
+tests establish configuration changes, not Windows sandbox tool enforcement.

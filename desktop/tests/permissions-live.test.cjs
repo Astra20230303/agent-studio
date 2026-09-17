@@ -13,9 +13,13 @@ test(`real permission configuration through Felix client (Windows sandbox: ${win
   try {
     await rpc.request('initialize', { clientInfo: { name: 'permissions_test', version: '1' }, capabilities: { experimentalApi: true } }); rpc.notify('initialized', {});
     const source = fs.readFileSync(path.resolve(__dirname, '../src/codexClient.ts'), 'utf8');
-    const compiled = require('node:module').stripTypeScriptTypes(source).replace(/^import .*;\r?\n/gm, '').replace(/\bexport /g, '') + '\nObject.assign(exports, { startThread });';
+    const compiled = require('node:module').stripTypeScriptTypes(source).replace(/^import .*;\r?\n/gm, '').replace(/\bexport /g, '') + '\nObject.assign(exports, { startThread, updateThreadPermission });';
     const client = {};
-    require('node:vm').runInNewContext(compiled, { exports: client, window: { codex: { request: async (method, params) => ({ ok: true, result: await rpc.request(method, params) }) } } });
+    require('node:vm').runInNewContext(compiled, { exports: client, setTimeout, clearTimeout, window: { codex: {
+      request: async (method, params) => ({ ok: true, result: await rpc.request(method, params) }),
+      onNotification: listener => { rpc.on('notification', listener); return () => rpc.off('notification', listener); },
+      onClosed: listener => { rpc.on('closed', listener); return () => rpc.off('closed', listener); },
+    } } });
     // Exercise the production client mapping, including workspace-write's reviewer.
     for (const [permission, sandboxType, approvalPolicy, reviewer] of [
       ['on-request', 'readOnly', 'on-request', 'user'],
@@ -36,6 +40,19 @@ test(`real permission configuration through Felix client (Windows sandbox: ${win
       const read = await rpc.request('thread/read', { threadId: thread.id });
       assert.equal(read.thread.id, thread.id);
       assert.equal(read.thread.cwd, profile);
+    }
+    const created = await client.startThread({ cwd: profile, model: 'MiniMax-M2.1', permission: 'on-request' });
+    for (const [permission, sandbox, reviewer, approvalPolicy] of [
+      ['danger-full-access', 'dangerFullAccess', 'user', 'never'],
+      ['workspace-write', 'workspaceWrite', 'auto_review', 'on-request'],
+      ['on-request', 'readOnly', 'user', 'on-request'],
+    ]) {
+      const settings = await client.updateThreadPermission(created.thread.id, permission);
+      assert.equal(settings.sandboxPolicy.type, sandbox);
+      assert.equal(settings.approvalsReviewer, reviewer);
+      assert.equal(settings.approvalPolicy, approvalPolicy);
+      assert.equal(settings.cwd, profile);
+      assert.equal(rpc.listenerCount('notification'), 0);
     }
   } finally { clearTimeout(timer); rpc.close(); await exited; }
 });

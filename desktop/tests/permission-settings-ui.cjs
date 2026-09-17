@@ -34,7 +34,7 @@ const assert = require('node:assert/strict');
       if (reviewer) await page.getByRole('status').filter({ hasText: '当前会话实际为只读' }).waitFor();
       await page.getByRole('button', { name: effectiveLabel, exact: true }).click();
       await page.getByText(/下面的选择仅用于新会话/).waitFor();
-      await page.locator('.permission-menu button').filter({ hasText: '完全访问权限' }).click();
+      await page.locator('.permission-menu button').filter({ hasText: /^完全访问权限/ }).click();
       await page.getByRole('button', { name: effectiveLabel, exact: true }).waitFor();
       assert.equal(await page.evaluate(() => window.__calls.filter(call => call.method === 'thread/start').length), 1);
       await page.close();

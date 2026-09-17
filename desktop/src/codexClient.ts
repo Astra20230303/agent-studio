@@ -26,6 +26,29 @@ export function connectCodex() {
 }
 export async function startThread(params: { cwd?: string; model?: string; modelProvider?: string; effort?: string; permission?: 'on-request' | 'workspace-write' | 'danger-full-access' }) { const { permission, ...rest } = params; const autoReview = permission === 'workspace-write'; return unwrap<any>(bridge().request('thread/start', { ...rest, modelProvider: 'minimax', approvalPolicy: permission === 'danger-full-access' ? 'never' : 'on-request', ...(permission === 'danger-full-access' ? { sandbox: 'danger-full-access' } : { sandbox: permission === 'workspace-write' ? 'workspace-write' : 'read-only' }), ...(autoReview ? { approvalsReviewer: 'auto_review' } : {}), personality: 'friendly' })); }
 export async function resumeThread(threadId: string) { return unwrap<any>(bridge().request('thread/resume', { threadId, excludeTurns: false })); }
+export async function updateThreadPermission(threadId: string, permission: 'on-request' | 'workspace-write' | 'danger-full-access') {
+  const sandboxPolicy = permission === 'danger-full-access' ? { type: 'dangerFullAccess' } : permission === 'workspace-write'
+    ? { type: 'workspaceWrite', writableRoots: [], networkAccess: false, excludeTmpdirEnvVar: false, excludeSlashTmp: false }
+    : { type: 'readOnly', networkAccess: false };
+  let dispose = () => {};
+  let closed = () => {};
+  let timer: ReturnType<typeof setTimeout>;
+  const applied = new Promise<any>((resolve, reject) => {
+    dispose = bridge().onNotification(message => {
+      if (message.method === 'thread/settings/updated' && message.params?.threadId === threadId) resolve(message.params.threadSettings);
+    });
+    closed = bridge().onClosed(() => reject(new Error('连接已断开，权限变更结果待确认')));
+    timer = setTimeout(() => reject(new Error('权限变更尚未确认，请重新打开会话核对')), 15000);
+  });
+  try {
+    // The RPC response only acknowledges enqueueing. Wait for effective settings.
+    const [, settings] = await Promise.all([
+      unwrap(bridge().request('thread/settings/update', { threadId, sandboxPolicy, approvalPolicy: permission === 'danger-full-access' ? 'never' : 'on-request', approvalsReviewer: permission === 'workspace-write' ? 'auto_review' : 'user' })),
+      applied,
+    ]);
+    return settings;
+  } finally { clearTimeout(timer!); dispose(); closed(); }
+}
 export async function listThreadTurns(threadId: string, cursor?: string) { return unwrap<any>(bridge().request('thread/turns/list', { threadId, limit: 100, sortDirection: 'asc', itemsView: 'full', ...(cursor ? { cursor } : {}) })); }
 export async function listThreadItems(threadId: string, cursor?: string) { return unwrap<any>(bridge().request('thread/items/list', { threadId, limit: 200, sortDirection: 'asc', ...(cursor ? { cursor } : {}) })); }
 export async function setThreadName(threadId: string, name: string) { return unwrap<any>(bridge().request('thread/name/set', { threadId, name })); }
