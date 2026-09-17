@@ -11,3 +11,11 @@ test('required, enum and time constraints are checked independently of browser i
   assert.ok(validateMcpContent(schema, { count: 2, enabled: true, choice: 'c' }));
   assert.equal(validateMcpContent(schema, { count: 2, enabled: true, when: '2026-09-17T10:00:00Z' }), undefined);
 });
+test('invalid schemas fail without throwing and repeated schemas remain independent', () => {
+  assert.ok(validateMcpContent({ type: 'object', properties: { value: { type: 'invalid-type' } } }, {}));
+  for (let index = 0; index < 30; index++) {
+    const form = { type: 'object', properties: { value: { type: 'integer', maximum: index } } };
+    assert.equal(validateMcpContent(form, { value: index }), undefined);
+    assert.ok(validateMcpContent(form, { value: index + 1 }));
+  }
+});

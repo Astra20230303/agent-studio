@@ -7,7 +7,9 @@ export function validateMcpContent(schema: any, content: Record<string, unknown>
     // Form schemas have a fixed object envelope; ignore dialect metadata because
     // their primitive constraints are shared with JSON Schema draft-07.
     const { $schema: _dialect, ...form } = schema;
-    const check = validator.compile(form);
-    if (!check(content)) return validator.errorsText(check.errors, { separator: '; ' });
+    try {
+      const check = validator.compile(form);
+      if (!check(content)) return validator.errorsText(check.errors, { separator: '; ' });
+    } finally { validator.removeSchema(form); }
   } catch { return '表单约束无效，无法提交。'; }
 }

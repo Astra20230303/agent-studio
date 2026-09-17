@@ -276,3 +276,6 @@ bounds/integer types, enums and date-time formats are covered by independent
 tests, including false boolean values and non-finite numbers. Production build,
 two schema tests and the MCP browser workflow pass. Electron remains at its
 previous locked version; only validation dependencies were added.
+Post-commit review releases temporary compiled schemas after each validation to
+avoid accumulating form schemas across requests/retries. Tests additionally cover
+invalid schema rejection and repeated independent constraints.
