@@ -1,5 +1,15 @@
 # Felix capability roadmap
 
+## Git path and stash safety correction
+
+Audit found that the stash delivery removed literal pathspec protection from all
+Git commands and used --all, which also removes ignored runtime files. Restore
+literal pathspecs except for stash, which accepts no user-supplied pathspec in this
+API. Use --include-untracked so ignored files stay in place. Real repository tests
+verify bracket-name staging/diff/unstaging isolation and stash/restore with ignored
+runtime data. Six focused Git tests pass. Earlier claims of safe explicit-path
+operations did not cover this regression; this test now does.
+
 Updated: 2026-09-17. Target: practical Codex desktop workflows, using the existing
 Electron/React app and Codex app-server. Model quality and hosted services depend
 on the configured provider; UI parity alone cannot provide them.
