@@ -18,6 +18,7 @@ export function useThreadList(connected: boolean, setState: Dispatch<SetStateAct
     lock.current = true; setLoading(true); setError('');
     try {
       const response = query ? await searchThreads(query, next) : await listThreads(next);
+      if (query && (!Array.isArray(response?.data) || response.data.some((item: any) => typeof item?.thread?.id !== 'string' || !item.thread.id || typeof item.snippet !== 'string'))) throw Error('服务端返回的会话搜索结果无效，请重试');
       const result = query ? { ...response, data: response.data?.map((item: any) => item.thread) } : response;
       if (generation !== epoch.current) return;
       const nextCursor = result.nextCursor || undefined;

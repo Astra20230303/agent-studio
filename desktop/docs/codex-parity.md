@@ -1161,3 +1161,7 @@ server support for the experimental search API is required for remote results.
 A real isolated app-server/model fixture verifies searching assistant content whose
 text is absent from the title. Browser tests verify snippet escaping and ignore a
 late prior query. Thread pagination/retry checks and production build pass.
+Post-commit acceptance preserves snippets across search pages and rejects malformed
+search results with an explicit error rather than presenting an empty match list.
+An offline browser fixture finds cached assistant text absent from the thread
+title. Expanded browser acceptance and the production build pass.
