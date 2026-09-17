@@ -493,3 +493,6 @@ read retry, custom URI and literal HTML handling. The real project app-server te
 also verifies resource/template inventory and reads with and without a thread ID.
 Interactive MCP apps, template parameter forms and attaching resources to chat
 remain pending.
+Post-commit resource acceptance delays a read until after inventory refresh,
+asserts that the old result stays discarded, then successfully reads a fresh
+resource. The expanded browser regression passes without a product correction.

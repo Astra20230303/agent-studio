@@ -12,6 +12,7 @@ const assert = require('node:assert/strict');
         window.__calls.push({ method, params });
         if (method === 'mcpServerStatus/list' && params.detail === 'full') return { ok: true, result: { data: [{ name: 'local', authStatus: 'unsupported', resources: [{ uri: 'fixture://readme', name: 'Readme' }], resourceTemplates: [{ uriTemplate: 'fixture://notes/{id}', name: 'Notes' }] }] } };
         if (method === 'mcpServer/resource/read') {
+          if (params.uri === 'fixture://slow') return await new Promise(resolve => { window.__resolveResource = () => resolve({ ok: true, result: { contents: [{ uri: params.uri, text: 'Stale resource result' }] } }); });
           if (!window.__resourceRetried) { window.__resourceRetried = true; return { ok: false, error: 'Resource temporarily unavailable' }; }
           return { ok: true, result: { contents: [{ uri: params.uri, text: '<script>unsafe()</script>Resource text' }] } };
         }
@@ -52,8 +53,17 @@ const assert = require('node:assert/strict');
     await page.getByLabel('local 资源 URI').fill('fixture://notes/42');
     await page.getByRole('button', { name: '读取资源', exact: true }).click();
     await page.getByLabel('资源内容').getByText('fixture://notes/42', { exact: true }).waitFor();
+    await page.getByLabel('local 资源 URI').fill('fixture://slow');
+    await page.getByRole('button', { name: '读取资源', exact: true }).click();
+    await page.waitForFunction(() => typeof window.__resolveResource === 'function');
+    await page.getByRole('button', { name: '刷新 MCP 状态', exact: true }).click();
+    await page.waitForFunction(() => ![...document.querySelectorAll('button')].find(button => button.textContent === '刷新 MCP 状态')?.disabled);
+    await page.evaluate(async () => { window.__resolveResource(); await new Promise(resolve => setTimeout(resolve, 50)); });
+    assert.equal(await page.getByLabel('资源内容').count(), 0, 'Refresh must discard a previous inventory read');
+    await page.getByRole('button', { name: 'Readme', exact: true }).click();
+    await page.getByLabel('资源内容').getByText('fixture://readme', { exact: true }).waitFor();
     await page.getByRole('checkbox', { name: '显示资源目录' }).uncheck();
     assert.equal(await page.getByLabel('资源内容').count(), 0);
-    console.log('PASS: MCP resource discovery, read failure/retry, literal text, custom URI and dismissal');
+    console.log('PASS: MCP resource discovery, read failure/retry, literal text, custom URI, stale-read isolation and dismissal');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
