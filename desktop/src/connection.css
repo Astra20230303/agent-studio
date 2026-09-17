@@ -1,0 +1,4 @@
+.connection-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 16px;background:#fff4d6;color:#634810;font-size:13px;flex-shrink:0}
+.connection-banner button{border:1px solid currentColor;border-radius:6px;padding:4px 10px;background:transparent;color:inherit;white-space:nowrap;cursor:pointer}
+.connection-banner button:disabled{opacity:.6;cursor:wait}
+.dark .connection-banner{background:#453a22;color:#f7dea2}

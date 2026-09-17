@@ -118,7 +118,14 @@ class CodexServer {
     });
     this.rpc = new CodexRpc(this.child);
     this.rpc.command = resolved.command;
-    this.rpc.on('closed', () => { this.rpc = null; this.child = null; });
+    const rpc = this.rpc;
+    const child = this.child;
+    const adapter = this.adapter;
+    rpc.on('closed', () => {
+      adapter.close();
+      if (!child.killed) { try { child.kill(); } catch {} }
+      if (this.rpc === rpc) { this.rpc = null; this.child = null; this.adapter = null; }
+    });
     this.child.on('error', error => this.rpc?.emit('stderr', `Codex process error: ${error.message}`));
     return this.rpc;
   }

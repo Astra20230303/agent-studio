@@ -2,7 +2,26 @@ export type RpcMessage = { id?: number | string; method?: string; params?: any; 
 type Bridge = { connect: () => Promise<any>; request: (method: string, params?: unknown) => Promise<any>; notify: (method: string, params?: unknown) => Promise<any>; respond: (id: number | string, result?: unknown, error?: unknown) => Promise<any>; onNotification: (listener: (message: RpcMessage) => void) => () => void; onServerRequest: (listener: (message: RpcMessage) => void) => () => void; onError: (listener: (message: any) => void) => () => void; onStderr: (listener: (message: any) => void) => () => void; onClosed: (listener: (message: any) => void) => () => void };
 const bridge = () => window.codex as Bridge;
 const unwrap = async <T>(promise: Promise<any>): Promise<T> => { const response = await promise; if (!response?.ok) throw new Error(response?.error?.message || response?.error || 'Codex app-server request failed'); return response.result as T; };
-export async function connectCodex() { const info = await bridge()?.connect(); if (!info?.ok) throw new Error(info?.error || 'Codex app-server unavailable'); await unwrap(bridge().request('initialize', { clientInfo: { name: 'codex_desktop_replica', title: 'Codex Desktop Replica', version: '0.1.0' }, capabilities: { experimentalApi: true } })); await bridge().notify('initialized', {}); return info; }
+let connecting: Promise<any> | undefined;
+export function connectCodex() {
+  if (connecting) return connecting;
+  const attempt = (async () => {
+    const info = await bridge()?.connect();
+    if (!info?.ok) throw new Error(info?.error || 'Codex app-server unavailable');
+    try {
+      await unwrap(bridge().request('initialize', { clientInfo: { name: 'felix', title: 'Felix', version: '0.1.0' }, capabilities: { experimentalApi: true } }));
+    } catch (error) {
+      // A renderer reload can attach to an already initialized main-process RPC.
+      if (!/^already initialized\.?$/i.test((error as Error).message.trim())) throw error;
+    }
+    const response = await bridge().notify('initialized', {});
+    if (response?.ok === false) throw new Error(response.error?.message || response.error || '初始化通知失败');
+    return info;
+  })();
+  connecting = attempt;
+  void attempt.finally(() => { if (connecting === attempt) connecting = undefined; }).catch(() => {});
+  return attempt;
+}
 export async function startThread(params: { cwd?: string; model?: string; modelProvider?: string; effort?: string; permission?: 'on-request' | 'workspace-write' | 'danger-full-access' }) { const { permission, ...rest } = params; const autoReview = permission === 'workspace-write'; return unwrap<any>(bridge().request('thread/start', { ...rest, modelProvider: 'minimax', approvalPolicy: permission === 'danger-full-access' ? 'never' : 'on-request', ...(permission === 'danger-full-access' ? { sandbox: 'danger-full-access' } : { sandbox: permission === 'workspace-write' ? 'workspace-write' : 'read-only' }), ...(autoReview ? { approvalsReviewer: 'auto_review' } : {}), personality: 'friendly' })); }
 export async function resumeThread(threadId: string) { return unwrap<any>(bridge().request('thread/resume', { threadId, excludeTurns: false })); }
 export async function listThreadTurns(threadId: string, cursor?: string) { return unwrap<any>(bridge().request('thread/turns/list', { threadId, limit: 100, sortDirection: 'asc', itemsView: 'full', ...(cursor ? { cursor } : {}) })); }

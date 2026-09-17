@@ -2,6 +2,8 @@ import { ArtifactLink } from './Artifacts';
 import { UserInputDialog } from './UserInputDialog';
 import { useTurnRuntime } from './useTurnRuntime';
 import { useThreadDraft } from './useThreadDraft';
+import { createConnectionRecovery } from './connectionRecovery';
+import './connection.css';
 import { steerTurn } from './codexClient';
 import type { UserAnswers } from './UserInputDialog';
 import { RemoteDesktopPanel } from './RemoteDesktopPanel';
@@ -64,6 +66,8 @@ function App() {
   const [attachments, setAttachments] = useState<string[]>([]);
   const [notice, setNotice] = useState('');
   const [codexStatus, setCodexStatus] = useState<'connecting' | 'connected' | 'offline' | 'error'>('connecting');
+  const reconnectRef = useRef<() => void>(() => {});
+  const [connectionError, setConnectionError] = useState('');
   const [remoteThreadId, setRemoteThreadId] = useState<string>();
   const runtime = useTurnRuntime();
   const [pendingThreads, setPendingThreads] = useState<string[]>([]);
@@ -94,6 +98,24 @@ function App() {
     }).catch(() => undefined);
   }, []);
   useEffect(() => {
+    let disposed = false;
+    const recovery = createConnectionRecovery({
+      connect: connectCodex,
+      status: (status, error) => { setCodexStatus(status); setConnectionError(error || ''); },
+      connected: () => {
+        void listThreads().then(listed => {
+          if (disposed) return;
+          const remote = listed?.data || listed?.threads || [];
+          update(next => {
+            for (const item of remote) {
+              if (next.threads.some(local => local.remoteId === item.id)) continue;
+              next.threads.push({ id: `remote-${item.id}`, remoteId: item.id, title: item.name || item.preview || 'Felix 对话', status: item.status?.type === 'active' ? 'running' : 'completed', pinned: false, archived: false, messages: [], updatedAt: new Date((item.updatedAt || 0) * 1000).toISOString() });
+            }
+          });
+        }).catch(error => { if (!disposed) setNotice(`会话列表加载失败：${error.message}`); });
+      },
+    });
+    reconnectRef.current = recovery.start;
     const cleanup = subscribeCodex({
       notification: message => {
         const params = message.params || {};
@@ -147,16 +169,10 @@ function App() {
           catch { if (/MINIMAX_API_KEY/.test(line)) setNotice(failureMessage(line)); }
         }
       },
-      closed: () => { setCodexStatus('offline'); setApprovals([]); runtime.clear(); }
+      closed: () => { setApprovals([]); runtime.clear(); recovery.disconnected(); }
     });
-    (async () => {
-      let lastError: any;
-      for (let attempt = 0; attempt < 3; attempt += 1) {
-        try { await connectCodex(); setCodexStatus('connected'); try { const listed = await listThreads(); const remote = listed?.data || listed?.threads || []; update(next => { for (const item of remote) { if (next.threads.some(local => local.remoteId === item.id)) continue; next.threads.push({ id: `remote-${item.id}`, remoteId: item.id, title: item.name || item.preview || 'Codex 对话', status: item.status?.type === 'active' ? 'running' : 'completed', pinned: false, archived: false, messages: [], updatedAt: new Date((item.updatedAt || 0) * 1000).toISOString() }); } }); } catch { /* optional history */ } return; } catch (error) { lastError = error; await new Promise(resolve => setTimeout(resolve, 350 * (attempt + 1))); }
-      }
-      setCodexStatus('offline'); setNotice(`app-server 连接失败：${lastError?.message || '未知错误'}${providerStatus?.keyConfigured === false ? '；请在启动该副本的 PowerShell 进程设置 MINIMAX_API_KEY' : ''}`);
-    })();
-    return cleanup;
+    recovery.start();
+    return () => { disposed = true; recovery.stop(); cleanup(); reconnectRef.current = () => {}; };
   }, []);
   const toast = (text: string) => { setNotice(text); window.setTimeout(() => setNotice(''), 1500); };
   const update = (fn: (next: DesktopState) => void) => setState(previous => { const next = structuredClone(previous); fn(next); return next; });
@@ -334,6 +350,7 @@ function App() {
       </div>
       <nav aria-label="应用菜单"><button>文件</button><button>编辑</button><button>视图</button><button>帮助</button></nav><button className="remote-browser-toggle" aria-label="浏览器" title="浏览器" aria-expanded={browserOpen} aria-controls="remote-browser" onClick={() => setBrowserOpen(value => !value)}><Globe size={17} /></button><WindowControls />
     </header>
+    {codexStatus !== 'connected' && <div className="connection-banner" role="status"><span>{codexStatus === 'connecting' ? '正在连接工作区…' : '工作区连接已断开，草稿已保留。'}{connectionError && ` ${connectionError}`}</span><button disabled={codexStatus === 'connecting'} onClick={() => reconnectRef.current()}>重新连接</button></div>}
     <div className="desktop-body"><aside id="workspace-sidebar" className="sidebar" aria-label="侧栏" hidden={!sidebarVisible}>
       <div className="brand-row"><ModePicker mode={state.mode} onChange={mode => update(next => { next.mode = mode; })} /><button className="sidebar-search-toggle" aria-label="搜索" title="搜索会话" aria-expanded={showSearch} aria-controls="sidebar-search" onClick={() => { setShowSearch(value => !value); setSearch(''); }}><Search aria-hidden="true" /></button></div>
       {showSearch && <input id="sidebar-search" autoFocus className="side-search" aria-label="搜索最近会话" placeholder="搜索最近会话" value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') { setShowSearch(false); setSearch(''); } }} />}

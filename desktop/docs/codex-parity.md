@@ -104,3 +104,19 @@ attachment draft persistence is not included in this increment.
 Post-commit acceptance also passes a deferred send response after the user edits
 the source draft and switches to another thread: both edited drafts survive and
 the source thread retains its running state. No additional product fix was needed.
+
+## Feature 2c: connection recovery
+
+Automatic reconnect uses bounded retries (500/1500/3000 ms), followed by a manual
+retry button. The banner reports offline/connecting state. Recovery resumes the
+selected thread, retains drafts and never replays turn submissions. In-flight
+handshakes are shared across StrictMode effects; renderer reattachment tolerates
+an already initialized server. Closing an RPC releases its adapter and child.
+
+Acceptance: production build; four focused tests in connection-recovery.test.cjs
+and codex-server-recovery.test.cjs; reconnect-ui.cjs verifies exhausted retries,
+manual recovery, automatic reconnect, active-turn restore and no message replay.
+turn-lifecycle-ui.cjs also passes. Browser tests use a mocked Electron bridge.
+The older shutdown.test.cjs main-process harness fails and leaves live handles;
+its run was stopped. Its incomplete mocks do not validate the current desktop
+startup path, so full shutdown/Electron acceptance remains pending.
