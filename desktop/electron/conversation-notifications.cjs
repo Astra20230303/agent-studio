@@ -6,6 +6,7 @@ function createConversationNotifications(filename, { show, focused }) {
   try { const saved = JSON.parse(fs.readFileSync(filename, 'utf8')); for (const key of Object.keys(defaults)) if (typeof saved[key] === 'boolean') settings[key] = saved[key]; } catch {}
   const seen = new Set();
   return {
+    reset: () => seen.clear(),
     read: () => ({ ...settings }),
     save(input) {
       const next = { ...settings };

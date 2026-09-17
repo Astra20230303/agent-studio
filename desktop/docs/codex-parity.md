@@ -906,3 +906,6 @@ content. Build, service tests and browser settings acceptance cover persistence,
 event filtering, focus suppression, duplicate events, failed save and retry.
 Native OS toast delivery/permissions still require desktop acceptance; clicking
 currently focuses the application without selecting the originating thread.
+Post-commit acceptance resets deduplication on a new RPC connection so reused
+request IDs can notify again, verifies write failures retain active preferences,
+and confirms OS delivery errors do not disrupt conversation event handling.

@@ -20,4 +20,15 @@ test('notification preferences persist and filter completion, failure, input, fo
   restarted.save({ ...restarted.read(), backgroundOnly: false }); restarted.handle(event('foreground2', 'completed'));
   assert.equal(shown.length, 4);
   assert.throws(() => restarted.save({ completed: 'yes' }));
+  const approval = { method: 'item/commandExecution/requestApproval', id: 1, params: { threadId: 'thread' } };
+  restarted.handle(approval); restarted.handle(approval);
+  assert.equal(shown.length, 5);
+  restarted.reset(); restarted.handle(approval); assert.equal(shown.length, 6);
+  const before = restarted.read();
+  fs.mkdirSync(`${filename}.tmp`);
+  assert.throws(() => restarted.save({ ...before, completed: false }));
+  assert.deepEqual(restarted.read(), before);
+  const unsupported = createConversationNotifications(path.join(path.dirname(filename), 'other.json'), { focused: () => false, show: () => { throw Error('OS unavailable'); } });
+  unsupported.save({ completed: true, failed: false, input: false, backgroundOnly: true });
+  assert.doesNotThrow(() => unsupported.handle(event('os-error', 'completed')));
 });

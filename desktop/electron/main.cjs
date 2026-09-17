@@ -79,6 +79,7 @@ function sendToWindow(channel, payload) {
 }
 
 function wireRpc(rpc) {
+  conversationNotifications.reset();
   rpc.on('notification', message => { sendToWindow('codex:notification', message); conversationNotifications.handle(message); });
   rpc.on('request', message => { sendToWindow('codex:server-request', message); conversationNotifications.handle(message); });
   rpc.on('stderr', text => sendToWindow('codex:stderr', text));
