@@ -230,3 +230,12 @@ Build, real-repository git-write.test.cjs and browser git-write-ui.cjs pass.
 Post-commit acceptance reproduced an unborn-repository unstage failure after
 additional edits. The no-HEAD path now forcibly removes only the cached entry;
 the real-file regression verifies newer working content remains unchanged.
+
+## Feature 5c: isolated worktree conversations
+
+Git panel creates a named branch from HEAD under a sibling .felix-worktrees
+directory and opens a conversation rooted there. Defaults to the codex/ branch
+prefix. Existing dirty files remain in the source worktree. Build, real-repo
+worktree.test.cjs and mocked-bridge worktree-ui.cjs verify isolation, branch
+creation, duplicate/invalid branch errors and conversation binding. Removal and
+merge/handoff workflows remain pending; no worktree is deleted automatically.

@@ -18,6 +18,16 @@ async function workspaceGit(input) {
   if (typeof input?.root !== 'string' || !path.isAbsolute(input.root)) throw Error('请选择工作区目录');
   const cwd = await fs.realpath(input.root);
   const root = (await git(cwd, ['rev-parse', '--show-toplevel'])).trim();
+  if (input.action === 'create-worktree') {
+    if (typeof input.branch !== 'string' || !input.branch.trim() || input.branch !== input.branch.trim()) throw Error('请输入有效分支名');
+    await git(root, ['check-ref-format', '--branch', input.branch]);
+    await git(root, ['rev-parse', '--verify', 'HEAD']);
+    const parent = path.join(path.dirname(root), '.felix-worktrees');
+    await fs.mkdir(parent, { recursive: true });
+    const destination = path.join(parent, `${path.basename(root)}-${require('node:crypto').randomUUID()}`);
+    await git(root, ['worktree', 'add', '-b', input.branch, destination, 'HEAD']);
+    return { id: destination, path: destination, name: `${path.basename(root)} · ${input.branch}`, environment: 'worktree', git: { isRepository: true, branch: input.branch } };
+  }
   if (input.action === 'status') {
     const branch = (await git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).catch(() => git(root, ['rev-parse', '--short', 'HEAD']))).trim();
     return { root, branch, files: parseStatus(await git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all'])) };
