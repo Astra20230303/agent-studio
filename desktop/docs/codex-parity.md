@@ -1178,3 +1178,12 @@ search/clear/restore regression and production build pass.
 Post-commit acceptance rejects multi-page cursor cycles (A→B→A), beyond an
 immediately repeated cursor. A delayed search result after query clearing cannot
 reappear in the archive list. Browser regression and production build pass.
+
+## Markdown table fidelity
+
+Table parsing now respects escaped pipes, validates header/divider column counts,
+supports single-column tables and retains divider-looking body rows. Images flush
+preceding tables in document order. Scroll containers are named and keyboard
+focusable. Unit tests cover escaping; narrow browser acceptance verifies actual
+cell content/alignment, malformed-header fallback and horizontal scrolling. Build
+passes. This remains a custom Markdown renderer, not full CommonMark/GFM parity.

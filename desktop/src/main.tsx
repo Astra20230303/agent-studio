@@ -8,6 +8,7 @@ import { WindowsSandboxSettings } from './WindowsSandboxSettings';
 import { PermissionSettings, permissionOptions } from './PermissionSettings';
 import { ConversationFind } from './ConversationFind';
 import { CodeBlock } from './CodeBlock';
+import { tableCells, isTableDivider } from './markdownTable';
 import { NotificationSettings } from './NotificationSettings';
 import { useTheme } from './useTheme';
 import { selectNotifiedThread } from './notificationNavigation';
@@ -556,16 +557,6 @@ function inlineMarkdown(value: string) {
   });
 }
 
-function tableCells(line: string) {
-  const value = line.trim().replace(/^\|/, '').replace(/\|$/, '');
-  return value.split('|').map(cell => cell.trim());
-}
-
-function isTableDivider(line: string) {
-  const cells = tableCells(line);
-  return cells.length > 0 && cells.every(cell => /^:?-{3,}:?$/.test(cell));
-}
-
 function MarkdownMessage({ content }: { content: string }) {
   const text = cleanAssistantText(content);
   const lines = text.split(/\r?\n/);
@@ -575,17 +566,19 @@ function MarkdownMessage({ content }: { content: string }) {
   let language = '';
   let codeFence = '';
   let table: string[][] | null = null;
+  let dividerIndex = -1;
   let tableAlign: Array<'left' | 'center' | 'right' | undefined> = [];
   const flushParagraph = () => { if (paragraph.length) { blocks.push(<p key={`p-${blocks.length}`}>{inlineMarkdown(paragraph.join(' '))}</p>); paragraph = []; } };
   const flushCode = () => { if (code) { const source = code.join('\n'); blocks.push(<CodeBlock key={`code-${blocks.length}`} source={source} language={language} />); code = null; language = ''; codeFence = ''; } };
   const flushTable = () => {
     if (!table) return;
     const rows = table;
-    blocks.push(<div className="md-table-wrap" key={`table-${blocks.length}`}><table className="md-table"><thead><tr>{rows[0]?.map((cell, i) => <th key={i} style={{ textAlign: tableAlign[i] }}>{inlineMarkdown(cell)}</th>)}</tr></thead><tbody>{rows.slice(1).map((row, rowIndex) => <tr key={rowIndex}>{rows[0].map((_, i) => <td key={i} style={{ textAlign: tableAlign[i] }}>{inlineMarkdown(row[i] || '')}</td>)}</tr>)}</tbody></table></div>);
+    blocks.push(<div className="md-table-wrap" role="region" aria-label="消息表格" tabIndex={0} key={`table-${blocks.length}`}><table className="md-table"><thead><tr>{rows[0]?.map((cell, i) => <th key={i} style={{ textAlign: tableAlign[i] }}>{inlineMarkdown(cell)}</th>)}</tr></thead><tbody>{rows.slice(1).map((row, rowIndex) => <tr key={rowIndex}>{rows[0].map((_, i) => <td key={i} style={{ textAlign: tableAlign[i] }}>{inlineMarkdown(row[i] || '')}</td>)}</tr>)}</tbody></table></div>);
     table = null;
     tableAlign = [];
   };
   lines.forEach((line, index) => {
+    if (index === dividerIndex) return;
     const fence = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
     if (code) {
       if (fence && fence[1][0] === codeFence[0] && fence[1].length >= codeFence.length && !fence[2].trim()) flushCode();
@@ -594,20 +587,19 @@ function MarkdownMessage({ content }: { content: string }) {
     }
     if (fence && !(fence[1][0] === '`' && fence[2].includes('`'))) { flushTable(); flushParagraph(); code = []; codeFence = fence[1]; language = fence[2].trim(); return; }
     const image = line.match(/^!\[([^\]]*)\]\((?:<([^>]+)>|(.+))\)$/);
-    if (image) { flushParagraph(); blocks.push(<ArtifactLink key={`image-${index}`} path={image[2] || image[3]} label={image[1] || '预览'} preview />); return; }
+    if (image) { flushTable(); flushParagraph(); blocks.push(<ArtifactLink key={`image-${index}`} path={image[2] || image[3]} label={image[1] || '预览'} preview />); return; }
     if (!line.trim()) { flushTable(); flushParagraph(); return; }
     if (line.includes('|')) {
       const cells = tableCells(line);
-      if (table && isTableDivider(line)) return;
-      if (!table && cells.length > 1) {
+      if (!table && cells.length > 0) {
         const next = lines[index + 1];
-        if (next !== undefined && isTableDivider(next)) {
+        if (next !== undefined && isTableDivider(next) && tableCells(next).length === cells.length) {
           flushParagraph();
-          table = [cells];
+          table = [cells]; dividerIndex = index + 1;
           tableAlign = tableCells(next).map(cell => cell.startsWith(':') && cell.endsWith(':') ? 'center' : cell.endsWith(':') ? 'right' : cell.startsWith(':') ? 'left' : undefined);
           return;
         }
-      } else if (table && !isTableDivider(line)) {
+      } else if (table) {
         table.push(cells);
         return;
       }
