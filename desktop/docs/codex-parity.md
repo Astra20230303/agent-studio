@@ -1560,3 +1560,15 @@ been copied; cleanup removes the partial directory while preserving its sibling
 file. A fresh .project-cache/felix-runtime-licensed artifact was generated with
 eight manifest entries and passed the CLI integrity verifier. Bundling now needs
 network access to the official versioned Node license source.
+
+## Windows desktop directory package
+
+Plan and delivery: pnpm run bundle:desktop [output] [runtime] assembles Electron,
+production UI, main/preload assets, recursively copied runtime npm dependencies
+and a verified runtime into a Felix.exe directory package. Existing destinations
+are refused and partial failures cleaned up. Electron and npm license files are
+preserved with their packages. Real packaged Electron starts the UI, initializes
+its bundled app-server/model catalog and executes a native PTY shell command.
+Default artifact: .project-cache/felix-desktop. This is an unsigned directory
+build, not an installer; model-provider credentials and system Git/browser tools
+remain external requirements. Release license audit remains outstanding.
