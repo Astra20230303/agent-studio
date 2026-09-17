@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { app, safeStorage } = require('electron');
+const { providerUrl } = require('./provider-url.cjs');
 
 function readRegistry() {
   const file = path.join(app.getPath('userData'), 'provider.json');
@@ -44,9 +45,7 @@ function activateProvider(id) {
 }
 
 function saveProvider(input) {
-  const url = new URL(input.baseUrl);
-  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) throw new Error('请输入有效的 HTTPS Base URL');
-  const baseUrl = url.href.replace(/\/+$/, '');
+  const baseUrl = providerUrl(input.baseUrl);
   const apiKey = providerCredentials({ id: input.id, baseUrl, apiKey: input.apiKey }).apiKey;
   if (!apiKey) throw new Error('请填写 API Key');
   if (!safeStorage.isEncryptionAvailable()) throw new Error('系统密钥加密不可用');
@@ -62,9 +61,7 @@ function saveProvider(input) {
 
 function providerCredentials(input) {
   if (!input) return readProvider();
-  const url = new URL(input.baseUrl);
-  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) throw new Error('请输入有效的 HTTPS Base URL');
-  const baseUrl = url.href.replace(/\/+$/, '');
+  const baseUrl = providerUrl(input.baseUrl);
   if (input.apiKey?.trim()) return { baseUrl, apiKey: input.apiKey.trim() };
   if (!input.id) throw new Error('请填写新渠道的 API Key');
   const saved = decrypt(readRegistry().providers.find(item => item.id === input.id));

@@ -1577,3 +1577,13 @@ a temporary path containing spaces, clears runtime/Node path overrides, and
 repeats UI, bundled model-list and terminal checks. A saved reminder survives a
 real close/relaunch, with no data cache created beneath the install resources.
 This was tested on the development Windows host, not a clean Windows VM.
+
+## Local HTTP model providers
+
+Plan and delivery: Provider save and connection validation now share URL parsing
+that accepts HTTP on localhost, IPv4 loopback and IPv6 loopback, while remote
+providers still require HTTPS. Userinfo, query strings and fragments remain
+rejected. Existing credentials/encryption behavior is unchanged; a key field is
+still required (local servers can use a placeholder). URL boundary and provider
+registry regression tests pass. A new desktop directory artifact was assembled
+for full packaged conversation acceptance.
