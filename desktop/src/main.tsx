@@ -439,7 +439,7 @@ function App() {
         </section>
         <section aria-labelledby="sidebar-recent"><h2 id="sidebar-recent" className="section">最近</h2>
           {threads.map(thread => <ThreadButton key={thread.id} thread={thread} selected={page === 'chat' && state.activeThreadId === thread.id} onSelect={() => { void selectThread(thread); }} onTogglePin={() => togglePinned(thread.id)} onArchive={() => { void archiveThreadFromSidebar(thread.id); }} onDelete={() => { void deleteThreadFromSidebar(thread.id); }} />)}
-          {threads.length === 0 && <div className="empty">{search ? '没有匹配的会话' : '暂无会话'}</div>}
+          {threads.length === 0 && !threadList.loading && !threadList.error && <div className="empty">{search ? '没有匹配的会话' : '暂无会话'}</div>}
           {threadList.error && <p role="alert">{threadList.error}</p>}
           {(threadList.hasMore || threadList.error || threadList.loading) && <button disabled={threadList.loading || codexStatus !== 'connected'} onClick={() => void threadList.loadMore()}>{threadList.loading ? '正在加载会话…' : threadList.error ? '重试加载会话' : '加载更多会话'}</button>}
         </section>

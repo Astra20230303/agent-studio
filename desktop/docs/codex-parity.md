@@ -455,3 +455,6 @@ title matches remain available and server matches include unloaded conversations
 Real app-server acceptance verifies matching and empty results; browser acceptance
 checks delayed stale responses and clearing search. Build passes. This is title
 substring search, not conversation-body full-text search.
+Acceptance correction includes debounce time in loading state and suppresses
+empty-result text until loading finishes. Expanded browser acceptance and build
+pass, avoiding a misleading empty state while the remote query is pending.

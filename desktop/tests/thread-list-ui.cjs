@@ -31,6 +31,8 @@ const assert = require('node:assert/strict');
     assert.equal(await page.evaluate(() => window.__calls.filter(call => call.method === 'thread/list' && call.params.cursor === 'older-page').length), 2);
     await page.getByRole('button', { name: '搜索', exact: true }).click();
     await page.getByRole('textbox', { name: '搜索最近会话' }).fill('slow');
+    await page.getByRole('button', { name: '正在加载会话…' }).waitFor();
+    assert.equal(await page.getByText('没有匹配的会话', { exact: true }).count(), 0);
     await page.waitForFunction(() => window.__resolveSlow);
     await page.getByRole('textbox', { name: '搜索最近会话' }).fill('hidden');
     await page.getByRole('button', { name: 'Remote match', exact: true }).waitFor();

@@ -42,7 +42,7 @@ export function useThreadList(connected: boolean, setState: Dispatch<SetStateAct
     finally { if (generation === epoch.current) { lock.current = false; setLoading(false); } }
   }, [connected, setState, query]);
   useEffect(() => {
-    epoch.current++; lock.current = false; seen.current.clear(); setCursor(undefined); setError(''); setLoading(false);
+    epoch.current++; lock.current = false; seen.current.clear(); setCursor(undefined); setError(''); setLoading(connected && !!query);
     setMatches({ query, ids: [] });
     if (connected && !query) void load();
     const timer = connected && query ? setTimeout(() => void load(), 300) : undefined;
