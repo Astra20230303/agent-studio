@@ -638,3 +638,6 @@ item/completed delivery, so a started event does not appear as a finished task.
 Build, reducer/history tests and browser acceptance pass all four event labels,
 deduplication, child navigation and parent-record retention. Actual model-driven
 multi-agent lifecycle acceptance remains pending.
+Post-commit browser acceptance reloads the renderer, restores subAgentActivity
+from thread/resume history and opens its child thread. It verifies one restored
+record and passes without further product correction.
