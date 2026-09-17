@@ -53,7 +53,7 @@ async function workspaceGit(input) {
     await git(root, ['stash', 'pop']);
     return { changed: true };
   }
-  if (['branches', 'switch-branch', 'track-branch'].includes(input.action)) {
+  if (['branches', 'switch-branch', 'track-branch', 'delete-branch'].includes(input.action)) {
     const branches = (await git(root, ['for-each-ref', '--format=%(refname:strip=2)', 'refs/heads/'])).trim().split('\n').filter(Boolean);
     const current = (await git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).catch(() => '')).trim();
     const head = (await git(root, ['rev-parse', '--verify', 'HEAD']).catch(() => '')).trim();
@@ -71,6 +71,13 @@ async function workspaceGit(input) {
       if (branches.includes(input.branch)) throw Error('本地分支已存在，请选择其他名称或切换已有分支');
       await git(root, ['switch', '--no-guess', '--track=direct', '-c', input.branch, '--', remote.ref]);
       return { branch: input.branch, ...await tracking(root) };
+    }
+    if (input.action === 'delete-branch') {
+      if (input.expectedBranch !== current || input.expectedHead !== head) throw Error('当前分支或提交已变化，请刷新分支列表');
+      if (typeof input.branch !== 'string' || !branches.includes(input.branch)) throw Error('本地分支不存在，请刷新分支列表');
+      if (input.branch === current) throw Error('不能删除当前分支，请先切换到其他分支');
+      await git(root, ['branch', '-d', '--', input.branch]);
+      return { branch: input.branch };
     }
     if (typeof input.branch !== 'string' || !branches.includes(input.branch)) throw Error('本地分支不存在，请刷新分支列表');
     if (input.expectedBranch !== current || input.expectedHead !== head) throw Error('当前分支或提交已变化，请刷新分支列表');

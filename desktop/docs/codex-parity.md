@@ -1320,3 +1320,16 @@ Post-commit acceptance confirms that a failed/conflicting merge triggers an
 automatic status refresh while retaining the conflict error for the user. The
 browser test verifies both requests and visible feedback; production build and
 four isolated merge/stash tests pass.
+
+## Planned delivery: safely delete a local Git branch
+
+The branch panel will offer deletion of a selected local branch. It refuses the
+current branch, requires the branch to be fully merged (`git branch -d`), checks
+the captured current branch/HEAD and exact branch enumeration, and refreshes the
+list after success. No force-delete control is exposed. Real repository tests
+cover merged/unmerged/current/stale cases; browser acceptance covers disabled
+selection, error retention and refresh.
+Implemented and verified: local branch deletion is limited to exact enumerated
+non-current branches and delegates to `git branch -d`, so unmerged history is
+protected. Two isolated repository tests cover successful deletion, current and
+unmerged rejection, and stale HEAD. Browser acceptance and production build pass.
