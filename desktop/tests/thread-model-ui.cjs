@@ -28,6 +28,10 @@ const assert = require('node:assert/strict');
     const effort = page.getByRole('button', { name: '推理强度：低', exact: true });
     await effort.click();
     await page.getByRole('button', { name: '高', exact: true }).click();
+    await page.getByRole('button', { name: 'Chat b', exact: true }).click();
+    await page.getByRole('button', { name: '推理强度：低', exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Chat a', exact: true }).click();
+    await page.getByRole('button', { name: '推理强度：高', exact: true }).waitFor();
     await page.reload();
     await page.getByRole('button', { name: '推理强度：高', exact: true }).waitFor();
     await picker.getByText('model-b', { exact: true }).waitFor();
@@ -41,6 +45,7 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: '本轮完成后发送', exact: true }).click();
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('felix-turn-queue-v1'))[0].model), 'model-b');
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('felix-turn-queue-v1'))[0].effort), 'high');
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).reasoningEffort), 'low');
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).model), 'model-a');
     await page.evaluate(() => {
       window.desktop.listModels = async () => ({ ok: true, models: ['model-a'] });

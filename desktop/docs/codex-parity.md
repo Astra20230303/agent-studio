@@ -1718,3 +1718,6 @@ New threads snapshot the default; resume imports a supported server effort only
 when no local selection exists. Ordinary turn/start and queued messages use the
 conversation effort. Browser acceptance verifies high effort survives reload and
 appears in actual turn/start arguments and the queue snapshot. Build passes.
+Post-commit acceptance switches to another thread after choosing high effort:
+the other thread stays low, returning restores high, and the global default
+remains low. The expanded browser flow passes without further product changes.
