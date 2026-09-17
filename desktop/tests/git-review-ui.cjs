@@ -8,7 +8,8 @@ const assert = require('node:assert/strict');
       localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeProjectId: 'p', projects: [{ id: 'p', path: 'D:/repo', name: 'repo', git: {} }], threads: [] }));
       window.__requests = [];
       window.desktop = { workspaceGit: async input => { window.__requests.push(input); return { ok: true, result: input.action === 'status' ? { root: 'D:/repo', branch: 'main', files: [{ path: 'a.txt', index: 'M', working: 'M' }] } : { diff: input.staged ? '+staged' : '@@ -10,2 +10,2 @@\n-old value\n+new value\n context' } }; }, listModels: async () => ({ ok: true, models: ['test'] }) };
-      window.codex = { connect: async () => ({ ok: true }), request: async () => ({ ok: true, result: { data: [] } }), notify: async () => {}, onNotification: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {}, onServerRequest: () => () => {} };
+      window.__turns = 0;
+      window.codex = { connect: async () => ({ ok: true }), request: async method => { if (method === 'turn/start') window.__turns++; return { ok: true, result: { data: [] } }; }, notify: async () => {}, onNotification: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {}, onServerRequest: () => () => {} };
     });
     await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
     await page.getByRole('button', { name: '查看 Git 变更', exact: true }).click();
@@ -33,6 +34,7 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: '加入会话草稿', exact: true }).click();
     assert.ok((await page.getByRole('textbox', { name: '消息', exact: true }).inputValue()).includes('旧版本第 10 行'));
     assert.ok((await page.evaluate(() => window.__requests)).every(item => item.root === 'D:/repo'));
-    console.log('PASS: Git status, staged/working views, current workspace routing');
+    assert.equal(await page.evaluate(() => window.__turns), 0);
+    console.log('PASS: Git review old/new line references, preserved draft and no automatic submission');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

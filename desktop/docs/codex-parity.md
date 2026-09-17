@@ -330,3 +330,8 @@ draft including repository, file, staged status, old/new line number and code
 context. Existing draft text is preserved. Nothing is submitted automatically.
 Build, existing Git panel regression and git-review-ui.cjs pass with a mocked
 desktop bridge, covering added/deleted line references and draft append behavior.
+Acceptance correction bounds line references to the declared hunk lengths so
+metadata or a truncated tail cannot acquire source coordinates. Three parser
+tests cover multiple hunks, empty ranges and missing-newline markers. Browser
+acceptance additionally asserts no turn starts when appending feedback. Build
+passes with a bundle-size warning (main bundle slightly over 500 KB).

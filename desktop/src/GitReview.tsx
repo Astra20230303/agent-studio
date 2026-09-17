@@ -1,17 +1,5 @@
 import { useState } from 'react';
-
-export function diffRows(diff: string) {
-  let oldLine = 0, newLine = 0, inHunk = false;
-  return diff.split('\n').map(text => {
-    const header = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(text);
-    if (header) { oldLine = Number(header[1]); newLine = Number(header[2]); inHunk = true; return { text }; }
-    if (!inHunk) return { text };
-    if (text.startsWith('+')) return { text, line: newLine++, side: 'new' };
-    if (text.startsWith('-')) return { text, line: oldLine++, side: 'old' };
-    if (text.startsWith(' ')) { oldLine++; return { text, line: newLine++, side: 'new' }; }
-    return { text };
-  });
-}
+import { diffRows } from './gitDiff';
 
 export function GitReview({ root, path, staged, diff, onReview }: { root: string; path: string; staged: boolean; diff: string; onReview: (text: string) => void }) {
   const [selected, setSelected] = useState<number>();
