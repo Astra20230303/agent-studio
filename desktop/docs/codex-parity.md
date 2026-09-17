@@ -838,3 +838,12 @@ regression. Unknown item types remain available in export but are not rendered
 or searched by the existing message renderer.
 Post-commit acceptance holds a history request, switches to a new conversation,
 then releases both pages and verifies the new conversation remains empty.
+
+## Code-block copy and fence correctness
+
+Code blocks report successful copy and clipboard errors, support retry and discard
+stale completion feedback when streamed code changes. Markdown fences now support
+backticks or tildes and require a matching closing marker of sufficient length;
+shorter markers inside a block remain code. Unclosed streaming blocks still render.
+Build and browser acceptance verify nested fences, Unicode/special characters,
+multiple independent blocks, clipboard rejection and exact copied text.

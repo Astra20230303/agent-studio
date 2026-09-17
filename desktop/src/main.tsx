@@ -5,6 +5,7 @@ import { useSkillDraft, type SelectedSkill } from './useSkillDraft';
 import { useThreadDraft } from './useThreadDraft';
 import { PermissionSettings, permissionOptions } from './PermissionSettings';
 import { ConversationFind } from './ConversationFind';
+import { CodeBlock } from './CodeBlock';
 import { ConversationExport } from './ConversationExport';
 import { SettingsNavigation } from './SettingsNavigation';
 import { readThreadPermissions, permissionSummary } from './threadPermissions';
@@ -539,10 +540,11 @@ function MarkdownMessage({ content }: { content: string }) {
   let paragraph: string[] = [];
   let code: string[] | null = null;
   let language = '';
+  let codeFence = '';
   let table: string[][] | null = null;
   let tableAlign: Array<'left' | 'center' | 'right' | undefined> = [];
   const flushParagraph = () => { if (paragraph.length) { blocks.push(<p key={`p-${blocks.length}`}>{inlineMarkdown(paragraph.join(' '))}</p>); paragraph = []; } };
-  const flushCode = () => { if (code) { const source = code.join('\n'); blocks.push(<div className="code-block" key={`code-${blocks.length}`}><div className="code-header"><span>{language || '代码'}</span><button title="复制代码" onClick={() => navigator.clipboard?.writeText(source)}>复制</button></div><pre><code>{source}</code></pre></div>); code = null; language = ''; } };
+  const flushCode = () => { if (code) { const source = code.join('\n'); blocks.push(<CodeBlock key={`code-${blocks.length}`} source={source} language={language} />); code = null; language = ''; codeFence = ''; } };
   const flushTable = () => {
     if (!table) return;
     const rows = table;
@@ -551,9 +553,13 @@ function MarkdownMessage({ content }: { content: string }) {
     tableAlign = [];
   };
   lines.forEach((line, index) => {
-    const fence = line.match(/^\s*```(.*)$/);
-    if (fence) { if (code) flushCode(); else { flushParagraph(); code = []; language = fence[1].trim(); } return; }
-    if (code) { code.push(line); return; }
+    const fence = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+    if (code) {
+      if (fence && fence[1][0] === codeFence[0] && fence[1].length >= codeFence.length && !fence[2].trim()) flushCode();
+      else code.push(line);
+      return;
+    }
+    if (fence && !(fence[1][0] === '`' && fence[2].includes('`'))) { flushTable(); flushParagraph(); code = []; codeFence = fence[1]; language = fence[2].trim(); return; }
     const image = line.match(/^!\[([^\]]*)\]\((?:<([^>]+)>|(.+))\)$/);
     if (image) { flushParagraph(); blocks.push(<ArtifactLink key={`image-${index}`} path={image[2] || image[3]} label={image[1] || '预览'} preview />); return; }
     if (!line.trim()) { flushTable(); flushParagraph(); return; }
