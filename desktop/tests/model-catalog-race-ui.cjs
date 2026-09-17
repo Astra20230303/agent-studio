@@ -19,6 +19,15 @@ const assert = require('node:assert/strict');
     await picker.click();
     await page.getByRole('button', { name: 'new-provider-model', exact: true }).waitFor();
     assert.equal(await page.getByRole('button', { name: 'obsolete-model', exact: true }).count(), 0);
+    await page.evaluate(() => { window.dispatchEvent(new Event('provider-changed')); window.__stale = window.__requests.at(-1); window.dispatchEvent(new Event('provider-changed')); });
+    await page.evaluate(() => window.__stale.reject(new Error('obsolete failure')));
+    await picker.getByText('加载模型…', { exact: true }).waitFor();
+    assert.equal(await page.getByText('obsolete failure', { exact: true }).count(), 0);
+    await page.evaluate(() => window.__requests.at(-1).reject(new Error('current failure')));
+    await page.getByText('current failure', { exact: true }).waitFor();
+    await page.getByRole('button', { name: '刷新模型列表', exact: true }).click();
+    await page.evaluate(() => window.__requests.at(-1).resolve({ ok: true, models: ['recovered-model'] }));
+    await page.getByRole('button', { name: 'recovered-model', exact: true }).waitFor();
     console.log('PASS: provider change starts fresh request and stale success cannot replace current catalog');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
