@@ -357,3 +357,6 @@ accept with null content. Decline/cancel remain available for invalid URLs.
 Build and mocked browser tests pass open failure/retry, response failure/retry,
 invalid scheme rejection and all three response actions. Opening the browser is
 not treated as proof of remote workflow completion. Live server flow is pending.
+Acceptance correction adds initial focus, keyboard containment and focus return.
+Browser checks verify forward/backward Tab cycling around enabled controls and
+dialog bounds at 390px. Build and the URL workflow pass after the correction.

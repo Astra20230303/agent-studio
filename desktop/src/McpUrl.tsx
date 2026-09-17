@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 
 export function McpUrl({ request, onDecision }: { request: any; onDecision: (action: string) => Promise<void> }) {
@@ -7,6 +7,12 @@ export function McpUrl({ request, onDecision }: { request: any; onDecision: (act
   const [opened, setOpened] = useState(false);
   const [error, setError] = useState('');
   const lock = useRef(false);
+  const dialog = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    dialog.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
+    return () => { if (previous?.isConnected) previous.focus(); };
+  }, []);
   let url: URL | undefined;
   try { const parsed = new URL(params.url); if (['https:', 'http:'].includes(parsed.protocol) && !parsed.username && !parsed.password) url = parsed; } catch {}
   const run = async (action: string) => {
@@ -20,7 +26,14 @@ export function McpUrl({ request, onDecision }: { request: any; onDecision: (act
     } catch (error) { setError(error instanceof Error ? error.message : String(error)); }
     finally { lock.current = false; setBusy(false); }
   };
-  return <div className="approval-backdrop"><section className="approval-dialog" role="dialog" aria-modal="true" aria-labelledby="mcp-url-title" style={{ overflowWrap: 'anywhere', maxHeight: '85vh', overflow: 'auto' }}>
+  return <div className="approval-backdrop"><section ref={dialog} className="approval-dialog" role="dialog" aria-modal="true" aria-labelledby="mcp-url-title" style={{ overflowWrap: 'anywhere', maxHeight: '85vh', overflow: 'auto' }} onKeyDown={event => {
+    if (event.key !== 'Tab') return;
+    const buttons = [...(dialog.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') || [])];
+    const first = buttons[0], last = buttons.at(-1);
+    if (!first) { event.preventDefault(); return; }
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  }}>
     <h2 id="mcp-url-title">{params.serverName || 'MCP'} 请求打开网页</h2><p>{params.message}</p><p>{String(params.url || '')}</p>
     {!url && <p role="alert">链接无效或协议不受支持。</p>}{error && <p role="alert">{error}</p>}
     <button disabled={busy || !url} onClick={() => void run('open')}><ExternalLink size={16} />打开网页</button>
