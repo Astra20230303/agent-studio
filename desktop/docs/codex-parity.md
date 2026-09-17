@@ -868,3 +868,5 @@ use formatted JSON, while strings preserve their original whitespace. These use
 the same failure/retry and stale-feedback handling as code blocks. Build and
 browser acceptance verify long Unicode output, exact newlines, MCP fields,
 clipboard rejection recovery and code-block regression.
+Post-commit acceptance confirms an empty-output command exposes only command
+copy and does not overwrite the clipboard with an empty log.

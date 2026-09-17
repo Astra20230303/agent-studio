@@ -10,6 +10,7 @@ const assert = require('node:assert/strict');
       localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeThreadId: 'a', threads: [{ id: 'a', title: 'Tools', messages: [
         { id: 'cmd', role: 'assistant', content: '', tool: { kind: 'commandExecution', status: 'failed', command: 'printf "hello"', output, exitCode: 1 } },
         { id: 'mcp', role: 'assistant', content: '', tool: { kind: 'mcpToolCall', status: 'failed', invocation: { server: 'test', name: 'lookup', arguments: { q: '中文' }, result: { content: [{ type: 'text', text: 'found' }] }, error: 'service error' } } },
+        { id: 'empty', role: 'assistant', content: '', tool: { kind: 'commandExecution', status: 'completed', command: 'empty', output: '', exitCode: 0 } },
       ], status: 'completed', updatedAt: '' }] }));
       window.__copies = []; window.__fail = true;
       Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { if (window.__fail) throw Error('Denied'); window.__copies.push(text); } } });
@@ -24,6 +25,10 @@ const assert = require('node:assert/strict');
     await page.locator('.tool-row summary').nth(1).click();
     for (const name of ['复制参数', '复制结果', '复制错误']) await page.getByRole('button', { name, exact: true }).click();
     assert.deepEqual(await page.evaluate(() => window.__copies), ['printf "hello"', output, JSON.stringify({ q: '中文' }, null, 2), JSON.stringify({ content: [{ type: 'text', text: 'found' }] }, null, 2), 'service error']);
+    await page.locator('[data-message-id="empty"] summary').click();
+    assert.equal(await page.locator('[data-message-id="empty"]').getByRole('button', { name: '复制输出', exact: true }).count(), 0);
+    await page.locator('[data-message-id="empty"]').getByRole('button', { name: '复制命令', exact: true }).click();
+    assert.equal(await page.evaluate(() => window.__copies.at(-1)), 'empty');
     assert.deepEqual(errors, []);
     console.log('PASS: exact command/long output/MCP arguments/result/error copies and clipboard recovery');
   } finally { await browser.close(); }
