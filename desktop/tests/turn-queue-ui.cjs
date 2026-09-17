@@ -49,12 +49,23 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: '重试保存队列', exact: true }).waitFor({ state: 'hidden' });
 
     for (const text of ['first', 'second', 'cancel-me']) { await input.fill(text); await add.click(); }
+    await page.getByRole('button', { name: '编辑排队消息：first', exact: true }).click();
+    const edit = page.getByRole('dialog', { name: '编辑排队消息', exact: true });
+    await edit.getByRole('textbox', { name: '排队消息正文' }).fill('edited first');
+    await page.evaluate(() => { window.__queueQuota = true; });
+    await edit.getByRole('button', { name: '保存排队消息', exact: true }).click();
+    await edit.getByRole('alert').waitFor();
+    assert.equal(await edit.getByRole('textbox').inputValue(), 'edited first');
+    await page.evaluate(() => { window.__queueQuota = false; });
+    await edit.getByRole('button', { name: '保存排队消息', exact: true }).click();
+    await edit.waitFor({ state: 'hidden' });
+    await page.getByRole('button', { name: '继续队列', exact: true }).click();
     assert.equal(await page.evaluate(() => window.__sent.length), 0);
     await page.getByRole('button', { name: '取消排队：cancel-me', exact: true }).click();
     const finish = status => page.evaluate(status => window.__notify({ method: 'turn/completed', params: { threadId: 'a', turn: { id: window.__live, status } } }), status);
     await finish('completed');
     await page.waitForFunction(() => window.__sent.length === 1);
-    assert.equal(await page.evaluate(() => window.__sent[0].input[0].text), 'first');
+    assert.equal(await page.evaluate(() => window.__sent[0].input[0].text), 'edited first');
     await page.waitForTimeout(100);
     assert.equal(await page.evaluate(() => window.__sent.length), 1);
     await finish('failed');

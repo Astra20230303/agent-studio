@@ -1,5 +1,15 @@
 # Felix capability roadmap
 
+## Edit queued messages
+
+Queued instructions can now be edited in a modal. Opening first persists a paused
+state so completing the current turn cannot dispatch the old text. Save changes
+text only, preserving attachments, skills, model and ordering; sending items are
+not editable. Failed persistence keeps the editor draft and offers retry. Saved
+or cancelled edits require explicit queue resume. Full chat browser acceptance
+checks storage failure/retry and the actual revised turn/start text; existing FIFO
+and recovery flow and production build pass.
+
 ## Real child interruption acceptance
 
 The real app-server fixture now holds a model-spawned child's response open,
