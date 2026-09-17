@@ -20,6 +20,11 @@ const assert = require('node:assert/strict');
     await page.getByText('最近上下文 2,500 / 10,000 Token (25%)', { exact: true }).click();
     await page.getByText('累计用量：12,000 Token', { exact: true }).waitFor();
     assert.equal(await page.getByRole('meter', { name: '上下文用量' }).getAttribute('value'), '2500');
+    await page.evaluate(() => {
+      window.__notify({ method: 'thread/tokenUsage/updated', params: { threadId: 'other-thread', tokenUsage: { last: { totalTokens: 9000 }, total: { totalTokens: 15000 }, modelContextWindow: 10000 } } });
+      window.__notify({ method: 'thread/tokenUsage/updated', params: { threadId: 'remote-a', tokenUsage: { last: { totalTokens: -1 }, total: { totalTokens: 12000 } } } });
+    });
+    assert.equal(await page.getByRole('meter', { name: '上下文用量' }).getAttribute('value'), '2500');
     await page.getByRole('button', { name: '压缩上下文', exact: true }).click();
     await page.getByRole('alert').filter({ hasText: 'Compaction unavailable' }).waitFor();
     await page.evaluate(() => { window.__fail = false; });
@@ -30,6 +35,9 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(() => [...document.querySelectorAll('button')].find(button => button.textContent === '压缩上下文')?.disabled);
     await page.evaluate(() => window.__notify({ method: 'turn/completed', params: { threadId: 'remote-a', turn: { id: 'compact-turn', status: 'completed' } } }));
     await page.waitForFunction(() => ![...document.querySelectorAll('button')].find(button => button.textContent === '压缩上下文')?.disabled);
+    await page.evaluate(() => window.__notify({ method: 'thread/tokenUsage/updated', params: { threadId: 'remote-a', tokenUsage: { last: { totalTokens: 900 }, total: { totalTokens: 13000 }, modelContextWindow: null } } }));
+    await page.getByText('最近上下文 900 Token', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('meter', { name: '上下文用量' }).count(), 0);
     console.log('PASS: context versus cumulative usage, explicit compact request, error retry and running-turn guard');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

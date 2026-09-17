@@ -671,3 +671,6 @@ active turns. Build and browser tests pass usage display, request parameters,
 failure/retry and turn lifecycle guards. Actual compaction through the model
 adapter, completion feedback and precise provider context accounting remain to
 be verified.
+Post-commit browser acceptance verifies that another thread's usage and invalid
+negative counts do not overwrite the current display. A missing context-window
+limit shows the count without inventing a percentage. These checks pass.
