@@ -21,6 +21,18 @@ test('history paginates a fixed snapshot and shows patches without changing work
   assert.equal(second.commits.length,2); assert.equal(second.hasMore,false); assert.equal(second.commits[1].subject,'初始提交');
   const detail = await read({action:'commit-detail',commit:second.commits[1].id});
   assert.match(detail.detail,/\+first line/); assert.match(detail.detail,/History Test/);
+  const before = git('rev-parse','HEAD');
+  git('branch','feature/history',second.commits[1].id);
+  git('update-ref','refs/remotes/origin/review',second.commits[1].id);
+  for (const ref of ['refs/heads/feature/history','refs/remotes/origin/review']) {
+   const branch = await read({action:'history',ref});
+   assert.ok(branch.refs.includes(ref));
+   assert.equal(branch.commits.length,1);
+   assert.equal(branch.commits[0].subject,'初始提交');
+  }
+  await assert.rejects(read({action:'history',ref:'HEAD~1'}));
+  await assert.rejects(read({action:'history',ref:'--all'}));
+  assert.equal(git('rev-parse','HEAD'),before);
   assert.equal(git('status','--porcelain'),'');
   await assert.rejects(read({action:'commit-detail',commit:'--output=bad'}));
   await assert.rejects(read({action:'history',offset:-1}));

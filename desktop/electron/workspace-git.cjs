@@ -29,16 +29,19 @@ async function workspaceGit(input) {
   const cwd = await fs.realpath(input.root);
   const root = (await git(cwd, ['rev-parse', '--show-toplevel'])).trim();
   if (input.action === 'history') {
+    const refs = (await git(root, ['for-each-ref', '--format=%(refname)', 'refs/heads/', 'refs/remotes/'])).trim().split('\n').filter(Boolean);
+    const ref = input.ref ?? 'HEAD';
+    if (typeof ref !== 'string' || (ref !== 'HEAD' && !refs.includes(ref))) throw Error('分支不存在，请刷新历史');
     const offset = input.offset ?? 0;
     if (!Number.isSafeInteger(offset) || offset < 0 || offset > 100000) throw Error('无效历史页码');
     if (input.anchor !== undefined && !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(input.anchor)) throw Error('无效提交标识');
-    const anchor = input.anchor || (await git(root, ['rev-parse', '--verify', 'HEAD']).catch(() => '')).trim();
-    if (!anchor) return { commits: [], hasMore: false };
+    const anchor = input.anchor || (await git(root, ['rev-parse', '--verify', `${ref}^{commit}`]).catch(error => { if (ref === 'HEAD') return ''; throw error; })).trim();
+    if (!anchor) return { refs, commits: [], hasMore: false };
     const output = await git(root, ['log', '--no-show-signature', '--format=%H%x00%an%x00%aI%x00%s', '-z', '--max-count=31', `--skip=${offset}`, anchor, '--']);
     const fields = output.split('\0');
     const commits = [];
     for (let i = 0; i + 3 < fields.length; i += 4) commits.push({ id: fields[i], author: fields[i + 1], date: fields[i + 2], subject: fields[i + 3] });
-    return { anchor, commits: commits.slice(0, 30), hasMore: commits.length > 30 };
+    return { refs, anchor, commits: commits.slice(0, 30), hasMore: commits.length > 30 };
   }
   if (input.action === 'commit-detail') {
     if (typeof input.commit !== 'string' || !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(input.commit)) throw Error('无效提交标识');

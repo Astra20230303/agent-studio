@@ -1007,3 +1007,12 @@ navigation, escaped patch content and pagination; production build passes.
 Post-commit acceptance adds an in-place retry for failed history/detail reads.
 Browser tests inject a detail failure, retry successfully, then leave a delayed
 detail request and verify its stale response cannot replace the commit list.
+
+## Git history branch selection
+
+History can browse local branches and fetched remote-tracking branches without
+checking them out. Switching branches resets pagination and detail selection;
+subsequent pages retain their immutable commit anchor. The backend accepts only
+HEAD or an exact enumerated branch ref. Real repository tests verify divergent
+branch histories and unchanged HEAD/worktree; browser checks cover both branch
+types and pagination reset. Remote history explicitly reflects the last fetch.

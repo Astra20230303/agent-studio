@@ -4,6 +4,8 @@ type Commit = { id: string; author: string; date: string; subject: string };
 export function GitHistory({ root }: { root: string }) {
   const [page, setPage] = useState<{ anchor?: string; offset: number }>({ offset: 0 });
   const [commits, setCommits] = useState<Commit[]>([]);
+  const [refs, setRefs] = useState<string[]>([]);
+  const [ref, setRef] = useState('HEAD');
   const [hasMore, setHasMore] = useState(false);
   const [selected, setSelected] = useState('');
   const [detail, setDetail] = useState('');
@@ -16,18 +18,23 @@ export function GitHistory({ root }: { root: string }) {
     setLoading(true); setError(''); setDetail('');
     void (async () => {
       try {
-        const result = await window.desktop?.workspaceGit?.({ root, action: selected ? 'commit-detail' : 'history', commit: selected, ...page });
+        const result = await window.desktop?.workspaceGit?.({ root, action: selected ? 'commit-detail' : 'history', commit: selected, ref, ...page });
         if (disposed) return;
         if (!result?.ok) throw Error(result?.error || '无法读取提交历史');
         if (selected) setDetail(result.result.detail);
-        else { setCommits(result.result.commits); setHasMore(result.result.hasMore); anchor.current = result.result.anchor; }
+        else { setRefs(result.result.refs || []); setCommits(result.result.commits); setHasMore(result.result.hasMore); anchor.current = result.result.anchor; }
       } catch (error) { if (!disposed) setError(error instanceof Error ? error.message : String(error)); }
       finally { if (!disposed) setLoading(false); }
     })();
     return () => { disposed = true; };
-  }, [root, selected, page, retry]);
+  }, [root, selected, page, retry, ref]);
   return <section aria-label="提交历史">
     <h3>提交历史</h3>
+    <label>历史分支<select aria-label="历史分支" value={ref} onChange={event => { setRef(event.target.value); setSelected(''); setPage({ offset: 0 }); }}>
+      <option value="HEAD">当前 HEAD</option>
+      {refs.map(name => <option key={name} value={name}>{name.startsWith('refs/heads/') ? `本地 · ${name.slice(11)}` : `远端 · ${name.slice(13)}`}</option>)}
+    </select></label>
+    <p>远端分支显示上次获取的历史。</p>
     <button disabled={loading} onClick={() => { setSelected(''); setPage({ offset: 0 }); }}>刷新历史</button>
     {loading && <p role="status">正在读取提交…</p>}
     {error && <div role="alert"><p>{error}</p><button onClick={() => setRetry(value => value + 1)}>重试读取提交</button></div>}
