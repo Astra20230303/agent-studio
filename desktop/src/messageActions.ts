@@ -17,6 +17,12 @@ export function isFinalReply(messages: Message[], index: number): boolean {
 export function branchSnapshot(source: Thread, messageId: string, remoteId: string): Thread {
   const index = source.messages.findIndex(message => message.id === messageId);
   if (index < 0 || !isFinalReply(source.messages, index)) throw new Error('只能从回合的最后一条回复创建分支。');
-  return { ...source, id: `remote-${remoteId}`, remoteId, title: `${source.title} · 分支`,
-    pinned: false, archived: false, status: 'idle', messages: structuredClone(source.messages.slice(0, index + 1)), updatedAt: new Date().toISOString() };
+  return { ...fullBranchSnapshot(source, remoteId), plan: undefined,
+    messages: structuredClone(source.messages.slice(0, index + 1)) };
+}
+
+export function fullBranchSnapshot(source: Thread, remoteId: string): Thread {
+  return { ...structuredClone(source), id: `remote-${remoteId}`, remoteId, title: `${source.title} · 分支`,
+    requestedPermission: undefined, effectivePermissions: undefined, contextTokens: undefined,
+    pinned: false, archived: false, status: 'idle', updatedAt: new Date().toISOString() };
 }
