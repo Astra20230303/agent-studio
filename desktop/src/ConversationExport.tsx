@@ -41,7 +41,9 @@ export function ConversationExport({ thread, connected, busy, toast }: { thread:
         } while (cursor);
       }
       const content = conversationMarkdown(snapshot, items);
-      const filename = `${snapshot.title.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').slice(0, 100).replace(/[. ]+$/, '') || 'conversation'}.md`;
+      let basename = snapshot.title.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').slice(0, 100).replace(/[. ]+$/, '') || 'conversation';
+      if (/^(con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)/i.test(basename)) basename = `conversation-${basename}`;
+      const filename = `${basename}.md`;
       const save = window.desktop?.saveConversation;
       if (save) {
         const result = await save({ filename, content });
@@ -56,5 +58,5 @@ export function ConversationExport({ thread, connected, busy, toast }: { thread:
     } catch (error) { toast(`导出失败：${error instanceof Error ? error.message : String(error)}`); }
     finally { lock.current = false; setExporting(false); }
   };
-  return <button disabled={busy || exporting} title={connected && thread.remoteId ? '读取完整服务端历史并保存 Markdown' : '导出本机已加载记录，可能不完整'} onClick={() => void run()}>{exporting ? '正在导出…' : '导出 Markdown'}</button>;
+  return <button disabled={busy || exporting} title={connected && thread.remoteId ? '读取完整服务端历史并保存 Markdown' : '导出本机已加载记录，可能不完整'} onClick={() => void run()}>{exporting ? '正在导出…' : connected && thread.remoteId ? '导出 Markdown' : '导出本机记录'}</button>;
 }

@@ -807,3 +807,6 @@ Desktop uses a native save dialog; browser development uses a Blob download.
 Build, browser pagination/failure acceptance and filesystem tests verify content,
 UTF-8 writes, cancellation and write errors. Attachments are referenced, not copied;
 live/running exports are disabled and cross-client snapshot isolation is not proven.
+Post-commit acceptance verifies local-only content and disk-error feedback.
+Local/offline export now has an explicit button label, and Windows reserved
+device filenames are prefixed to make the proposed save name valid.

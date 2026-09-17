@@ -30,6 +30,19 @@ const assert = require('node:assert/strict');
     await button.click();
     await page.getByText('导出失败：History unavailable', { exact: true }).waitFor();
     assert.equal(await page.evaluate(() => window.__exports.length), 1);
+    const local = await browser.newPage();
+    await local.addInitScript(() => {
+      localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeThreadId: 'local', threads: [{ id: 'local', title: 'CON', status: 'completed', messages: [{ id: 'message', role: 'user', content: 'Local body', attachments: ['D:/notes.txt'], skills: [{ name: 'build', path: 'D:/SKILL.md' }] }], updatedAt: '' }] }));
+      window.__saved = [];
+      window.desktop = { saveConversation: async input => { window.__saved.push(input); return { ok: false, error: 'Disk full' }; } };
+    });
+    await local.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
+    await local.getByRole('button', { name: '导出本机记录', exact: true }).click();
+    await local.getByText('导出失败：Disk full', { exact: true }).waitFor();
+    const exported = await local.evaluate(() => window.__saved[0]);
+    assert.equal(exported.filename, 'conversation-CON.md');
+    for (const value of ['本机已加载记录（可能不完整）', 'Local body', 'D:/notes.txt', 'D:/SKILL.md']) assert.ok(exported.content.includes(value));
+    await local.close();
     console.log('PASS: full pagination, messages, attachment references, tool and unknown records, history failure without partial export');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
