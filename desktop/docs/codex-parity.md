@@ -1165,3 +1165,13 @@ Post-commit acceptance preserves snippets across search pages and rejects malfor
 search results with an explicit error rather than presenting an empty match list.
 An offline browser fixture finds cached assistant text absent from the thread
 title. Expanded browser acceptance and the production build pass.
+
+## Archived conversation content search
+
+The archive dialog searches titles and loaded local messages offline, and uses
+thread/search with archived=true online. Escaped snippets identify remote content
+matches. Clearing the query restores normal archive pagination; restoring a match
+uses the existing unarchive flow and preserves local history. Searches do not add
+archived records to the recent-conversation list. A real isolated app-server test
+finds archived assistant content while excluding a restored conversation. Browser
+search/clear/restore regression and production build pass.

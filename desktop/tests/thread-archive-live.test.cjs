@@ -50,13 +50,16 @@ test('real app-server archives, paginates and restores isolated conversations', 
     const archived = await rpc.request('thread/list', { modelProviders: [], archived: true, limit: 100 });
     assert.deepEqual(archived.data.map(thread => thread.id), [ids[1]]);
     const source = fs.readFileSync(path.resolve(__dirname, '../src/codexClient.ts'), 'utf8');
-    const compiled = require('node:module').stripTypeScriptTypes(source).replace(/^import .*;\r?\n/gm, '').replace(/\bexport /g, '') + '\nObject.assign(exports, { listThreads, listArchivedThreads, unarchiveThread, listThreadTurns, listThreadItems, forkThread });';
+    const compiled = require('node:module').stripTypeScriptTypes(source).replace(/^import .*;\r?\n/gm, '').replace(/\bexport /g, '') + '\nObject.assign(exports, { listThreads, searchThreads, listArchivedThreads, unarchiveThread, listThreadTurns, listThreadItems, forkThread });';
     const client = {};
     require('node:vm').runInNewContext(compiled, { exports: client, require: () => ({}), window: { codex: { request: async (method, params) => ({ ok: true, result: await rpc.request(method, params) }) } } });
     assert.deepEqual((await client.listArchivedThreads()).data.map(thread => thread.id), [ids[1]]);
     assert.ok((await client.listThreads()).data.some(thread => thread.id === ids[0]));
     assert.deepEqual((await client.listThreads(undefined, 'Archive acceptance 0')).data.map(thread => thread.id), [ids[0]]);
     assert.equal((await client.listThreads(undefined, 'unmatched-title-12345')).data.length, 0);
+    const searched = await client.searchThreads('Archive test completed', undefined, true);
+    assert.deepEqual(searched.data.map(item => item.thread.id), [ids[1]]);
+    assert.match(searched.data[0].snippet, /Archive test completed/);
     await client.unarchiveThread(ids[1]);
     assert.equal((await client.listArchivedThreads()).data.length, 0);
     const active = await rpc.request('thread/list', { modelProviders: [], archived: false, limit: 100 });
