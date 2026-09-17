@@ -11,7 +11,7 @@ const assert = require('node:assert/strict');
     await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
     await page.getByRole('button', { name: '设置', exact: true }).click();
     const nav = page.getByRole('navigation', { name: '设置分类' });
-    assert.deepEqual(await nav.getByRole('button').allTextContents(), ['常规', '权限', '配置', '键盘快捷键', '电脑操控']);
+    assert.deepEqual(await nav.getByRole('button').allTextContents(), ['常规', '权限', '通知', '配置', '键盘快捷键', '电脑操控']);
     const search = page.getByRole('searchbox', { name: '搜索设置' });
     await search.fill(' 沙箱 ');
     await page.getByRole('heading', { name: '权限', exact: true }).waitFor();

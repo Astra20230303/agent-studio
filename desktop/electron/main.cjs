@@ -40,6 +40,19 @@ const scheduler = new TaskScheduler({
   runner: createTaskRunner(projectRoot, { apiKey: () => readProvider().apiKey, upstream: () => readProvider().baseUrl }),
 });
 let mainWindow;
+const conversationNotifications = require('./conversation-notifications.cjs').createConversationNotifications(path.join(app.getPath('userData'), 'conversation-notifications.json'), {
+  focused: () => Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused()),
+  show: ({ title, body }) => {
+    if (quitting || !Notification.isSupported()) return;
+    const notification = new Notification({ title, body });
+    notification.on('click', () => { if (mainWindow && !mainWindow.isDestroyed()) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.show(); mainWindow.focus(); } });
+    notification.show();
+  },
+});
+ipcMain.handle('desktop:conversation-notifications', (_event, input) => {
+  try { return { ok: true, settings: input === undefined ? conversationNotifications.read() : conversationNotifications.save(input), supported: Notification.isSupported() }; }
+  catch (error) { return { ok: false, error: error.message }; }
+});
 let manualMaximized = false;
 let restoreBounds;
 let quitting = false;
@@ -66,8 +79,8 @@ function sendToWindow(channel, payload) {
 }
 
 function wireRpc(rpc) {
-  rpc.on('notification', message => sendToWindow('codex:notification', message));
-  rpc.on('request', message => sendToWindow('codex:server-request', message));
+  rpc.on('notification', message => { sendToWindow('codex:notification', message); conversationNotifications.handle(message); });
+  rpc.on('request', message => { sendToWindow('codex:server-request', message); conversationNotifications.handle(message); });
   rpc.on('stderr', text => sendToWindow('codex:stderr', text));
   rpc.on('parse-error', info => sendToWindow('codex:error', info));
   rpc.on('closed', error => sendToWindow('codex:closed', { message: error?.message || String(error) }));

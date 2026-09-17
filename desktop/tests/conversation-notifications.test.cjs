@@ -1,0 +1,23 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs'); const os = require('node:os'); const path = require('node:path');
+const { createConversationNotifications } = require('../electron/conversation-notifications.cjs');
+test('notification preferences persist and filter completion, failure, input, focus and duplicates', () => {
+  const filename = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'felix-notify-')), 'prefs.json');
+  const shown = []; let focus = false;
+  const deps = { show: value => shown.push(value), focused: () => focus };
+  const service = createConversationNotifications(filename, deps);
+  const event = (id, status) => ({ method: 'turn/completed', params: { threadId: 'thread', turn: { id, status } } });
+  service.handle(event('disabled', 'completed')); assert.equal(shown.length, 0);
+  service.save({ completed: true, failed: true, input: true, backgroundOnly: true });
+  service.handle(event('a', 'completed')); service.handle(event('a', 'completed'));
+  service.handle(event('b', 'failed')); service.handle(event('c', 'interrupted'));
+  service.handle({ method: 'item/tool/requestUserInput', id: 1, params: { threadId: 'thread' } });
+  assert.equal(shown.length, 3);
+  focus = true; service.handle(event('foreground', 'completed')); assert.equal(shown.length, 3);
+  const restarted = createConversationNotifications(filename, deps);
+  assert.deepEqual(restarted.read(), service.read());
+  restarted.save({ ...restarted.read(), backgroundOnly: false }); restarted.handle(event('foreground2', 'completed'));
+  assert.equal(shown.length, 4);
+  assert.throws(() => restarted.save({ completed: 'yes' }));
+});

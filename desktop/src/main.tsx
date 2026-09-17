@@ -6,6 +6,7 @@ import { useThreadDraft } from './useThreadDraft';
 import { PermissionSettings, permissionOptions } from './PermissionSettings';
 import { ConversationFind } from './ConversationFind';
 import { CodeBlock } from './CodeBlock';
+import { NotificationSettings } from './NotificationSettings';
 import { ConversationExport } from './ConversationExport';
 import { SettingsNavigation } from './SettingsNavigation';
 import { readThreadPermissions, permissionSummary } from './threadPermissions';
@@ -721,6 +722,7 @@ function SettingsWorkspace({ state, update, toast, onBack }: { state: DesktopSta
   return <SettingsNavigation onBack={onBack}>{section => section === '键盘快捷键'
     ? <KeyboardSettings value={state.sendShortcut} onChange={value => update(next => { next.sendShortcut = value; })} />
     : section === '电脑操控' ? <RemoteDesktopPanel />
+    : section === '通知' ? <NotificationSettings />
     : section === '配置' ? <ProviderSettings state={state} update={update} toast={toast} />
     : section === '权限' ? <PermissionSettings value={state.permission} onChange={value => update(next => { next.permission = value; })} />
     : <div className="settings-card"><div className="settings-line"><div><b>主题</b><small>应用界面主题</small></div><select aria-label="主题" value={state.theme} onChange={e => update(next => { next.theme = e.target.value as DesktopState['theme']; })}><option value="light">浅色</option><option value="dark">深色</option></select></div><div className="settings-line"><div><b>默认模型</b><small>Agent 默认使用的模型</small></div><span>{state.model || '自动选择'}</span></div></div>

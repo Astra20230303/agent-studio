@@ -894,3 +894,15 @@ raw-field retention. This adds presentation for upstream records; the current
 MiniMax MCP search transport remains unchanged.
 Post-commit acceptance covers external-browser rejection and successful retry,
 including clearing the previous error without losing the search record.
+
+## Conversation system notifications
+
+Desktop notification settings persist in the isolated Electron profile and
+independently control completed, failed and input/approval events, plus background
+only delivery. Defaults are off; scheduled tasks retain their per-task policies.
+The main process observes RPC events, deduplicates them and focuses the app when
+notifications are clicked. Bodies contain generic status rather than conversation
+content. Build, service tests and browser settings acceptance cover persistence,
+event filtering, focus suppression, duplicate events, failed save and retry.
+Native OS toast delivery/permissions still require desktop acceptance; clicking
+currently focuses the application without selecting the originating thread.
