@@ -31,6 +31,10 @@ export function ModelPicker({ catalog, selected, onSelect, open, setOpen }: {
   open: boolean; setOpen: (value: boolean) => void;
 }) {
   const root = useRef<HTMLDivElement>(null);
+  const [query, setQuery] = useState('');
+  const search = useRef<HTMLInputElement>(null);
+  const visible = catalog.models.filter(id => id.toLowerCase().includes(query.trim().toLowerCase()));
+  useEffect(() => { if (open) { setQuery(''); search.current?.focus(); } }, [open]);
   useEffect(() => {
     if (!open) return;
     const dismiss = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node)) setOpen(false); };
@@ -45,8 +49,9 @@ export function ModelPicker({ catalog, selected, onSelect, open, setOpen }: {
     </button>
     {open && <div className="floating-menu model-catalog" aria-label="Provider 模型">
       <div className="model-catalog-header"><span>Provider</span><button type="button" title="刷新模型列表" aria-label="刷新模型列表" disabled={catalog.loading} onClick={() => void catalog.refresh()}><RefreshCw size={14} /></button></div>
+      <input ref={search} aria-label="搜索模型" placeholder="搜索模型 ID…" value={query} onChange={event => setQuery(event.target.value)} style={{ boxSizing: 'border-box', width: '100%', minWidth: 0 }} />
       {catalog.loading ? <p role="status">正在获取模型…</p> : catalog.error ? <p role="alert">{catalog.error}</p> :
-        <div className="model-options">{catalog.models.map(id => <button key={id} aria-pressed={selected === id} onClick={() => { onSelect(id); setOpen(false); }}><span>{id}</span>{selected === id && <Check size={14} />}</button>)}</div>}
+        <div className="model-options">{visible.map(id => <button key={id} aria-pressed={selected === id} onClick={() => { onSelect(id); setOpen(false); }}><span>{id}</span>{selected === id && <Check size={14} />}</button>)}{!visible.length && <p role="status">没有匹配的模型</p>}</div>}
     </div>}
   </div>;
 }
