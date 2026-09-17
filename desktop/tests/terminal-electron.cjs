@@ -18,12 +18,12 @@ if (!process.versions.electron) {
       manager.write(id, "Write-Output ('ELECTRON_' + 'PTY_OK')\r");
       while (!output.includes('ELECTRON_PTY_OK') && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50));
       assert.ok(output.includes('ELECTRON_PTY_OK'), output);
-      manager.close(id);
+      await manager.close(id);
       let alive = true;
       while (alive && Date.now() < deadline) { try { process.kill(pid, 0); await new Promise(resolve => setTimeout(resolve, 50)); } catch { alive = false; } }
       assert.equal(alive, false, 'Shell must exit after terminal close');
       console.log('PASS: Electron native PTY load, real shell command and process cleanup');
       app.exit(0);
-    } catch (error) { console.error(error); manager.closeAll(); app.exit(1); }
+    } catch (error) { console.error(error); await manager.closeAll(); app.exit(1); }
   });
 }

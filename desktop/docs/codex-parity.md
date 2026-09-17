@@ -303,3 +303,12 @@ browser through a test bridge and verifies command input/output, hide/reopen,
 resize, termination and restart, with desktop/mobile screenshots. The native
 terminal-electron.cjs smoke verifies Electron loading, real shell output and shell
 process death after close. Full production IPC lifecycle still needs acceptance.
+Post-commit acceptance: terminal-ipc.cjs now exercises the production preload and
+shared IPC handlers in a real sandboxed Electron window. It verifies shell IO,
+invalid-directory rejection, navigation cleanup and window-close cleanup. Native
+PTY shutdown is awaited before app exit; this fixes an observed abnormal exit
+when the process stopped during native cleanup. Renderer crashes also close shells.
+Real-shell UI acceptance additionally verifies Ctrl+C recovery and composer
+visibility. Terminal assets load on demand; the main bundle is back below 500 KB.
+Multiple terminals and project switching remain future work. The existing whole
+app mobile layout remains cramped; screenshots only establish terminal framing.

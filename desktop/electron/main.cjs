@@ -10,7 +10,7 @@ const { wireWindowFrame } = require('./window-frame.cjs');
 const { RemoteDesktop, startRemoteBridge } = require('./remote-desktop.cjs');
 const { LocalDesktop } = require('./local-desktop.cjs');
 const { globalShortcut } = require('electron');
-const { TerminalManager } = require('./terminal.cjs');
+const { registerTerminalIpc, wireTerminalWindow } = require('./terminal.cjs');
 const customFrame = process.platform === 'win32' && Number(require('node:os').release().split('.')[2]) < 22000;
 
 const projectRoot = path.resolve(__dirname, '../..');
@@ -24,11 +24,7 @@ else app.quit();
 function startDesktop() {
 const remoteDesktop = new RemoteDesktop();
 const localDesktop = new LocalDesktop();
-const terminals = new TerminalManager(message => sendToWindow('terminal:data', message));
-ipcMain.handle('terminal:create', (_event, input) => ({ ok: true, ...terminals.create(input?.cwd) }));
-ipcMain.handle('terminal:write', (_event, input) => terminals.write(input?.id, input?.data));
-ipcMain.handle('terminal:resize', (_event, input) => terminals.resize(input?.id, input?.cols, input?.rows));
-ipcMain.handle('terminal:close', (_event, input) => terminals.close(input?.id));
+const terminals = registerTerminalIpc(ipcMain, message => sendToWindow('terminal:data', message), projectRoot);
 remoteDesktop.on('open', () => sendToWindow('desktop:remote-open', {}));
 ipcMain.handle('desktop:remote-status', () => remoteDesktop.status());
 ipcMain.handle('desktop:remote-action', async (_event, action) => {
@@ -105,6 +101,7 @@ function createWindow() {
     }
   });
   mainWindow = win;
+  wireTerminalWindow(terminals, win);
   wireWindowFrame(win, ipcMain, customFrame);
   win.on('closed', () => { if (mainWindow === win) mainWindow = null; });
   const devUrl = process.env.VITE_DEV_SERVER_URL || (process.argv.includes('--dev') ? `http://127.0.0.1:${process.env.VITE_PORT || 5317}` : '');
@@ -227,7 +224,7 @@ app.whenReady().then(async () => {
   globalShortcut.register('Control+Alt+Escape', () => localDesktop.stop());
   process.env.FELIX_REMOTE_ENDPOINT = bridge.endpoint;
   process.env.FELIX_REMOTE_TOKEN = bridge.token;
-  app.on('will-quit', () => { globalShortcut.unregisterAll(); terminals.closeAll(); localDesktop.stop(); bridge.server.close(); void remoteDesktop.stop(); });
+  app.on('will-quit', () => { globalShortcut.unregisterAll(); localDesktop.stop(); bridge.server.close(); void remoteDesktop.stop(); });
   scheduler.start();
   Menu.setApplicationMenu(null);
   createWindow();
@@ -237,9 +234,9 @@ app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(
 app.on('before-quit', event => {
   quitting = true;
   codex.stop();
-  if (scheduler.active && !tasksStopped && event?.preventDefault) {
+  if (!tasksStopped && event?.preventDefault) {
     event.preventDefault();
-    stoppingTasks ||= scheduler.stop().catch(() => undefined).finally(() => { tasksStopped = true; app.quit(); });
-  } else if (!stoppingTasks) stoppingTasks = scheduler.stop().catch(() => undefined);
+    stoppingTasks ||= Promise.allSettled([scheduler.stop(), terminals.closeAll()]).finally(() => { tasksStopped = true; app.quit(); });
+  } else if (!stoppingTasks) stoppingTasks = Promise.allSettled([scheduler.stop(), terminals.closeAll()]);
 });
 }
