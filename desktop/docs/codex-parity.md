@@ -1506,3 +1506,9 @@ run/cache directories share this root. Existing data is not automatically moved;
 an override selects a separate profile. Binaries/catalog/MCP runtime bundling
 and an installer remain outstanding. Path tests, a real app-server scheduled
 tool run using an external data directory, and production build pass.
+Post-commit native acceptance copies the application into a temporary install
+directory, launches real Electron with an external FELIX_DATA_DIR containing a
+space, saves a reminder and localStorage value, then closes and reopens it. Both
+persist correctly, app.getPath('userData') points into that profile, and no
+.project-cache appears under the copied install. This does not test a packaged
+installer or bundled model runtime. No product correction was required.
