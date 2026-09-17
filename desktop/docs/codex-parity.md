@@ -918,3 +918,5 @@ unknown IDs create one local entry and use normal server resume. Archive state
 is preserved. Build and browser bridge acceptance cover settings-to-chat routing,
 restoration, repeated clicks, retained drafts and one subscription under StrictMode.
 The native OS click itself remains outside this browser fixture's coverage.
+Post-commit acceptance rejects empty/non-string navigation payloads and confirms
+notification routing does not send a turn or unarchive a remote conversation.

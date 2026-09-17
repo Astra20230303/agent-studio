@@ -24,6 +24,9 @@ const assert = require('node:assert/strict');
     await page.getByText('Reply from remote-a', { exact: true }).waitFor();
     assert.equal(await page.getByRole('textbox', { name: '消息', exact: true }).inputValue(), 'keep A draft');
     assert.equal(await page.evaluate(() => window.__listeners.size), 1);
+    await page.evaluate(() => window.__listeners.forEach(fn => { fn(''); fn(null); fn('   '); }));
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).activeThreadId), 'a');
+    assert.equal(await page.evaluate(() => window.__calls.some(call => call.method === 'thread/unarchive' || call.method === 'turn/start')), false);
     console.log('PASS: notification navigation restores correct thread, preserves draft/archive state and deduplicates new records');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
