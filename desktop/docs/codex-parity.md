@@ -1086,3 +1086,12 @@ retry and discard behavior; Unicode offset tests and production build pass.
 Post-commit acceptance checks forward/backward selection offsets and wrapping from
 the first match to the last. Repeating Ctrl/Meta+F now refocuses an already-open
 search input. Browser editor regression and production build pass.
+
+## Editor undo and redo
+
+Manual input, programmatic indentation and find/replace now share an explicit text
+history. Toolbar actions and Ctrl/Meta+Z, Ctrl/Meta+Shift+Z or Ctrl+Y navigate it.
+Each history direction retains at most 100 snapshots and 4M UTF-16 code units.
+New edits discard redo history; successful disk reload establishes a new baseline.
+Unit tests cover branching and limits; browser tests undo/redo replacements and
+indentation alongside save conflict/reload regressions. Build passes.
