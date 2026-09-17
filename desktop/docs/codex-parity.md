@@ -398,3 +398,6 @@ from successful completion, including dynamic success=false and MCP isError.
 Build, two state/history tests and mocked browser lifecycle acceptance pass.
 Results currently use a structured text view; rich MCP app/media rendering remains
 pending, as does live tool-provider end-to-end acceptance.
+Acceptance correction distinguishes explicit null from an omitted field when
+merging tool updates, so cleared errors/results do not linger and null arguments
+remain visible as null. Three state/history tests, browser workflow and build pass.

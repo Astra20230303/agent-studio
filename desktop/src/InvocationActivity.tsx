@@ -10,7 +10,7 @@ export function InvocationActivity({ tool }: { tool: ToolActivity }) {
   return <details className={`tool-row ${failed ? 'tool-failed' : ''}`}>
     <summary style={{ overflowWrap: 'anywhere' }}>{call.server ? `${call.server} · ` : ''}{call.name} · {status}</summary>
     <div className="tool-detail">{tool.durationMs != null && <small>用时 {(tool.durationMs / 1000).toFixed(1)} 秒</small>}
-      <h4>参数</h4><pre className="tool-output">{display(call.arguments ?? {})}</pre>
+      <h4>参数</h4><pre className="tool-output">{display(call.arguments === undefined ? {} : call.arguments)}</pre>
       {call.error != null && <pre className="tool-output" role="alert">{display(call.error)}</pre>}
       {call.result != null && <><h4>结果</h4><pre className="tool-output">{display(call.result)}</pre></>}
     </div>

@@ -14,3 +14,10 @@ test('dynamic tool failure and MCP errors survive history restore', () => {
   assert.equal(messages[0].tool.invocation.success, false);
   assert.equal(messages[1].tool.invocation.error.message, 'Disconnected');
 });
+test('explicit null clears old error/result and preserves null arguments', () => {
+  const thread = { messages: [] };
+  applyToolEvent(thread, 'item/started', { item: { id: 'retry', type: 'mcpToolCall', tool: 'read', arguments: {}, result: { isError: true }, error: { message: 'old failure' } } });
+  applyToolEvent(thread, 'item/completed', { item: { id: 'retry', type: 'mcpToolCall', status: 'completed', arguments: null, result: null, error: null } });
+  const call = thread.messages[0].tool.invocation;
+  assert.equal(call.error, null); assert.equal(call.result, null); assert.equal(call.arguments, null);
+});

@@ -13,7 +13,7 @@ export function upsertTool(thread: Thread, item: any, turnId?: string, completed
   message.tool = {
     ...previous,
     kind: item.type,
-    invocation: ['mcpToolCall', 'dynamicToolCall'].includes(item.type) ? { server: item.server ?? item.namespace ?? previous?.invocation?.server, name: item.tool ?? previous?.invocation?.name, arguments: item.arguments ?? previous?.invocation?.arguments, result: item.result ?? item.contentItems ?? previous?.invocation?.result, error: item.error ?? previous?.invocation?.error, success: item.success ?? previous?.invocation?.success } : undefined,
+    invocation: ['mcpToolCall', 'dynamicToolCall'].includes(item.type) ? { server: item.server ?? item.namespace ?? previous?.invocation?.server, name: item.tool ?? previous?.invocation?.name, arguments: item.arguments !== undefined ? item.arguments : previous?.invocation?.arguments, result: item.result !== undefined ? item.result : item.contentItems !== undefined ? item.contentItems : previous?.invocation?.result, error: item.error !== undefined ? item.error : previous?.invocation?.error, success: item.success ?? previous?.invocation?.success } : undefined,
     collaboration: item.type === 'collabAgentToolCall' ? { tool: item.tool ?? previous?.collaboration?.tool, prompt: item.prompt ?? previous?.collaboration?.prompt, model: item.model ?? previous?.collaboration?.model, receiverThreadIds: item.receiverThreadIds ?? previous?.collaboration?.receiverThreadIds ?? [], agentsStates: item.agentsStates ?? previous?.collaboration?.agentsStates ?? {} } : undefined,
     status: item.status || (completed ? 'completed' : previous?.status || 'inProgress'),
     turnId: turnId ?? previous?.turnId,
