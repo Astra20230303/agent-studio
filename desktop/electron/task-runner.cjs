@@ -6,13 +6,13 @@ const { CodexRpc } = require('./codex-rpc.cjs');
 const { findCommand, ensureProjectConfig, compatibilityCatalog } = require('./codex-server.cjs');
 const { startMiniMaxAdapter } = require('./minimax-adapter.cjs');
 
-function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_KEY, upstream, timeoutMs = 10 * 60 * 1000 } = {}) {
+function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_KEY, upstream, timeoutMs = 10 * 60 * 1000, dataRoot = require('./data-directory.cjs').dataDirectory(projectRoot) } = {}) {
   return async (task, { signal, runId }) => {
     const cwd = task.cwd || projectRoot;
     if (!path.isAbsolute(cwd) || !fs.existsSync(cwd) || !fs.statSync(cwd).isDirectory()) throw new Error('任务工作目录不存在或无效，请编辑任务选择有效目录。');
     if (!apiKey()?.trim()) throw new Error('未配置 MINIMAX_API_KEY，请带密钥重新启动项目副本。');
-    const home = path.join(projectRoot, '.project-cache', 'scheduled-tasks', 'runs', runId);
-    const cache = path.join(projectRoot, '.project-cache');
+    const home = path.join(dataRoot, 'scheduled-tasks', 'runs', runId);
+    const cache = dataRoot;
     fs.mkdirSync(home, { recursive: true });
     let rpc, adapter, timer, child, halted = false, output = '';
     const append = text => { output = (output + text).slice(-200000); };

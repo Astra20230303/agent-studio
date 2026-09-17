@@ -12,6 +12,7 @@ const task = { name: 'Runner integration', model: 'MiniMax-M2.1', prompt: 'Print
 
 test('real project Codex executes a scheduled tool request and persists final output', { timeout: 60000 }, async () => {
   const workspace = fs.mkdtempSync(path.join(root, '.project-cache/tmp/task-workspace-'));
+  const dataRoot = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'felix-runner-data-'));
   let requests = 0, upstreamError;
   const server = http.createServer(async (req, res) => {
     try {
@@ -36,7 +37,7 @@ test('real project Codex executes a scheduled tool request and persists final ou
   });
   server.listen(0, '127.0.0.1'); await once(server, 'listening');
   try {
-    const runner = createTaskRunner(root, { apiKey: () => 'local-test', upstream: `http://127.0.0.1:${server.address().port}`, timeoutMs: 45000 });
+    const runner = createTaskRunner(root, { dataRoot, apiKey: () => 'local-test', upstream: `http://127.0.0.1:${server.address().port}`, timeoutMs: 45000 });
     const directory = fs.mkdtempSync(path.join(root, '.project-cache/tmp/task-real-runner-'));
     let clock = Date.now();
     const scheduler = new TaskScheduler({ directory, runner, now: () => clock });
@@ -48,6 +49,7 @@ test('real project Codex executes a scheduled tool request and persists final ou
     if (upstreamError) throw upstreamError;
     assert.equal(result.status, 'completed', result.error);
     assert.equal(result.trigger, 'scheduled');
+    assert.ok(fs.existsSync(path.join(dataRoot, 'scheduled-tasks', 'runs', result.id, 'config.toml')));
     assert.equal(requests, 2); assert.match(result.output, /Verified FELIX_SCHEDULE_OK/); assert.ok(result.threadId);
     const restarted = new TaskScheduler({ directory, runner });
     assert.equal(restarted.detail(saved.id).runs[0].output, result.output);

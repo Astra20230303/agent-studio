@@ -14,9 +14,10 @@ const { registerTerminalIpc, wireTerminalWindow } = require('./terminal.cjs');
 const customFrame = process.platform === 'win32' && Number(require('node:os').release().split('.')[2]) < 22000;
 
 const projectRoot = path.resolve(__dirname, '../..');
-// Keep the replica's Electron profile inside the project. This is deliberately
-// separate from the installed Codex Desktop profile and never touches it.
-app.setPath('userData', path.join(projectRoot, '.project-cache', 'electron-user-data'));
+const dataRoot = require('./data-directory.cjs').dataDirectory(projectRoot, { isPackaged: app.isPackaged, appData: app.getPath('appData') });
+require('node:fs').mkdirSync(dataRoot, { recursive: true });
+// Keep Felix's profile separate from the installed Codex Desktop profile.
+app.setPath('userData', path.join(dataRoot, 'electron-user-data'));
 // Acquire the project profile lock before loading or recovering persisted runs.
 if (app.requestSingleInstanceLock()) startDesktop();
 else app.quit();
@@ -34,10 +35,10 @@ ipcMain.handle('desktop:remote-action', async (_event, action) => {
   try { return await remoteDesktop.run(action); }
   catch (error) { return { isError: true, content: [{ type: 'text', text: error.message }] }; }
 });
-const codex = new CodexServer(projectRoot);
+const codex = new CodexServer(projectRoot, { dataRoot });
 const scheduler = new TaskScheduler({
-  directory: path.join(projectRoot, '.project-cache', 'scheduled-tasks'),
-  runner: createTaskRunner(projectRoot, { apiKey: () => readProvider().apiKey, upstream: () => readProvider().baseUrl }),
+  directory: path.join(dataRoot, 'scheduled-tasks'),
+  runner: createTaskRunner(projectRoot, { dataRoot, apiKey: () => readProvider().apiKey, upstream: () => readProvider().baseUrl }),
 });
 let mainWindow;
 const conversationNotifications = require('./conversation-notifications.cjs').createConversationNotifications(path.join(app.getPath('userData'), 'conversation-notifications.json'), {

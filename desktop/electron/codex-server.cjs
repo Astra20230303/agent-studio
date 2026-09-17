@@ -93,13 +93,13 @@ function compatibilityCatalog(projectRoot, codexHome) {
 }
 
 class CodexServer {
-  constructor(projectRoot) { this.projectRoot = projectRoot; this.rpc = null; this.child = null; this.adapter = null; }
+  constructor(projectRoot, { dataRoot = require('./data-directory.cjs').dataDirectory(projectRoot) } = {}) { this.projectRoot = projectRoot; this.dataRoot = dataRoot; this.rpc = null; this.child = null; this.adapter = null; }
 
   start() {
     if (this.rpc) return this.rpc;
     const { readProvider } = require('./provider-config.cjs');
     const resolved = findCommand(this.projectRoot);
-    const cache = path.join(this.projectRoot, '.project-cache');
+    const cache = this.dataRoot;
     const temp = path.join(cache, 'temp');
     fs.mkdirSync(temp, { recursive: true });
     const env = { ...process.env, CODEX_HOME: path.join(cache, 'codex-home'), TEMP: temp, TMP: temp, TMPDIR: temp, npm_config_cache: path.join(cache, 'npm-cache') };

@@ -1495,3 +1495,14 @@ preserves sending, acknowledged removal survives a second quota failure, and
 the paused successor dispatches exactly once after explicit resume. The existing
 FIFO/edit/cancel/failure/reload browser regression also passes. These tests use
 a controlled app-server bridge; no additional product correction was needed.
+
+## Independent desktop data directory
+
+Plan: separate writable application data from installed/source files before
+adding distribution packaging. FELIX_DATA_DIR accepts an absolute directory;
+development retains .project-cache by default, and packaged apps select
+appData/Felix. Electron profile, interactive Codex home/temp and scheduled
+run/cache directories share this root. Existing data is not automatically moved;
+an override selects a separate profile. Binaries/catalog/MCP runtime bundling
+and an installer remain outstanding. Path tests, a real app-server scheduled
+tool run using an external data directory, and production build pass.
