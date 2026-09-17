@@ -708,8 +708,15 @@ Build and browser acceptance verify all three choices, persistence, composer
 consistency and exact thread/start sandbox/approval/reviewer fields. These tests
 verify client configuration, not enforcement of each permission by the server.
 Post-commit live acceptance starts the real app-server with each of the three
-profiles and confirms thread/start and thread/read accept the selected sandbox,
-approval policy and workspace. The first run lacked an isolated provider
-definition and was corrected in the fixture; the corrected test passes. This
-still verifies protocol acceptance rather than executing a model tool under each
-policy.
+profiles through the production frontend client, including its omitted-permission
+default. Assertions inspect the returned sandbox type, approval policy, reviewer,
+workspace and restricted-profile network access; workspace-write must return
+auto_review. Thread/read additionally checks thread identity and workspace.
+On Windows the fixture runs both without sandbox configuration and with
+windows.sandbox="unelevated": the former returns readOnly for workspace-write,
+while the latter returns workspaceWrite. Both cases are asserted explicitly.
+This exposed an outstanding product limitation: the requested composer/default
+permission is not necessarily the effective thread permission when Windows
+sandbox setup is absent; effective-permission display/setup still needs work.
+This verifies effective protocol configuration rather than executing a model
+tool under each policy or proving automatic review decisions.
