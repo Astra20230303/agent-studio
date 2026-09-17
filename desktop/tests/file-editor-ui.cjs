@@ -25,6 +25,15 @@ const assert = require('node:assert/strict');
     await editor.press('Control+f');
     await page.getByRole('textbox',{name:'查找编辑内容',exact:true}).fill('foo');
     await page.getByText('1 / 3 处匹配',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'下一处',exact:true}).click();
+    assert.deepEqual(await editor.evaluate(node=>[node.selectionStart,node.selectionEnd]),[4,7]);
+    await page.getByRole('button',{name:'上一处',exact:true}).click();
+    await page.getByRole('button',{name:'上一处',exact:true}).click();
+    await page.getByText('3 / 3 处匹配',{exact:true}).waitFor();
+    await editor.focus();
+    await editor.press('Control+f');
+    await page.waitForFunction(()=>document.activeElement?.getAttribute('aria-label')==='查找编辑内容');
+
     await page.getByRole('checkbox',{name:'区分大小写',exact:true}).check();
     await page.getByText('1 / 2 处匹配',{exact:true}).waitFor();
     await page.getByRole('textbox',{name:'替换为',exact:true}).fill('$&');

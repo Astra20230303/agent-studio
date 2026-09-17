@@ -1083,3 +1083,6 @@ search while retaining the edit dialog. Replacements modify only the edit buffer
 explicit revision-checked save remains required. Replacement text such as $& is
 inserted literally. Browser tests verify replacements alongside existing conflict,
 retry and discard behavior; Unicode offset tests and production build pass.
+Post-commit acceptance checks forward/backward selection offsets and wrapping from
+the first match to the last. Repeating Ctrl/Meta+F now refocuses an already-open
+search input. Browser editor regression and production build pass.
