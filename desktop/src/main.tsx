@@ -1,3 +1,4 @@
+import { useAppShortcuts } from './useAppShortcuts';
 import { usePluginDraft } from './usePluginDraft';
 import { ArtifactPreview } from './ArtifactPreview';
 import { ArtifactWorkspaceContext, ArtifactOpenContext, type ArtifactTarget } from './Artifacts';
@@ -383,6 +384,11 @@ function App() {
     if (active?.remoteId && runningTurnId) void interruptTurn(active.remoteId, runningTurnId).catch(error => setNotice(`停止失败：${error.message}`));
   };
   const newChat = () => { setRemoteThreadId(undefined); update(next => createThread(next)); setPage('chat'); };
+  useAppShortcuts({
+    newChat: () => { newChat(); requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('textarea[aria-label="消息"]')?.focus()); },
+    search: () => { setSidebarVisible(true); setShowSearch(true); requestAnimationFrame(() => document.getElementById('sidebar-search')?.focus()); },
+    composer: () => { setPage('chat'); requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('textarea[aria-label="消息"]')?.focus()); },
+  });
   const selectThread = async (thread: DesktopState['threads'][number]) => { update(next => { next.activeThreadId = thread.id; }); setPage('chat'); };
   useEffect(() => {
     const threadId = active?.remoteId;

@@ -1767,3 +1767,7 @@ remains low. The expanded browser flow passes without further product changes.
 计划与交付：普通发送及队列消息保存插件名称与 ID，并显示插件标签；历史恢复解析 plugin:// mention，去重并忽略其他引用。12 个历史解析测试、模拟桥接的发送标签及完整历史恢复验收、生产构建通过。浏览器断言调整为包含插件标签的消息容器，避免把新增标签误判为正文缺失。
 
 提交后修正：本机 Markdown 导出加入插件名称与 ID，避免界面已有记录在导出时丢失。扩展导出浏览器验收和生产构建通过。
+
+## 应用级键盘导航
+
+计划与交付：Ctrl/Command+Shift+O 新建会话、Ctrl/Command+K 搜索会话、Ctrl/Command+Shift+L 聚焦消息，设置中列出快捷键。忽略弹窗、终端、组合输入、重复及已处理按键。浏览器验收覆盖新会话与草稿保留、隐藏侧栏搜索、消息聚焦和组合输入保护；生产构建通过。
