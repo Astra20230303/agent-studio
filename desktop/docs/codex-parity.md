@@ -1710,3 +1710,11 @@ Provider credentials remain global; unavailable models require a new selection.
 Post-commit acceptance changes the Provider catalog and verifies the conversation
 retains its selected model, displays its ID as unavailable and disables sending
 instead of silently choosing a different model. Browser acceptance and build pass.
+
+## Per-conversation reasoning effort
+
+Plan and delivery: each conversation persists reasoning effort alongside model.
+New threads snapshot the default; resume imports a supported server effort only
+when no local selection exists. Ordinary turn/start and queued messages use the
+conversation effort. Browser acceptance verifies high effort survives reload and
+appears in actual turn/start arguments and the queue snapshot. Build passes.

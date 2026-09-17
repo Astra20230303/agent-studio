@@ -30,6 +30,7 @@ export interface ToolActivity {
 
 export interface Thread {
   model?: string;
+  reasoningEffort?: 'low' | 'medium' | 'high';
   effectivePermissions?: import('./threadPermissions').ThreadPermissions;
   requestedPermission?: DesktopState['permission'];
   contextTokens?: import('./ContextUsage').ContextTokens;

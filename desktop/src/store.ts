@@ -52,7 +52,7 @@ export function ensureThreadTitle(thread: Thread) {
 }
 
 export function createThread(state: DesktopState, title = '新对话'): Thread {
-  const thread: Thread = { id: id('thread'), model: state.model || undefined, title, status: 'idle', pinned: false, archived: false, messages: [], updatedAt: now() };
+  const thread: Thread = { id: id('thread'), model: state.model || undefined, reasoningEffort: state.reasoningEffort, title, status: 'idle', pinned: false, archived: false, messages: [], updatedAt: now() };
   state.threads = [...state.threads, thread]; state.activeThreadId = thread.id; return thread;
 }
 
