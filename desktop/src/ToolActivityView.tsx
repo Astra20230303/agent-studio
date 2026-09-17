@@ -4,6 +4,7 @@ import type { Message, ToolActivity } from './domain';
 import { toolLabel } from './toolActivity';
 import { AgentActivity } from './AgentActivity';
 import { InvocationActivity } from './InvocationActivity';
+import { CopyText } from './CopyText';
 
 function ToolRow({ tool, onOpenAgent }: { tool: ToolActivity; onOpenAgent?: (id: string) => void }) {
   if (tool.kind === 'contextCompaction') return <div className="tool-row" role="status">{tool.status === 'inProgress' ? '正在压缩上下文…' : tool.status === 'completed' ? '上下文压缩已完成' : tool.status === 'failed' ? '上下文压缩失败' : '上下文压缩已中断'}</div>;
@@ -21,6 +22,7 @@ function ToolRow({ tool, onOpenAgent }: { tool: ToolActivity; onOpenAgent?: (id:
       <ChevronRight className="disclosure" size={13} />
     </summary>
     <div className="tool-detail">
+      <div className="tool-copy-actions">{tool.command && <CopyText source={tool.command} label="复制命令" />}{tool.output && <CopyText source={tool.output} label="复制输出" />}</div>
       {tool.kind === 'commandExecution' && <pre className="tool-command">{tool.command}</pre>}
       <div className="tool-meta">{tool.cwd && <span>{tool.cwd}</span>}{tool.exitCode != null && <span>退出码 {tool.exitCode}</span>}{tool.durationMs != null && <span>用时 {(tool.durationMs / 1000).toFixed(1)} 秒</span>}</div>
       {tool.output ? <pre className="tool-output">{tool.output}</pre> : tool.kind === 'commandExecution' && <p>{tool.status === 'inProgress' ? '等待输出…' : '无输出'}</p>}

@@ -1,5 +1,6 @@
 import type { ToolActivity } from './domain';
 import { ToolResult } from './ToolResult';
+import { CopyText } from './CopyText';
 
 function display(value: unknown) { return typeof value === 'string' ? value : JSON.stringify(value, null, 2); }
 export function InvocationActivity({ tool }: { tool: ToolActivity }) {
@@ -11,6 +12,7 @@ export function InvocationActivity({ tool }: { tool: ToolActivity }) {
   return <details className={`tool-row ${failed ? 'tool-failed' : ''}`}>
     <summary style={{ overflowWrap: 'anywhere' }}>{call.server ? `${call.server} · ` : ''}{call.name} · {status}</summary>
     <div className="tool-detail">{tool.durationMs != null && <small>用时 {(tool.durationMs / 1000).toFixed(1)} 秒</small>}
+      <div className="tool-copy-actions"><CopyText source={display(call.arguments === undefined ? {} : call.arguments)!} label="复制参数" />{call.result != null && <CopyText source={display(call.result)!} label="复制结果" />}{call.error != null && <CopyText source={display(call.error)!} label="复制错误" />}</div>
       <h4>参数</h4><pre className="tool-output">{display(call.arguments === undefined ? {} : call.arguments)}</pre>
       {call.error != null && <pre className="tool-output" role="alert">{display(call.error)}</pre>}
       {call.result != null && <><h4>结果</h4><ToolResult result={call.result} /></>}

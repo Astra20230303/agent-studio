@@ -859,3 +859,12 @@ grown content for a user scroll. Build and long-transcript browser acceptance
 verify search-to-latest navigation and following a newly streamed long reply.
 Post-commit acceptance also scrolls upward manually, injects another reply and
 verifies the reading position is preserved before returning to the bottom again.
+
+## Copy tool details
+
+Expanded command records offer separate command/output copy controls; MCP and
+dynamic tool records expose argument, result and error copies. Structured values
+use formatted JSON, while strings preserve their original whitespace. These use
+the same failure/retry and stale-feedback handling as code blocks. Build and
+browser acceptance verify long Unicode output, exact newlines, MCP fields,
+clipboard rejection recovery and code-block regression.

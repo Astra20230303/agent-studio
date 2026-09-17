@@ -35,7 +35,7 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(() => [...document.querySelectorAll('.code-block pre code')].at(-1).textContent === 'first\nsecond');
     await page.evaluate(() => { window.__hold = false; window.__release(); });
     await page.waitForFunction(() => window.__copied.length === 4);
-    assert.equal(await blocks.nth(3).getByRole('button', { name: '复制代码' }).textContent(), '复制');
+    assert.equal(await blocks.nth(3).getByRole('button', { name: '复制代码' }).textContent(), '复制代码');
     await blocks.nth(3).getByRole('button', { name: '复制代码' }).click();
     await blocks.nth(3).getByRole('status').filter({ hasText: '代码已复制' }).waitFor();
     assert.equal(await page.evaluate(() => window.__copied.at(-1)), 'first\nsecond');

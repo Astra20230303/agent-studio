@@ -6,3 +6,6 @@
 .conversation-find-match { outline:2px solid #b88712; outline-offset:2px; background:#d4a72c18; }
 .jump-to-latest { align-self:center; pointer-events:auto; border:1px solid #aaa6; background:#f7f7f5; color:#333; padding:6px 14px; border-radius:16px; margin:0 auto 6px; cursor:pointer; }
 .dark .jump-to-latest { background:#383836; color:#eee; }
+.tool-copy-actions { display:flex; flex-wrap:wrap; gap:10px; margin:8px 0; }
+.tool-copy-actions button { border:1px solid #8885; border-radius:4px; background:transparent; color:inherit; cursor:pointer; padding:4px 8px; }
+.copy-text [role="alert"] { display:block; color:#c54b45; font-size:12px; }
