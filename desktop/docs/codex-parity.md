@@ -1117,3 +1117,14 @@ Post-commit acceptance preserves the requested setup mode across settings remoun
 Browser tests also deliver completion before setupStart responds and disconnect
 while setup is pending: completion is not overwritten and disconnect reports an
 unknown result. Build passes; OS provisioning/enforcement is still not claimed.
+
+## Windows sandbox execution acceptance
+
+An isolated real app-server fixture uses restricted-token (unelevated) sandboxing
+and command/exec with an explicit workspaceWrite policy. A real PowerShell process
+writes a marker inside its workspace; writing to a sibling fixture directory is
+rejected with a sandbox-denied RPC error and leaves no file. This verifies a local
+filesystem write boundary on this Windows machine, not network isolation, every
+command tool, elevated provisioning or broader security guarantees.
+Run: node --test tests/windows-sandbox-live.test.cjs. No provider request is made;
+CODEX_HOME and all attempted writes are inside a fresh test fixture.
