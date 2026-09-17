@@ -34,6 +34,7 @@ export function GitHistory({ root }: { root: string }) {
       <option value="HEAD">当前 HEAD</option>
       {refs.map(name => <option key={name} value={name}>{name.startsWith('refs/heads/') ? `本地 · ${name.slice(11)}` : `远端 · ${name.slice(13)}`}</option>)}
     </select></label>
+    {ref !== 'HEAD' && <button onClick={() => { setRef('HEAD'); setSelected(''); setPage({ offset: 0 }); }}>返回当前 HEAD 历史</button>}
     <p>远端分支显示上次获取的历史。</p>
     <button disabled={loading} onClick={() => { setSelected(''); setPage({ offset: 0 }); }}>刷新历史</button>
     {loading && <p role="status">正在读取提交…</p>}

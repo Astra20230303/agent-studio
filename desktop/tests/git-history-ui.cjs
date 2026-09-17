@@ -10,6 +10,7 @@ const assert = require('node:assert/strict');
    window.desktop={listModels:async()=>({ok:true,models:['test']}), workspaceGit:async input=>{
     window.__calls.push(input);
     if(input.action==='status')return {ok:true,result:{root:'D:/repo',branch:'main',files:[]}};
+    if(input.action==='history'&&window.__deletedBranch&&input.ref!=='HEAD')return {ok:false,error:'分支不存在，请刷新历史'};
     if(input.action==='history')return {ok:true,result:{refs:['refs/heads/feature','refs/remotes/origin/review'],anchor:'a'.repeat(40),commits:[{id:(input.offset?'b':'a').repeat(40),subject:input.ref==='refs/heads/feature'?'feature tip':input.ref==='refs/remotes/origin/review'?'remote tip':input.offset?'older':'latest',author:'Tester',date:'2026-09-18'}],hasMore:!input.offset}};
     if(window.__failDetail){window.__failDetail=false;return {ok:false,error:'详情暂时不可用'};}
     if(window.__delayDetail)await new Promise(resolve=>setTimeout(resolve,500));
@@ -47,6 +48,12 @@ const assert = require('node:assert/strict');
   await page.getByRole('combobox',{name:'历史分支',exact:true}).selectOption('refs/remotes/origin/review');
   await page.getByRole('button',{name:'aaaaaaaa · remote tip',exact:true}).waitFor();
   assert.ok(await page.evaluate(()=>window.__calls.some(c=>c.ref==='refs/remotes/origin/review'&&c.offset===0&&!c.anchor)));
+  await page.evaluate(()=>{window.__deletedBranch=true;});
+  await page.getByRole('button',{name:'刷新历史',exact:true}).click();
+  await page.getByText('分支不存在，请刷新历史',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'返回当前 HEAD 历史',exact:true}).click();
+  await page.getByRole('button',{name:'aaaaaaaa · latest',exact:true}).waitFor();
+  assert.equal(await page.getByRole('combobox',{name:'历史分支',exact:true}).inputValue(),'HEAD');
   console.log('PASS: Git history navigation, fixed pagination, escaped commit detail');
  } finally {await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -1016,3 +1016,6 @@ subsequent pages retain their immutable commit anchor. The backend accepts only
 HEAD or an exact enumerated branch ref. Real repository tests verify divergent
 branch histories and unchanged HEAD/worktree; browser checks cover both branch
 types and pagination reset. Remote history explicitly reflects the last fetch.
+Post-commit acceptance deletes a selected branch externally and verifies an
+explicit return-to-HEAD control recovers history without closing the panel.
+Real Git and browser failure/recovery checks pass, as does the production build.

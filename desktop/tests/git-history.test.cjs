@@ -30,6 +30,9 @@ test('history paginates a fixed snapshot and shows patches without changing work
    assert.equal(branch.commits.length,1);
    assert.equal(branch.commits[0].subject,'初始提交');
   }
+  git('branch','-D','feature/history');
+  await assert.rejects(read({action:'history',ref:'refs/heads/feature/history'}),/分支不存在/);
+  assert.equal((await read({action:'history'})).commits[0].subject,'new head');
   await assert.rejects(read({action:'history',ref:'HEAD~1'}));
   await assert.rejects(read({action:'history',ref:'--all'}));
   assert.equal(git('rev-parse','HEAD'),before);
