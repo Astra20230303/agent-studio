@@ -596,3 +596,6 @@ Build, browser and real-repository tests pass different upstream branch names,
 successful updates, already-current results, stale branch rejection, dirty-file
 protection and divergence rejection without rewriting commits. Merge/rebase and
 conflict-resolution workflows remain pending.
+Post-commit real-repository acceptance also verifies missing-upstream and detached
+HEAD rejection and preservation of an unrelated staged file during a successful
+fast-forward. All checks pass without additional product changes.
