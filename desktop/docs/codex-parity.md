@@ -1190,3 +1190,14 @@ passes. This remains a custom Markdown renderer, not full CommonMark/GFM parity.
 Post-commit acceptance retains table body rows without pipe delimiters and ends
 the table before a following heading/list/quote block. A heading containing a pipe
 is no longer swallowed as a table row. Narrow browser regression and build pass.
+
+## Structured Markdown messages
+
+Assistant messages now use the pinned marked lexer and React token rendering,
+replacing the custom line parser. Semantic headings, nested ordered/unordered
+lists, disabled task checkboxes, blockquotes, rules, reference links and GFM tables
+are supported. Existing ArtifactLink and CodeBlock components still handle links,
+images and code copy. Raw HTML is rendered as text, never injected into the DOM;
+entities decode in prose while inline/fenced code stays literal. Browser tests
+cover rich structures and inert scripts; prior narrow table acceptance and build
+pass. The obsolete custom table parser and its isolated test were removed.

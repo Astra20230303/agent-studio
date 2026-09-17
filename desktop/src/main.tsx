@@ -7,8 +7,7 @@ import { sandboxSnapshot, subscribeSandbox } from './windowsSandbox';
 import { WindowsSandboxSettings } from './WindowsSandboxSettings';
 import { PermissionSettings, permissionOptions } from './PermissionSettings';
 import { ConversationFind } from './ConversationFind';
-import { CodeBlock } from './CodeBlock';
-import { tableCells, isTableDivider } from './markdownTable';
+import { MarkdownMessage } from './MarkdownMessage';
 import { NotificationSettings } from './NotificationSettings';
 import { useTheme } from './useTheme';
 import { selectNotifiedThread } from './notificationNavigation';
@@ -38,7 +37,7 @@ import type { UserAnswers } from './UserInputDialog';
 import { RemoteDesktopPanel } from './RemoteDesktopPanel';
 import { RemoteBrowser } from './RemoteBrowser';
 import { Globe } from 'lucide-react';
-import { Fragment, StrictMode, Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { StrictMode, Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { appendMessage, automaticThreadTitle, createThread, ensureThreadTitle, loadState, saveState } from './store';
@@ -543,82 +542,6 @@ function App() {
 
 function modelId(model: string) { return model.split(' · ')[0]; }
 
-function cleanAssistantText(value: string) { return replyText(value); }
-
-function inlineMarkdown(value: string) {
-  const parts = value.split(/(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|~~[^~]+~~|\[[^\]]+\]\((?:<[^>]+>|[^)]+)\))/g);
-  return parts.map((part, index) => {
-    if (part.startsWith('`') && part.endsWith('`')) return <code key={index}>{part.slice(1, -1)}</code>;
-    if ((part.startsWith('**') && part.endsWith('**')) || (part.startsWith('__') && part.endsWith('__'))) return <strong key={index}>{part.slice(2, -2)}</strong>;
-    if (part.startsWith('~~') && part.endsWith('~~')) return <del key={index}>{part.slice(2, -2)}</del>;
-    const link = part.match(/^\[([^\]]+)\]\((?:<([^>]+)>|([^)]+))\)$/);
-    if (link) return <ArtifactLink key={index} path={link[2] || link[3]} label={link[1]} />;
-    return <Fragment key={index}>{part}</Fragment>;
-  });
-}
-
-function MarkdownMessage({ content }: { content: string }) {
-  const text = cleanAssistantText(content);
-  const lines = text.split(/\r?\n/);
-  const blocks: ReactNode[] = [];
-  let paragraph: string[] = [];
-  let code: string[] | null = null;
-  let language = '';
-  let codeFence = '';
-  let table: string[][] | null = null;
-  let dividerIndex = -1;
-  let tableAlign: Array<'left' | 'center' | 'right' | undefined> = [];
-  const flushParagraph = () => { if (paragraph.length) { blocks.push(<p key={`p-${blocks.length}`}>{inlineMarkdown(paragraph.join(' '))}</p>); paragraph = []; } };
-  const flushCode = () => { if (code) { const source = code.join('\n'); blocks.push(<CodeBlock key={`code-${blocks.length}`} source={source} language={language} />); code = null; language = ''; codeFence = ''; } };
-  const flushTable = () => {
-    if (!table) return;
-    const rows = table;
-    blocks.push(<div className="md-table-wrap" role="region" aria-label="消息表格" tabIndex={0} key={`table-${blocks.length}`}><table className="md-table"><thead><tr>{rows[0]?.map((cell, i) => <th key={i} style={{ textAlign: tableAlign[i] }}>{inlineMarkdown(cell)}</th>)}</tr></thead><tbody>{rows.slice(1).map((row, rowIndex) => <tr key={rowIndex}>{rows[0].map((_, i) => <td key={i} style={{ textAlign: tableAlign[i] }}>{inlineMarkdown(row[i] || '')}</td>)}</tr>)}</tbody></table></div>);
-    table = null;
-    tableAlign = [];
-  };
-  lines.forEach((line, index) => {
-    if (index === dividerIndex) return;
-    const fence = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
-    if (code) {
-      if (fence && fence[1][0] === codeFence[0] && fence[1].length >= codeFence.length && !fence[2].trim()) flushCode();
-      else code.push(line);
-      return;
-    }
-    if (fence && !(fence[1][0] === '`' && fence[2].includes('`'))) { flushTable(); flushParagraph(); code = []; codeFence = fence[1]; language = fence[2].trim(); return; }
-    const image = line.match(/^!\[([^\]]*)\]\((?:<([^>]+)>|(.+))\)$/);
-    if (image) { flushTable(); flushParagraph(); blocks.push(<ArtifactLink key={`image-${index}`} path={image[2] || image[3]} label={image[1] || '预览'} preview />); return; }
-    if (!line.trim()) { flushTable(); flushParagraph(); return; }
-    const startsBlock = /^ {0,3}(?:#{1,6}(?:\s|$)|>|[-+*]\s|\d+[.)]\s)/.test(line) || /^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line);
-    if (table && startsBlock) flushTable();
-    if (table && !line.includes('|')) { table.push([line.trim()]); return; }
-    if (line.includes('|')) {
-      const cells = tableCells(line);
-      if (!table && cells.length > 0) {
-        const next = lines[index + 1];
-        if (next !== undefined && isTableDivider(next) && tableCells(next).length === cells.length) {
-          flushParagraph();
-          table = [cells]; dividerIndex = index + 1;
-          tableAlign = tableCells(next).map(cell => cell.startsWith(':') && cell.endsWith(':') ? 'center' : cell.endsWith(':') ? 'right' : cell.startsWith(':') ? 'left' : undefined);
-          return;
-        }
-      } else if (table) {
-        table.push(cells);
-        return;
-      }
-    }
-    if (table) flushTable();
-    const heading = line.match(/^\s*(#{1,3})\s+(.+)$/);
-    if (heading) { flushParagraph(); blocks.push(<div className={`md-heading md-h${heading[1].length}`} key={`h-${index}`}>{inlineMarkdown(heading[2])}</div>); return; }
-    const bullet = line.match(/^\s*[-*]\s+(.+)$/);
-    if (bullet) { flushParagraph(); blocks.push(<div className="md-list-item" key={`b-${index}`}><span>•</span><div>{inlineMarkdown(bullet[1])}</div></div>); return; }
-    const numbered = line.match(/^\s*(\d+)\.\s+(.+)$/);
-    if (numbered) { flushParagraph(); blocks.push(<div className="md-list-item" key={`n-${index}`}><span>{numbered[1]}.</span><div>{inlineMarkdown(numbered[2])}</div></div>); return; }
-    paragraph.push(line.trim());
-  });
-  flushCode(); flushTable(); flushParagraph();
-  return <div className="markdown-content">{blocks.length ? blocks : <p>{text}</p>}</div>;
-}
 
 function DeleteDialog({ thread, onCancel, onConfirm }: { thread?: DesktopState['threads'][number]; onCancel: () => void; onConfirm: () => void }) {
   if (!thread) return null;
