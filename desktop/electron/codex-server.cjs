@@ -1,3 +1,4 @@
+const { once } = require('node:events');
 const { spawn } = require('node:child_process');
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
@@ -110,7 +111,18 @@ class CodexServer {
   constructor(projectRoot, { dataRoot = require('./data-directory.cjs').dataDirectory(projectRoot), runtimeRoot = runtimeDirectory() } = {}) { this.projectRoot = projectRoot; this.dataRoot = dataRoot; this.runtimeRoot = runtimeRoot; this.rpc = null; this.child = null; this.adapter = null; }
 
   start() {
-    if (this.rpc) return this.rpc;
+    if (this.rpc) return Promise.resolve(this.rpc);
+    if (this.starting) return this.starting;
+    const controller = new AbortController();
+    this.startController = controller;
+    const pending = this.startInternal(controller.signal).finally(() => {
+      if (this.starting === pending) { this.starting = null; this.startController = null; }
+    });
+    this.starting = pending;
+    return pending;
+  }
+
+  async startInternal(signal) {
     const { readProvider } = require('./provider-config.cjs');
     const resolved = findCommand(this.projectRoot, this.runtimeRoot);
     const cache = this.dataRoot;
@@ -124,10 +136,13 @@ class CodexServer {
     fs.mkdirSync(env.CODEX_HOME, { recursive: true });
     ensureProjectConfig(env.CODEX_HOME, this.projectRoot, this.runtimeRoot);
     const catalog = compatibilityCatalog(this.projectRoot, env.CODEX_HOME, this.runtimeRoot);
-    this.adapter = startMiniMaxAdapter({ apiKey: () => readProvider().apiKey, upstream: () => readProvider().baseUrl, onError: error => this.rpc?.emit('stderr', `Provider adapter error: ${error.message}`) });
+    const adapter = startMiniMaxAdapter({ port: 0, apiKey: () => readProvider().apiKey, upstream: () => readProvider().baseUrl, onError: error => this.rpc?.emit('stderr', `Provider adapter error: ${error.message}`) });
+    this.adapter = adapter;
+    try { await once(adapter, 'listening', { signal }); signal.throwIfAborted(); }
+    catch (error) { adapter.close(); adapter.closeAllConnections(); if (this.adapter === adapter) this.adapter = null; throw error; }
     // Hosted web_search is unavailable through MiniMax Chat Completions. Felix
     // exposes an equivalent local MCP tool backed by public RSS search feeds.
-    const providerSettings = ['model_providers.minimax.name="Felix Provider"', 'model_providers.minimax.wire_api="responses"', 'model_providers.minimax.env_key="MINIMAX_API_KEY"', 'model_providers.minimax.base_url="http://127.0.0.1:15821/v1"'];
+    const providerSettings = ['model_providers.minimax.name="Felix Provider"', 'model_providers.minimax.wire_api="responses"', 'model_providers.minimax.env_key="MINIMAX_API_KEY"', `model_providers.minimax.base_url="http://127.0.0.1:${adapter.address().port}/v1"`];
     this.child = spawn(resolved.command, [...resolved.args, ...providerSettings.flatMap(setting => ['-c', setting]), '-c', `model_catalog_json=${tomlString(catalog)}`, '-c', 'web_search="disabled"', '-c', 'features.responses_websockets=false', '-c', 'features.responses_websockets_v2=false', 'app-server', '--stdio'], {
       cwd: this.projectRoot, env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true
     });
@@ -135,9 +150,8 @@ class CodexServer {
     this.rpc.command = resolved.command;
     const rpc = this.rpc;
     const child = this.child;
-    const adapter = this.adapter;
     rpc.on('closed', () => {
-      adapter.close();
+      adapter.close(); adapter.closeAllConnections();
       if (!child.killed) { try { child.kill(); } catch {} }
       if (this.rpc === rpc) { this.rpc = null; this.child = null; this.adapter = null; }
     });
@@ -145,7 +159,7 @@ class CodexServer {
     return this.rpc;
   }
 
-  stop() { if (this.rpc) this.rpc.close(); if (this.adapter) this.adapter.close(); this.rpc = null; this.child = null; this.adapter = null; }
+  stop() { this.startController?.abort(); this.starting = null; this.startController = null; if (this.rpc) this.rpc.close(); if (this.adapter) { this.adapter.close(); this.adapter.closeAllConnections(); } this.rpc = null; this.child = null; this.adapter = null; }
 }
 
 module.exports = { CodexServer, findCommand, ensureProjectConfig, compatibilityCatalog };

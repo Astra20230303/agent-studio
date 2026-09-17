@@ -89,9 +89,9 @@ function wireRpc(rpc) {
   rpc.on('closed', error => sendToWindow('codex:closed', { message: error?.message || String(error) }));
 }
 
-function getRpc() {
+async function getRpc() {
   if (quitting) throw new Error('Desktop is shutting down');
-  const rpc = codex.start();
+  const rpc = await codex.start();
   if (!rpc.__wired) { rpc.__wired = true; wireRpc(rpc); }
   return rpc;
 }
@@ -211,8 +211,8 @@ ipcMain.handle('tasks:cancel', (_event, { id }) => { try { scheduler.cancel(id);
 ipcMain.handle('tasks:delete', (_event, { id }) => { try { scheduler.remove(id); return { ok: true }; } catch (error) { return { ok: false, error: error.message }; } });
 ipcMain.handle('tasks:detail', (_event, { id }) => { try { return { ok: true, task: scheduler.detail(id) }; } catch (error) { return { ok: false, error: error.message }; } });
 
-ipcMain.handle('codex:connect', () => {
-  try { return { ok: true, command: getRpc().command, projectRoot }; }
+ipcMain.handle('codex:connect', async () => {
+  try { return { ok: true, command: (await getRpc()).command, projectRoot }; }
   catch (error) { return { ok: false, error: error?.message || String(error), projectRoot }; }
 });
 
@@ -220,17 +220,17 @@ ipcMain.handle('codex:request', async (_event, { method, params }) => {
   if (method === 'turn/start' && !readProvider().apiKey?.trim()) {
     return { ok: false, error: { message: 'Missing environment variable: MINIMAX_API_KEY', code: 'missing_api_key' } };
   }
-  try { return { ok: true, result: await getRpc().request(method, params || {}) }; }
+  try { return { ok: true, result: await (await getRpc()).request(method, params || {}) }; }
   catch (error) { return { ok: false, error: { message: error?.message || String(error), code: error?.code, data: error?.data } }; }
 });
 
-ipcMain.handle('codex:notify', (_event, { method, params }) => {
-  try { getRpc().notify(method, params || {}); return { ok: true }; }
+ipcMain.handle('codex:notify', async (_event, { method, params }) => {
+  try { (await getRpc()).notify(method, params || {}); return { ok: true }; }
   catch (error) { return { ok: false, error: error?.message || String(error) }; }
 });
 
-ipcMain.handle('codex:respond', (_event, { id, result, error }) => {
-  try { getRpc().respond(id, result, error); return { ok: true }; }
+ipcMain.handle('codex:respond', async (_event, { id, result, error }) => {
+  try { (await getRpc()).respond(id, result, error); return { ok: true }; }
   catch (err) { return { ok: false, error: err?.message || String(err) }; }
 });
 

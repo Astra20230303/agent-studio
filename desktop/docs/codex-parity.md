@@ -1596,3 +1596,12 @@ the UI after restart. This passes with danger-full-access; read-only Windows
 execution was rejected by app-server policy and is not claimed as supported by
 this test. The model endpoint is controlled, so this proves integration rather
 than hosted model quality. Artifact: felix-desktop-provider-fixed.
+
+## Independent interactive adapter ports
+
+Plan and delivery: interactive startup requests an OS-assigned loopback port,
+waits for listening and supplies the actual endpoint to app-server. Concurrent
+start calls share one promise; stop aborts pending startup and closes active
+adapter connections. Main-process IPC awaits startup. Real app-server lifecycle
+tests verify two profiles use distinct ports, both initialize/list models,
+pending startup cancels, and stopping/restarting one leaves the other running.
