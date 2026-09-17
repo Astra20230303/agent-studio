@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { ToolActivity } from './domain';
 import './artifacts.css';
 import { messageLinkKind } from './messageLink';
@@ -7,15 +7,17 @@ export function ArtifactLink({ path, label, preview = false, children }: { path:
   const [file, setFile] = useState<{ name: string; data: string; image: boolean }>();
   const [error, setError] = useState('');
   const kind = messageLinkKind(path);
+  const version = useRef(0);
   useEffect(() => {
-    if (kind !== 'file') return;
-    let active = true;
+    version.current++;
     setFile(undefined); setError('');
+    if (kind !== 'file') return () => { version.current++; };
+    let active = true;
     window.desktop?.artifact?.({ path, action: 'read' }).then(result => {
       if (!active) return;
       if (result?.ok) setFile(result.result); else setError(result?.error || '无法读取文件');
     }).catch(error => { if (active) setError(String(error)); });
-    return () => { active = false; };
+    return () => { active = false; version.current++; };
   }, [path, kind]);
   if (kind === 'unsupported') return <span title={`不支持的链接：${path}`}>{children || label}</span>;
   if (kind === 'anchor') return <><a href={path} onClick={event => {
@@ -29,7 +31,8 @@ export function ArtifactLink({ path, label, preview = false, children }: { path:
   }}>{children || label}</a>{error && <small role="status">{error}</small>}</>;
   if (kind === 'web') return preview ? <img className="artifact-image" src={path} alt={label} /> : <><a href={path} target="_blank" rel="noreferrer" onClick={event => {
     if (!window.desktop?.openExternal) return;
-    event.preventDefault(); setError(''); void window.desktop.openExternal(path).catch(() => setError('无法打开链接，请重试'));
+    event.preventDefault(); setError(''); const requestVersion = version.current;
+    void window.desktop.openExternal(path).catch(() => { if (requestVersion === version.current) setError('无法打开链接，请重试'); });
   }}>{children || label}</a>{error && <small role="status">{error}</small>}</>;
   return <span className="artifact-link">
     {file?.image && (preview || !/下载|download/i.test(label)) && <img className="artifact-image" src={file.data} alt={label} />}

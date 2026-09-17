@@ -1215,3 +1215,7 @@ reads; unsupported schemes (including mailto) remain readable non-clickable text
 Credential-bearing web URLs are not activated. Unit/browser checks cover link
 classification, scoped heading focus, missing anchors, external open failure/retry
 and absence of artifact reads for unsupported links. Production build passes.
+Post-commit acceptance clears state when a rendered link target changes and ignores
+late external-open failures belonging to the old target. A browser component
+fixture holds the old request, changes the URL and rejects the old request to
+verify no stale failure appears. Rich message regression and production build pass.

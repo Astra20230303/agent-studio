@@ -27,5 +27,21 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  assert.equal(await page.getByText('无法打开链接，请重试',{exact:true}).count(),0);
  assert.deepEqual(await page.evaluate(()=>window.__artifactReads),[]);
  assert.equal(await page.getByRole('link',{name:'Email',exact:true}).count(),0);
+ await page.evaluate(async()=>{
+   const {default:React}=await import('/node_modules/.vite/deps/react.js');
+   const {default:ReactDOM}=await import('/node_modules/.vite/deps/react-dom_client.js');
+   const {ArtifactLink}=await import('/src/Artifacts.tsx');
+   const host=document.createElement('div');host.id='link-race-test';document.body.appendChild(host);
+   const root=ReactDOM.createRoot(host);
+   window.__renderLink=path=>root.render(React.createElement(ArtifactLink,{path,label:'Changing link'}));
+   window.desktop.openExternal=()=>new Promise((resolve,reject)=>{window.__rejectOld=()=>reject(Error('old failure'));});
+   window.__renderLink('https://example.com/old');
+ });
+ const changing=page.locator('#link-race-test');
+ await changing.getByRole('link',{name:'Changing link',exact:true}).click();
+ await page.evaluate(()=>window.__renderLink('https://example.com/new'));
+ await page.waitForFunction(()=>document.querySelector('#link-race-test a')?.getAttribute('href')==='https://example.com/new');
+ await page.evaluate(()=>window.__rejectOld());
+ assert.equal(await changing.getByText('无法打开链接，请重试',{exact:true}).count(),0);
  console.log('PASS: semantic headings, nested lists, tasks, quotes, references, entities and inert HTML');
 }finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});
