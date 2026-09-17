@@ -30,7 +30,8 @@ export async function setupWindowsSandbox(mode: 'elevated' | 'unelevated', cwd?:
   const finish = (error?: string) => {
     if (settled || token !== generation) return;
     settled = true; offNotification(); offClosed();
-    publish({ busy: false, status: 'unknown', error: error || '', notice: error ? '' : '沙箱设置已完成。重新连接服务后刷新状态；已有会话权限请单独核对。' });
+    publish({ busy: false, status: 'unknown', error: error || '', notice: error ? '' : '沙箱设置已完成；已有会话权限请单独核对。' });
+    if (!error) void checkWindowsSandbox();
   };
   offNotification = bridge.onNotification((event: any) => {
     if (event.method === 'windowsSandbox/setupCompleted' && event.params?.mode === mode) finish(event.params.success === true ? undefined : event.params.error || '沙箱设置失败');

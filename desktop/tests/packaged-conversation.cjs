@@ -52,16 +52,28 @@ const path = require('node:path');
     assert.equal(models.ok, true); assert.ok(models.result.data.length);
     const provider = await page.evaluate(baseUrl => window.desktop.saveProvider({name:'Local test',baseUrl,apiKey:'local-test',activate:true,model:'MiniMax-M2.1'}), `http://127.0.0.1:${server.address().port}/v1`);
     assert.equal(provider.ok,true,JSON.stringify(provider));
-    const result = await page.evaluate(async cwd => {
+    const sandbox = process.env.FELIX_TEST_SANDBOX || 'danger-full-access';
+    if (sandbox !== 'danger-full-access') {
+      const setup = await page.evaluate(async cwd => {
+        const completed = new Promise(resolve => {
+          const off = window.codex.onNotification(event => { if (event.method === 'windowsSandbox/setupCompleted') { off(); resolve(event.params); } });
+        });
+        const result = await window.codex.request('windowsSandbox/setupStart', { mode: 'unelevated', cwd });
+        if (!result.ok) throw Error(JSON.stringify(result.error));
+        return completed;
+      }, profile);
+      assert.equal(setup.success, true, JSON.stringify(setup));
+    }
+    const result = await page.evaluate(async ({cwd, sandbox}) => {
       window.__completed = null;
       window.codex.onNotification(event => { if(event.method === 'turn/completed') window.__completed = event.params.turn; });
-      const created = await window.codex.request('thread/start',{cwd,model:'MiniMax-M2.1',modelProvider:'minimax',approvalPolicy:'never',sandbox:'danger-full-access'});
+      const created = await window.codex.request('thread/start',{cwd,model:'MiniMax-M2.1',modelProvider:'minimax',approvalPolicy:'never',sandbox});
       if(!created.ok) throw Error(JSON.stringify(created.error));
       const threadId=created.result.thread.id;
       const turn=await window.codex.request('turn/start',{threadId,input:[{type:'text',text:'Print the packaged test marker and report it.'}]});
       if(!turn.ok) throw Error(JSON.stringify(turn.error));
       return threadId;
-    },profile);
+    },{cwd:profile,sandbox});
     await page.waitForFunction(() => window.__completed, {timeout:30000});
     if(upstreamError) throw upstreamError;
     const completed = await page.evaluate(() => window.__completed);

@@ -1610,3 +1610,14 @@ port 15821 with an unrelated HTTP service, and repeats real local-provider tool
 execution plus UI history restoration after restart. The test passes with the
 dynamic-port artifact; provider isolation no longer depends on that port being
 free. Existing full-access test limitations still apply.
+
+## Packaged read-only conversation after sandbox setup
+
+Investigation: the earlier read-only failure used a fresh, unconfigured Windows
+sandbox. Packaged acceptance now optionally runs windowsSandbox/setupStart in
+unelevated mode before creating the read-only thread. With FELIX_TEST_SANDBOX=
+read-only, actual Get-Content execution, tool result and restored conversation
+all pass. Sandbox settings now automatically query readiness after successful
+setup instead of remaining unknown and requiring manual refresh. Browser setup
+failure/retry/early completion checks and production build pass. This does not
+establish elevated sandbox provisioning or network isolation.
