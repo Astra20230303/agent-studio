@@ -46,13 +46,14 @@ function activateProvider(id) {
 
 function saveProvider(input) {
   const baseUrl = providerUrl(input.baseUrl);
+  if (input.manualModel && (typeof input.model !== 'string' || !input.model.trim() || /[\r\n\0]/.test(input.model))) throw new Error('请填写有效的模型 ID');
   const apiKey = providerCredentials({ id: input.id, baseUrl, apiKey: input.apiKey }).apiKey;
   if (!apiKey && !isLocalProvider(baseUrl)) throw new Error('请填写 API Key');
   if (apiKey && !safeStorage.isEncryptionAvailable()) throw new Error('系统密钥加密不可用');
   const registry = readRegistry();
   const id = input.id || require('node:crypto').randomUUID();
   if (input.id && !registry.providers.some(item => item.id === id)) throw new Error('Provider 不存在');
-  const saved = { id, baseUrl, name: String(input.name || 'Custom'), model: String(input.model || ''), secret: apiKey ? safeStorage.encryptString(apiKey).toString('base64') : undefined };
+  const saved = { id, baseUrl, name: String(input.name || 'Custom'), model: String(input.model || '').trim(), manualModel: input.manualModel === true, secret: apiKey ? safeStorage.encryptString(apiKey).toString('base64') : undefined };
   registry.providers = registry.providers.filter(item => item.id !== id).concat(saved);
   if (input.activate) registry.activeId = id;
   writeRegistry(registry);

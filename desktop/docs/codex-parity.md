@@ -1671,3 +1671,12 @@ Provider deletion post-commit acceptance: the full settings UI verifies cancella
 sends no deletion, storage errors retain the item/editor and permit retry, active
 Provider deletion stays disabled, and successful deletion clears the selected
 editor. Delete uses a labelled Lucide icon. Browser acceptance and build pass.
+
+## Manual Provider model IDs
+
+Plan and delivery: Provider settings can explicitly use a manual model ID when
+the service omits model listing. Saved manual Providers supply their configured
+ID to the app catalog without a /models request. Manual IDs are trimmed and
+validated; automatic mode continues requiring a fetched selection. The UI states
+that saving does not validate inference availability. Browser 404/manual-save/
+edit/mode-switch coverage, registry regression and production build pass.

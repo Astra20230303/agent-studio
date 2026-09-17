@@ -684,11 +684,11 @@ function SettingsWorkspace({ serviceControl, state, update, toast, onBack }: { s
 }
 
 function ProviderSettings({ state, update, toast }: { state: DesktopState; update: (fn: (next: DesktopState) => void) => void; toast: (text: string) => void }) {
-  type ProviderSummary = { id: string; name: string; baseUrl: string; model: string; enabled: boolean; keyConfigured: boolean; authRequired?: boolean };
+  type ProviderSummary = { id: string; name: string; baseUrl: string; model: string; enabled: boolean; keyConfigured: boolean; authRequired?: boolean; manualModel?: boolean };
   const [providers, setProviders] = useState<ProviderSummary[]>([]);
   const [deleting, setDeleting] = useState<ProviderSummary>();
   const [deleteError, setDeleteError] = useState('');
-  const [draft, setDraft] = useState({ id: '', name: 'RVCompute', baseUrl: 'https://api.rvcompute.com:60000/v1', apiKey: '', model: '' });
+  const [draft, setDraft] = useState({ id: '', name: 'RVCompute', baseUrl: 'https://api.rvcompute.com:60000/v1', apiKey: '', model: '', manualModel: false });
   const reload = async () => { setProviders(await window.desktop?.listProviders?.() || []); };
   useEffect(() => { void reload().catch(() => toast('无法读取 Provider 配置')); }, []);
   const [saving, setSaving] = useState(false);
@@ -708,18 +708,19 @@ function ProviderSettings({ state, update, toast }: { state: DesktopState; updat
       const result = await window.desktop?.listModels?.({ id: draft.id, baseUrl: draft.baseUrl, apiKey: draft.apiKey });
       if (!result?.ok || !result.models?.length) throw new Error(result?.error || '请在桌面应用中连接模型服务');
       setModels(result.models);
-      setDraft(current => ({ ...current, model: result.models.includes(current.model) ? current.model : '' }));
+      setDraft(current => ({ ...current, model: current.manualModel || result.models.includes(current.model) ? current.model : '' }));
     } catch (error) { setConnectionError(error instanceof Error ? error.message : '连接失败'); }
     finally { setConnecting(false); }
   };
+  const validModel = draft.manualModel ? Boolean(draft.model.trim()) && !/[\r\n\0]/.test(draft.model) : models.includes(draft.model);
   const add = async (activate: boolean) => {
     if (saving) return;
-    if (!draft.name.trim() || !models.includes(draft.model)) return toast('请连接服务并选择模型');
+    if (!draft.name.trim() || !validModel) return toast('请选择模型或填写手动模型 ID');
     setSaving(true);
     try {
-      const result = await window.desktop?.saveProvider?.({ ...draft, activate });
+      const result = await window.desktop?.saveProvider?.({ ...draft, model: draft.model.trim(), activate });
       if (!result?.ok) throw new Error(result?.error || '请在桌面应用中配置 Provider');
-      if (activate) { update(next => { next.model = draft.model; }); window.dispatchEvent(new Event('provider-changed')); }
+      if (activate) { update(next => { next.model = draft.model.trim(); }); window.dispatchEvent(new Event('provider-changed')); }
       setDraft({ ...draft, id: result.id || draft.id, apiKey: '' });
       await reload();
       toast(activate ? `已启用模型：${draft.model}` : '渠道已保存');
@@ -744,7 +745,7 @@ function ProviderSettings({ state, update, toast }: { state: DesktopState; updat
     try {
       const result = await window.desktop?.deleteProvider?.(deleting.id);
       if (!result?.ok) throw new Error(result?.error || '删除渠道失败');
-      if (draft.id === deleting.id) { setDraft({ id: '', name: '', baseUrl: '', apiKey: '', model: '' }); setModels([]); setConnectionError(''); }
+      if (draft.id === deleting.id) { setDraft({ id: '', name: '', baseUrl: '', apiKey: '', model: '', manualModel: false }); setModels([]); setConnectionError(''); }
       setDeleting(undefined);
       await reload();
       toast('渠道及其已保存密钥已删除');
@@ -755,10 +756,10 @@ function ProviderSettings({ state, update, toast }: { state: DesktopState; updat
     {deleting && <section role="alert" aria-label="确认删除渠道"><p>删除渠道“{deleting.name}”？其已保存的密钥也会移除。</p><button disabled={saving} onClick={() => { setDeleting(undefined); setDeleteError(''); }}>取消删除</button><button disabled={saving} onClick={() => void remove()}>确认删除渠道</button>{deleteError && <p>{deleteError}</p>}</section>}
     {providers.map(provider => <div className="provider-item" key={provider.id}>
       <div><b>{provider.name}{provider.enabled ? ' · 当前使用' : ''}</b><small>{provider.baseUrl}</small><small>{provider.model || '未选择默认模型'} · {provider.keyConfigured ? '密钥已配置' : provider.authRequired === false ? '本机服务，无密钥' : '待配置密钥'}</small></div>
-      <div><button disabled={saving || connecting} onClick={() => { setDraft({ id: provider.id, name: provider.name, baseUrl: provider.baseUrl, model: provider.model, apiKey: '' }); setModels([]); setConnectionError(''); }}>编辑</button>
+      <div><button disabled={saving || connecting} onClick={() => { setDraft({ id: provider.id, name: provider.name, baseUrl: provider.baseUrl, model: provider.model, apiKey: '', manualModel: provider.manualModel === true }); setModels([]); setConnectionError(''); }}>编辑</button>
       <button disabled={saving || connecting || provider.enabled} aria-label={`删除渠道 ${provider.name}`} title={provider.enabled ? '请先启用其他渠道' : '删除渠道和已保存密钥'} onClick={() => { setDeleting(provider); setDeleteError(''); }}><Trash2 size={14} /></button><button disabled={saving || connecting || provider.enabled || (!provider.keyConfigured && provider.authRequired !== false)} onClick={() => void activate(provider)}>启用</button></div>
     </div>)}
-    <button disabled={saving || connecting} onClick={() => { setDraft({ id: '', name: '', baseUrl: 'https://api.rvcompute.com:60000/v1', apiKey: '', model: '' }); setModels([]); setConnectionError(''); }}><Plus size={14} /> 新增渠道</button>
+    <button disabled={saving || connecting} onClick={() => { setDraft({ id: '', name: '', baseUrl: 'https://api.rvcompute.com:60000/v1', apiKey: '', model: '', manualModel: false }); setModels([]); setConnectionError(''); }}><Plus size={14} /> 新增渠道</button>
     <h3>{draft.id ? '编辑渠道' : '新增渠道'}</h3>
     <fieldset className="provider-form" disabled={saving || connecting} style={{ border: 0, padding: 0, minWidth: 0 }}>
       <input aria-label="Provider 名称" placeholder="Provider 名称" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} />
@@ -766,7 +767,9 @@ function ProviderSettings({ state, update, toast }: { state: DesktopState; updat
       <input aria-label="API Key" placeholder="API Key（本机服务可留空；同一服务保留已保存密钥）" type="password" autoComplete="off" value={draft.apiKey} onChange={e => changeConnection('apiKey', e.target.value)} />
       <button type="button" onClick={() => void connect()}><RefreshCcw size={14} /> {connecting ? '正在连接…' : '连接并获取模型'}</button>
       {connectionError && <p role="alert" style={{ gridColumn: '1 / -1' }}>{connectionError}</p>}
-      {models.length > 0 && <>
+      <label style={{ gridColumn: '1 / -1' }}><input type="checkbox" checked={draft.manualModel} onChange={event => setDraft(current => ({ ...current, manualModel: event.target.checked }))} />手动填写模型 ID</label>
+      {draft.manualModel && <><input aria-label="手动模型 ID" placeholder="服务提供的完整模型 ID" value={draft.model} onChange={event => setDraft(current => ({ ...current, model: event.target.value }))} /><p style={{ gridColumn: '1 / -1' }}>适用于不提供模型列表的服务。保存配置不会验证模型是否可用，发送消息时由服务端确认。</p></>}
+      {!draft.manualModel && models.length > 0 && <>
         <p role="status" style={{ gridColumn: '1 / -1' }}>连接成功 · 获取到 {models.length} 个模型</p>
         <label htmlFor="provider-model">模型</label>
         <select id="provider-model" value={draft.model} onChange={e => setDraft({ ...draft, model: e.target.value })} style={{ minWidth: 0, maxWidth: '100%' }}>
@@ -774,11 +777,11 @@ function ProviderSettings({ state, update, toast }: { state: DesktopState; updat
           {models.map(model => <option key={model} value={model}>{model}</option>)}
         </select>
       </>}
-      <button disabled={!models.includes(draft.model)} onClick={() => void add(false)}>保存渠道</button>
-      <button className="primary-button" disabled={!models.includes(draft.model)} onClick={() => void add(true)}>{saving ? '保存中…' : '保存并启用模型'}</button>
+      <button disabled={!validModel} onClick={() => void add(false)}>保存渠道</button>
+      <button className="primary-button" disabled={!validModel} onClick={() => void add(true)}>{saving ? '保存中…' : '保存并启用模型'}</button>
     </fieldset>
   </div>;
 }
 
-declare global { interface Window { desktop?: WindowFrameBridge & { platform?: string; saveTerminal?: (input: { filename: string; content: string }) => Promise<{ ok: boolean; canceled?: boolean; error?: string }>; saveConversation?: (input: { filename: string; content: string }) => Promise<{ ok: boolean; canceled?: boolean; error?: string }>;  openExternal?: (url: string) => Promise<void>; terminal?: import('./TerminalPanel').TerminalBridge; artifact?: (input: any) => Promise<any>; toggleMaximize: () => Promise<{ maximized?: boolean }>; minimize?: () => Promise<void>; close?: () => Promise<void>; providerStatus?: () => Promise<any>; saveProvider?: (input: { id?: string; activate?: boolean; name: string; baseUrl: string; apiKey: string; model: string }) => Promise<{ ok: boolean; id?: string; error?: string }>; listProviders?: () => Promise<any[]>; deleteProvider?: (id: string) => Promise<{ ok: boolean; error?: string }>; activateProvider?: (id: string) => Promise<{ ok: boolean; model?: string; error?: string }>; listModels?: (input?: { id?: string; baseUrl: string; apiKey: string }) => Promise<any>; workspaceGit?: (input: any) => Promise<any>; workspaceFile?: (input: { root: string; path: string; action: string; query?: string; edit?: { text: string; revision: string } }) => Promise<any>; pickProject?: () => Promise<import('./domain').Project | null>; getProjectRoot?: () => Promise<string>; pickFiles?: () => Promise<string[]>; readExtensionFile?: (path: string, kind: 'image' | 'skill') => Promise<any>; listTasks?: () => Promise<any>; saveTask?: (input: any) => Promise<any>; setTaskStatus?: (id: string, status: string) => Promise<any>; runTask?: (id: string) => Promise<any>; cancelTask?: (id: string) => Promise<any>; deleteTask?: (id: string) => Promise<any>; taskDetail?: (id: string) => Promise<any>; onTasksChanged?: (listener: (message?: { error?: string }) => void) => () => void }; codex?: any } }
+declare global { interface Window { desktop?: WindowFrameBridge & { platform?: string; saveTerminal?: (input: { filename: string; content: string }) => Promise<{ ok: boolean; canceled?: boolean; error?: string }>; saveConversation?: (input: { filename: string; content: string }) => Promise<{ ok: boolean; canceled?: boolean; error?: string }>;  openExternal?: (url: string) => Promise<void>; terminal?: import('./TerminalPanel').TerminalBridge; artifact?: (input: any) => Promise<any>; toggleMaximize: () => Promise<{ maximized?: boolean }>; minimize?: () => Promise<void>; close?: () => Promise<void>; providerStatus?: () => Promise<any>; saveProvider?: (input: { id?: string; activate?: boolean; manualModel?: boolean; name: string; baseUrl: string; apiKey: string; model: string }) => Promise<{ ok: boolean; id?: string; error?: string }>; listProviders?: () => Promise<any[]>; deleteProvider?: (id: string) => Promise<{ ok: boolean; error?: string }>; activateProvider?: (id: string) => Promise<{ ok: boolean; model?: string; error?: string }>; listModels?: (input?: { id?: string; baseUrl: string; apiKey: string }) => Promise<any>; workspaceGit?: (input: any) => Promise<any>; workspaceFile?: (input: { root: string; path: string; action: string; query?: string; edit?: { text: string; revision: string } }) => Promise<any>; pickProject?: () => Promise<import('./domain').Project | null>; getProjectRoot?: () => Promise<string>; pickFiles?: () => Promise<string[]>; readExtensionFile?: (path: string, kind: 'image' | 'skill') => Promise<any>; listTasks?: () => Promise<any>; saveTask?: (input: any) => Promise<any>; setTaskStatus?: (id: string, status: string) => Promise<any>; runTask?: (id: string) => Promise<any>; cancelTask?: (id: string) => Promise<any>; deleteTask?: (id: string) => Promise<any>; taskDetail?: (id: string) => Promise<any>; onTasksChanged?: (listener: (message?: { error?: string }) => void) => () => void }; codex?: any } }
 createRoot(document.getElementById('root')!).render(<StrictMode><WindowFrame><App /></WindowFrame></StrictMode>);

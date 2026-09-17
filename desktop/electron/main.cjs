@@ -171,7 +171,7 @@ ipcMain.handle('desktop:activate-provider', (_event, id) => {
   catch (error) { return { ok: false, error: error.message }; }
 });
 ipcMain.handle('desktop:list-models', async (_event, input) => {
-  try { return await listMiniMaxModels(providerCredentials(input)); }
+  try { const provider = providerCredentials(input); if (!input && provider.manualModel && provider.model) return { ok: true, models: [provider.model], manual: true }; return await listMiniMaxModels(provider); }
   catch (error) { return { ok: false, models: [], error: error.message }; }
 });
 ipcMain.handle('desktop:artifact', async (_event, input) => {
