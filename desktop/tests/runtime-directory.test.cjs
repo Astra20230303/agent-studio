@@ -31,11 +31,30 @@ test('relocated runtime initializes real app-server without a source tree', { ti
   for (const file of ['web-search-mcp.cjs', 'remote-desktop-mcp.cjs']) fs.copyFileSync(path.join(source, 'desktop/electron', file), path.join(bundle, 'electron', file));
   let child, rpc;
   try {
+    fs.writeFileSync(path.join(home, 'config.toml'), '[mcp_servers.custom]\ncommand = "custom-command"\n\n[mcp_servers.felix_remote_desktop]\ncommand = "old-node"\nargs = ["old-script"]\nenabled = false\nstartup_timeout_sec = 45\n');
     ensureProjectConfig(home, scratch, bundle);
     const catalog = compatibilityCatalog(scratch, home, bundle);
     const config = fs.readFileSync(path.join(home, 'config.toml'), 'utf8');
     assert.ok(config.includes(JSON.stringify(path.join(bundle, 'bin', 'node' + suffix))));
     assert.ok(!config.includes(JSON.stringify(source).slice(1, -1)));
+    assert.match(config, /command = "custom-command"/);
+    assert.match(config, /enabled = false/);
+    assert.match(config, /startup_timeout_sec = 45/);
+    assert.doesNotMatch(config, /old-node|old-script/);
+    ensureProjectConfig(home, scratch, bundle);
+    assert.equal(fs.readFileSync(path.join(home, 'config.toml'), 'utf8'), config);
+    for (const script of ['web-search-mcp.cjs', 'remote-desktop-mcp.cjs']) {
+      const bridge = spawn(path.join(bundle, 'bin', 'node' + suffix), [path.join(bundle, 'electron', script)], { cwd: scratch, windowsHide: true });
+      const bridgeRpc = new CodexRpc(bridge);
+      try {
+        const hello = await bridgeRpc.request('initialize', { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'runtime-test', version: '1' } });
+        assert.ok(hello.serverInfo.name);
+        const result = await bridgeRpc.request('tools/list', {});
+        assert.ok(result.tools.length > 0);
+      } finally {
+        const exit = once(bridge, 'exit'); bridgeRpc.close(); await exit;
+      }
+    }
     child = spawn(findCommand(scratch, bundle).command, ['-c', `model_catalog_json=${JSON.stringify(catalog)}`, 'app-server', '--stdio'], { cwd: scratch, env: { ...process.env, CODEX_HOME: home }, windowsHide: true });
     rpc = new CodexRpc(child);
     const result = await rpc.request('initialize', { clientInfo: { name: 'felix_runtime_test', version: '1' }, capabilities: { experimentalApi: true } });

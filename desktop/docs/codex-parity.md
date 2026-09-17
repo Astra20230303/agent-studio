@@ -1524,3 +1524,8 @@ and args update on relocation while other settings remain intact. Configuration
 regression, a copied real app-server initialize/model-list check, scheduled
 tool execution and production build pass. Runtime assembly and installer remain
 outstanding; the smoke test does not establish model response quality.
+Post-commit acceptance starts both copied MCP scripts with the copied Node binary
+and checks initialize/tools-list responses. Existing custom MCP commands, remote
+enabled=false and startup timeout survive managed path updates; repeating the
+update is byte-stable. All eight runtime/config/scheduled-run tests pass. This
+verifies bridge startup, not remote desktop actions or network search results.
