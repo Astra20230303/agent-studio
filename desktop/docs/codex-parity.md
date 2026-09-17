@@ -909,3 +909,12 @@ currently focuses the application without selecting the originating thread.
 Post-commit acceptance resets deduplication on a new RPC connection so reused
 request IDs can notify again, verifies write failures retain active preferences,
 and confirms OS delivery errors do not disrupt conversation event handling.
+
+## Notification conversation navigation
+
+Clicking a conversation notification now emits its thread ID through preload and
+selects that conversation in chat. Existing local records and drafts are reused;
+unknown IDs create one local entry and use normal server resume. Archive state
+is preserved. Build and browser bridge acceptance cover settings-to-chat routing,
+restoration, repeated clicks, retained drafts and one subscription under StrictMode.
+The native OS click itself remains outside this browser fixture's coverage.

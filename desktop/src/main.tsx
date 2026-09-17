@@ -7,6 +7,7 @@ import { PermissionSettings, permissionOptions } from './PermissionSettings';
 import { ConversationFind } from './ConversationFind';
 import { CodeBlock } from './CodeBlock';
 import { NotificationSettings } from './NotificationSettings';
+import { selectNotifiedThread } from './notificationNavigation';
 import { ConversationExport } from './ConversationExport';
 import { SettingsNavigation } from './SettingsNavigation';
 import { readThreadPermissions, permissionSummary } from './threadPermissions';
@@ -78,6 +79,14 @@ function App() {
   const [composerPlugins, setComposerPlugins] = useState<Plugin[]>([]);
   const [page, setPage] = useState<Page>('chat');
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  useEffect(() => {
+    const desktop = window.desktop as typeof window.desktop & { onOpenConversation?: (listener: (threadId: string) => void) => () => void };
+    return desktop?.onOpenConversation?.(threadId => {
+      if (typeof threadId !== 'string' || !threadId.trim()) return;
+      setState(previous => { const next = structuredClone(previous); selectNotifiedThread(next, threadId); return next; });
+      setComposerPlugins([]); setPage('chat'); setSidebarVisible(true);
+    });
+  }, []);
   const [browserOpen, setBrowserOpen] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
   const [gitOpen, setGitOpen] = useState(false);

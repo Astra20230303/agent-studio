@@ -42,10 +42,10 @@ const scheduler = new TaskScheduler({
 let mainWindow;
 const conversationNotifications = require('./conversation-notifications.cjs').createConversationNotifications(path.join(app.getPath('userData'), 'conversation-notifications.json'), {
   focused: () => Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused()),
-  show: ({ title, body }) => {
+  show: ({ title, body, threadId }) => {
     if (quitting || !Notification.isSupported()) return;
     const notification = new Notification({ title, body });
-    notification.on('click', () => { if (mainWindow && !mainWindow.isDestroyed()) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.show(); mainWindow.focus(); } });
+    notification.on('click', () => { if (mainWindow && !mainWindow.isDestroyed()) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.show(); mainWindow.focus(); if (typeof threadId === 'string' && threadId) sendToWindow('desktop:open-conversation', threadId); } });
     notification.show();
   },
 });
