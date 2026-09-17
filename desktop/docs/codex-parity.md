@@ -654,3 +654,9 @@ The real test now spawns a child, observes started/completed activities, resumes
 the child result and restores parent history. All 14 adapter tests pass. External
 provider reasoning quality and genuinely encrypted cross-provider histories are
 not established by this controlled test.
+Post-commit live acceptance now makes the parent call wait_agent and asserts the
+child result arrives in the parent's next model request with correct sender and
+recipient. It then waits for the parent turn to finish and verifies its final
+response in history. The full spawn/wait/result/summary round trip passes. A
+parent that already ended its turn is not immediately called again solely by
+the child completion notification in this fixture.

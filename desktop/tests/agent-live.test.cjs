@@ -15,11 +15,17 @@ test('real app-server spawns a child and preserves its lifecycle and result', { 
   const cache = path.join(root, '.project-cache/tmp'); fs.mkdirSync(cache, { recursive: true });
   const profile = fs.mkdtempSync(path.join(cache, 'agent-live-'));
   const events = []; let upstreamError; let childRequests = 0;
+  let deliverResult;
+  const delivered = new Promise(resolve => { deliverResult = resolve; });
   const model = http.createServer(async (req, res) => {
     try {
       let raw = ''; for await (const chunk of req) raw += chunk;
       const body = JSON.parse(raw);
       const child = body.messages.some(message => message.role === 'user' && JSON.stringify(message.content).includes('CHILD_ACCEPTANCE_TASK'));
+      if (!child) {
+        const result = body.messages.find(message => message.role === 'user' && JSON.stringify(message.content).includes('CHILD_ACCEPTANCE_RESULT'));
+        if (result) deliverResult(result.content);
+      }
       const spawned = body.messages.some(message => message.role === 'tool' && message.tool_call_id === 'spawn-acceptance');
       res.writeHead(200, { 'content-type': 'text/event-stream' });
       let delta; let finish_reason = 'stop';
@@ -28,6 +34,11 @@ test('real app-server spawns a child and preserves its lifecycle and result', { 
         const tool = body.tools.find(tool => /(^|__)spawn_agent$/.test(tool.function.name));
         assert.ok(tool, 'Spawn tool must be available');
         delta = { tool_calls: [{ index: 0, id: 'spawn-acceptance', type: 'function', function: { name: tool.function.name, arguments: JSON.stringify({ task_name: 'acceptance', message: 'CHILD_ACCEPTANCE_TASK: return a brief result.', fork_turns: 'none' }) } }] };
+        finish_reason = 'tool_calls';
+      } else if (!body.messages.some(message => message.role === 'tool' && message.tool_call_id === 'wait-acceptance')) {
+        const tool = body.tools.find(tool => /(^|__)wait_agent$/.test(tool.function.name));
+        assert.ok(tool, 'Wait tool must be available');
+        delta = { tool_calls: [{ index: 0, id: 'wait-acceptance', type: 'function', function: { name: tool.function.name, arguments: JSON.stringify({ timeout_ms: 10000 }) } }] };
         finish_reason = 'tool_calls';
       } else delta = { content: 'PARENT_ACCEPTANCE_RESULT' };
       res.end('data: ' + JSON.stringify({ choices: [{ delta, finish_reason }] }) + '\n\ndata: [DONE]\n\n');
@@ -43,16 +54,24 @@ test('real app-server spawns a child and preserves its lifecycle and result', { 
   try {
     await rpc.request('initialize', { clientInfo: { name: 'felix_agent_acceptance', version: '1' }, capabilities: { experimentalApi: true } }); rpc.notify('initialized', {});
     const { thread } = await rpc.request('thread/start', { cwd: profile, model: 'MiniMax-M2.1', modelProvider: 'minimax', approvalPolicy: 'never', sandbox: 'read-only' });
+    let finishParent;
+    const parentCompleted = new Promise(resolve => { finishParent = resolve; });
     const completed = new Promise((resolve, reject) => {
       rpc.once('closed', reject);
       rpc.on('notification', message => {
         events.push(message);
+        if (message.method === 'turn/completed' && message.params.threadId === thread.id) finishParent(message.params.turn);
         if (message.method === 'item/completed' && message.params.threadId === thread.id && message.params.item.type === 'subAgentActivity' && message.params.item.kind === 'completed') resolve(message.params.item);
       });
     });
     completed.catch(() => {});
     await rpc.request('turn/start', { threadId: thread.id, input: [{ type: 'text', text: 'Create one child task for the acceptance check.' }] });
     const activity = await completed;
+    const parentResult = await Promise.race([delivered, new Promise((_, reject) => rpc.once('closed', reject))]);
+    assert.match(parentResult, /Agent message from "\/root\/acceptance" to "\/root"/);
+    assert.match(parentResult, /CHILD_ACCEPTANCE_RESULT/);
+    const parentTurn = await Promise.race([parentCompleted, new Promise((_, reject) => rpc.once('closed', reject))]);
+    assert.equal(parentTurn.status, 'completed');
     if (upstreamError) throw upstreamError;
     assert.ok(childRequests > 0);
     assert.ok(activity.agentThreadId && activity.agentThreadId !== thread.id);
@@ -61,6 +80,7 @@ test('real app-server spawns a child and preserves its lifecycle and result', { 
     assert.ok(child.thread.turns.some(turn => turn.items.some(item => item.type === 'agentMessage' && item.text.includes('CHILD_ACCEPTANCE_RESULT'))));
     const history = await rpc.request('thread/items/list', { threadId: thread.id, sortDirection: 'asc', limit: 100 });
     const restored = restoreMessages(history.data, []);
+    assert.ok(restored.some(message => message.role === 'assistant' && message.content === 'PARENT_ACCEPTANCE_RESULT'));
     assert.ok(restored.some(message => message.tool?.subAgent?.kind === 'completed' && message.tool.subAgent.threadId === activity.agentThreadId));
     assert.ok(events.some(event => event.params?.item?.type === 'subAgentActivity' && event.params.item.kind === 'started'));
   } catch (error) { console.error('Child requests:', childRequests, 'Items:', JSON.stringify(events.filter(event => event.method === 'item/completed' || event.method === 'error').map(event => event.params))); throw upstreamError || error; }
