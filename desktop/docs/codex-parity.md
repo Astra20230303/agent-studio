@@ -1294,3 +1294,6 @@ restores it exactly, and keeps the stash on pop conflicts. Stale branch/HEAD
 checks prevent acting on a changed workspace. Two isolated repository tests, the
 stale-error browser acceptance, Git write/remote regressions and production build
 pass.
+Post-commit acceptance adds stash availability to Git status. Restore is now
+disabled when no stash exists, avoiding a late error; the empty-state browser
+check, two real-repository stash tests and production build pass.

@@ -157,7 +157,8 @@ async function workspaceGit(input) {
     const symbolic = (await git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).catch(() => '')).trim();
     const branch = symbolic || (await git(root, ['rev-parse', '--short', 'HEAD'])).trim();
     const remotes = (await git(root, ['remote'])).trim().split('\n').filter(Boolean);
-    return { root, branch, detached: !symbolic, remotes, ...await tracking(root), files: parseStatus(await git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all'])) };
+    const stashAvailable = Boolean((await git(root, ['stash', 'list', '--format=%gd']).catch(() => '')).trim());
+    return { root, branch, detached: !symbolic, remotes, stashAvailable, ...await tracking(root), files: parseStatus(await git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all'])) };
   }
   if (input.action === 'commit') {
     if ((await git(root, ['diff', '--name-only', '--diff-filter=U', '-z'])).length) throw Error('请先解决并暂存所有冲突文件');
