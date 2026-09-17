@@ -40,7 +40,7 @@ export function FileEditor({ root, path, initial, onClose, onSaved }: { root: st
   };
   return <dialog ref={dialog} aria-label="编辑工作区文件" className="file-editor" onKeyDown={event => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's' && !event.altKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); void save(); }
-  }} onCancel={event => { event.preventDefault(); close(); }}><h2>{path}</h2><p>Ctrl / ⌘ + S 保存；Tab 缩进，Shift+Tab 取消缩进；Ctrl / ⌘ + M 切换 Tab 焦点导航。</p><textarea ref={editor} aria-label="文件内容" onKeyDown={event => {
+  }} onCancel={event => { event.preventDefault(); close(); }}><h2>{path}</h2><p>编辑工作区：{root}</p><p>Ctrl / ⌘ + S 保存；Tab 缩进，Shift+Tab 取消缩进；Ctrl / ⌘ + M 切换 Tab 焦点导航。</p><textarea ref={editor} aria-label="文件内容" onKeyDown={event => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'm') { event.preventDefault(); setTabNavigation(value => !value); return; }
     if (event.key !== 'Tab' || tabNavigation || event.ctrlKey || event.metaKey || event.altKey || event.nativeEvent.isComposing || busy) return;
     event.preventDefault();

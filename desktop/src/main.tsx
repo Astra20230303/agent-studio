@@ -21,7 +21,8 @@ import { TurnQueue } from './TurnQueuePanel';
 import { PlanPanel } from './PlanPanel';
 import { workspaceFor } from './workspace';
 import { useAttachmentDraft } from './useAttachmentDraft';
-import { WorkspaceFiles } from './WorkspaceFiles';
+import { WorkspaceFiles, type FileEditSession, type FilePreviewUpdate } from './WorkspaceFiles';
+import { FileEditor } from './FileEditor';
 import { GitPanel } from './GitPanel';
 import { ApprovalPrompt } from './ApprovalPrompt';
 import { LazyMcpForm as McpForm } from './LazyMcpForm';
@@ -91,6 +92,8 @@ function App() {
   }, []);
   const [browserOpen, setBrowserOpen] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
+  const [fileEdit, setFileEdit] = useState<FileEditSession>();
+  const [filePreviewUpdate, setFilePreviewUpdate] = useState<FilePreviewUpdate>();
   const [gitOpen, setGitOpen] = useState(false);
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [terminalStarted, setTerminalStarted] = useState(false);
@@ -512,8 +515,9 @@ function App() {
       <RemoteBrowser open={browserOpen} onClose={() => setBrowserOpen(false)} />
       {terminalStarted && <Suspense fallback={null}><TerminalPanel cwd={workspaceFor(state, active)} open={terminalOpen} onClose={() => setTerminalOpen(false)} /></Suspense>}
       {gitOpen && <GitPanel onReview={text => { setInput(current => current ? `${current}\n\n${text}` : text); setPage('chat'); setGitOpen(false); }} key={workspaceFor(state, active) || 'none'} root={workspaceFor(state, active)} onClose={() => setGitOpen(false)} onWorktree={project => { update(next => { if (!next.projects.some(item => item.id === project.id)) next.projects.push(project); next.activeProjectId = project.id; const thread = createThread(next); thread.projectId = project.id; thread.cwd = project.path; }); setPage('chat'); setGitOpen(false); }} />}
-      {filesOpen && <WorkspaceFiles key={workspaceFor(state, active) || 'none'} root={workspaceFor(state, active)} onClose={() => setFilesOpen(false)} onAttach={path => setAttachments(current => [...new Set([...current, path])])} />}
+      {filesOpen && <WorkspaceFiles onEdit={setFileEdit} previewUpdate={filePreviewUpdate} key={workspaceFor(state, active) || 'none'} root={workspaceFor(state, active)} onClose={() => setFilesOpen(false)} onAttach={path => setAttachments(current => [...new Set([...current, path])])} />}
     </div>{notice && <div className="toast">{notice}</div>}{approval && <ApprovalDialog request={approval} onDecision={respondApproval} />}{deleteCandidate && <DeleteDialog thread={state.threads.find(item => item.id === deleteCandidate)} onCancel={() => setDeleteCandidate(undefined)} onConfirm={() => { const id = deleteCandidate; setDeleteCandidate(undefined); void performDelete(id); }} />}
+    {fileEdit && <FileEditor root={fileEdit.root} path={fileEdit.path} initial={fileEdit.initial} onClose={() => setFileEdit(undefined)} onSaved={preview => setFilePreviewUpdate({ root: fileEdit.root, path: fileEdit.path, preview })} />}
     {archivesOpen && <ArchivedThreads threads={state.threads} connected={codexStatus === 'connected'} onClose={() => setArchivesOpen(false)} onRestore={thread => update(next => { const existing = next.threads.find(item => item.id === thread.id || !!thread.remoteId && item.remoteId === thread.remoteId); if (existing) existing.archived = false; else next.threads.push({ ...thread, archived: false }); })} />}
   </div>;
 }

@@ -982,3 +982,12 @@ shortcut save using the current revision and line endings.
 Post-commit acceptance verifies newline-boundary selections, leading tabs/spaces,
 empty first lines and caret insertion. A delayed save confirms repeated Ctrl+S
 does not send a second write while the first request is pending.
+
+## File editor navigation isolation
+
+Editing sessions now live at application scope with the original workspace,
+relative path and revision captured when opened. Notifications that switch the
+active workspace no longer unmount the editor or retarget its save operation.
+The original workspace is displayed in the dialog; preview updates are scoped
+to the same root/path. Build and browser acceptance switch via the notification
+bridge during an unsaved edit, preserve its text and verify the write target.

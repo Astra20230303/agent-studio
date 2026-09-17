@@ -5,9 +5,9 @@ const assert = require('node:assert/strict');
   try {
     const page = await browser.newPage();
     await page.addInitScript(() => {
-      localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeProjectId: 'p', projects: [{ id: 'p', name: 'P', path: 'D:/P', git: {} }], threads: [] }));
+      localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeProjectId: 'p', projects: [{ id: 'p', name: 'P', path: 'D:/P', git: {} }], activeThreadId: 'original', threads: [{ id: 'original', remoteId: 'remote-original', cwd: 'D:/P', title: 'Original', messages: [], status: 'completed', updatedAt: '' }] }));
       window.__writes = []; window.__fail = true;
-      window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }), workspaceFile: async input => {
+      window.desktop = { onOpenConversation: fn => { window.__open = fn; return () => {}; }, listModels: async () => ({ ok: true, models: ['test'] }), workspaceFile: async input => {
         if (input.action === 'read' && window.__readFail) return { ok: false, error: 'Read failed' };
         if (input.action === 'read' && window.__latest) return { ok: true, result: window.__latest };
         if (input.action === 'write') { window.__writes.push(input); if (window.__hold) await new Promise(resolve => { window.__release = resolve; }); return window.__fail ? { ok: false, error: '文件已被外部修改' } : { ok: true, result: { text: input.edit.text, revision: 'new' } }; }
@@ -21,14 +21,20 @@ const assert = require('node:assert/strict');
     const editor = page.getByRole('textbox', { name: '文件内容' });
     assert.equal(await page.getByRole('button', { name: '保存文件', exact: true }).isDisabled(), true);
     await editor.fill('new 中文\nline');
+    await page.evaluate(() => window.__open('other-workspace-thread'));
+    assert.equal(await editor.inputValue(), 'new 中文\nline');
+    await page.getByText('编辑工作区：D:/P', { exact: true }).waitFor();
     await page.getByRole('button', { name: '保存文件', exact: true }).click();
     await page.getByRole('alert').filter({ hasText: '文件已被外部修改' }).waitFor();
     assert.equal(await editor.inputValue(), 'new 中文\nline');
     await page.evaluate(() => { window.__fail = false; });
     await page.getByRole('button', { name: '保存文件', exact: true }).click();
     await page.getByRole('dialog', { name: '编辑工作区文件' }).waitFor({ state: 'detached' });
-    assert.equal(await page.locator('.workspace-files pre').textContent(), 'new 中文\r\nline');
+    await page.evaluate(() => window.__open('remote-original'));
+    await page.getByRole('button', { name: '▧ file.txt', exact: true }).click();
+    await page.getByRole('button', { name: '编辑文件', exact: true }).waitFor();
     assert.deepEqual(await page.evaluate(() => window.__writes[0].edit), { text: 'new 中文\r\nline', revision: 'old' });
+    assert.equal(await page.evaluate(() => window.__writes[0].root), 'D:/P');
     await page.getByRole('button', { name: '编辑文件', exact: true }).click();
     await editor.fill('discard');
     page.once('dialog', dialog => dialog.dismiss());
