@@ -28,6 +28,16 @@ async function workspaceGit(input) {
   if (typeof input?.root !== 'string' || !path.isAbsolute(input.root)) throw Error('请选择工作区目录');
   const cwd = await fs.realpath(input.root);
   const root = (await git(cwd, ['rev-parse', '--show-toplevel'])).trim();
+  if (input.action === 'branches' || input.action === 'switch-branch') {
+    const branches = (await git(root, ['for-each-ref', '--format=%(refname:strip=2)', 'refs/heads/'])).trim().split('\n').filter(Boolean);
+    const current = (await git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).catch(() => '')).trim();
+    const head = (await git(root, ['rev-parse', '--verify', 'HEAD']).catch(() => '')).trim();
+    if (input.action === 'branches') return { branches, current, head };
+    if (typeof input.branch !== 'string' || !branches.includes(input.branch)) throw Error('本地分支不存在，请刷新分支列表');
+    if (input.expectedBranch !== current || input.expectedHead !== head) throw Error('当前分支或提交已变化，请刷新分支列表');
+    await git(root, ['switch', '--no-guess', '--', input.branch]);
+    return { branch: input.branch };
+  }
   if (input.action === 'worktrees' || input.action === 'open-worktree') {
     const output = await git(root, ['worktree', 'list', '--porcelain', '-z']);
     const worktrees = output.split('\0\0').filter(Boolean).map(record => {

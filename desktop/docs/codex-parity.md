@@ -1244,3 +1244,15 @@ Post-commit acceptance fixes bare filename references such as notes.txt:2 being
 mistaken for URI schemes. Out-of-range lines now show an explicit notice.
 Browser acceptance covers failed refresh, unavailable edit action, shortened
 files and recovery into the editor. Seven backend/classifier tests and build pass.
+
+## Planned delivery: switch local Git branches
+
+Expose local branches and current HEAD in the Git panel. Switching uses an
+explicit enumerated local branch and checks that HEAD has not changed since the
+list was read. Git's normal switch behavior preserves compatible local edits and
+rejects overwrites or branches checked out in another worktree. Acceptance uses
+real temporary repositories plus browser success/failure/retry and panel refresh.
+Implemented and verified: three real-repository tests cover changed checkout
+content, untracked preservation, overwrite rejection, stale HEAD, checked-out
+worktree rejection and detached HEAD recovery. Mocked browser acceptance checks
+payload, disabled current branch, failure/retry and refreshed status. Build passes.
