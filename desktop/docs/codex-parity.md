@@ -285,3 +285,7 @@ and checkboxes, preserving wire values independently of displayed titles.
 Array size and membership constraints are validated before submission. Production
 build, option unit tests, primitive browser regression and choice browser acceptance
 pass. The browser uses a mocked bridge; live server integration remains unverified.
+Post-commit acceptance fixes required arrays with zero selections and separates
+empty-string enum choices from the unselected placeholder. Browser tests verify
+both payloads and missing required selection; the build, five unit tests and both
+MCP browser workflows pass after the correction.
