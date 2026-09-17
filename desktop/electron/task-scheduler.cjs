@@ -21,6 +21,8 @@ function validateTask(input, now) {
   const prompt = string(input.prompt, 20000, '任务内容');
   if (!['agent', 'reminder'].includes(input.kind)) throw new Error('任务类型无效。');
   const model = input.kind === 'agent' ? string(input.model, 200, '模型') : '';
+  const cwd = input.kind === 'agent' && input.cwd ? string(input.cwd, 32768, '工作目录') : undefined;
+  if (cwd && !path.isAbsolute(cwd)) throw new Error('工作目录必须是绝对路径。');
   if (!['read-only', 'workspace-write'].includes(input.permission)) throw new Error('执行权限无效。');
   const raw = input.schedule;
   if (!raw || !['once', 'daily', 'weekdays', 'weekly'].includes(raw.kind)) throw new Error('时间安排无效。');
@@ -35,7 +37,7 @@ function validateTask(input, now) {
     if (raw.kind === 'weekly' && (!Number.isInteger(raw.day) || raw.day < 0 || raw.day > 6)) throw new Error('星期无效。');
     schedule = { kind: raw.kind, time: raw.time, timezone: raw.timezone, ...(raw.kind === 'weekly' ? { day: raw.day } : {}) };
   }
-  return { name, prompt, kind: input.kind, model, permission: input.permission, notify: Boolean(input.notify), schedule };
+  return { name, prompt, kind: input.kind, model, cwd, permission: input.permission, notify: Boolean(input.notify), schedule };
 }
 
 class TaskScheduler extends EventEmitter {

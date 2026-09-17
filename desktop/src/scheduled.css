@@ -68,3 +68,5 @@
   .desktop-app:has(.scheduled-page) .desktop-titlebar nav button { padding-inline:4px; white-space:nowrap; }
 }
 @media (prefers-reduced-motion:reduce) { .task-spin { animation:none; } }
+@media(max-width:760px){.desktop-titlebar nav[aria-label="应用菜单"]{display:none}}
+.task-metadata dd{min-width:0;overflow-wrap:anywhere}

@@ -9,6 +9,15 @@ const cache = path.resolve(__dirname, '../../.project-cache/tmp');
 fs.mkdirSync(cache, { recursive: true });
 const temp = () => fs.mkdtempSync(path.join(cache, 'felix-tasks-'));
 
+test('agent workspace is persisted and relative paths are rejected', () => {
+  const directory = temp(); const cwd = temp();
+  const scheduler = new TaskScheduler({ directory, runner: async () => ({}) });
+  const saved = scheduler.save(task({ kind: 'agent', model: 'test', cwd }));
+  const restored = new TaskScheduler({ directory, runner: async () => ({}) });
+  assert.equal(restored.detail(saved.id).cwd, cwd);
+  assert.throws(() => scheduler.save(task({ kind: 'agent', model: 'test', cwd: '../other' })), /绝对路径/);
+});
+
 test('scheduleNext respects timezone and weekly day', () => {
   const now = Date.parse('2026-09-08T00:00:00.000Z');
   assert.equal(scheduleNext({ kind: 'daily', time: '09:00', timezone: 'Asia/Shanghai' }, now), '2026-09-08T01:00:00.000Z');

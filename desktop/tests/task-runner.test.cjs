@@ -11,6 +11,7 @@ const root = path.resolve(__dirname, '../..');
 const task = { name: 'Runner integration', model: 'MiniMax-M2.1', prompt: 'Print FELIX_SCHEDULE_OK using a read-only shell command and report the result.', permission: 'read-only' };
 
 test('real project Codex executes a scheduled tool request and persists final output', { timeout: 60000 }, async () => {
+  const workspace = fs.mkdtempSync(path.join(root, '.project-cache/tmp/task-workspace-'));
   let requests = 0, upstreamError;
   const server = http.createServer(async (req, res) => {
     try {
@@ -18,6 +19,7 @@ test('real project Codex executes a scheduled tool request and persists final ou
       const body = JSON.parse(raw); requests++;
       res.writeHead(200, { 'content-type': 'text/event-stream' });
       if (requests === 1) {
+        assert.ok(JSON.stringify(body.messages).includes(workspace.replaceAll('\\', '\\\\')), 'Task context must use the selected workspace');
         const tool = body.tools.find(item => /(^|__)(exec_command|shell_command|shell)$/.test(item.function.name));
         assert.ok(tool);
         const props = tool.function.parameters.properties;
@@ -38,7 +40,7 @@ test('real project Codex executes a scheduled tool request and persists final ou
     const directory = fs.mkdtempSync(path.join(root, '.project-cache/tmp/task-real-runner-'));
     let clock = Date.now();
     const scheduler = new TaskScheduler({ directory, runner, now: () => clock });
-    const saved = scheduler.save({ ...task, kind: 'agent', notify: false, schedule: { kind: 'once', at: new Date(clock + 1000).toISOString() } });
+    const saved = scheduler.save({ ...task, cwd: workspace, kind: 'agent', notify: false, schedule: { kind: 'once', at: new Date(clock + 1000).toISOString() } });
     await scheduler.tick(); assert.equal(requests, 0);
     clock += 1500; await scheduler.tick();
     const result = scheduler.detail(saved.id).runs[0];
@@ -49,6 +51,7 @@ test('real project Codex executes a scheduled tool request and persists final ou
     assert.equal(requests, 2); assert.match(result.output, /Verified FELIX_SCHEDULE_OK/); assert.ok(result.threadId);
     const restarted = new TaskScheduler({ directory, runner });
     assert.equal(restarted.detail(saved.id).runs[0].output, result.output);
+    assert.equal(restarted.detail(saved.id).cwd, workspace);
     assert.equal(restarted.detail(saved.id).status, 'completed'); await restarted.stop();
   } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
 });

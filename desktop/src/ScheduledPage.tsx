@@ -44,6 +44,7 @@ function TaskEditor({ draft, models, loadingModels, refreshModels, onClose, onSa
         {form.schedule.kind === 'weekly' && <label>星期<select aria-label="星期" value={form.schedule.day ?? 1} onChange={event => patchSchedule({ day: Number(event.target.value) })}>{Array.from('日一二三四五六').map((day, index) => <option key={index} value={index}>星期{day}</option>)}</select></label>}
       </>}
       {form.kind === 'agent' && <><div className="task-model-field"><label>模型<select required value={form.model} onChange={event => patch({ model: event.target.value })}><option value="">{loadingModels ? '正在读取模型…' : '选择模型'}</option>{form.model && !models.includes(form.model) && <option value={form.model} disabled>{form.model}（不可用）</option>}{models.map(model => <option key={model}>{model}</option>)}</select></label><button type="button" className="task-icon-button" title="刷新模型" aria-label="刷新模型" onClick={refreshModels} disabled={loadingModels}><RefreshCw /></button></div>
+        <label>工作目录<input aria-label="任务工作目录" value={form.cwd || ''} placeholder="留空使用 Felix 项目目录" onChange={event => { patch({ cwd: event.target.value }); setWriteConfirmed(false); }} /></label><button type="button" onClick={() => { void window.desktop?.pickProject?.().then(project => { if (project?.path) { patch({ cwd: project.path }); setWriteConfirmed(false); } }).catch(error => setError(String(error))); }}>选择任务目录</button>
         <label>执行权限<select value={form.permission} onChange={event => { patch({ permission: event.target.value as TaskDraft['permission'] }); setWriteConfirmed(false); }}><option value="read-only">只读</option><option value="workspace-write">允许修改工作区</option></select></label>
         {form.permission === 'workspace-write' && <label className="task-check"><input type="checkbox" checked={writeConfirmed} onChange={event => setWriteConfirmed(event.target.checked)} />允许此任务无人值守修改当前工作区</label>}
       </>}
@@ -54,7 +55,7 @@ function TaskEditor({ draft, models, loadingModels, refreshModels, onClose, onSa
   </form></TaskModal>;
 }
 
-export function ScheduledPage({ models, loadingModels, refreshModels }: { models: string[]; loadingModels: boolean; refreshModels: () => void }) {
+export function ScheduledPage({ models, loadingModels, refreshModels, cwd }: { models: string[]; loadingModels: boolean; refreshModels: () => void; cwd?: string }) {
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
   const [query, setQuery] = useState(''); const [filter, setFilter] = useState('all');
   const [draft, setDraft] = useState<TaskDraft>(); const [selectedId, setSelectedId] = useState<string>();
@@ -88,7 +89,7 @@ export function ScheduledPage({ models, loadingModels, refreshModels }: { models
     document.addEventListener('pointerdown', outside); return () => document.removeEventListener('pointerdown', outside);
   }, [createMenu]);
   const create = (kind: TaskDraft['kind'], template?: typeof taskTemplates[number]) => {
-    setCreateMenu(false); setDraft({ name: '', prompt: '', kind, model: models[0] || '', permission: 'read-only', notify: true, schedule: { kind: 'daily', time: '09:00', timezone: localZone }, ...template });
+    setCreateMenu(false); setDraft({ name: '', prompt: '', kind, cwd, model: models[0] || '', permission: 'read-only', notify: true, schedule: { kind: 'daily', time: '09:00', timezone: localZone }, ...template });
   };
   const mutate = async (operation: 'runTask' | 'cancelTask' | 'deleteTask' | 'setTaskStatus', ...args: unknown[]) => {
     if (busy) return; setBusy(true); setError('');
@@ -121,7 +122,7 @@ export function ScheduledPage({ models, loadingModels, refreshModels }: { models
       {!query && filter === 'all' && <section className="task-suggestions" aria-labelledby="task-suggestions-title"><h2 id="task-suggestions-title">建议</h2>{taskTemplates.map(template => <button className={`task-suggestion ${template.icon}`} key={template.name} onClick={() => create('agent', template)}>{template.icon === 'briefing' ? <Bell /> : template.icon === 'monitor' ? <FileSearch /> : <Plus />}<span><strong>{template.name}</strong><em>{scheduleLabel(template.schedule).split(' · ')[0]}</em><small>{template.summary}</small></span></button>)}</section>}
     </div>
     {selectedId && <TaskModal title={detail?.name || '任务详情'} onClose={() => { setSelectedId(undefined); setDetail(undefined); }}>{detailError && <div className="task-error" role="alert"><span>{detailError}</span><button onClick={() => void reload()}>重试</button></div>}{!detail ? !detailError && <p role="status">正在读取记录…</p> : <>
-      <dl className="task-metadata"><dt>状态</dt><dd>{taskStatusLabels[detail.status]}</dd><dt>安排</dt><dd>{scheduleLabel(detail.schedule)}</dd><dt>下次运行</dt><dd>{formatTaskDate(detail.nextRunAt)}</dd><dt>权限</dt><dd>{detail.kind === 'reminder' ? '提醒' : detail.permission === 'read-only' ? '只读' : '允许修改工作区'}</dd>{detail.kind === 'agent' && <><dt>模型</dt><dd>{detail.model}</dd></>}</dl><p className="task-prompt">{detail.prompt}</p>
+      <dl className="task-metadata"><dt>状态</dt><dd>{taskStatusLabels[detail.status]}</dd><dt>安排</dt><dd>{scheduleLabel(detail.schedule)}</dd><dt>下次运行</dt><dd>{formatTaskDate(detail.nextRunAt)}</dd><dt>权限</dt><dd>{detail.kind === 'reminder' ? '提醒' : detail.permission === 'read-only' ? '只读' : '允许修改工作区'}</dd>{detail.kind === 'agent' && <><dt>模型</dt><dd>{detail.model}</dd><dt>工作目录</dt><dd>{detail.cwd || 'Felix 项目目录（默认）'}</dd></>}</dl><p className="task-prompt">{detail.prompt}</p>
       <h3>运行记录</h3><div className="task-runs">{detail.runs.length ? detail.runs.map(run => <details key={run.id} className="task-run"><summary><span>{formatTaskDate(run.startedAt)}</span><span className={run.status === 'failed' ? 'task-failed' : ''}>{taskRunLabels[run.status]}</span></summary><small>{run.trigger === 'scheduled' ? '定时执行' : '手动执行'}{run.finishedAt ? ` · 结束于 ${formatTaskDate(run.finishedAt)}` : ''}</small>{run.error && <p className="task-failed">{run.error}</p>}<pre>{run.output || (run.status === 'running' ? '正在执行，结束后保存结果。' : '无输出')}</pre></details>) : <p className="task-muted">尚无运行记录</p>}</div>
       {error && <p className="task-error" role="alert">{error}</p>}<footer><button className="task-danger" disabled={busy || detail.runs[0]?.status === 'running'} onClick={() => setDeleting(detail)}><Trash2 />删除</button><button disabled={busy || detail.runs[0]?.status === 'running'} onClick={() => setDraft(detail)}><Pencil />编辑</button><button disabled={busy || anyRunning && detail.runs[0]?.status !== 'running'} onClick={() => void mutate(detail.runs[0]?.status === 'running' ? 'cancelTask' : 'runTask', detail.id)}>{detail.runs[0]?.status === 'running' ? <Square /> : <Play />}{detail.runs[0]?.status === 'running' ? '停止运行' : '立即运行'}</button></footer>
     </>}</TaskModal>}

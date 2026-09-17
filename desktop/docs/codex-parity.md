@@ -372,3 +372,16 @@ newer SubAgentActivity events remain unverified/unimplemented respectively.
 Acceptance adds long identifier wrapping in child navigation controls and verifies
 completion result updates replace the existing call record without duplicates.
 The expanded browser workflow and build pass at the supported 960px window width.
+
+## Automation workspace binding
+
+Agent tasks now persist an optional absolute cwd, default new tasks to the active
+workspace, allow folder selection/editing and show the directory in task detail.
+Legacy tasks retain the Felix project default. Runner validates directory existence
+and uses it for process launch and thread/start. Scheduler tests and the real
+app-server integration pass with a controlled local model endpoint, asserting the
+workspace in model context and persisted state. Relative file reading was rejected
+by app-server policy, so actual project file access remains unverified. Existing
+allowed shell execution and cancellation pass. Full scheduler-backed browser
+workflow passes after correcting a multi-dialog test wait and narrow titlebar
+overflow; production build passes with the existing bundle-size warning.

@@ -8,6 +8,8 @@ const { startMiniMaxAdapter } = require('./minimax-adapter.cjs');
 
 function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_KEY, upstream, timeoutMs = 10 * 60 * 1000 } = {}) {
   return async (task, { signal, runId }) => {
+    const cwd = task.cwd || projectRoot;
+    if (!path.isAbsolute(cwd) || !fs.existsSync(cwd) || !fs.statSync(cwd).isDirectory()) throw new Error('任务工作目录不存在或无效，请编辑任务选择有效目录。');
     if (!apiKey()?.trim()) throw new Error('未配置 MINIMAX_API_KEY，请带密钥重新启动项目副本。');
     const home = path.join(projectRoot, '.project-cache', 'scheduled-tasks', 'runs', runId);
     const cache = path.join(projectRoot, '.project-cache');
@@ -35,7 +37,7 @@ function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_
           'web_search="disabled"', 'features.responses_websockets=false', 'features.responses_websockets_v2=false',
         ];
         child = spawn(command, [...settings.flatMap(setting => ['-c', setting]), 'app-server', '--stdio'], {
-          cwd: projectRoot, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
+          cwd, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
           env: {
             ...process.env, CODEX_HOME: home, MINIMAX_API_KEY: apiKey(), TEMP: home, TMP: home, TMPDIR: home,
             npm_config_cache: path.join(cache, 'npm-cache'), npm_config_store_dir: path.join(cache, 'pnpm-store'),
@@ -67,7 +69,7 @@ function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_
         completed.catch(() => {});
         await rpc.request('initialize', { clientInfo: { name: 'felix_scheduled_task', version: '1' }, capabilities: { experimentalApi: true } });
         rpc.notify('initialized', {});
-        const result = await rpc.request('thread/start', { cwd: projectRoot, model: task.model, modelProvider: 'minimax', sandbox: task.permission, approvalPolicy: 'never', ephemeral: true });
+        const result = await rpc.request('thread/start', { cwd, model: task.model, modelProvider: 'minimax', sandbox: task.permission, approvalPolicy: 'never', ephemeral: true });
         threadId = result.thread?.id;
         if (!threadId) throw new Error('Codex 未返回任务线程。');
         await rpc.request('turn/start', { threadId, input: [{ type: 'text', text: task.prompt }] });

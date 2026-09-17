@@ -62,6 +62,7 @@ async function main() {
     await page.locator('.task-suggestion.review').click();
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('任务名称', { exact: true }).fill('每周项目回顾');
+    await dialog.getByLabel('任务工作目录', { exact: true }).fill(root);
     assert.equal(await dialog.getByLabel('星期', { exact: true }).inputValue(), '5');
     await dialog.getByRole('button', { name: '保存任务' }).click();
     await dialog.waitFor({ state: 'detached' });
@@ -114,7 +115,7 @@ async function main() {
     await dialog.locator('.task-run summary').click(); await dialog.locator('pre').getByText('检查真实提醒结果', { exact: true }).waitFor();
     await dialog.getByRole('button', { name: '删除', exact: true }).click();
     await page.getByRole('dialog', { name: '删除任务', exact: true }).getByRole('button', { name: '确认删除' }).click();
-    await page.getByRole('dialog').waitFor({ state: 'detached' });
+    await page.waitForFunction(() => document.querySelectorAll('dialog').length === 0);
     assert.ok(!scheduler.list().some(task => task.id === reminder.id));
     await scheduler.stop(); scheduler = new TaskScheduler({ directory, runner, now: () => clock });
     await page.reload(); await page.getByRole('button', { name: '已安排', exact: true }).click();
