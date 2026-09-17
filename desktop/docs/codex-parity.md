@@ -792,3 +792,6 @@ are ignored. Build and quota-injection browser acceptance cover editing, rejecte
 sends, attachment-only sends, steering, queued sends and clearing stale storage.
 Until saving succeeds, refresh may restore an older attachment selection, which
 the warning explicitly explains.
+Post-commit acceptance reloads after recovery to ensure sent attachments do not
+reappear. It also verifies automatic saving on the next edit after storage
+recovers, then reloads again to confirm only the remaining selection is restored.

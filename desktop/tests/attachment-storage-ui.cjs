@@ -53,6 +53,17 @@ const assert = require('node:assert/strict');
     await page.evaluate(() => { window.__failAttachments = false; });
     await retry.click(); await retry.waitFor({ state: 'detached' });
     assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('felix-attachments-v1'))), {});
+    await page.reload();
+    await page.getByRole('button', { name: '添加附件', exact: true }).waitFor();
+    assert.equal(await page.locator('.attachment-list').count(), 0);
+    await add.click();
+    await page.evaluate(() => { window.__failAttachments = false; });
+    await page.getByRole('button', { name: '移除附件：D:/notes.txt', exact: true }).click();
+    await retry.waitFor({ state: 'detached' });
+    assert.deepEqual(await page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('felix-attachments-v1')))), [['D:/image.png']]);
+    await page.reload();
+    await page.getByRole('button', { name: '移除附件：D:/image.png', exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: '移除附件：D:/notes.txt', exact: true }).count(), 0);
     assert.deepEqual(errors, []);
     console.log('PASS: quota failure preserves attachment edits and sends; retry removes consumed attachments from storage');
   } finally { await browser.close(); }
