@@ -707,3 +707,9 @@ explicitly state that these defaults apply to newly created remote threads.
 Build and browser acceptance verify all three choices, persistence, composer
 consistency and exact thread/start sandbox/approval/reviewer fields. These tests
 verify client configuration, not enforcement of each permission by the server.
+Post-commit live acceptance starts the real app-server with each of the three
+profiles and confirms thread/start and thread/read accept the selected sandbox,
+approval policy and workspace. The first run lacked an isolated provider
+definition and was corrected in the fixture; the corrected test passes. This
+still verifies protocol acceptance rather than executing a model tool under each
+policy.
