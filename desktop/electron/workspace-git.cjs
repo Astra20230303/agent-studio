@@ -125,17 +125,26 @@ async function workspaceGit(input) {
     const detail = await git(root, ['show', '--no-show-signature', '--no-ext-diff', '--no-textconv', '--no-color', '--format=fuller', '--stat', '--patch', '--diff-merges=first-parent', input.commit, '--']);
     return { detail };
   }
-  if (input.action === 'pull') {
+  if (input.action === 'pull' || input.action === 'pull-merge') {
+    const merging = input.action === 'pull-merge';
     const currentBranch = () => git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).then(value => value.trim(), () => '');
     const branch = await currentBranch();
     if (!branch || branch !== input.expectedBranch) throw Error('当前分支已变化或处于游离状态，请刷新');
     const target = await tracking(root);
     if (!target.remote || target.remote === '.' || !target.remoteRef?.startsWith('refs/heads/')) throw Error('当前分支尚未配置远端上游分支');
     const before = (await git(root, ['rev-parse', 'HEAD'])).trim();
+    if (merging && before !== input.expectedHead) throw Error('当前提交已变化，请刷新');
+    const checkMerge = async () => {
+      if (!merging) return;
+      if ((await git(root, ['status', '--porcelain'])).trim()) throw Error('请先提交或暂存工作区修改后再合并上游');
+      if ((await git(root, ['rev-parse', '-q', '--verify', 'MERGE_HEAD']).catch(() => '')).trim()) throw Error('请先完成当前合并');
+    };
+    await checkMerge();
     await git(root, ['fetch', '--no-tags', '--', target.remote, target.remoteRef], true);
     const fetched = (await git(root, ['rev-parse', '--verify', 'FETCH_HEAD^{commit}'])).trim();
     if (await currentBranch() !== branch || (await git(root, ['rev-parse', 'HEAD'])).trim() !== before) throw Error('获取期间当前分支或提交已变化，请刷新后重试');
-    await git(root, ['-c', 'merge.autostash=false', 'merge', '--ff-only', '--no-edit', fetched]);
+    await checkMerge();
+    await git(root, ['-c', 'merge.autostash=false', 'merge', merging ? '--ff' : '--ff-only', '--no-edit', fetched]);
     const commit = (await git(root, ['rev-parse', 'HEAD'])).trim();
     return { upstream: target.upstream, commit, changed: commit !== before };
   }
