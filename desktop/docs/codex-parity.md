@@ -1354,3 +1354,11 @@ Both buttons complete, tracked/untracked contents restore, ignored runtime data
 stay in place, and stash availability updates. This closes the gap left by the
 previous mocked error-only UI test. Production build passes. Native Electron
 IPC and model-driven Agent controls are not established by this test.
+
+## Child-agent status and interruption
+
+Plan: add explicit status refresh through thread/read(includeTurns), and interrupt
+only the running turn returned by a fresh read of that child. Keep historical
+activity distinct from queried state. Live turn notifications supersede pending
+reads; interrupt acknowledgement does not imply completion. Browser acceptance
+will verify target identity, late-read guards, failures and acknowledgement.
