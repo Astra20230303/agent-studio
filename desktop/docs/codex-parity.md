@@ -1347,3 +1347,10 @@ Post-commit acceptance adds explicit success feedback after branch deletion whil
 retaining automatic list refresh. Browser acceptance now covers protection error,
 retry success and visible confirmation; real deletion tests and production build
 pass.
+
+Post-commit acceptance: git-stash-integration-ui.cjs drives the actual GitPanel
+against workspaceGit and a real temporary repository via a browser bridge.
+Both buttons complete, tracked/untracked contents restore, ignored runtime data
+stay in place, and stash availability updates. This closes the gap left by the
+previous mocked error-only UI test. Production build passes. Native Electron
+IPC and model-driven Agent controls are not established by this test.
