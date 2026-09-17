@@ -12,7 +12,7 @@ const assert = require('node:assert/strict');
         window.__calls.push({ method, params });
         if (method === 'thread/list') {
           if (params.cursor && window.__fail) return { ok: false, error: { message: 'Page unavailable' } };
-          return { ok: true, result: params.cursor ? { data: [{ id: 'new', name: 'Newest', updatedAt: 30 }, { id: 'old', name: 'Older', updatedAt: 10 }] } : { data: [{ id: 'new', name: 'Newest', updatedAt: 30 }, { id: 'mid', name: 'Middle', updatedAt: 20 }], nextCursor: 'older-page' } };
+          return { ok: true, result: params.cursor ? { data: [{ id: 'new', name: 'Newest', updatedAt: 30 }, { id: 'old', name: 'Older', updatedAt: 10 }, { id: 'invalid', name: 'Invalid timestamp', updatedAt: 'invalid' }, null] } : { data: [{ id: 'new', name: 'Newest', updatedAt: 30 }, { id: 'mid', name: 'Middle', updatedAt: 20 }], nextCursor: 'older-page' } };
         }
         return { ok: true, result: { data: [] } };
       }, notify: async () => ({}), onNotification: () => () => {}, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
@@ -24,7 +24,7 @@ const assert = require('node:assert/strict');
     await page.evaluate(() => { window.__fail = false; });
     await page.getByRole('button', { name: '重试加载会话' }).click();
     await page.getByRole('button', { name: 'Older', exact: true }).waitFor();
-    assert.deepEqual(await page.locator('.recent').evaluateAll(nodes => nodes.map(node => node.getAttribute('aria-label'))), ['Newest', 'Middle', 'Older']);
+    assert.deepEqual(await page.locator('.recent').evaluateAll(nodes => nodes.map(node => node.getAttribute('aria-label'))), ['Newest', 'Middle', 'Older', 'Invalid timestamp']);
     assert.equal(await page.getByRole('button', { name: '加载更多会话' }).count(), 0);
     assert.equal(await page.evaluate(() => window.__calls.filter(call => call.method === 'thread/list' && call.params.cursor === 'older-page').length), 2);
     console.log('PASS: thread pagination, retry, deduplication and recency ordering');

@@ -419,3 +419,6 @@ retry controls, deduplicates pages, preserves existing local records and sorts b
 pin/recency. Connection generations ignore stale list responses. Build and mocked
 browser tests pass pagination, failure/retry, deduplication and order. Search still
 covers loaded threads only; remote search and archived inventory remain pending.
+Acceptance correction tolerates invalid list timestamps/entries and rechecks the
+connection generation inside the state merge. Pagination and existing reconnect
+browser regressions pass, including draft retention and no replay; build passes.

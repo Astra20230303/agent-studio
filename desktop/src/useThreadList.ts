@@ -20,12 +20,16 @@ export function useThreadList(connected: boolean, setState: Dispatch<SetStateAct
       const nextCursor = result.nextCursor || undefined;
       if (nextCursor && (nextCursor === next || seen.current.has(nextCursor))) throw Error('会话分页游标重复，请重新连接后重试。');
       setState(previous => {
+        if (generation !== epoch.current) return previous;
         const threads = [...previous.threads];
         const ids = new Set(threads.map(thread => thread.remoteId));
         for (const item of result.data || result.threads || []) {
-          if (!item.id || ids.has(item.id)) continue;
+          if (typeof item?.id !== 'string' || !item.id || ids.has(item.id)) continue;
           ids.add(item.id);
-          threads.push({ id: `remote-${item.id}`, remoteId: item.id, title: item.name || item.preview || 'Felix 对话', cwd: item.cwd, status: item.status?.type === 'active' ? 'running' : 'completed', pinned: false, archived: false, messages: [], updatedAt: new Date((item.updatedAt || 0) * 1000).toISOString() });
+          const timestamp = Number(item.updatedAt) * 1000;
+          const updatedAt = new Date(Number.isFinite(timestamp) && Math.abs(timestamp) <= 8640000000000000 ? timestamp : 0).toISOString();
+          const title = [item.name, item.preview].find(value => typeof value === 'string' && value.trim()) || 'Felix 对话';
+          threads.push({ id: `remote-${item.id}`, remoteId: item.id, title, cwd: item.cwd, status: item.status?.type === 'active' ? 'running' : 'completed', pinned: false, archived: false, messages: [], updatedAt });
         }
         return { ...previous, threads };
       });
