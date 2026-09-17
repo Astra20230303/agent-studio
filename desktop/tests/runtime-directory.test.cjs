@@ -26,6 +26,8 @@ test('relocated runtime initializes real app-server without a source tree', { ti
   const suffix = process.platform === 'win32' ? '.exe' : '';
   const { bundleRuntime } = require('../scripts/bundle-runtime.cjs');
   const manifest = bundleRuntime({ projectRoot: source, output: bundle });
+  const { verifyRuntime } = require('../scripts/verify-runtime.cjs');
+  assert.deepEqual(verifyRuntime(bundle), manifest);
   for (const [relative, entry] of Object.entries(manifest.files)) {
     const bytes = fs.readFileSync(path.join(bundle, relative));
     assert.equal(bytes.length, entry.size);
@@ -65,6 +67,16 @@ test('relocated runtime initializes real app-server without a source tree', { ti
     rpc.notify('initialized', {});
     const models = await rpc.request('model/list', {});
     assert.ok(models.data.length > 0);
+    const script = path.join(bundle, 'electron/web-search-mcp.cjs');
+    const original = fs.readFileSync(script);
+    fs.appendFileSync(script, '\n// corrupted fixture');
+    assert.throws(() => verifyRuntime(bundle), /integrity check failed/);
+    fs.writeFileSync(script, original);
+    const invalid = structuredClone(manifest); delete invalid.files['models.json'];
+    fs.writeFileSync(path.join(bundle, 'manifest.json'), JSON.stringify(invalid));
+    assert.throws(() => verifyRuntime(bundle), /incomplete/);
+    fs.writeFileSync(path.join(bundle, 'manifest.json'), JSON.stringify(manifest));
+    assert.deepEqual(verifyRuntime(bundle), manifest);
   } finally {
     const exited = child && child.exitCode === null ? once(child, 'exit') : Promise.resolve();
     rpc?.close(); await exited;

@@ -1541,3 +1541,8 @@ The relocation test now consumes this builder and checks hashes before starting
 real app-server and both MCP bridges. Runtime artifact was built locally and
 startup checks pass. This is local assembly, not a redistributable release:
 Node/third-party license collection, installer and signing remain outstanding.
+Post-commit acceptance adds pnpm run verify:runtime [directory], checking required
+manifest entries, host platform/architecture and every file hash/size. Tests
+detect a modified MCP script and an incomplete manifest, then verify recovery.
+The generated local artifact passes verification. Hashes detect accidental
+corruption relative to the manifest; they do not provide publisher authenticity.
