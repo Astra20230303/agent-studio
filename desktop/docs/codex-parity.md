@@ -892,3 +892,5 @@ Desktop links use the existing external-browser bridge and report opening errors
 Build and browser fixtures verify restored results, live find-in-page actions and
 raw-field retention. This adds presentation for upstream records; the current
 MiniMax MCP search transport remains unchanged.
+Post-commit acceptance covers external-browser rejection and successful retry,
+including clearing the previous error without losing the search record.
