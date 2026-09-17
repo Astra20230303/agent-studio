@@ -4,6 +4,12 @@ const http = require('node:http');
 const { once } = require('node:events');
 const { startMiniMaxAdapter } = require('../electron/minimax-adapter.cjs');
 const { convertRequest, translateStream } = require('../electron/minimax-adapter.cjs');
+
+test('agent messages preserve addressing and plain provider payload order', () => {
+  const item = { type: 'agent_message', author: '/root', recipient: '/root/review', content: [{ type: 'input_text', text: 'Task header' }, { type: 'encrypted_content', encrypted_content: 'Plain provider task' }] };
+  assert.deepEqual(convertRequest({ model: 'test', input: [item] }).body.messages, [{ role: 'user', content: 'Agent message from "/root" to "/root/review":\nTask header\nPlain provider task' }]);
+  assert.throws(() => convertRequest({ model: 'test', input: [{ ...item, content: [{ type: 'unknown' }] }] }), /Unsupported agent message content/);
+});
 const tool = { type: 'function', name: 'shell', description: 'Run a command', parameters: { type: 'object', properties: { cmd: { type: 'string' } }, required: ['cmd'] } };
 const request = (input = []) => ({ model: 'test-model', tools: [tool], input });
 const stream = chunks => Buffer.from(chunks.map(chunk => 'data: ' + JSON.stringify(chunk) + '\r\n\r\n').join('') + 'data: [DONE]\n\n');

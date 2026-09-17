@@ -641,3 +641,16 @@ multi-agent lifecycle acceptance remains pending.
 Post-commit browser acceptance reloads the renderer, restores subAgentActivity
 from thread/resume history and opens its child thread. It verifies one restored
 record and passes without further product correction.
+
+## Real multi-agent transport
+
+Controlled-model acceptance with the real project app-server and multi_agent_v2
+enabled exposed an adapter failure: child requests contain agent_message items,
+which were rejected before reaching the provider. The MiniMax adapter now maps
+agent messages to user-role context, preserving author, recipient and ordered
+payloads. For this plain Chat Completions transport, upstream's encrypted_content
+field carries the provider's plain tool-argument message; no decryption is added.
+The real test now spawns a child, observes started/completed activities, resumes
+the child result and restores parent history. All 14 adapter tests pass. External
+provider reasoning quality and genuinely encrypted cross-provider histories are
+not established by this controlled test.

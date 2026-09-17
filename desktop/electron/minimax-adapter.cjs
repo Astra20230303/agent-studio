@@ -36,6 +36,17 @@ function convertRequest(input) {
   const items = typeof input.input === 'string' ? [{ role: 'user', content: input.input }] : input.input || [];
   for (const item of items) {
     if (item.type === 'reasoning') continue;
+    if (item.type === 'agent_message') {
+      // The Chat Completions provider emits plain tool arguments; upstream carries
+      // those inter-agent payloads in the encrypted_content transport field.
+      const content = (item.content || []).map(part => {
+        if (part.type === 'input_text' && typeof part.text === 'string') return part.text;
+        if (part.type === 'encrypted_content' && typeof part.encrypted_content === 'string') return part.encrypted_content;
+        throw new Error('Unsupported agent message content: ' + part.type);
+      }).join('\n');
+      messages.push({ role: 'user', content: `Agent message from ${JSON.stringify(item.author)} to ${JSON.stringify(item.recipient)}:\n${content}` });
+      continue;
+    }
     if (item.type === 'tool_search_call') {
       messages.push({ role: 'assistant', content: null, tool_calls: [{ id: item.call_id, type: 'function', function: { name: 'tool_search', arguments: JSON.stringify(item.arguments) } }] });
       continue;
