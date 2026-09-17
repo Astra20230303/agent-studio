@@ -1256,3 +1256,9 @@ Implemented and verified: three real-repository tests cover changed checkout
 content, untracked preservation, overwrite rejection, stale HEAD, checked-out
 worktree rejection and detached HEAD recovery. Mocked browser acceptance checks
 payload, disabled current branch, failure/retry and refreshed status. Build passes.
+Post-commit acceptance prevents returning to stale Git controls while a branch
+switch is pending: back/close/target controls are disabled until completion.
+A held-response browser test verifies this behavior and subsequent refreshed
+status; existing stage/commit browser regression and production build pass.
+These tests do not establish atomicity against simultaneous external Git commands
+between the HEAD check and git switch, nor native Electron/provider acceptance.

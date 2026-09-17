@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-export function GitBranches({ root, onSwitched }: { root: string; onSwitched: (branch: string) => void }) {
+export function GitBranches({ root, onSwitched, onBusyChange }: { root: string; onSwitched: (branch: string) => void; onBusyChange: (busy: boolean) => void }) {
   const [snapshot, setSnapshot] = useState<{ branches: string[]; current: string; head: string }>();
   const [target, setTarget] = useState('');
   const [error, setError] = useState('');
@@ -24,14 +24,14 @@ export function GitBranches({ root, onSwitched }: { root: string; onSwitched: (b
   }, [root, revision]);
   const switchBranch = async () => {
     if (locked.current || !snapshot || !target) return;
-    locked.current = true; setBusy(true); setError('');
+    locked.current = true; setBusy(true); onBusyChange(true); setError('');
     try {
       const result = await window.desktop?.workspaceGit?.({ root, action: 'switch-branch', branch: target, expectedBranch: snapshot.current, expectedHead: snapshot.head });
       if (!mounted.current) return;
       if (!result?.ok) throw Error(result?.error || '无法切换分支');
       onSwitched(result.result.branch);
     } catch (error) { if (mounted.current) setError(error instanceof Error ? error.message : String(error)); }
-    finally { locked.current = false; if (mounted.current) setBusy(false); }
+    finally { locked.current = false; onBusyChange(false); if (mounted.current) setBusy(false); }
   };
   return <section aria-label="切换本地分支">
     <h3>切换本地分支</h3>
