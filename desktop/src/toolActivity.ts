@@ -70,7 +70,9 @@ export function finishTools(thread: Thread, turnId: string, failed = false) {
 export function restoreMessages(items: any[], previous: Message[]): Message[] {
   const thread = { messages: [] as Message[] } as Thread;
   for (const entry of items) {
-    const item = entry.item || entry;
+    if (!entry || typeof entry !== 'object') continue;
+    const item = entry.item && typeof entry.item === 'object' ? entry.item : entry;
+    if (!item || typeof item !== 'object') continue;
     if (item && typeof item.type === 'string' && !['userMessage', 'agentMessage', 'plan'].includes(item.type)) {
       const saved = previous.find(message => message.id === `tool-${item.id}`);
       if (saved && !thread.messages.some(message => message.id === saved.id)) thread.messages.push(structuredClone(saved));

@@ -114,3 +114,11 @@ test('turn termination updates unfinished tools without deleting them or other t
   assert.equal(thread.messages[1].tool.status, 'failed');
   assert.equal(thread.messages[2].tool.status, 'inProgress');
 });
+
+test('malformed history entries are ignored without hiding valid records', () => {
+  const previous = [{ id: 'old', role: 'assistant', content: 'old' }];
+  const restored = restoreMessages([null, undefined, 42, { item: null }, { item: 'bad' },
+    { item: { id: 'reply', type: 'agentMessage', text: 'valid' } }], previous);
+  assert.deepEqual(restored.map(message => message.id), ['live-reply']);
+  assert.deepEqual(previous, [{ id: 'old', role: 'assistant', content: 'old' }]);
+});
