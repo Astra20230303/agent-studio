@@ -265,3 +265,7 @@ return null content. Unsupported complex schemas remain explicitly unavailable
 instead of sending an empty acceptance. Build and mcp-form-ui.cjs pass required
 input, typed response and transport retry checks with a mocked bridge. URL-mode,
 array enums and complex extension forms remain pending.
+Acceptance correction: cf889f7 was pushed after a build pass but before the
+browser test passed, because the new test had a syntax error. The follow-up fixes
+that test and actually runs it successfully; the earlier browser-pass claim was
+premature. This is a delivery-process defect, not evidence of live MCP validation.
