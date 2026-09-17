@@ -31,7 +31,10 @@ export function loadState(): DesktopState {
   catch { return defaultState(); }
 }
 
-export function saveState(state: DesktopState) { localStorage.setItem(KEY, JSON.stringify(state)); }
+export function saveState(state: DesktopState): boolean {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); return true; }
+  catch { return false; }
+}
 
 export function automaticThreadTitle(thread?: Thread, incoming?: string): string | undefined {
   if (thread?.titleSource || (thread?.title && !['新对话', 'Codex 对话', 'New chat'].includes(thread.title))) return;
@@ -49,12 +52,12 @@ export function ensureThreadTitle(thread: Thread) {
 
 export function createThread(state: DesktopState, title = '新对话'): Thread {
   const thread: Thread = { id: id('thread'), title, status: 'idle', pinned: false, archived: false, messages: [], updatedAt: now() };
-  state.threads = [...state.threads, thread]; state.activeThreadId = thread.id; saveState(state); return thread;
+  state.threads = [...state.threads, thread]; state.activeThreadId = thread.id; return thread;
 }
 
 export function appendMessage(state: DesktopState, threadId: string, role: Message['role'], content: string) {
   const thread = state.threads.find(item => item.id === threadId); if (!thread) return;
   thread.messages.push({ id: id('message'), role, content, createdAt: now() });
   if (role === 'user') ensureThreadTitle(thread);
-  thread.updatedAt = now(); saveState(state);
+  thread.updatedAt = now();
 }

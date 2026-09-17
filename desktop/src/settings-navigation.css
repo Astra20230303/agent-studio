@@ -9,3 +9,5 @@
 .dark .settings-nav { color: #eee; }
 .dark .settings-nav.active, .dark .settings-nav:hover { background: #454542; }
 .settings-search-row .icon-button { display: grid; place-items: center; border: 0; border-radius: 4px; background: transparent; color: inherit; }
+.state-save-warning { position: relative; z-index: 30; flex: none; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; padding: 8px 12px; background: #fff0cc; color: #593d00; font-size: 13px; }
+.state-save-warning button { flex: none; }

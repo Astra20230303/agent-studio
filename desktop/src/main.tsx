@@ -67,6 +67,8 @@ function projectLabel(pathOrName?: string) {
 
 function App() {
   const [state, setState] = useState<DesktopState>(() => { const loaded = loadState(); loaded.model = modelId(loaded.model); return loaded; });
+  const [stateSaveFailed, setStateSaveFailed] = useState(false);
+  const [stateSaveAttempt, setStateSaveAttempt] = useState(0);
   const [input, setInput, draftStorage] = useThreadDraft(state.activeThreadId);
   const [composerSkills, setComposerSkills, skillSaveFailed] = useSkillDraft(state.activeThreadId);
   const [composerPlugins, setComposerPlugins] = useState<Plugin[]>([]);
@@ -119,7 +121,8 @@ function App() {
   const activity = active?.remoteId ? runtime.threads[active.remoteId]?.activity : undefined;
   const pending = pendingThreads.includes(active?.id || '') || !!active?.remoteId && restoringThread === active.remoteId;
   const threads = useMemo(() => state.threads.filter(thread => !thread.archived && (thread.title.toLowerCase().includes(search.trim().toLowerCase()) || !!thread.remoteId && threadList.matchingIds.includes(thread.remoteId))).slice().sort((a, b) => Number(b.pinned) - Number(a.pinned) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt)), [state.threads, search, threadList.matchingIds]);
-  useEffect(() => { saveState(state); document.documentElement.dataset.theme = state.theme; }, [state]);
+  useEffect(() => { setStateSaveFailed(!saveState(state)); }, [state, stateSaveAttempt]);
+  useEffect(() => { document.documentElement.dataset.theme = state.theme; }, [state.theme]);
   useEffect(() => {
     window.desktop?.providerStatus?.().then((provider: any) => {
       setProviderStatus(provider);
@@ -448,6 +451,7 @@ function App() {
     setComposerPlugins([]); setPage('chat');
   };
   return <div className={`desktop-app ${state.theme} ${page === 'settings' ? 'settings-mode' : ''} ${terminalOpen ? 'terminal-visible' : ''}`}>
+    {stateSaveFailed && <div role="alert" className="state-save-warning">会话和设置未能保存到本机，刷新或关闭窗口可能丢失当前更改。<button onClick={() => setStateSaveAttempt(attempt => attempt + 1)}>重试保存会话和设置</button></div>}
     <header className="desktop-titlebar">
       <div className="titlebar-navigation">
         <button className="titlebar-icon" aria-label={sidebarVisible ? '收起侧栏' : '展开侧栏'} title={sidebarVisible ? '收起侧栏' : '展开侧栏'} aria-expanded={sidebarVisible} aria-controls="workspace-sidebar" onClick={() => setSidebarVisible(value => !value)}><PanelLeft aria-hidden="true" /></button>

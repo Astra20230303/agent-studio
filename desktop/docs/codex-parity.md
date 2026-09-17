@@ -769,3 +769,13 @@ Post-commit acceptance checks 960px/1280px desktop layout and dark settings
 backgrounds, plus the existing shortcut workflow. Screenshot inspection removed
 duplicate native/custom search-clear controls and corrected dark navigation
 selection colors. Provider inputs retain their existing horizontal text scrolling.
+
+## Conversation and settings storage failures
+
+Main state persistence now reports write failures without throwing through React.
+Thread creation and message helpers mutate memory only; the application effect
+saves committed state. A global warning remains visible in settings and chat,
+with retry saving the latest in-memory snapshot. Build and browser fault injection
+verify quota failures, theme changes, creating/sending a conversation and recovery
+without renderer errors. Unsaved data still cannot survive closing the app;
+this is failure recovery, not a larger-capacity storage migration.
