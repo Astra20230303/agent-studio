@@ -825,3 +825,14 @@ Post-commit acceptance adds a long transcript and injects a streaming response:
 the selected tool record keeps its scroll position. Starting a new conversation
 clears the search field and outline. The first new-thread check used an obsolete
 button name and was corrected to the current UI label before passing.
+
+## Load history for conversation search
+
+Connected idle threads now offer explicit full-history loading in conversation
+find. All item pages are fetched before replacing displayed messages; failures
+leave the existing transcript intact. Sending is blocked while fetching, and
+thread switches or new runtime activity invalidate the result. The shared
+pagination reader also serves Markdown export. Build and browser acceptance
+verify finding a previously unloaded reply, failed reload preservation and export
+regression. Unknown item types remain available in export but are not rendered
+or searched by the existing message renderer.

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { Thread } from './domain';
-import { listThreadItems } from './codexClient';
+import { listAllThreadItems } from './codexClient';
 
 function block(value: unknown) {
   const text = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
@@ -30,15 +30,7 @@ export function ConversationExport({ thread, connected, busy, toast }: { thread:
     try {
       let items: any[] | undefined;
       if (snapshot.remoteId && connected) {
-        items = []; let cursor: string | undefined; const seen = new Set<string>();
-        do {
-          const page = await listThreadItems(snapshot.remoteId, cursor);
-          if (!Array.isArray(page.data)) throw new Error('服务端历史格式无效');
-          items.push(...page.data);
-          cursor = page.nextCursor || undefined;
-          if (cursor && seen.has(cursor)) throw new Error('服务端历史分页重复，请重试');
-          if (cursor) seen.add(cursor);
-        } while (cursor);
+        items = await listAllThreadItems(snapshot.remoteId);
       }
       const content = conversationMarkdown(snapshot, items);
       let basename = snapshot.title.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').slice(0, 100).replace(/[. ]+$/, '') || 'conversation';

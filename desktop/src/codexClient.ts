@@ -51,6 +51,18 @@ export async function updateThreadPermission(threadId: string, permission: 'on-r
 }
 export async function listThreadTurns(threadId: string, cursor?: string) { return unwrap<any>(bridge().request('thread/turns/list', { threadId, limit: 100, sortDirection: 'asc', itemsView: 'full', ...(cursor ? { cursor } : {}) })); }
 export async function listThreadItems(threadId: string, cursor?: string) { return unwrap<any>(bridge().request('thread/items/list', { threadId, limit: 200, sortDirection: 'asc', ...(cursor ? { cursor } : {}) })); }
+export async function listAllThreadItems(threadId: string) {
+  const items: any[] = []; const seen = new Set<string>(); let cursor: string | undefined;
+  do {
+    const page = await listThreadItems(threadId, cursor);
+    if (!Array.isArray(page.data)) throw new Error('服务端历史格式无效');
+    items.push(...page.data);
+    cursor = page.nextCursor || undefined;
+    if (cursor && seen.has(cursor)) throw new Error('服务端历史分页重复，请重试');
+    if (cursor) seen.add(cursor);
+  } while (cursor);
+  return items;
+}
 export async function setThreadName(threadId: string, name: string) { return unwrap<any>(bridge().request('thread/name/set', { threadId, name })); }
 export async function archiveThread(threadId: string) { return unwrap<any>(bridge().request('thread/archive', { threadId })); }
 export async function unarchiveThread(threadId: string) { return unwrap<any>(bridge().request('thread/unarchive', { threadId })); }
