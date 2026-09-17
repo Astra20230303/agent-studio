@@ -730,3 +730,6 @@ When a requested workspace-write thread returns readOnly, a persistent notice
 explains the downgrade and possible Windows sandbox or server-policy causes.
 Build and browser acceptance cover actual response display, downgrade visibility
 and changing defaults without relabeling or recreating an existing thread.
+Post-commit acceptance also covers restored permissions, missing response fields
+and resume failure. Restoration clears cached effective permissions before the
+request so failure cannot leave an old full-access label presented as current.

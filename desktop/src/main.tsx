@@ -331,6 +331,7 @@ function App() {
     let disposed = false;
     const revision = runtime.read(threadId)?.revision || 0;
     setRestoringThread(threadId);
+    update(next => { const thread = next.threads.find(item => item.remoteId === threadId); if (thread) thread.effectivePermissions = undefined; });
     void (async () => {
       try {
         const loaded = await resumeThread(threadId);

@@ -39,6 +39,21 @@ const assert = require('node:assert/strict');
       assert.equal(await page.evaluate(() => window.__calls.filter(call => call.method === 'thread/start').length), 1);
       await page.close();
     }
-    console.log('PASS: permission defaults persist, actual server permissions display, downgrade is visible, and defaults do not relabel existing threads');
+    // Restoring a thread must replace stale persisted permissions, even if the
+    // response does not include a usable permission profile.
+    for (const known of [true, false, 'failure']) {
+      const page = await browser.newPage();
+      await page.addInitScript(known => {
+        localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ permission: 'danger-full-access', activeThreadId: 'saved', threads: [{ id: 'saved', remoteId: 'remote-saved', title: 'Saved', messages: [], status: 'completed', effectivePermissions: { sandbox: 'dangerFullAccess', approvalPolicy: 'never', reviewer: 'user' }, updatedAt: new Date().toISOString() }] }));
+        window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }) };
+        window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async method => method === 'thread/resume' && known === 'failure' ? { ok: false, error: 'Resume unavailable' } : ({ ok: true, result: method === 'thread/resume' ? { thread: { id: 'remote-saved', turns: [] }, ...(known ? { sandbox: { type: 'workspaceWrite' }, approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' } : {}) } : { data: [] } }), onNotification: () => () => {}, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
+      }, known);
+      await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
+      await page.getByRole('button', { name: known === true ? '工作区写入 · 自动审查' : '权限待确认', exact: true }).waitFor();
+      if (known === 'failure') await page.getByText('恢复线程失败：Resume unavailable', { exact: true }).waitFor();
+      assert.equal(await page.getByRole('button', { name: '完全访问 · 不请求审批', exact: true }).count(), 0);
+      await page.close();
+    }
+    console.log('PASS: defaults, effective permissions, downgrade notice, existing-thread isolation, restored permissions and missing-field fallback');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
