@@ -505,3 +505,7 @@ as JSON. Existing draft text is preserved and the app returns to chat without
 sending. Build and browser acceptance verify provenance, literal content and the
 complete snapshot reaching turn/start only after explicit submission. Binary
 resource attachments and automatic live reference refresh remain pending.
+Post-commit acceptance changes the URI field after reading and verifies that the
+snapshot retains the returned resource URI. It also reloads the renderer before
+submission and verifies exact draft persistence and turn input. Both pass without
+further product changes.
