@@ -1,0 +1,31 @@
+import { useRef, useState } from 'react';
+const labels: Record<string, string> = { accept: '本次允许', acceptForSession: '本会话允许', decline: '拒绝', cancel: '取消本轮' };
+export function ApprovalPrompt({ request, onDecision }: { request: any; onDecision: (decision: string) => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const lock = useRef(false);
+  const params = request.params || {};
+  const permissions = request.method === 'item/permissions/requestApproval';
+  const file = request.method === 'item/fileChange/requestApproval';
+  const command = request.method === 'item/commandExecution/requestApproval';
+  const supported = permissions || file || command;
+  const decisions = command && Array.isArray(params.availableDecisions)
+    ? params.availableDecisions.filter((value: unknown) => typeof value === 'string' && Object.hasOwn(labels, value)) as string[]
+    : permissions ? ['decline', 'accept'] : file || command ? ['decline', 'accept', 'acceptForSession', 'cancel'] : [];
+  const submit = async (decision: string) => {
+    if (lock.current) return;
+    lock.current = true; setBusy(true); setError('');
+    try { await onDecision(decision); }
+    catch (error) { setError(error instanceof Error ? error.message : String(error)); }
+    finally { lock.current = false; setBusy(false); }
+  };
+  return <div className="approval-backdrop"><section className="approval-dialog" role="dialog" aria-modal="true" aria-labelledby="approval-title" style={{ maxHeight: '85vh', overflow: 'auto' }}>
+    <h2 id="approval-title">{permissions ? '请求额外权限' : file ? '确认文件变更' : '确认命令执行'}</h2>
+    <p>{params.reason || params.message}</p>{params.command && <pre>{params.command}</pre>}{params.cwd && <p>{params.cwd}</p>}
+    {params.threadId && <small>会话：{params.threadId}</small>}
+    {params.grantRoot && <p>写入目录：{params.grantRoot}</p>}
+    {(params.permissions || params.additionalPermissions || params.networkApprovalContext) && <pre>{JSON.stringify(params.permissions || params.additionalPermissions || params.networkApprovalContext, null, 2)}</pre>}
+    {!supported && <p role="alert">此请求类型尚未支持：{request.method}</p>}{error && <p role="alert">{error}</p>}
+    <div className="approval-actions">{decisions.map(decision => <button key={decision} disabled={busy} onClick={() => void submit(decision)}>{labels[decision]}</button>)}</div>
+  </section></div>;
+}

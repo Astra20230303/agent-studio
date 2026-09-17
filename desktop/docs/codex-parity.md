@@ -242,3 +242,13 @@ merge/handoff workflows remain pending; no worktree is deleted automatically.
 Post-commit review requires both branch and literal refs/heads validation, so
 Git revision shorthand cannot silently change the requested branch identity.
 Real-repository regression covers shorthand and option-like branch inputs.
+
+## Feature 6a: reliable approval decisions
+
+Command/file approvals support one-time, session, decline and cancel responses.
+Command controls respect server availableDecisions. Extra permissions, network
+context, cwd and source thread are visible. Submission is guarded against double
+clicks, shows transport failures and permits retry without losing the request.
+Build and approval-ui.cjs verify available choices, failure/retry, session choice
+and permission denial payload. MCP forms and persistent policy amendments remain
+pending; native/model approval flow is not yet verified.

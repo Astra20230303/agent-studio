@@ -9,6 +9,7 @@ import { workspaceFor } from './workspace';
 import { useAttachmentDraft } from './useAttachmentDraft';
 import { WorkspaceFiles } from './WorkspaceFiles';
 import { GitPanel } from './GitPanel';
+import { ApprovalPrompt } from './ApprovalPrompt';
 import { readPlan } from './planning';
 import { createConnectionRecovery } from './connectionRecovery';
 import './connection.css';
@@ -537,6 +538,7 @@ function DeleteDialog({ thread, onCancel, onConfirm }: { thread?: DesktopState['
 
 function ApprovalDialog({ request, onDecision }: { request: any; onDecision: (decision: string, answers?: UserAnswers) => Promise<void> }) {
   if (request.method === 'item/tool/requestUserInput') return <UserInputDialog key={request.id} request={request} onDecision={onDecision} />;
+  if (['item/commandExecution/requestApproval', 'item/fileChange/requestApproval', 'item/permissions/requestApproval'].includes(request.method)) return <ApprovalPrompt key={request.id} request={request} onDecision={onDecision} />;
   const params = request.params || {};
   const isFile = request.method === 'item/fileChange/requestApproval';
   const isInput = request.method === 'item/tool/requestUserInput';
