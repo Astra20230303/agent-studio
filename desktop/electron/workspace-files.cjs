@@ -29,6 +29,7 @@ async function workspaceFile(root, name = '.', action = 'list', query = '', edit
     if (typeof query !== 'string' || !query.trim()) return { entries: [], truncated: false, skipped: 0 };
     const term = (contentSearch ? query.trim() : query.trim().replace(/\\/g, '/')).toLowerCase();
     if (term.length > 1000 || term.includes('\n') || term.includes('\r')) throw Error('请输入不超过 1000 字符的单行关键词');
+    const contentPattern = contentSearch ? new RegExp(query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'iu') : undefined;
     let scannedBytes = 0;
     const entries = []; const pending = [target]; let visited = 0; let skipped = 0; let truncated = false;
     while (pending.length && !truncated) {
@@ -59,11 +60,11 @@ async function workspaceFile(root, name = '.', action = 'list', query = '', edit
           if (typeof result.text !== 'string' || !result.revision) { skipped++; continue; }
           const lines = result.text.split(/\r?\n/);
           for (let index = 0; index < lines.length; index++) {
-            const column = lines[index].toLowerCase().indexOf(term);
+            const column = contentPattern.exec(lines[index])?.index ?? -1;
             if (column < 0) continue;
             if (entries.length >= 200) { truncated = true; break; }
             const start = Math.max(0, column - 60);
-            entries.push({ name: entry.name, path: file, directory: false, symlink: false, line: index + 1, column: column + 1, snippet: (start ? '…' : '') + lines[index].slice(start, start + 300) });
+            entries.push({ name: entry.name, path: file, directory: false, symlink: false, revision: result.revision, line: index + 1, column: column + 1, snippet: (start ? '…' : '') + lines[index].slice(start, start + 300) });
           }
         } catch { skipped++; }
       }

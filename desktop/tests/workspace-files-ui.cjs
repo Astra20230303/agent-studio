@@ -9,9 +9,9 @@ const assert = require('node:assert/strict');
       window.__reads = [];
       window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }), providerStatus: async () => ({ keyConfigured: true }), workspaceFile: async input => {
         window.__reads.push(input);
-        if (input.action === 'search-content') return {ok:true,result:{entries:[{name:'example.ts',path:'src/example.ts',directory:false,line:2,column:1,snippet:'File content'}]}};
+        if (input.action === 'search-content') return {ok:true,result:{entries:[{name:'example.ts',path:'src/example.ts',directory:false,revision:'before',line:2,column:1,snippet:'File content'}]}};
         if (input.action === 'search') return { ok: true, result: { entries: input.query === 'example' ? [{ name: 'example.ts', path: 'src/example.ts', directory: false }] : [] } };
-        return { ok: true, result: input.action === 'read' ? { text: '<script>never execute</script>\nFile content', truncated: true } : { entries: input.path === '.' ? [{ name: 'src', path: 'src', directory: true }] : [{ name: 'example.ts', path: 'src/example.ts', directory: false }] } };
+        return { ok: true, result: input.action === 'read' ? { revision:window.__changedFile?'after':'before', text: '<script>never execute</script>\nFile content', truncated: true } : { entries: input.path === '.' ? [{ name: 'src', path: 'src', directory: true }] : [{ name: 'example.ts', path: 'src/example.ts', directory: false }] } };
       } };
       window.codex = { connect: async () => ({ ok: true }), request: async () => ({ ok: true, result: { data: [] } }), notify: async () => ({}), onNotification: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {}, onServerRequest: () => () => {} };
     });
@@ -43,6 +43,11 @@ const assert = require('node:assert/strict');
     await page.getByRole('button',{name:'▧ src/example.ts:2:1 · File content',exact:true}).click();
     await page.locator('.workspace-files pre span').filter({hasText:'File content'}).waitFor();
     assert.ok(await page.locator('.workspace-files pre span').filter({hasText:'File content'}).getAttribute('style'));
+    await page.getByRole('button',{name:'返回目录',exact:true}).click();
+    await page.evaluate(()=>{window.__changedFile=true;});
+    await page.getByRole('button',{name:'▧ src/example.ts:2:1 · File content',exact:true}).click();
+    await page.getByText('文件在搜索后已变化，请返回并刷新搜索结果。',{exact:true}).waitFor();
+    assert.equal(await page.locator('.workspace-files pre span').count(),0);
     assert.ok((await page.evaluate(() => window.__reads)).every(item => item.root === 'D:/Project'));
     console.log('PASS: navigation, escaped text preview, truncation notice, attach file, parent navigation');
   } finally { await browser.close(); }

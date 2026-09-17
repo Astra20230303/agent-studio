@@ -1069,3 +1069,8 @@ complete UTF-8 files up to 256 KB, with limits of 200 results, 20000 visited ent
 and roughly 32 MB read per request. Skipped entries and truncation are visible.
 Filesystem tests cover line positions, literal punctuation, binary/large files,
 Git exclusion and result limits; browser navigation/highlighting and build pass.
+Post-commit acceptance compares the search-time file revision with the opened
+preview; changed files show a refresh notice instead of highlighting a stale line.
+Literal Unicode-aware matching preserves original UTF-16 column offsets even when
+lowercasing a preceding character would expand it. Filesystem and browser tests
+cover these cases, and the production build passes.

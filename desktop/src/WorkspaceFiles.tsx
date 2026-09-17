@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import './workspaceFiles.css';
 export type FileEditSession = { root: string; path: string; initial: { text: string; revision: string } };
 export type FilePreviewUpdate = { root: string; path: string; preview: any };
-type Entry = { line?: number; column?: number; snippet?: string; name: string; path: string; directory: boolean; symlink: boolean };
+type Entry = { revision?: string; line?: number; column?: number; snippet?: string; name: string; path: string; directory: boolean; symlink: boolean };
 export function WorkspaceFiles({ root, onAttach, onClose, onEdit, previewUpdate }: { onEdit: (session: FileEditSession) => void; previewUpdate?: FilePreviewUpdate; root?: string; onAttach: (path: string) => void; onClose: () => void }) {
   const [directory, setDirectory] = useState('.');
   const [contentSearch, setContentSearch] = useState(false);
@@ -31,6 +31,7 @@ export function WorkspaceFiles({ root, onAttach, onClose, onEdit, previewUpdate 
     return () => { disposed = true; };
   }, [root, directory, selected, refresh, search, contentSearch]);
   useEffect(() => { matchLine.current?.scrollIntoView({ block: 'center' }); }, [preview, selected]);
+  const staleMatch = Boolean(selected?.line && selected.revision && preview && selected.revision !== preview.revision);
   return <section className="workspace-files" aria-label="工作区文件"><header><b>文件</b><button onClick={() => { setSelected(undefined); setDirectory('.'); setQuery(''); setSearch(''); }}>根目录</button><button onClick={() => setRefresh(value => value + 1)}>刷新文件</button><button onClick={onClose} aria-label="关闭文件面板">×</button></header><small>{root || '请先选择项目目录'}</small>
     <form onSubmit={event => { event.preventDefault(); setSelected(undefined); setSearch(query.trim()); }}><select aria-label="文件搜索方式" value={contentSearch ? "content" : "name"} onChange={event => { setContentSearch(event.target.value === "content"); setSelected(undefined); setSearch(''); }}><option value="name">文件名</option><option value="content">文件内容</option></select><input aria-label="查找工作区文件" placeholder={contentSearch ? "文本关键词（不区分大小写）" : "文件名或相对路径"} value={query} onChange={event => setQuery(event.target.value)} /><button disabled={!root}>查找文件</button>{search && <button type="button" onClick={() => { setQuery(''); setSearch(''); setSelected(undefined); }}>清除文件查找</button>}</form>
     {search && <small>搜索工作区内文件，跳过 .git 和符号链接；最多扫描 20000 项、返回 200 个结果。{contentSearch && " 内容搜索限完整 UTF-8 文本，每文件不超过 256 KB，总读取约 32 MB。"}</small>}
@@ -39,6 +40,6 @@ export function WorkspaceFiles({ root, onAttach, onClose, onEdit, previewUpdate 
     {error && <p role="alert">{error}</p>}{root && !listing && !preview && !error && <p>正在读取…</p>}
     {listing && !listing.entries.length && <p>{search ? '没有匹配文件。' : '此目录为空。'}</p>}
     {selected && root && preview?.revision && <button onClick={() => onEdit({ root, path: selected.path, initial: { text: preview.text, revision: preview.revision } })}>编辑文件</button>}
-    {preview?.image && <img src={preview.image} alt={selected?.name} />}{preview?.binary && <p>二进制文件，无法显示文本预览。</p>}{typeof preview?.text === 'string' && <pre>{selected?.line ? preview.text.split('\n').map((line: string, index: number) => <span key={index} ref={index + 1 === selected.line ? matchLine : undefined} style={index + 1 === selected.line ? { background: '#ffe08a', color: '#202020' } : undefined}>{line}{'\n'}</span>) : preview.text}</pre>}{preview?.truncated && <p>仅预览前 256 KB。</p>}
+    {preview?.image && <img src={preview.image} alt={selected?.name} />}{preview?.binary && <p>二进制文件，无法显示文本预览。</p>}{staleMatch && <p role="status">文件在搜索后已变化，请返回并刷新搜索结果。</p>}{typeof preview?.text === 'string' && <pre>{selected?.line && !staleMatch ? preview.text.split('\n').map((line: string, index: number) => <span key={index} ref={index + 1 === selected.line ? matchLine : undefined} style={index + 1 === selected.line ? { background: '#ffe08a', color: '#202020' } : undefined}>{line}{'\n'}</span>) : preview.text}</pre>}{preview?.truncated && <p>仅预览前 256 KB。</p>}
   </section>;
 }
