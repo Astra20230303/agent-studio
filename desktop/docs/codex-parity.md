@@ -1666,3 +1666,8 @@ main process refuse deletion of the active Provider. Deleting an edited entry
 clears its editor/model selection. Registry tests cover active/missing IDs,
 credential removal and failed persistence leaving the original registry intact.
 Production build passes.
+
+Provider deletion post-commit acceptance: the full settings UI verifies cancellation
+sends no deletion, storage errors retain the item/editor and permit retry, active
+Provider deletion stays disabled, and successful deletion clears the selected
+editor. Delete uses a labelled Lucide icon. Browser acceptance and build pass.

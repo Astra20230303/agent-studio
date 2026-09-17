@@ -54,7 +54,7 @@ import { listAllThreadItems, updateThreadPermission, archiveThread, connectCodex
 import { ExtensionsPage, ExtensionIcon } from './ExtensionsPage';
 import { ThreadButton } from './ThreadButton';
 import { ModePicker } from './ModePicker';
-import { ArrowLeft, ArrowRight, ArrowUp, Badge, Bug, Clock3, FolderOpen, GitBranch, Hammer, Laptop, PanelLeft, Plus, Puzzle, RefreshCcw, Search, ShieldAlert, Square, SquarePen, Terminal, Telescope, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowUp, Badge, Bug, Clock3, FolderOpen, GitBranch, Hammer, Laptop, PanelLeft, Plus, Puzzle, RefreshCcw, Search, ShieldAlert, Square, SquarePen, Terminal, Telescope, Trash2, X } from 'lucide-react';
 import { useNavigationHistory } from './useNavigationHistory';
 import type { Page } from './useNavigationHistory';
 import './styles.css';
@@ -756,7 +756,7 @@ function ProviderSettings({ state, update, toast }: { state: DesktopState; updat
     {providers.map(provider => <div className="provider-item" key={provider.id}>
       <div><b>{provider.name}{provider.enabled ? ' · 当前使用' : ''}</b><small>{provider.baseUrl}</small><small>{provider.model || '未选择默认模型'} · {provider.keyConfigured ? '密钥已配置' : provider.authRequired === false ? '本机服务，无密钥' : '待配置密钥'}</small></div>
       <div><button disabled={saving || connecting} onClick={() => { setDraft({ id: provider.id, name: provider.name, baseUrl: provider.baseUrl, model: provider.model, apiKey: '' }); setModels([]); setConnectionError(''); }}>编辑</button>
-      <button disabled={saving || connecting || provider.enabled} aria-label={`删除渠道 ${provider.name}`} title={provider.enabled ? '请先启用其他渠道' : '删除渠道和已保存密钥'} onClick={() => { setDeleting(provider); setDeleteError(''); }}>删除</button><button disabled={saving || connecting || provider.enabled || (!provider.keyConfigured && provider.authRequired !== false)} onClick={() => void activate(provider)}>启用</button></div>
+      <button disabled={saving || connecting || provider.enabled} aria-label={`删除渠道 ${provider.name}`} title={provider.enabled ? '请先启用其他渠道' : '删除渠道和已保存密钥'} onClick={() => { setDeleting(provider); setDeleteError(''); }}><Trash2 size={14} /></button><button disabled={saving || connecting || provider.enabled || (!provider.keyConfigured && provider.authRequired !== false)} onClick={() => void activate(provider)}>启用</button></div>
     </div>)}
     <button disabled={saving || connecting} onClick={() => { setDraft({ id: '', name: '', baseUrl: 'https://api.rvcompute.com:60000/v1', apiKey: '', model: '' }); setModels([]); setConnectionError(''); }}><Plus size={14} /> 新增渠道</button>
     <h3>{draft.id ? '编辑渠道' : '新增渠道'}</h3>
