@@ -42,6 +42,13 @@ contextBridge.exposeInMainWorld('desktop', {
     const handler = (_event, message) => listener(message);
     ipcRenderer.on('tasks:changed', handler);
     return () => ipcRenderer.removeListener('tasks:changed', handler);
+  },
+  terminal: {
+    create: cwd => ipcRenderer.invoke('terminal:create', { cwd }),
+    write: (id, data) => ipcRenderer.invoke('terminal:write', { id, data }),
+    resize: (id, cols, rows) => ipcRenderer.invoke('terminal:resize', { id, cols, rows }),
+    close: id => ipcRenderer.invoke('terminal:close', { id }),
+    onData: listener => { const handler = (_event, message) => listener(message); ipcRenderer.on('terminal:data', handler); return () => ipcRenderer.removeListener('terminal:data', handler); }
   }
 });
 

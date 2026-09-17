@@ -289,3 +289,17 @@ Post-commit acceptance fixes required arrays with zero selections and separates
 empty-string enum choices from the unselected placeholder. Browser tests verify
 both payloads and missing required selection; the build, five unit tests and both
 MCP browser workflows pass after the correction.
+
+## Feature 4d: integrated terminal
+
+Scope: launch a real interactive shell in the selected conversation workspace,
+render ANSI output with xterm, resize, retain the session while hidden, terminate
+and restart, and release sessions at app shutdown. A single session is bound to
+its initial workspace, displayed in the terminal header. Multiple tabs remain
+pending. Windows uses PowerShell and node-pty's bundled ConPTY implementation.
+
+Acceptance: production build passes. terminal-ui.cjs connects a real PTY to the
+browser through a test bridge and verifies command input/output, hide/reopen,
+resize, termination and restart, with desktop/mobile screenshots. The native
+terminal-electron.cjs smoke verifies Electron loading, real shell output and shell
+process death after close. Full production IPC lifecycle still needs acceptance.

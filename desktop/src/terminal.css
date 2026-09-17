@@ -1,0 +1,10 @@
+.terminal-panel{position:fixed;z-index:6;bottom:0;left:0;right:0;height:330px;max-height:65vh;background:#191b1e;color:#eee;border-top:1px solid #555;display:flex;flex-direction:column}
+.terminal-panel[hidden]{display:none}
+.terminal-panel header{display:flex;align-items:center;gap:10px;padding:6px 12px;min-height:38px;font-size:12px}
+.terminal-panel header span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.terminal-panel header small{white-space:nowrap}
+.terminal-panel button{width:28px;height:28px;display:grid;place-items:center;background:transparent;border:0;color:inherit;cursor:pointer}
+.terminal-panel button:disabled{opacity:.4}
+.terminal-panel button:hover{background:#444}
+.terminal-panel p{margin:4px 12px;color:#ffa8a8}
+.terminal-host{flex:1;min-height:0;padding:0 8px 8px;overflow:hidden}
