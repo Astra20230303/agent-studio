@@ -1135,3 +1135,13 @@ server without the windows.sandbox command-line override, readiness remains read
 This supersedes the earlier unelevated provisioning uncertainty for this fixture;
 elevated provisioning and network isolation remain unverified. No product change
 was required by this scoped acceptance.
+
+## Restart workspace service from settings
+
+Settings now provides an explicit stop-and-reconnect control to apply server
+configuration changes without exiting Felix. Active/restoring/submitting turns,
+approvals and sandbox setup disable it. Restart pauses queued messages and
+preserves drafts; automatic recovery is suspended until the stop response, then
+the normal bounded reconnect/restore flow resumes. Browser tests hold the stop
+response to verify sequencing, block restart during a running turn and check the
+draft afterward. Connection recovery tests and production build pass.

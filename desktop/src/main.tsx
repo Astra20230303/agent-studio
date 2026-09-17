@@ -3,6 +3,7 @@ import { UserInputDialog } from './UserInputDialog';
 import { useTurnRuntime } from './useTurnRuntime';
 import { useSkillDraft, type SelectedSkill } from './useSkillDraft';
 import { useThreadDraft } from './useThreadDraft';
+import { sandboxSnapshot, subscribeSandbox } from './windowsSandbox';
 import { WindowsSandboxSettings } from './WindowsSandboxSettings';
 import { PermissionSettings, permissionOptions } from './PermissionSettings';
 import { ConversationFind } from './ConversationFind';
@@ -36,7 +37,7 @@ import type { UserAnswers } from './UserInputDialog';
 import { RemoteDesktopPanel } from './RemoteDesktopPanel';
 import { RemoteBrowser } from './RemoteBrowser';
 import { Globe } from 'lucide-react';
-import { Fragment, StrictMode, Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, StrictMode, Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { appendMessage, automaticThreadTitle, createThread, ensureThreadTitle, loadState, saveState } from './store';
@@ -116,6 +117,10 @@ function App() {
   const [codexStatus, setCodexStatus] = useState<'connecting' | 'connected' | 'offline' | 'error'>('connecting');
   const threadList = useThreadList(codexStatus === 'connected', setState, search);
   const reconnectRef = useRef<() => void>(() => {});
+  const stopRecoveryRef = useRef<() => void>(() => {});
+  const restartingRef = useRef(false);
+  const [restarting, setRestarting] = useState(false);
+  const sandboxState = useSyncExternalStore(subscribeSandbox, sandboxSnapshot);
   const [connectionError, setConnectionError] = useState('');
   const [remoteThreadId, setRemoteThreadId] = useState<string>();
   const runtime = useTurnRuntime();
@@ -138,6 +143,16 @@ function App() {
   const active = state.threads.find(thread => thread.id === state.activeThreadId);
   const runningTurnId = active?.remoteId ? runtime.threads[active.remoteId]?.turnId : undefined;
   const activity = active?.remoteId ? runtime.threads[active.remoteId]?.activity : undefined;
+  const serviceInUse = pendingThreads.length > 0 || Boolean(restoringThread) || approvals.length > 0 || state.threads.some(thread => thread.status === 'running') || Object.values(runtime.threads).some(thread => Boolean(thread.turnId)) || sandboxState.busy;
+  const restartService = async () => {
+    if (restartingRef.current || serviceInUse || codexStatus === 'connecting') return;
+    restartingRef.current = true; setRestarting(true); stopRecoveryRef.current(); queue.pause(); setConnectionError(''); setCodexStatus('connecting');
+    try {
+      const result = await window.codex?.stop?.();
+      if (!result?.ok) throw Error(result?.error?.message || result?.error || '服务重启不可用');
+    } catch (error) { setNotice(`重启服务失败：${error instanceof Error ? error.message : String(error)}`); }
+    finally { restartingRef.current = false; setRestarting(false); reconnectRef.current(); }
+  };
   const pending = pendingThreads.includes(active?.id || '') || !!active?.remoteId && restoringThread === active.remoteId;
   const threads = useMemo(() => state.threads.filter(thread => !thread.archived && (thread.title.toLowerCase().includes(search.trim().toLowerCase()) || !!thread.remoteId && threadList.matchingIds.includes(thread.remoteId))).slice().sort((a, b) => Number(b.pinned) - Number(a.pinned) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt)), [state.threads, search, threadList.matchingIds]);
   useEffect(() => { setStateSaveFailed(!saveState(state)); }, [state, stateSaveAttempt]);
@@ -154,7 +169,7 @@ function App() {
       status: (status, error) => { setCodexStatus(status); setConnectionError(error || ''); },
       connected: () => {},
     });
-    reconnectRef.current = recovery.start;
+    reconnectRef.current = recovery.start; stopRecoveryRef.current = recovery.stop;
     const cleanup = subscribeCodex({
       notification: message => {
         const params = message.params || {};
@@ -232,10 +247,10 @@ function App() {
           catch { if (/MINIMAX_API_KEY/.test(line)) setNotice(failureMessage(line)); }
         }
       },
-      closed: () => { queue.pause(); setApprovals([]); runtime.clear(); recovery.disconnected(); }
+      closed: () => { queue.pause(); setApprovals([]); runtime.clear(); if (!restartingRef.current) recovery.disconnected(); }
     });
     recovery.start();
-    return () => { disposed = true; recovery.stop(); cleanup(); reconnectRef.current = () => {}; };
+    return () => { disposed = true; recovery.stop(); cleanup(); reconnectRef.current = () => {}; stopRecoveryRef.current = () => {}; };
   }, []);
   const toast = (text: string) => { setNotice(text); window.setTimeout(() => setNotice(''), 1500); };
   const update = (fn: (next: DesktopState) => void) => setState(previous => { const next = structuredClone(previous); fn(next); return next; });
@@ -481,6 +496,7 @@ function App() {
     });
     setComposerPlugins([]); setPage('chat');
   };
+  const serviceControl = <section className="settings-card" aria-label="工作区服务连接"><h2>工作区服务</h2><p>配置变更后可重启服务并重新连接。{serviceInUse ? '请先等待运行中会话、审批和沙箱设置结束。' : '草稿保留，排队消息会暂停。'}</p><button disabled={serviceInUse || restarting || codexStatus === 'connecting'} onClick={() => void restartService()}>重启并重新连接服务</button></section>;
   return <div className={`desktop-app ${effectiveTheme} ${page === 'settings' ? 'settings-mode' : ''} ${terminalOpen ? 'terminal-visible' : ''}`}>
     {attachmentStorage.saveFailed && <div role="alert" className="state-save-warning">附件选择未保存到本机，刷新后可能丢失选择或恢复旧附件。当前仍可编辑和发送。<button onClick={attachmentStorage.retry}>重试保存附件</button></div>}
     {stateSaveFailed && <div role="alert" className="state-save-warning">会话和设置未能保存到本机，刷新或关闭窗口可能丢失当前更改。<button onClick={() => setStateSaveAttempt(attempt => attempt + 1)}>重试保存会话和设置</button></div>}
@@ -512,7 +528,7 @@ function App() {
       </div>
       <div className="sidebar-footer"><button onClick={() => setArchivesOpen(true)}>归档会话</button><button className="sidebar-nav" aria-current={page === 'settings' ? 'page' : undefined} onClick={() => setPage('settings')}><Badge aria-hidden="true" /><span>设置</span></button></div>
     </aside>
-      <main>{skillSaveFailed && <p role="alert">技能选择未保存到本机，关闭窗口可能丢失。</p>}{draftStorage.saveFailed && <div role="alert">草稿未能保存到本机，刷新或关闭窗口可能丢失。当前仍可编辑和发送。<button onClick={draftStorage.retry}>重试保存草稿</button></div>}{page === 'chat' && <><div className="planning-controls"><label>协作模式 <select aria-label="协作模式" value={active?.planningMode || 'default'} disabled={Boolean(runningTurnId) || pending} onChange={event => { const mode = event.target.value as 'default' | 'plan'; update(next => { const thread = next.threads.find(item => item.id === next.activeThreadId) || createThread(next); thread.planningMode = mode; }); }}><option value="default">直接执行</option><option value="plan">先规划</option></select></label>{active?.planningMode === 'plan' && <span>先讨论方案，再切换执行</span>}{active?.planningMode === 'plan' && active.messages.some(message => message.id.startsWith('plan-')) && <button title={input.trim() ? '请先发送或清空当前草稿' : '准备执行计划的指令'} disabled={Boolean(runningTurnId) || pending || Boolean(input.trim())} onClick={() => { update(next => { const thread = next.threads.find(item => item.id === next.activeThreadId); if (thread) thread.planningMode = 'default'; }); setInput('请按照刚才确认的计划逐步实现，并验证结果。'); }}>按计划执行</button>}</div><PlanPanel plan={active?.plan} /></>}{page === 'chat' && <><TurnQueue items={queue.items.filter(item => item.localId === active?.id)} disabled={codexStatus !== 'connected' || pending} onRemove={id => queue.change(items => items.filter(item => item.id !== id))} onResume={() => queue.change(items => items.map(item => item.localId === active?.id && item.status === 'paused' ? { ...item, status: runningTurnId ? 'waiting' : 'ready', waitingOn: runningTurnId, error: undefined } : item))} />{runningTurnId && <button className="queue-message" disabled={(!input.trim() && !attachments.length && !composerSkills.length) || pending || codexStatus !== 'connected'} onClick={enqueue}>本轮完成后发送</button>}</>}{!!active?.messages.length && page === 'chat' && <div className="thread-toolbar global-thread-toolbar"><span>{active.title}</span><div><ConversationExport thread={active} connected={codexStatus === 'connected'} busy={pending || Boolean(runningTurnId)} toast={toast} /><button onClick={renameActive}>重命名</button><button onClick={forkActive}>分叉</button><button onClick={archiveActive}>归档</button><button onClick={deleteActive}>删除</button></div></div>}{page === 'chat' ? <Chat loadFullHistory={loadFullHistory} onChangePermission={changeThreadPermission} sendShortcut={state.sendShortcut} composerSkills={composerSkills} setComposerSkills={setComposerSkills} onOpenAgent={openAgent} removeAttachment={path => setAttachments(current => current.filter(item => item !== path))} busy={pending} mode={state.mode} permission={state.permission} onOpenPlugins={() => setPage('plugins')} composerPlugins={composerPlugins} setComposerPlugins={setComposerPlugins} active={active} input={input} setInput={setInput} send={send} cancel={cancel} running={Boolean(runningTurnId)} activity={activity} model={state.model} reasoningEffort={state.reasoningEffort} catalog={catalog} update={update} attachments={attachments} addAttachment={addAttachment} showModel={showModel} setShowModel={setShowModel} showProjects={showProjects} setShowProjects={setShowProjects} toast={toast} projectId={state.activeProjectId} projects={state.projects} status={codexStatus} onForkMessage={forkFromMessage} /> : page === 'scheduled' ? <ScheduledPage cwd={workspaceFor(state, active)} models={availableModels} loadingModels={catalog.loading} refreshModels={catalog.refresh} /> : page === 'plugins' ? <ExtensionsPage onSelectSkill={skill => { setComposerSkills(current => current.some(item => item.path === skill.path) ? current : [...current, skill]); setPage('chat'); }} cwd={workspaceFor(state, active)} onAddToDraft={text => { setInput(current => current ? `${current}\n\n${text}` : text); setPage('chat'); }} connected={codexStatus === 'connected'} threadId={active?.remoteId} /> : <Workspace page={page} state={state} models={availableModels} update={update} toast={toast} providerStatus={providerStatus} onBack={() => { setPage('chat'); setSidebarVisible(true); }} />}</main>
+      <main>{skillSaveFailed && <p role="alert">技能选择未保存到本机，关闭窗口可能丢失。</p>}{draftStorage.saveFailed && <div role="alert">草稿未能保存到本机，刷新或关闭窗口可能丢失。当前仍可编辑和发送。<button onClick={draftStorage.retry}>重试保存草稿</button></div>}{page === 'chat' && <><div className="planning-controls"><label>协作模式 <select aria-label="协作模式" value={active?.planningMode || 'default'} disabled={Boolean(runningTurnId) || pending} onChange={event => { const mode = event.target.value as 'default' | 'plan'; update(next => { const thread = next.threads.find(item => item.id === next.activeThreadId) || createThread(next); thread.planningMode = mode; }); }}><option value="default">直接执行</option><option value="plan">先规划</option></select></label>{active?.planningMode === 'plan' && <span>先讨论方案，再切换执行</span>}{active?.planningMode === 'plan' && active.messages.some(message => message.id.startsWith('plan-')) && <button title={input.trim() ? '请先发送或清空当前草稿' : '准备执行计划的指令'} disabled={Boolean(runningTurnId) || pending || Boolean(input.trim())} onClick={() => { update(next => { const thread = next.threads.find(item => item.id === next.activeThreadId); if (thread) thread.planningMode = 'default'; }); setInput('请按照刚才确认的计划逐步实现，并验证结果。'); }}>按计划执行</button>}</div><PlanPanel plan={active?.plan} /></>}{page === 'chat' && <><TurnQueue items={queue.items.filter(item => item.localId === active?.id)} disabled={codexStatus !== 'connected' || pending} onRemove={id => queue.change(items => items.filter(item => item.id !== id))} onResume={() => queue.change(items => items.map(item => item.localId === active?.id && item.status === 'paused' ? { ...item, status: runningTurnId ? 'waiting' : 'ready', waitingOn: runningTurnId, error: undefined } : item))} />{runningTurnId && <button className="queue-message" disabled={(!input.trim() && !attachments.length && !composerSkills.length) || pending || codexStatus !== 'connected'} onClick={enqueue}>本轮完成后发送</button>}</>}{!!active?.messages.length && page === 'chat' && <div className="thread-toolbar global-thread-toolbar"><span>{active.title}</span><div><ConversationExport thread={active} connected={codexStatus === 'connected'} busy={pending || Boolean(runningTurnId)} toast={toast} /><button onClick={renameActive}>重命名</button><button onClick={forkActive}>分叉</button><button onClick={archiveActive}>归档</button><button onClick={deleteActive}>删除</button></div></div>}{page === 'chat' ? <Chat loadFullHistory={loadFullHistory} onChangePermission={changeThreadPermission} sendShortcut={state.sendShortcut} composerSkills={composerSkills} setComposerSkills={setComposerSkills} onOpenAgent={openAgent} removeAttachment={path => setAttachments(current => current.filter(item => item !== path))} busy={pending} mode={state.mode} permission={state.permission} onOpenPlugins={() => setPage('plugins')} composerPlugins={composerPlugins} setComposerPlugins={setComposerPlugins} active={active} input={input} setInput={setInput} send={send} cancel={cancel} running={Boolean(runningTurnId)} activity={activity} model={state.model} reasoningEffort={state.reasoningEffort} catalog={catalog} update={update} attachments={attachments} addAttachment={addAttachment} showModel={showModel} setShowModel={setShowModel} showProjects={showProjects} setShowProjects={setShowProjects} toast={toast} projectId={state.activeProjectId} projects={state.projects} status={codexStatus} onForkMessage={forkFromMessage} /> : page === 'scheduled' ? <ScheduledPage cwd={workspaceFor(state, active)} models={availableModels} loadingModels={catalog.loading} refreshModels={catalog.refresh} /> : page === 'plugins' ? <ExtensionsPage onSelectSkill={skill => { setComposerSkills(current => current.some(item => item.path === skill.path) ? current : [...current, skill]); setPage('chat'); }} cwd={workspaceFor(state, active)} onAddToDraft={text => { setInput(current => current ? `${current}\n\n${text}` : text); setPage('chat'); }} connected={codexStatus === 'connected'} threadId={active?.remoteId} /> : <Workspace serviceControl={serviceControl} page={page} state={state} models={availableModels} update={update} toast={toast} providerStatus={providerStatus} onBack={() => { setPage('chat'); setSidebarVisible(true); }} />}</main>
       <RemoteBrowser open={browserOpen} onClose={() => setBrowserOpen(false)} />
       {terminalStarted && <Suspense fallback={null}><TerminalPanel cwd={workspaceFor(state, active)} open={terminalOpen} onClose={() => setTerminalOpen(false)} /></Suspense>}
       {gitOpen && <GitPanel onReview={text => { setInput(current => current ? `${current}\n\n${text}` : text); setPage('chat'); setGitOpen(false); }} key={workspaceFor(state, active) || 'none'} root={workspaceFor(state, active)} onClose={() => setGitOpen(false)} onWorktree={project => { update(next => { if (!next.projects.some(item => item.id === project.id)) next.projects.push(project); next.activeProjectId = project.id; const thread = createThread(next); thread.projectId = project.id; thread.cwd = project.path; }); setPage('chat'); setGitOpen(false); }} />}
@@ -727,21 +743,21 @@ function Chat({ loadFullHistory, onChangePermission, sendShortcut, composerSkill
   </div></div>;
 }
 
-function Workspace({ page, state, models, update, toast, providerStatus, onBack }: { page: Page; state: DesktopState; models: string[]; update: (fn: (next: DesktopState) => void) => void; toast: (text: string) => void; providerStatus?: any; onBack: () => void }) {
-  if (page === 'settings') return <SettingsWorkspace state={state} update={update} toast={toast} onBack={onBack} />;
+function Workspace({ serviceControl, page, state, models, update, toast, providerStatus, onBack }: { serviceControl: ReactNode; page: Page; state: DesktopState; models: string[]; update: (fn: (next: DesktopState) => void) => void; toast: (text: string) => void; providerStatus?: any; onBack: () => void }) {
+  if (page === 'settings') return <SettingsWorkspace serviceControl={serviceControl} state={state} update={update} toast={toast} onBack={onBack} />;
   const title = page === 'scheduled' ? '已安排' : page === 'plugins' ? '插件' : '设置';
 return <section className="page"><h1>{title}</h1><p>本地工作区演示页面，已准备好接入对应 connector。</p></section>;
 }
 
-function SettingsWorkspace({ state, update, toast, onBack }: { state: DesktopState; update: (fn: (next: DesktopState) => void) => void; toast: (text: string) => void; onBack: () => void }) {
-  return <SettingsNavigation onBack={onBack}>{section => section === '键盘快捷键'
+function SettingsWorkspace({ serviceControl, state, update, toast, onBack }: { serviceControl: ReactNode; state: DesktopState; update: (fn: (next: DesktopState) => void) => void; toast: (text: string) => void; onBack: () => void }) {
+  return <SettingsNavigation onBack={onBack}>{section => <>{serviceControl}{section === '键盘快捷键'
     ? <KeyboardSettings value={state.sendShortcut} onChange={value => update(next => { next.sendShortcut = value; })} />
     : section === '电脑操控' ? <RemoteDesktopPanel />
     : section === '通知' ? <NotificationSettings />
     : section === '配置' ? <ProviderSettings state={state} update={update} toast={toast} />
     : section === '权限' ? <><PermissionSettings value={state.permission} onChange={value => update(next => { next.permission = value; })} /><WindowsSandboxSettings cwd={workspaceFor(state, state.threads.find(thread => thread.id === state.activeThreadId))} /></>
     : <div className="settings-card"><div className="settings-line"><div><b>主题</b><small>应用界面主题</small></div><select aria-label="主题" value={state.theme} onChange={e => update(next => { next.theme = e.target.value as DesktopState['theme']; })}><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></div><div className="settings-line"><div><b>默认模型</b><small>Agent 默认使用的模型</small></div><span>{state.model || '自动选择'}</span></div></div>
-  }</SettingsNavigation>;
+  }</>}</SettingsNavigation>;
 }
 
 function ProviderSettings({ state, update, toast }: { state: DesktopState; update: (fn: (next: DesktopState) => void) => void; toast: (text: string) => void }) {
