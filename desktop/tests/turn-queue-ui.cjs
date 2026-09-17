@@ -31,6 +31,23 @@ const assert = require('node:assert/strict');
     const input = page.getByRole('textbox', { name: '消息', exact: true });
     const add = page.getByRole('button', { name: '本轮完成后发送', exact: true });
     await add.waitFor();
+    await page.evaluate(() => {
+      const write = Storage.prototype.setItem;
+      window.__queueQuota = true;
+      Storage.prototype.setItem = function (key, value) {
+        if (key === 'felix-turn-queue-v1' && window.__queueQuota) throw Error('quota');
+        return write.call(this, key, value);
+      };
+    });
+    await input.fill('keep draft on quota'); await add.click();
+    await page.getByRole('button', { name: '重试保存队列', exact: true }).waitFor();
+    assert.equal(await input.inputValue(), 'keep draft on quota');
+    assert.equal(await page.evaluate(() => window.__sent.length), 0);
+    assert.equal(await page.getByRole('region', { name: '待发送消息' }).count(), 0);
+    await page.evaluate(() => { window.__queueQuota = false; });
+    await page.getByRole('button', { name: '重试保存队列', exact: true }).click();
+    await page.getByRole('button', { name: '重试保存队列', exact: true }).waitFor({ state: 'hidden' });
+
     for (const text of ['first', 'second', 'cancel-me']) { await input.fill(text); await add.click(); }
     assert.equal(await page.evaluate(() => window.__sent.length), 0);
     await page.getByRole('button', { name: '取消排队：cancel-me', exact: true }).click();

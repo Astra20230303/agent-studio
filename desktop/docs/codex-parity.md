@@ -1407,3 +1407,8 @@ the original queue, preventing accidental erasure. Browser fault injection,
 existing FIFO/cancellation/reload regression and production build pass. Unsaved
 changes can still be lost on close and previously persisted sends require user
 verification after reopening; no automatic replay is introduced.
+Post-commit acceptance injects quota failure into the full chat enqueue flow:
+composer text remains intact, no turn/start is sent, no phantom queued item
+appears, and retry clears the warning. The same run then passes normal FIFO,
+cancellation, failure/retry and persisted paused-queue restoration. No additional
+product change was required for this acceptance.
