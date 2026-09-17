@@ -496,3 +496,12 @@ remain pending.
 Post-commit resource acceptance delays a read until after inventory refresh,
 asserts that the old result stays discarded, then successfully reads a fresh
 resource. The expanded browser regression passes without a product correction.
+
+## Resource snapshots in chat
+
+Read text resources can now be appended to the current conversation draft. The
+snapshot includes server, returned URI, MIME type when supplied, and exact text
+as JSON. Existing draft text is preserved and the app returns to chat without
+sending. Build and browser acceptance verify provenance, literal content and the
+complete snapshot reaching turn/start only after explicit submission. Binary
+resource attachments and automatic live reference refresh remain pending.

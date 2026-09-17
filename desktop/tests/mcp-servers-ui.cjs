@@ -5,11 +5,14 @@ const assert = require('node:assert/strict');
   try {
     const page = await browser.newPage();
     await page.addInitScript(() => {
+      localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ model: 'test', projects: [], threads: [] }));
       const listeners = new Set(); window.__notify = event => listeners.forEach(fn => fn(event));
       window.__calls = []; window.__opened = []; window.__failReload = true;
-      window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }), openExternal: async url => window.__opened.push(url) };
+      window.desktop = { providerStatus: async () => ({ keyConfigured: true }), listModels: async () => ({ ok: true, models: ['test'] }), openExternal: async url => window.__opened.push(url) };
       window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async (method, params) => {
         window.__calls.push({ method, params });
+        if (method === 'thread/start') return { ok: true, result: { thread: { id: 'resource-chat', turns: [] } } };
+        if (method === 'turn/start') return { ok: true, result: { turn: { id: 'resource-turn', status: 'completed' } } };
         if (method === 'mcpServerStatus/list' && params.detail === 'full') return { ok: true, result: { data: [{ name: 'local', authStatus: 'unsupported', resources: [{ uri: 'fixture://readme', name: 'Readme' }], resourceTemplates: [{ uriTemplate: 'fixture://notes/{id}', name: 'Notes' }] }] } };
         if (method === 'mcpServer/resource/read') {
           if (params.uri === 'fixture://slow') return await new Promise(resolve => { window.__resolveResource = () => resolve({ ok: true, result: { contents: [{ uri: params.uri, text: 'Stale resource result' }] } }); });
@@ -23,6 +26,7 @@ const assert = require('node:assert/strict');
       }, onNotification: fn => { listeners.add(fn); return () => listeners.delete(fn); }, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
     });
     await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
+    await page.getByRole('textbox', { name: '消息', exact: true }).fill('Existing resource draft');
     await page.getByRole('button', { name: '插件', exact: true }).click();
     await page.getByRole('button', { name: '管理 MCP 服务' }).click();
     await page.getByRole('heading', { name: 'local', exact: true }).waitFor();
@@ -65,5 +69,17 @@ const assert = require('node:assert/strict');
     await page.getByRole('checkbox', { name: '显示资源目录' }).uncheck();
     assert.equal(await page.getByLabel('资源内容').count(), 0);
     console.log('PASS: MCP resource discovery, read failure/retry, literal text, custom URI, stale-read isolation and dismissal');
+    await page.getByRole('checkbox', { name: '显示资源目录' }).check();
+    await page.getByRole('button', { name: 'Readme', exact: true }).click();
+    await page.getByRole('button', { name: '加入聊天草稿', exact: true }).click();
+    const draft = await page.getByRole('textbox', { name: '消息', exact: true }).inputValue();
+    assert.ok(draft.startsWith('Existing resource draft\n\nMCP resource snapshot:\n'));
+    assert.deepEqual(JSON.parse(draft.split('MCP resource snapshot:\n')[1]), { server: 'local', uri: 'fixture://readme', text: '<script>unsafe()</script>Resource text' });
+    assert.equal(await page.evaluate(() => window.__calls.filter(call => call.method === 'turn/start').length), 0);
+    await page.getByRole('textbox', { name: '消息', exact: true }).press('Enter');
+    await page.waitForFunction(() => window.__calls.some(call => call.method === 'turn/start'));
+    const sent = await page.evaluate(() => window.__calls.find(call => call.method === 'turn/start').params.input);
+    assert.deepEqual(sent, [{ type: 'text', text: draft }]);
+    console.log('PASS: resource snapshot preserves draft and provenance, waits for explicit send and reaches turn input');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
