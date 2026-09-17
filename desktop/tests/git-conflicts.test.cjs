@@ -19,6 +19,7 @@ test('real merge conflict blocks commit until resolved and staged', async () => 
   await commit('base'); git(['checkout', '-b', 'other']); await commit('other'); git(['checkout', 'main']); await commit('main');
   assert.throws(() => git(['merge', 'other']));
   assert.equal((await workspaceGit({ root, action: 'status' })).files.filter(isConflict).length, 1);
+  assert.deepEqual((await workspaceGit({ root, action: 'conflict', path: 'a.txt' })).stages, [{ stage: 1, text: 'base' }, { stage: 2, text: 'main' }, { stage: 3, text: 'other' }]);
   await assert.rejects(workspaceGit({ root, action: 'commit', message: 'premature' }), /冲突/);
   await fs.writeFile(path.join(root, 'a.txt'), 'main and other');
   await workspaceGit({ root, action: 'stage', path: 'a.txt' });
@@ -30,6 +31,7 @@ test('real merge conflict blocks commit until resolved and staged', async () => 
   assert.throws(() => git(['merge', 'delete-side']));
   const conflict = (await workspaceGit({ root, action: 'status' })).files.find(isConflict);
   assert.equal(conflict.index + conflict.working, 'UD');
+  assert.deepEqual((await workspaceGit({ root, action: 'conflict', path: 'a.txt' })).stages.map(stage => stage.stage), [1, 2]);
   await fs.unlink(path.join(root, 'a.txt'));
   await workspaceGit({ root, action: 'stage', path: 'a.txt' });
   assert.equal((await workspaceGit({ root, action: 'status' })).files.filter(isConflict).length, 0);

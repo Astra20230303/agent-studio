@@ -614,3 +614,13 @@ Post-commit acceptance additionally creates a real modify/delete conflict,
 resolves it by deleting the file, stages through the same action and completes
 the merge. The index has no remaining conflicts and the file is absent from the
 resulting commit. No product correction was required.
+
+## Conflict version inspection
+
+Opening a conflicted file now shows its index stages: common base, current side
+and incoming side, with a rebase-specific explanation. Missing stages are explicit;
+binary blobs and blobs over 512 KB show a fallback, and submodule stages show the
+commit ID. Content is read by object ID, without external diff/textconv execution.
+Build, real merge tests and browser acceptance pass exact stage text, deleted-side
+absence and literal HTML rendering. Version editing and automatic choice of a
+side remain pending.

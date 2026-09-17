@@ -88,10 +88,25 @@ async function workspaceGit(input) {
     await git(root, ['commit', '-m', input.message]);
     return { commit: (await git(root, ['rev-parse', 'HEAD'])).trim() };
   }
-  if (!['diff', 'stage', 'unstage'].includes(input.action) || typeof input.path !== 'string' || !input.path) throw Error('无效差异请求');
+  if (!['conflict', 'diff', 'stage', 'unstage'].includes(input.action) || typeof input.path !== 'string' || !input.path) throw Error('无效差异请求');
   const entries = parseStatus(await git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all']));
   const entry = entries.find(entry => entry.path === input.path);
   if (!entry) throw Error('文件状态已变化，请刷新');
+  if (input.action === 'conflict') {
+    const records = (await git(root, ['ls-files', '--unmerged', '-z', '--', entry.path])).split('\0').filter(Boolean);
+    if (!records.length) throw Error('冲突状态已变化，请刷新');
+    const stages = await Promise.all(records.map(async record => {
+      const match = /^(\d+) ([a-f0-9]+) ([123])\t/.exec(record);
+      if (!match) throw Error('无法读取冲突索引');
+      const [, mode, oid, stage] = match;
+      if (mode === '160000') return { stage: Number(stage), text: `子模块提交：${oid}` };
+      const size = Number((await git(root, ['cat-file', '-s', oid])).trim());
+      if (size > 512 * 1024) return { stage: Number(stage), unavailable: '内容超过 512 KB，无法预览' };
+      const text = await git(root, ['cat-file', 'blob', oid]);
+      return text.includes('\0') ? { stage: Number(stage), unavailable: '二进制内容无法预览' } : { stage: Number(stage), text };
+    }));
+    return { stages };
+  }
   const paths = [...new Set([entry.path, entry.original].filter(Boolean))];
   if (input.action === 'stage') {
     await git(root, ['add', '--', ...paths]); return {};
