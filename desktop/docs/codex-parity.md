@@ -1572,3 +1572,8 @@ its bundled app-server/model catalog and executes a native PTY shell command.
 Default artifact: .project-cache/felix-desktop. This is an unsigned directory
 build, not an installer; model-provider credentials and system Git/browser tools
 remain external requirements. Release license audit remains outstanding.
+Post-commit acceptance copies the entire directory outside the repository into
+a temporary path containing spaces, clears runtime/Node path overrides, and
+repeats UI, bundled model-list and terminal checks. A saved reminder survives a
+real close/relaunch, with no data cache created beneath the install resources.
+This was tested on the development Windows host, not a clean Windows VM.
