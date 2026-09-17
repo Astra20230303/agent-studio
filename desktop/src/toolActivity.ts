@@ -1,7 +1,8 @@
 import type { Message, Thread, ToolActivity } from './domain';
 
 export function upsertTool(thread: Thread, item: any, turnId?: string, completed = false) {
-  if (!item?.id || !['commandExecution', 'fileChange', 'collabAgentToolCall', 'subAgentActivity', 'contextCompaction', 'mcpToolCall', 'dynamicToolCall'].includes(item.type)) return;
+  if (typeof item?.id !== 'string' || typeof item.type !== 'string' || ['userMessage', 'agentMessage', 'plan'].includes(item.type)) return;
+  const known = ['commandExecution', 'fileChange', 'collabAgentToolCall', 'subAgentActivity', 'contextCompaction', 'mcpToolCall', 'dynamicToolCall'].includes(item.type);
   const id = `tool-${item.id}`;
   let message = thread.messages.find(message => message.id === id);
   if (!message) {
@@ -12,7 +13,8 @@ export function upsertTool(thread: Thread, item: any, turnId?: string, completed
   // Lifecycle completion supplies authoritative output; deltas are only provisional.
   message.tool = {
     ...previous,
-    kind: item.type,
+    kind: known ? item.type : 'rawRecord',
+    rawRecord: known ? undefined : { type: item.type, item: { ...previous?.rawRecord?.item, ...item } },
     subAgent: item.type === 'subAgentActivity' ? { kind: item.kind ?? previous?.subAgent?.kind, threadId: item.agentThreadId ?? previous?.subAgent?.threadId, path: item.agentPath ?? previous?.subAgent?.path } : undefined,
     invocation: ['mcpToolCall', 'dynamicToolCall'].includes(item.type) ? { server: item.server ?? item.namespace ?? previous?.invocation?.server, name: item.tool ?? previous?.invocation?.name, arguments: item.arguments !== undefined ? item.arguments : previous?.invocation?.arguments, result: item.result !== undefined ? item.result : item.contentItems !== undefined ? item.contentItems : previous?.invocation?.result, error: item.error !== undefined ? item.error : previous?.invocation?.error, success: item.success ?? previous?.invocation?.success } : undefined,
     collaboration: item.type === 'collabAgentToolCall' ? { tool: item.tool ?? previous?.collaboration?.tool, prompt: item.prompt ?? previous?.collaboration?.prompt, model: item.model ?? previous?.collaboration?.model, receiverThreadIds: item.receiverThreadIds ?? previous?.collaboration?.receiverThreadIds ?? [], agentsStates: item.agentsStates ?? previous?.collaboration?.agentsStates ?? {} } : undefined,
@@ -54,7 +56,7 @@ export function restoreMessages(items: any[], previous: Message[]): Message[] {
   const thread = { messages: [] as Message[] } as Thread;
   for (const entry of items) {
     const item = entry.item || entry;
-    if (['commandExecution', 'fileChange', 'collabAgentToolCall', 'subAgentActivity', 'contextCompaction', 'mcpToolCall', 'dynamicToolCall'].includes(item.type)) {
+    if (item && typeof item.type === 'string' && !['userMessage', 'agentMessage', 'plan'].includes(item.type)) {
       const saved = previous.find(message => message.id === `tool-${item.id}`);
       if (saved) thread.messages.push(structuredClone(saved));
       upsertTool(thread, item, entry.turnId, true);

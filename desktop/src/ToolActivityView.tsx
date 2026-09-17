@@ -7,6 +7,10 @@ import { InvocationActivity } from './InvocationActivity';
 import { CopyText } from './CopyText';
 
 function ToolRow({ tool, onOpenAgent }: { tool: ToolActivity; onOpenAgent?: (id: string) => void }) {
+  if (tool.kind === 'rawRecord') {
+    const source = JSON.stringify(tool.rawRecord?.item || {}, null, 2);
+    return <details className="tool-row"><summary>会话记录 · {tool.rawRecord?.type} · {tool.status}</summary><div className="tool-detail"><p>此记录尚无专用视图，以下保留服务端原始内容。</p><CopyText source={source} label="复制记录" /><pre className="tool-output">{source}</pre></div></details>;
+  }
   if (tool.kind === 'contextCompaction') return <div className="tool-row" role="status">{tool.status === 'inProgress' ? '正在压缩上下文…' : tool.status === 'completed' ? '上下文压缩已完成' : tool.status === 'failed' ? '上下文压缩失败' : '上下文压缩已中断'}</div>;
   if (tool.kind === 'mcpToolCall' || tool.kind === 'dynamicToolCall') return <InvocationActivity tool={tool} />;
   if (tool.kind === 'collabAgentToolCall' || tool.kind === 'subAgentActivity') return <AgentActivity tool={tool} onOpenAgent={onOpenAgent} />;

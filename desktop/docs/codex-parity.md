@@ -870,3 +870,13 @@ browser acceptance verify long Unicode output, exact newlines, MCP fields,
 clipboard rejection recovery and code-block regression.
 Post-commit acceptance confirms an empty-output command exposes only command
 copy and does not overwrite the clipboard with an empty log.
+
+## Forward-compatible conversation records
+
+Items without a dedicated renderer now appear as expandable raw records rather
+than disappearing. Lifecycle updates merge by item ID, preserve fields omitted
+from completion events and retain their turn association. Raw records can be
+copied and searched alongside other tool records. Text and plan messages retain
+their dedicated paths. Build, browser acceptance and existing tool-history tests
+verify live/history display, merged fields, copy and search. This fallback does
+not replace dedicated views or interpret unknown operations.
