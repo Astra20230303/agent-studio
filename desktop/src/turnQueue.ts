@@ -12,6 +12,10 @@ export function finishQueuedTurn(queue: QueuedTurn[], threadId: string, turnId: 
   return queue.map(item => item.threadId === threadId && item.status === 'waiting' && item.waitingOn === turnId
     ? { ...item, status: success ? 'ready' : 'paused', error: success ? undefined : '上一轮未正常完成，请确认后继续。' } : item);
 }
+export function pauseThreadQueue(queue: QueuedTurn[], localId: string): QueuedTurn[] {
+  return queue.map(item => item.localId === localId && item.status !== 'sending'
+    ? { ...item, status: 'paused', error: '队列已手动暂停。' } : item);
+}
 export function restoreQueue(raw: string | null): QueuedTurn[] {
   try {
     const items = JSON.parse(raw || '[]');

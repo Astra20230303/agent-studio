@@ -1,5 +1,14 @@
 # Felix capability roadmap
 
+## Pause queued messages independently
+
+Plan and implementation: a pause control freezes the selected conversation's
+unsent queue without interrupting its active turn or reclassifying an in-flight
+send. Pause persists through the existing storage layer, and completion events
+cannot release paused entries. Explicit resume uses the current turn state.
+Three queue unit tests, full chat pause/complete/resume acceptance and production
+build pass; existing FIFO, edit, storage-failure and restore workflows also pass.
+
 ## Edit queued messages
 
 Queued instructions can now be edited in a modal. Opening first persists a paused

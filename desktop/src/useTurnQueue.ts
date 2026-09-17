@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { finishQueuedTurn, restoreQueue } from './turnQueue';
+import { finishQueuedTurn, pauseThreadQueue, restoreQueue } from './turnQueue';
 import type { QueuedTurn } from './turnQueue';
 
 const key = 'felix-turn-queue-v1';
@@ -26,6 +26,7 @@ export function useTurnQueue() {
   };
   return {
     items, saveFailed, read: () => ref.current, change,
+    pauseThread: (localId: string) => change(items => pauseThreadQueue(items, localId)),
     retry: () => {
       if (unread.current) {
         try {
