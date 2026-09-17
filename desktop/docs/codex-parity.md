@@ -930,3 +930,5 @@ scheme for browser controls. Build and browser media-emulation acceptance verify
 live changes, reload persistence, manual override and returning to system mode.
 Native Windows appearance toggling remains outside this emulated test; terminal
 colors currently retain their dedicated dark palette.
+Post-commit acceptance verifies invalid persisted themes fall back to light;
+settings search and storage-failure recovery browser regressions also pass.

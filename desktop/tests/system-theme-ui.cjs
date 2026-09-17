@@ -22,6 +22,11 @@ const assert = require('node:assert/strict');
     await page.emulateMedia({ colorScheme: 'dark' }); await theme('light');
     await choice.selectOption('system'); await theme('dark');
     await page.emulateMedia({ colorScheme: 'light' }); await theme('light');
+    await page.evaluate(() => { const saved = JSON.parse(localStorage.getItem('codex-desktop-state-v1')); saved.theme = 'invalid-theme'; localStorage.setItem('codex-desktop-state-v1', JSON.stringify(saved)); });
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.reload(); await theme('light');
+    await page.getByRole('button', { name: '设置', exact: true }).click();
+    assert.equal(await choice.inputValue(), 'light');
     console.log('PASS: system theme updates live, persists across reload, respects manual override and resumes system following');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
