@@ -77,6 +77,7 @@ export interface DesktopState {
   activeThreadId?: string;
   activeProjectId?: string;
   theme: 'light' | 'dark';
+  sendShortcut?: 'enter' | 'mod-enter';
   model: string;
   permission: 'on-request' | 'workspace-write' | 'danger-full-access';
   threads: Thread[];

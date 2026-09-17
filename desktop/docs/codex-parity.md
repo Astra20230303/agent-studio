@@ -686,3 +686,11 @@ Post-commit acceptance restores real thread/items/list history and verifies one
 completed compaction record. Browser tests terminate separate compaction turns
 as failed and interrupted and verify distinct labels without false completion.
 These checks pass; failure notifications in this browser test are simulated.
+
+## Send shortcut settings
+
+Keyboard settings now offer Enter or Ctrl/Command+Enter to send, including turn
+steering. The preference persists across reloads, defaults to Enter and normalizes
+invalid saved values. Shift+Enter remains newline and existing IME guards remain.
+Build and browser acceptance verify changing the setting, persistence, plain
+Enter inserting a newline and Ctrl+Enter sending the exact multiline draft.
