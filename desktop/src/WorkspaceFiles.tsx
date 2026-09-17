@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import './workspaceFiles.css';
+import { FileEditor } from './FileEditor';
 type Entry = { name: string; path: string; directory: boolean; symlink: boolean };
 export function WorkspaceFiles({ root, onAttach, onClose }: { root?: string; onAttach: (path: string) => void; onClose: () => void }) {
   const [directory, setDirectory] = useState('.');
@@ -8,6 +9,7 @@ export function WorkspaceFiles({ root, onAttach, onClose }: { root?: string; onA
   const [selected, setSelected] = useState<Entry>();
   const [listing, setListing] = useState<{ entries: Entry[]; truncated?: boolean; skipped?: number }>();
   const [preview, setPreview] = useState<any>();
+  const [editing, setEditing] = useState(false);
   const [error, setError] = useState('');
   const [refresh, setRefresh] = useState(0);
   useEffect(() => {
@@ -30,6 +32,8 @@ export function WorkspaceFiles({ root, onAttach, onClose }: { root?: string; onA
     {!!listing?.skipped && <p>有 {listing.skipped} 个目录无法读取，结果可能不完整。</p>}
     {error && <p role="alert">{error}</p>}{root && !listing && !preview && !error && <p>正在读取…</p>}
     {listing && !listing.entries.length && <p>{search ? '没有匹配文件。' : '此目录为空。'}</p>}
+    {selected && root && preview?.revision && <button onClick={() => setEditing(true)}>编辑文件</button>}
+    {editing && selected && root && preview?.revision && <FileEditor root={root} path={selected.path} initial={preview} onClose={() => setEditing(false)} onSaved={setPreview} />}
     {preview?.image && <img src={preview.image} alt={selected?.name} />}{preview?.binary && <p>二进制文件，无法显示文本预览。</p>}{typeof preview?.text === 'string' && <pre>{preview.text}</pre>}{preview?.truncated && <p>仅预览前 256 KB。</p>}
   </section>;
 }

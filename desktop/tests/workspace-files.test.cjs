@@ -4,6 +4,21 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { workspaceFile } = require('../electron/workspace-files.cjs');
 
+test('text edit saves exact UTF-8 bytes and rejects changed files and forbidden paths', async t => {
+  const base = path.resolve(__dirname, '../../.project-cache/tmp'); await fs.mkdir(base, { recursive: true });
+  const root = await fs.mkdtemp(path.join(base, 'file-edit-')); t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const target = path.join(root, 'edit.txt'); await fs.writeFile(target, '\ufeff中文\r\noriginal');
+  const read = await workspaceFile(root, 'edit.txt', 'read');
+  assert.equal(read.text, '\ufeff中文\r\noriginal');
+  const saved = await workspaceFile(root, 'edit.txt', 'write', '', { revision: read.revision, text: '\ufeff中文\r\nupdated' });
+  assert.equal(await fs.readFile(target, 'utf8'), saved.text); assert.notEqual(saved.revision, read.revision);
+  await fs.writeFile(target, 'external');
+  await assert.rejects(workspaceFile(root, 'edit.txt', 'write', '', { revision: saved.revision, text: 'overwrite' }), /外部修改/);
+  assert.equal(await fs.readFile(target, 'utf8'), 'external');
+  assert.deepEqual(await fs.readdir(root), ['edit.txt']);
+  await assert.rejects(workspaceFile(root, '..', 'write', '', { revision: saved.revision, text: 'bad' }), /路径/);
+});
+
 test('file search finds nested paths, excludes git, reports result limits and preserves read boundaries', async t => {
   const base = path.resolve(__dirname, '../../.project-cache/tmp'); await fs.mkdir(base, { recursive: true });
   const root = await fs.mkdtemp(path.join(base, 'file-search-'));

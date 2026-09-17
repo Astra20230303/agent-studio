@@ -1,11 +1,29 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
-async function workspaceFile(root, name = '.', action = 'list', query = '') {
+const { createHash, randomUUID } = require('node:crypto');
+const revision = bytes => createHash('sha256').update(bytes).digest('hex');
+async function workspaceFile(root, name = '.', action = 'list', query = '', edit) {
   if (typeof root !== 'string' || !path.isAbsolute(root) || typeof name !== 'string') throw Error('无效工作区路径');
   root = await fs.realpath(root);
   const target = await fs.realpath(path.resolve(root, name));
   const relative = path.relative(root, target);
   if (relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative) || relative.split(path.sep).includes('.git')) throw Error('路径不在工作区可浏览范围内');
+  if (action === 'write') {
+    if (typeof edit?.text !== 'string' || typeof edit?.revision !== 'string' || Buffer.byteLength(edit.text) > 256 * 1024) throw Error('无效编辑内容或文件超过 256 KB');
+    const stat = await fs.stat(target);
+    if (!stat.isFile() || stat.size > 256 * 1024) throw Error('此文件不支持编辑');
+    const bytes = await fs.readFile(target);
+    if (bytes.includes(0)) throw Error('二进制文件不支持编辑');
+    new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    if (revision(bytes) !== edit.revision) throw Error('文件已被外部修改，请保留编辑内容并重新读取文件');
+    const temporary = path.join(path.dirname(target), `.felix-edit-${randomUUID()}.tmp`);
+    try {
+      await fs.writeFile(temporary, edit.text, { encoding: 'utf8', flag: 'wx', mode: stat.mode });
+      if (await fs.realpath(path.resolve(root, name)) !== target || revision(await fs.readFile(target)) !== edit.revision) throw Error('文件已被外部修改，请重新读取');
+      await fs.rename(temporary, target);
+    } finally { await fs.rm(temporary, { force: true }); }
+    return { text: edit.text, revision: revision(Buffer.from(edit.text)), size: Buffer.byteLength(edit.text), truncated: false };
+  }
   if (action === 'search') {
     if (typeof query !== 'string' || !query.trim()) return { entries: [], truncated: false, skipped: 0 };
     const term = query.trim().replace(/\\/g, '/').toLowerCase();
@@ -63,7 +81,9 @@ async function workspaceFile(root, name = '.', action = 'list', query = '') {
     const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
     const bytes = buffer.subarray(0, bytesRead);
     if (bytes.includes(0)) return { binary: true, size: stat.size };
-    return { text: new TextDecoder('utf-8').decode(bytes), truncated: stat.size > bytesRead, size: stat.size };
+    let editable = stat.size === bytesRead;
+    try { new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch { editable = false; }
+    return { text: new TextDecoder('utf-8', { ignoreBOM: true }).decode(bytes), revision: editable ? revision(bytes) : undefined, truncated: stat.size > bytesRead, size: stat.size };
   } finally { await handle.close(); }
 }
 module.exports = { workspaceFile };

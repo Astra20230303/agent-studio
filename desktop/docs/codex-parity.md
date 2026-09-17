@@ -946,3 +946,14 @@ Post-commit acceptance verifies directory junctions/symlinks cannot broaden the
 search outside the workspace. Each queued directory is re-resolved before opening
 to reject redirected paths; concurrent filesystem replacement is not an atomic
 snapshot guarantee.
+
+## Workspace text editing
+
+Complete UTF-8 previews up to 256 KB can open in a modal editor with save,
+copy and confirmed discard. Saving checks the original content hash, stages a
+same-directory temporary file, rechecks the target and renames it into place.
+Conflicts preserve the editor buffer; truncated/binary/invalid-UTF-8 previews
+do not offer editing. Build, filesystem and browser acceptance cover UTF-8 writes,
+external changes, path boundaries, conflict feedback, retry and cancellation.
+The hash checks are optimistic, not a cross-process lock: another writer can
+still race between the final check and rename. A full IDE editor is not provided.
