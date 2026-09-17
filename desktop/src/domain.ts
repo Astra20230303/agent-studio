@@ -28,6 +28,8 @@ export interface ToolActivity {
 }
 
 export interface Thread {
+  effectivePermissions?: import('./threadPermissions').ThreadPermissions;
+  requestedPermission?: DesktopState['permission'];
   contextTokens?: import('./ContextUsage').ContextTokens;
   cwd?: string;
   planningMode?: 'default' | 'plan';

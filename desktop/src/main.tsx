@@ -4,6 +4,7 @@ import { useTurnRuntime } from './useTurnRuntime';
 import { useSkillDraft, type SelectedSkill } from './useSkillDraft';
 import { useThreadDraft } from './useThreadDraft';
 import { PermissionSettings, permissionOptions } from './PermissionSettings';
+import { readThreadPermissions, permissionSummary } from './threadPermissions';
 import { KeyboardSettings } from './KeyboardSettings';
 import { ContextUsage, readContextTokens } from './ContextUsage';
 import { useThreadList } from './useThreadList';
@@ -274,7 +275,7 @@ function App() {
         const started = await startThread({ effort: state.reasoningEffort, model, modelProvider, cwd, permission: state.permission });
         const id = started.thread?.id;
         if (!id) throw new Error('没有返回 thread id');
-        update(next => { const thread = next.threads.find(item => item.id === localId); if (thread) thread.remoteId = id; });
+        update(next => { const thread = next.threads.find(item => item.id === localId); if (thread) { thread.remoteId = id; thread.effectivePermissions = readThreadPermissions(started); thread.requestedPermission = state.permission; } });
         return id;
       };
       if (!threadId) threadId = await createRemoteThread();
@@ -342,6 +343,7 @@ function App() {
         update(next => {
           const thread = next.threads.find(item => item.remoteId === threadId);
           if (!thread) return;
+          thread.effectivePermissions = readThreadPermissions(loaded);
           if (loaded.thread?.cwd) thread.cwd = loaded.thread.cwd;
           const items = turns.flatMap((turn: any) => (turn.items || []).map((item: any) => ({ item, turnId: turn.id })));
           if (items.length) thread.messages = restoreMessages(items, thread.messages);
@@ -375,7 +377,7 @@ function App() {
   const togglePinned = (threadId: string) => update(next => { const thread = next.threads.find(item => item.id === threadId); if (thread) thread.pinned = !thread.pinned; });
   const archiveThreadFromSidebar = async (threadId: string) => { const thread = state.threads.find(item => item.id === threadId); if (!thread) return; if (thread.remoteId && codexStatus === 'connected') { try { await archiveThread(thread.remoteId); } catch (error: any) { toast(`归档失败：${error.message}`); return; } } update(next => { const item = next.threads.find(value => value.id === threadId); if (item) { item.archived = true; item.status = 'completed'; if (next.activeThreadId === threadId) next.activeThreadId = undefined; } }); setRemoteThreadId(value => value === thread.remoteId ? undefined : value); };
   const deleteThreadFromSidebar = async (threadId: string) => { if (state.threads.some(item => item.id === threadId)) setDeleteCandidate(threadId); };
-  const forkActive = async () => { const thread = state.threads.find(item => item.id === state.activeThreadId); if (!thread?.remoteId || codexStatus !== 'connected') { toast('当前会话还没有远端线程'); return; } try { const result = await forkThread(thread.remoteId); const remote = result?.thread; if (!remote?.id) throw new Error('没有返回分叉线程'); const copy = { ...thread, id: `remote-${remote.id}`, remoteId: remote.id, title: `${thread.title} · 分支`, messages: structuredClone(thread.messages), updatedAt: new Date().toISOString() }; update(next => { next.threads.push(copy); next.activeThreadId = copy.id; }); setRemoteThreadId(remote.id); toast('已创建会话分支'); } catch (error: any) { toast(`分叉失败：${error.message}`); } };
+  const forkActive = async () => { const thread = state.threads.find(item => item.id === state.activeThreadId); if (!thread?.remoteId || codexStatus !== 'connected') { toast('当前会话还没有远端线程'); return; } try { const result = await forkThread(thread.remoteId); const remote = result?.thread; if (!remote?.id) throw new Error('没有返回分叉线程'); const copy = { ...thread, id: `remote-${remote.id}`, remoteId: remote.id, effectivePermissions: readThreadPermissions(result), requestedPermission: undefined, title: `${thread.title} · 分支`, messages: structuredClone(thread.messages), updatedAt: new Date().toISOString() }; update(next => { next.threads.push(copy); next.activeThreadId = copy.id; }); setRemoteThreadId(remote.id); toast('已创建会话分支'); } catch (error: any) { toast(`分叉失败：${error.message}`); } };
   const forkFromMessage = async (messageId: string) => {
     const source = state.threads.find(thread => thread.id === state.activeThreadId);
     if (forkingRef.current) return;
@@ -399,6 +401,7 @@ function App() {
       const result = await forkThread(source.remoteId, turnId);
       if (!result.thread?.id) throw new Error('服务未返回分支会话。');
       const copy = branchSnapshot(source, messageId, result.thread.id);
+      copy.effectivePermissions = readThreadPermissions(result); copy.requestedPermission = undefined;
       update(next => { next.threads.push(copy); next.activeThreadId = copy.id; });
       setRemoteThreadId(copy.remoteId); setPage('chat');
     } finally { forkingRef.current = false; }
@@ -652,7 +655,7 @@ function Chat({ sendShortcut, composerSkills, setComposerSkills, onOpenAgent, re
           if (!event.repeat && canSend) send();
         }} placeholder={status === 'connected' ? '随心输入' : '等待 Codex app-server…'} />
       <div className="composer-footer">
-        <div className="composer-left"><button className="icon-button" onClick={addAttachment} title="添加附件" aria-label="添加附件"><Plus aria-hidden="true" /></button><div className="permission-picker"><button className="permission-status" aria-expanded={permissionOpen} onClick={() => setPermissionOpen(value => !value)}><ShieldAlert aria-hidden="true" />{permissionOptions.find(item => item[0] === permission)?.[1]}</button>{permissionOpen && <div className="permission-menu"><h3>如何批准 Felix 操作？</h3>{permissionOptions.map(([value, label, description]) => <button key={value} className={permission === value ? 'selected' : ''} onClick={() => { update(next => { next.permission = value; }); setPermissionOpen(false); }}><ShieldAlert aria-hidden="true" /><span><b>{label}</b><small>{description}</small></span></button>)}</div>}</div><span className="connection-status" role="status" title={status === 'connected' ? '已连接' : status} aria-label={status === 'connected' ? '已连接' : status}><i className={`status-dot ${status}`} /></span></div>
+        {active?.requestedPermission === 'workspace-write' && active.effectivePermissions?.sandbox === 'readOnly' && <p role="status">当前会话实际为只读，工作区写入未生效。Windows 未配置沙箱或服务端策略限制可能导致降级。</p>}<div className="composer-left"><button className="icon-button" onClick={addAttachment} title="添加附件" aria-label="添加附件"><Plus aria-hidden="true" /></button><div className="permission-picker"><button className="permission-status" aria-expanded={permissionOpen} onClick={() => setPermissionOpen(value => !value)}><ShieldAlert aria-hidden="true" />{active?.remoteId ? permissionSummary(active.effectivePermissions) : permissionOptions.find(item => item[0] === permission)?.[1]}</button>{permissionOpen && <div className="permission-menu"><h3>新会话默认权限</h3>{active?.remoteId && <p>当前会话：{permissionSummary(active.effectivePermissions)}。下面的选择仅用于新会话。</p>}{active?.effectivePermissions && <p>审批策略：{active.effectivePermissions.approvalPolicy}</p>}{permissionOptions.map(([value, label, description]) => <button key={value} className={permission === value ? 'selected' : ''} onClick={() => { update(next => { next.permission = value; }); setPermissionOpen(false); }}><ShieldAlert aria-hidden="true" /><span><b>{label}</b><small>{description}</small></span></button>)}</div>}</div><span className="connection-status" role="status" title={status === 'connected' ? '已连接' : status} aria-label={status === 'connected' ? '已连接' : status}><i className={`status-dot ${status}`} /></span></div>
         <div className="composer-right"><EffortPicker model={model} value={reasoningEffort} onChange={value => update(next => { next.reasoningEffort = value; })} /><ModelPicker catalog={catalog} selected={model} open={showModel} setOpen={setShowModel} onSelect={id => update(next => { next.model = id; })} />{running && <button className="send" title="停止生成" aria-label="停止生成" onClick={cancel}><Square aria-hidden="true" /></button>}<button className="send" title={running ? '追加指令' : '发送'} aria-label={running ? '追加指令' : '发送'} disabled={!canSend} onClick={send}><ArrowUp aria-hidden="true" /></button></div>
       </div>
     </div>

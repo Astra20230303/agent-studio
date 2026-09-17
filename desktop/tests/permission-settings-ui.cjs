@@ -11,7 +11,11 @@ const assert = require('node:assert/strict');
         window.desktop = { providerStatus: async () => ({ keyConfigured: true }), listModels: async () => ({ ok: true, models: ['test'] }) };
         window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async (method, params) => {
           window.__calls.push({ method, params });
-          return { ok: true, result: method === 'thread/start' ? { thread: { id: 'permissions', turns: [] } } : method === 'turn/start' ? { turn: { id: 'turn', status: 'completed' } } : { data: [] } };
+          if (method === 'thread/start') {
+            window.__effective = { thread: { id: 'permissions', turns: [] }, sandbox: { type: params.sandbox === 'danger-full-access' ? 'dangerFullAccess' : 'readOnly' }, approvalPolicy: params.approvalPolicy, approvalsReviewer: params.approvalsReviewer || 'user' };
+            return { ok: true, result: window.__effective };
+          }
+          return { ok: true, result: method === 'thread/resume' ? window.__effective : method === 'turn/start' ? { turn: { id: 'turn', status: 'completed' } } : { data: [] } };
         }, onNotification: () => () => {}, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
       });
       await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
@@ -25,8 +29,16 @@ const assert = require('node:assert/strict');
       await page.waitForFunction(() => window.__calls.some(call => call.method === 'thread/start'));
       const params = await page.evaluate(() => window.__calls.find(call => call.method === 'thread/start').params);
       assert.equal(params.sandbox, sandbox); assert.equal(params.approvalPolicy, approvalPolicy); assert.equal(params.approvalsReviewer, reviewer);
+      const effectiveLabel = sandbox === 'danger-full-access' ? '完全访问 · 不请求审批' : reviewer ? '只读 · 自动审查' : '只读 · 用户审批';
+      await page.getByRole('button', { name: effectiveLabel, exact: true }).waitFor();
+      if (reviewer) await page.getByRole('status').filter({ hasText: '当前会话实际为只读' }).waitFor();
+      await page.getByRole('button', { name: effectiveLabel, exact: true }).click();
+      await page.getByText(/下面的选择仅用于新会话/).waitFor();
+      await page.locator('.permission-menu button').filter({ hasText: '完全访问权限' }).click();
+      await page.getByRole('button', { name: effectiveLabel, exact: true }).waitFor();
+      assert.equal(await page.evaluate(() => window.__calls.filter(call => call.method === 'thread/start').length), 1);
       await page.close();
     }
-    console.log('PASS: all permission settings persist, match composer and reach thread/start');
+    console.log('PASS: permission defaults persist, actual server permissions display, downgrade is visible, and defaults do not relabel existing threads');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

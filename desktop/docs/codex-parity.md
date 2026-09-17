@@ -715,8 +715,18 @@ auto_review. Thread/read additionally checks thread identity and workspace.
 On Windows the fixture runs both without sandbox configuration and with
 windows.sandbox="unelevated": the former returns readOnly for workspace-write,
 while the latter returns workspaceWrite. Both cases are asserted explicitly.
-This exposed an outstanding product limitation: the requested composer/default
-permission is not necessarily the effective thread permission when Windows
-sandbox setup is absent; effective-permission display/setup still needs work.
+The requested default is not necessarily the effective thread permission when
+Windows sandbox setup is absent; Windows sandbox setup still needs work.
 This verifies effective protocol configuration rather than executing a model
 tool under each policy or proving automatic review decisions.
+
+## Effective thread permissions
+
+The composer now displays the actual sandbox and approval reviewer returned by
+thread/start, thread/resume and thread/fork. Missing response fields display an
+unknown state instead of assuming the global default. The permission menu labels
+its choices as new-thread defaults and shows the existing thread's approval policy.
+When a requested workspace-write thread returns readOnly, a persistent notice
+explains the downgrade and possible Windows sandbox or server-policy causes.
+Build and browser acceptance cover actual response display, downgrade visibility
+and changing defaults without relabeling or recreating an existing thread.
