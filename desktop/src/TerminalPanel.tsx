@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import { SearchAddon } from '@xterm/addon-search';
 import { Play, Plus, Square, X, Trash2 } from 'lucide-react';
 import '@xterm/xterm/css/xterm.css';
 import './terminal.css';
@@ -40,6 +41,16 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
   const host = useRef<HTMLDivElement>(null);
   const terminal = useRef<Terminal | null>(null);
   const fit = useRef<FitAddon | null>(null);
+  const search = useRef<SearchAddon | null>(null);
+  const searchInput = useRef<HTMLInputElement>(null);
+  const [finding, setFinding] = useState(false);
+  const [query, setQuery] = useState('');
+  const [found, setFound] = useState(false);
+  const find = (previous = false, incremental = false) => {
+    setFound(Boolean(previous ? search.current?.findPrevious(query) : search.current?.findNext(query, { incremental })));
+  };
+  const closeFind = () => { setFinding(false); search.current?.clearDecorations(); terminal.current?.clearSelection(); terminal.current?.focus(); };
+  useEffect(() => { if (finding) { searchInput.current?.focus(); find(false, true); } }, [finding, query]);
   const session = useRef<string | undefined>(undefined);
   const [revision, setRevision] = useState(0);
   const [status, setStatus] = useState('正在启动');
@@ -50,6 +61,8 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
     if (!bridge || !host.current) { setError('桌面终端不可用'); return; }
     const term = new Terminal({ cursorBlink: true, scrollback: 5000, fontSize: 13, theme: { background: '#191b1e', foreground: '#eeeeee' } });
     const addon = new FitAddon();
+    const searchAddon = new SearchAddon();
+    term.loadAddon(searchAddon); search.current = searchAddon;
     term.loadAddon(addon); term.open(host.current); terminal.current = term; fit.current = addon;
     let disposed = false;
     let ownedId: string | undefined;
@@ -75,15 +88,24 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
     return () => {
       disposed = true; off(); input.dispose(); observer.disconnect(); term.dispose();
       terminal.current = null; fit.current = null; session.current = undefined;
+      search.current = null;
       if (ownedId) void bridge.close(ownedId).catch(() => {});
     };
   }, [cwd, revision]);
   useEffect(() => { if (open) { fit.current?.fit(); if (document.activeElement?.getAttribute('role') !== 'tab') terminal.current?.focus(); } }, [open]);
-  return <section className="terminal-session" hidden={!open} role="tabpanel" id={`terminal-session-${id}`} aria-labelledby={`terminal-tab-${id}`}>
+  return <section className="terminal-session" hidden={!open} role="tabpanel" id={`terminal-session-${id}`} aria-labelledby={`terminal-tab-${id}`} onKeyDownCapture={event => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f' && !event.altKey) { event.preventDefault(); event.stopPropagation(); setFinding(true); searchInput.current?.focus(); }
+  }}>
     <header><strong>终端</strong><span title={cwd}>{cwd || '当前项目'}</span><small role="status">{status}</small>
+      <button title="查找终端输出" aria-label="查找终端输出" onClick={() => setFinding(value => !value)}>⌕</button>
       <button title="重新启动终端" aria-label="重新启动终端" disabled={running} onClick={() => setRevision(value => value + 1)}><Play size={16} /></button>
       <button title="终止终端" aria-label="终止终端" disabled={!running} onClick={() => { if (session.current) void window.desktop?.terminal?.close(session.current).catch(failure => setError(String(failure))); }}><Square size={16} /></button>
       </header>
+    {finding && <div className="terminal-find"><input ref={searchInput} aria-label="查找终端输出内容" placeholder="查找终端缓冲区" value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => {
+      if (event.nativeEvent.isComposing) return;
+      if (event.key === 'Enter') { event.preventDefault(); find(event.shiftKey); }
+      if (event.key === 'Escape') { event.preventDefault(); closeFind(); }
+    }} /><span role="status">{query ? found ? '已定位匹配' : '没有匹配' : '范围：当前终端缓冲区'}</span><button aria-label="终端上一个匹配" disabled={!query} onClick={() => find(true)}>↑</button><button aria-label="终端下一个匹配" disabled={!query} onClick={() => find()}>↓</button><button aria-label="关闭终端查找" onClick={closeFind}>×</button></div>}
     {error && <p role="alert">{error}</p>}<div ref={host} className="terminal-host" />
   </section>;
 }

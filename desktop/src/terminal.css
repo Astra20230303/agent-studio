@@ -15,3 +15,6 @@
 .terminal-panel button:hover{background:#444}
 .terminal-panel p{margin:4px 12px;color:#ffa8a8}
 .terminal-host{flex:1;min-height:0;padding:0 8px 8px;overflow:hidden}
+.terminal-find{display:flex;align-items:center;gap:4px;padding:4px 12px;flex-wrap:wrap;font-size:12px}
+.terminal-find input{min-width:80px;flex:1;background:#292c30;color:#eee;border:1px solid #777;padding:4px}
+.terminal-find span{color:#ddd}

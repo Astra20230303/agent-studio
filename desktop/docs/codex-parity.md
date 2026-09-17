@@ -1032,3 +1032,12 @@ Post-commit acceptance distinguishes the primary local checkout from linked
 worktrees by comparing Git/common directories. Locked worktrees remain openable.
 A delayed open response after panel dismissal is ignored, preventing unexpected
 conversation creation. Real Git tests and browser cancellation acceptance pass.
+
+## Terminal output search
+
+Each terminal session has a buffer search toolbar backed by xterm's search addon.
+Ctrl/Meta+F inside the terminal opens search without triggering conversation find;
+Enter/Shift+Enter move between matches and Escape restores terminal input focus.
+Search covers retained scrollback (5000 lines), with explicit match/no-match status.
+Real PowerShell browser acceptance verifies output searching and the existing
+interrupt, session switching, resize and restart flows. Production build passes.
