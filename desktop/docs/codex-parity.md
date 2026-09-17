@@ -857,3 +857,5 @@ conversation find, returns to the bottom and resumes following streamed replies.
 The follow effect runs during layout to avoid scroll events mistaking newly
 grown content for a user scroll. Build and long-transcript browser acceptance
 verify search-to-latest navigation and following a newly streamed long reply.
+Post-commit acceptance also scrolls upward manually, injects another reply and
+verifies the reading position is preserved before returning to the bottom again.
