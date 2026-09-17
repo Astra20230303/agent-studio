@@ -178,13 +178,15 @@ async function workspaceGit(input) {
     const branches = (await git(root, ['for-each-ref', '--format=%(refname:strip=2)', 'refs/heads/'])).trim().split('\n').filter(Boolean);
     const remotes = (await git(root, ['remote'])).trim().split('\n').filter(Boolean);
     const stashAvailable = Boolean((await git(root, ['stash', 'list', '--format=%gd']).catch(() => '')).trim());
-    return { root, branch, branches, head, detached: !symbolic, remotes, stashAvailable, ...await tracking(root), files: parseStatus(await git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all'])) };
+    const merging = await git(root, ['rev-parse', '--verify', 'MERGE_HEAD']).then(() => true, () => false);
+    return { root, branch, branches, head, merging, detached: !symbolic, remotes, stashAvailable, ...await tracking(root), files: parseStatus(await git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all'])) };
   }
   if (input.action === 'commit') {
     if ((await git(root, ['diff', '--name-only', '--diff-filter=U', '-z'])).length) throw Error('请先解决并暂存所有冲突文件');
     if (typeof input.message !== 'string' || !input.message.trim() || input.message.length > 10000 || input.message.includes('\0')) throw Error('请填写有效提交说明');
     const staged = await git(root, ['diff', '--cached', '--name-only', '-z']);
-    if (!staged) throw Error('没有已暂存的变更');
+    const merging = await git(root, ['rev-parse', '--verify', 'MERGE_HEAD']).then(() => true, () => false);
+    if (!staged && !merging) throw Error('没有已暂存的变更');
     await git(root, ['commit', '-m', input.message]);
     return { commit: (await git(root, ['rev-parse', 'HEAD'])).trim() };
   }

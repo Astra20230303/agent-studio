@@ -1382,3 +1382,11 @@ with control acceptance. Actual model-spawned child interruption remains unverif
 Post-commit acceptance fixes late completion notifications from an older child
 turn replacing a newer running turn in the controls. Browser ordering regression
 and production build pass; interruption still re-reads before acting.
+
+## Finish resolved merges without a tree change
+
+Plan and implementation: status reports MERGE_HEAD presence, the panel names the
+unfinished merge, and commit permits an empty staged diff only while a merge is
+pending. Unresolved conflicts still block submission. Acceptance must verify a
+real conflicting merge resolved entirely to ours creates two-parent history and
+that an ordinary empty commit remains rejected.

@@ -1,0 +1,31 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
+const { execFileSync } = require('node:child_process');
+const { workspaceGit } = require('../electron/workspace-git.cjs');
+
+test('finish merge after resolving all conflicts to current contents', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'felix-finish-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const git = (...args) => execFileSync('git', args, { cwd: root, windowsHide: true, encoding: 'utf8', stdio: 'pipe' }).trim();
+  git('init', '-b', 'main');
+  git('config', 'user.name', 'Test'); git('config', 'user.email', 'test@example.invalid');
+  await fs.writeFile(path.join(root, 'a'), 'base');
+  git('add', '.'); git('commit', '-m', 'base'); git('switch', '-c', 'feature');
+  await fs.writeFile(path.join(root, 'a'), 'theirs'); git('commit', '-am', 'theirs');
+  const theirs = git('rev-parse', 'HEAD'); git('switch', 'main');
+  await fs.writeFile(path.join(root, 'a'), 'ours'); git('commit', '-am', 'ours');
+  const ours = git('rev-parse', 'HEAD');
+  await assert.rejects(workspaceGit({ root, action: 'merge-branch', branch: 'feature', expectedBranch: 'main', expectedHead: ours }));
+  assert.equal((await workspaceGit({ root, action: 'status' })).merging, true);
+  await assert.rejects(workspaceGit({ root, action: 'commit', message: 'finish' }), /冲突/);
+  await fs.writeFile(path.join(root, 'a'), 'ours');
+  await workspaceGit({ root, action: 'stage', path: 'a' });
+  assert.equal(git('diff', '--cached', '--name-only'), '');
+  await workspaceGit({ root, action: 'commit', message: 'finish merge' });
+  assert.deepEqual(git('show', '-s', '--format=%P', 'HEAD').split(' '), [ours, theirs]);
+  assert.equal((await workspaceGit({ root, action: 'status' })).merging, false);
+  await assert.rejects(workspaceGit({ root, action: 'commit', message: 'empty' }), /没有/);
+});
