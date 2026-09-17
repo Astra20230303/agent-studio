@@ -560,9 +560,9 @@ function Chat({ busy, mode, permission, onOpenPlugins, composerPlugins, setCompo
     }).catch(() => undefined);
     return () => { disposed = true; };
   }, []);
-  const project = projects.find(item => item.id === projectId);
-  const projectPath = active?.cwd || project?.path || workingDirectory;
-  const projectName = projectLabel(projectPath || project?.name || projectId);
+  const project = projects.find(item => item.id === (active?.projectId || (!active?.remoteId ? projectId : undefined)) || !!active?.cwd && item.path === active.cwd);
+  const projectPath = active?.cwd || project?.path || (!active?.remoteId ? workingDirectory : undefined);
+  const projectName = projectLabel(projectPath || project?.name) || (active?.remoteId ? '会话工作区' : undefined);
   const workMode = mode === 'work';
   const empty = !active?.messages.length;
   const messageRevision = active?.messages.map(message => `${message.id}:${message.content.length}:${message.role}`).join('|') || '';

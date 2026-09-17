@@ -173,3 +173,7 @@ capture the source cwd. Switching projects starts a new conversation rather than
 retargeting an existing conversation. Build, workspace.test.cjs and mocked-bridge
 workspace-ui.cjs pass folder selection, request cwd and persisted display checks.
 Native folder-picker and model execution acceptance remain pending.
+Post-commit acceptance fixes the project label/metadata to follow the selected
+conversation rather than the global project. A remote thread without a known
+root shows a neutral workspace label instead of falsely claiming Felix's root.
+Browser regression switches back to a preexisting thread with another directory.

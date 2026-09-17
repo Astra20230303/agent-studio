@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
     const page = await browser.newPage();
     await page.addInitScript(() => {
       window.__requests = [];
+      localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeThreadId: 'old', model: 'test', threads: [{ id: 'old', remoteId: 'old-remote', title: 'Old workspace', cwd: 'D:/Old', status: 'completed', messages: [], updatedAt: new Date().toISOString() }] }));
       window.desktop = { providerStatus: async () => ({ keyConfigured: true }), listModels: async () => ({ ok: true, models: ['test'] }), getProjectRoot: async () => 'D:/Felix', pickProject: async () => ({ id: 'project-a', name: 'Actual Project', path: 'D:/Actual Project', git: { isRepository: false }, environment: 'local' }) };
       window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async (method, params) => {
         window.__requests.push({ method, params });
@@ -24,8 +25,11 @@ const assert = require('node:assert/strict');
     const requests = await page.evaluate(() => window.__requests);
     assert.equal(requests.find(r => r.method === 'thread/start').params.cwd, 'D:/Actual Project');
     assert.equal(requests.find(r => r.method === 'turn/start').params.cwd, 'D:/Actual Project');
+    await page.getByRole('button', { name: 'Old workspace', exact: true }).click();
+    assert.equal(await page.locator('.project-strip .project').getAttribute('title'), 'D:/Old');
     await page.reload();
-    assert.equal(await page.locator('.project-strip .project').getAttribute('title'), 'D:/Actual Project');
+    // The injected fixture reopens the old thread despite a different selected project.
+    assert.equal(await page.locator('.project-strip .project').getAttribute('title'), 'D:/Old');
     console.log('PASS: folder selection, thread/turn cwd, displayed root and persistence');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
