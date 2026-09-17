@@ -1801,3 +1801,5 @@ remains low. The expanded browser flow passes without further product changes.
 ## 应用内会话重命名
 
 计划与交付：使用原生 dialog 替代 window.prompt，支持空值校验、前后空白裁剪、远端同步和错误重试；保存中不可重复提交或关闭，成功后更新本机标题和侧栏。浏览器验收覆盖本机输入、远端失败保留、重试和保存中关闭保护；生产构建通过。
+
+提交后验收：重命名 dialog、命令面板快捷操作和 Markdown 导出回归全部通过；错误不会覆盖原标题，保存期间 Escape 无法关闭。无需额外产品修正。
