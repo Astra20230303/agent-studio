@@ -9,3 +9,6 @@
 .command-palette button:disabled{opacity:.45}
 .dark .command-palette{background:#272b30;color:#eee;border-color:#555}
 .dark .command-palette [aria-selected=true]{background:#394c68}
+
+.command-palette [role=option]{overflow-wrap:anywhere}
+.command-palette .command-description{display:block;margin-top:4px;opacity:.7;font-size:12px}

@@ -557,6 +557,10 @@ function App() {
       { id: 'scheduled', label: '查看已安排任务', keywords: 'scheduled automation', run: () => setPage('scheduled') },
       { id: 'settings', label: '打开设置', keywords: 'settings provider', run: () => setPage('settings') },
       { id: 'archives', label: '查看归档会话', keywords: 'archive', run: () => setArchivesOpen(true) },
+      ...state.threads.filter(thread => !thread.archived).slice().sort((a, b) => Number(b.pinned) - Number(a.pinned) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt)).map(thread => ({
+        id: `thread-${thread.id}`, label: `打开会话：${thread.title}`, description: `${thread.id === state.activeThreadId ? '当前会话 · ' : ''}${workspaceFor(state, thread) || '未指定工作区'}`, keywords: 'conversation thread',
+        run: () => { void selectThread(thread); requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('textarea[aria-label="消息"]')?.focus()); },
+      })),
     ]} />}
     <header className="desktop-titlebar">
       <div className="titlebar-navigation">
