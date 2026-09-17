@@ -16,7 +16,7 @@ export function conversationMarkdown(thread: Thread, items?: any[]) {
     const content = item.type === 'agentMessage' ? item.text : item.type === 'userMessage'
       ? (item.content || []).map((part: any) => part.type === 'text' ? part.text : block(part)).join('\n\n') : block(entry);
     return `## ${label}\n\n${content || ''}`;
-  }) : thread.messages.map(message => `## ${{ user: '用户', assistant: '助手', system: '系统' }[message.role]}\n\n${message.content}${message.attachments?.length ? `\n\n附件路径（未嵌入文件）：\n${block(message.attachments)}` : ''}${message.skills?.length ? `\n\n技能：\n${block(message.skills)}` : ''}${message.tool ? `\n\n工具记录：\n${block(message.tool)}` : ''}`);
+  }) : thread.messages.map(message => `## ${{ user: '用户', assistant: '助手', system: '系统' }[message.role]}\n\n${message.content}${message.attachments?.length ? `\n\n附件路径（未嵌入文件）：\n${block(message.attachments)}` : ''}${message.skills?.length ? `\n\n技能：\n${block(message.skills)}` : ''}${message.plugins?.length ? `\n\n插件：\n${block(message.plugins)}` : ''}${message.tool ? `\n\n工具记录：\n${block(message.tool)}` : ''}`);
   return `${intro}\n${records.join('\n\n---\n\n')}\n`;
 }
 
