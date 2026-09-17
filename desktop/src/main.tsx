@@ -92,7 +92,7 @@ function App() {
   const [archivesOpen, setArchivesOpen] = useState(false);
   const [showModel, setShowModel] = useState(false);
   const [showProjects, setShowProjects] = useState(false);
-  const [attachments, setAttachments] = useAttachmentDraft(state.activeThreadId);
+  const [attachments, setAttachments, attachmentStorage] = useAttachmentDraft(state.activeThreadId);
   const [notice, setNotice] = useState('');
   const [codexStatus, setCodexStatus] = useState<'connecting' | 'connected' | 'offline' | 'error'>('connecting');
   const threadList = useThreadList(codexStatus === 'connected', setState, search);
@@ -451,6 +451,7 @@ function App() {
     setComposerPlugins([]); setPage('chat');
   };
   return <div className={`desktop-app ${state.theme} ${page === 'settings' ? 'settings-mode' : ''} ${terminalOpen ? 'terminal-visible' : ''}`}>
+    {attachmentStorage.saveFailed && <div role="alert" className="state-save-warning">附件选择未保存到本机，刷新后可能丢失选择或恢复旧附件。当前仍可编辑和发送。<button onClick={attachmentStorage.retry}>重试保存附件</button></div>}
     {stateSaveFailed && <div role="alert" className="state-save-warning">会话和设置未能保存到本机，刷新或关闭窗口可能丢失当前更改。<button onClick={() => setStateSaveAttempt(attempt => attempt + 1)}>重试保存会话和设置</button></div>}
     <header className="desktop-titlebar">
       <div className="titlebar-navigation">

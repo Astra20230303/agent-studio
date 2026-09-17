@@ -782,3 +782,13 @@ this is failure recovery, not a larger-capacity storage migration.
 Post-commit acceptance repeats the failure after manual recovery, verifies the
 next state change automatically saves all pending changes, then reloads to check
 the saved theme, permission default and conversation text survive.
+
+## Attachment draft storage recovery
+
+Attachment draft writes now catch storage errors, retain in-memory selections and
+show a global warning with retry. Empty draft entries are removed, so a successful
+retry persists removal of consumed attachments. Malformed top-level storage values
+are ignored. Build and quota-injection browser acceptance cover editing, rejected
+sends, attachment-only sends, steering, queued sends and clearing stale storage.
+Until saving succeeds, refresh may restore an older attachment selection, which
+the warning explicitly explains.
