@@ -15,6 +15,10 @@ test('remove registered clean worktree retains branch and protects local data', 
   git('worktree', 'add', '-b', 'feature', child);
   const entries = (await workspaceGit({ root, action: 'worktrees' })).worktrees;
   const entry = entries.find(e => e.branch === 'feature');
+  const childEntries = (await workspaceGit({ root: child, action: 'worktrees' })).worktrees;
+  assert.equal(childEntries.find(e => e.branch === 'main').primary, true);
+  assert.equal(childEntries.find(e => e.branch === 'feature').current, true);
+  assert.equal(childEntries.find(e => e.branch === 'feature').primary, false);
   const remove = extra => workspaceGit({ root, action: 'remove-worktree', path: entry.path, expectedHead: entry.head, ...extra });
   await assert.rejects(remove({ path: entries.find(e => e.branch === 'main').path }), /主工作树/);
   await assert.rejects(remove({ root: child }), /当前/);

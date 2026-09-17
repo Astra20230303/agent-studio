@@ -87,13 +87,13 @@ async function workspaceGit(input) {
   }
   if (['worktrees', 'open-worktree', 'remove-worktree'].includes(input.action)) {
     const output = await git(root, ['worktree', 'list', '--porcelain', '-z']);
-    const worktrees = output.split('\0\0').filter(Boolean).map(record => {
+    const worktrees = output.split('\0\0').filter(Boolean).map((record, index) => {
       const entry = {};
       for (const field of record.split('\0').filter(Boolean)) {
         const split = field.indexOf(' ');
         entry[split < 0 ? field : field.slice(0, split)] = split < 0 ? true : field.slice(split + 1);
       }
-      return { path: entry.worktree, branch: entry.branch?.replace(/^refs\/heads\//, ''), head: entry.HEAD, detached: !!entry.detached, bare: !!entry.bare, locked: entry.locked, prunable: entry.prunable };
+      return { primary: index === 0, current: path.resolve(entry.worktree).toLowerCase() === path.resolve(root).toLowerCase(), path: entry.worktree, branch: entry.branch?.replace(/^refs\/heads\//, ''), head: entry.HEAD, detached: !!entry.detached, bare: !!entry.bare, locked: entry.locked, prunable: entry.prunable };
     });
     if (input.action === 'worktrees') return { worktrees };
     const entry = worktrees.find(item => item.path === input.path);
