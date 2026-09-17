@@ -3,6 +3,7 @@ import { UserInputDialog } from './UserInputDialog';
 import { useTurnRuntime } from './useTurnRuntime';
 import { useSkillDraft, type SelectedSkill } from './useSkillDraft';
 import { useThreadDraft } from './useThreadDraft';
+import { ContextUsage, readContextTokens } from './ContextUsage';
 import { useThreadList } from './useThreadList';
 import { ArchivedThreads } from './ArchivedThreads';
 import { useTurnQueue } from './useTurnQueue';
@@ -132,6 +133,10 @@ function App() {
     const cleanup = subscribeCodex({
       notification: message => {
         const params = message.params || {};
+        if (message.method === 'thread/tokenUsage/updated') {
+          const usage = readContextTokens(params.tokenUsage);
+          if (usage) update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) thread.contextTokens = usage; });
+        }
         if (message.method === 'serverRequest/resolved') {
           setApprovals(pending => pending.filter(item => item.id !== params.requestId));
         }
@@ -637,6 +642,7 @@ function Chat({ composerSkills, setComposerSkills, onOpenAgent, removeAttachment
     </div>
     <div className="composer">
       {composerSkills.length > 0 && <div className="attachment-list" aria-label="本次使用的技能">{composerSkills.map(skill => <span key={skill.path} title={skill.path}>{skill.name}<button aria-label={`移除技能 ${skill.name}`} onClick={() => setComposerSkills(composerSkills.filter(item => item.path !== skill.path))}><X size={14} /></button></span>)}</div>}
+      <ContextUsage key={active?.id || 'new'} usage={active?.contextTokens} threadId={active?.remoteId} disabled={busy || running || status !== 'connected'} />
       {composerPlugins.length > 0 && <div className="composer-plugin-chips" aria-label="本次使用的插件">{composerPlugins.map(plugin => <span key={plugin.id}><ExtensionIcon item={plugin} /><span>{extensionName(plugin)}</span><button aria-label={`移除 ${extensionName(plugin)}`} onClick={() => setComposerPlugins(composerPlugins.filter(item => item.id !== plugin.id))}><X /></button></span>)}</div>}
       {attachments.length > 0 && <div className="attachment-list">{attachments.map(name => <span key={name} title={name}>{name.replace(/^.*[\\/]/, '')}<button aria-label={`移除附件：${name}`} onClick={() => removeAttachment(name)}>×</button></span>)}</div>}
       <textarea ref={textarea} aria-label="消息" value={input} onChange={event => setInput(event.target.value)}

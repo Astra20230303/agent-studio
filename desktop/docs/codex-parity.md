@@ -660,3 +660,14 @@ recipient. It then waits for the parent turn to finish and verifies its final
 response in history. The full spawn/wait/result/summary round trip passes. A
 parent that already ended its turn is not immediately called again solely by
 the child completion notification in this fixture.
+
+## Context usage and manual compaction
+
+The composer shows last reported token usage against the model context window,
+with cumulative usage separately disclosed. Valid usage notifications persist on
+their owning thread. A manual compact action requests thread/compact/start and
+reports acceptance rather than claiming completion; requests are disabled during
+active turns. Build and browser tests pass usage display, request parameters,
+failure/retry and turn lifecycle guards. Actual compaction through the model
+adapter, completion feedback and precise provider context accounting remain to
+be verified.

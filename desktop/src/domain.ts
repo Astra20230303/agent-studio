@@ -28,6 +28,7 @@ export interface ToolActivity {
 }
 
 export interface Thread {
+  contextTokens?: import('./ContextUsage').ContextTokens;
   cwd?: string;
   planningMode?: 'default' | 'plan';
   plan?: import('./planning').PlanProgress;
