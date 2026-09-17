@@ -24,7 +24,7 @@ export function ExtensionIcon({ item }: { item: Plugin | Skill }) {
   return <span className="ext-icon">{image ? <img src={image} alt="" onError={() => setImage('')} /> : 'description' in item ? <BookOpen size={22} /> : <Puzzle size={22} />}</span>;
 }
 
-export function ExtensionsPage({ connected, threadId, onAddToDraft }: { connected: boolean; threadId?: string; onAddToDraft?: (text: string) => void }) {
+export function ExtensionsPage({ connected, threadId, cwd, onAddToDraft }: { connected: boolean; threadId?: string; cwd?: string; onAddToDraft?: (text: string) => void }) {
   const [mcpOpen, setMcpOpen] = useState(false);
   const [tab, setTab] = useState<'plugins' | 'skills'>('plugins');
   const [query, setQuery] = useState('');
@@ -49,7 +49,7 @@ export function ExtensionsPage({ connected, threadId, onAddToDraft }: { connecte
     const generation = ++revision.current;
     setLoading(true);
     try {
-      const root = await window.desktop?.getProjectRoot?.();
+      const root = cwd || await window.desktop?.getProjectRoot?.();
       const cwds = root ? [root] : [];
       const results = await Promise.allSettled([
         extensionRequest<PluginCatalog>('plugin/list', { cwds, marketplaceKinds: ['local'] }),
@@ -71,7 +71,7 @@ export function ExtensionsPage({ connected, threadId, onAddToDraft }: { connecte
       setErrors(failures);
     } catch (error) { if (generation === revision.current) setErrors([errorText(error)]); }
     finally { if (generation === revision.current) setLoading(false); }
-  }, [connected]);
+  }, [connected, cwd]);
   useEffect(() => { void refresh(); return () => { revision.current++; }; }, [refresh]);
   useEffect(() => window.codex?.onNotification((event: { method: string }) => {
     if (event.method === 'skills/changed') void refresh();

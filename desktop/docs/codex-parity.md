@@ -521,3 +521,12 @@ persistence while storage remains unavailable.
 Post-commit acceptance also verifies automatic recovery on the next edit after
 storage becomes writable. The full MCP resource browser/draft browser regression
 passes, including reload persistence and explicit turn submission.
+
+## Workspace-scoped extension discovery
+
+The extension page now discovers plugins and skills using the effective chat
+workspace (thread cwd, then selected project, then application-root fallback),
+instead of always querying the application repository. Build and browser tests
+pass all three directory cases. The existing isolated real app-server extension
+test also passes plugin install, discovery, skill enable/disable, restart
+persistence and uninstall. Model use of installed skills remains separate work.
