@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CopyText } from './CopyText';
 import { indentSelection } from './editorIndent';
+import { EditorFind } from './FileEditorFind';
 export function FileEditor({ root, path, initial, onClose, onSaved }: { root: string; path: string; initial: { text: string; revision: string }; onClose: () => void; onSaved: (value: any) => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const editor = useRef<HTMLTextAreaElement>(null);
@@ -9,6 +10,7 @@ export function FileEditor({ root, path, initial, onClose, onSaved }: { root: st
   const originalText = baseline.text.replace(/\r\n/g, '\n');
   const useCRLF = baseline.text.includes('\r\n') && !baseline.text.replace(/\r\n/g, '').includes('\n');
   const [text, setText] = useState(originalText);
+  const [finding, setFinding] = useState(false);
   const [tabNavigation, setTabNavigation] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -39,8 +41,9 @@ export function FileEditor({ root, path, initial, onClose, onSaved }: { root: st
     finally { operation.current = false; setBusy(false); }
   };
   return <dialog ref={dialog} aria-label="编辑工作区文件" className="file-editor" onKeyDown={event => {
+    if ((event.ctrlKey || event.metaKey) && ['f', 'h'].includes(event.key.toLowerCase()) && !event.altKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); setFinding(true); }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's' && !event.altKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); void save(); }
-  }} onCancel={event => { event.preventDefault(); close(); }}><h2>{path}</h2><p>编辑工作区：{root}</p><p>Ctrl / ⌘ + S 保存；Tab 缩进，Shift+Tab 取消缩进；Ctrl / ⌘ + M 切换 Tab 焦点导航。</p><textarea ref={editor} aria-label="文件内容" onKeyDown={event => {
+  }} onCancel={event => { event.preventDefault(); close(); }}><h2>{path}</h2><p>编辑工作区：{root}</p><p>Ctrl / ⌘ + S 保存；Tab 缩进，Shift+Tab 取消缩进；Ctrl / ⌘ + M 切换 Tab 焦点导航。</p><button onClick={() => setFinding(value => !value)}>查找与替换</button>{finding && <EditorFind text={text} onChange={setText} editor={editor} disabled={busy} onClose={() => setFinding(false)} />}<textarea ref={editor} aria-label="文件内容" onKeyDown={event => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'm') { event.preventDefault(); setTabNavigation(value => !value); return; }
     if (event.key !== 'Tab' || tabNavigation || event.ctrlKey || event.metaKey || event.altKey || event.nativeEvent.isComposing || busy) return;
     event.preventDefault();

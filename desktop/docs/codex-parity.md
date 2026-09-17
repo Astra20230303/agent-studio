@@ -1074,3 +1074,12 @@ preview; changed files show a refresh notice instead of highlighting a stale lin
 Literal Unicode-aware matching preserves original UTF-16 column offsets even when
 lowercasing a preceding character would expand it. Filesystem and browser tests
 cover these cases, and the production build passes.
+
+## Editor find and replace
+
+The file editor supports literal search, case sensitivity, previous/next match,
+current/all replacement and Ctrl/Meta+F or H to open the toolbar. Escape closes
+search while retaining the edit dialog. Replacements modify only the edit buffer;
+explicit revision-checked save remains required. Replacement text such as $& is
+inserted literally. Browser tests verify replacements alongside existing conflict,
+retry and discard behavior; Unicode offset tests and production build pass.
