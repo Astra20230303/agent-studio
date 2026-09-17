@@ -14,3 +14,15 @@ test('artifact IPC requests use the captured workspace for reads and undo',async
  await assert.rejects(artifactRequest(first,{root:'.',action:'read',path:'same.txt'}));
  await assert.rejects(artifactRequest(first,{root:second,action:'read',path:path.join(first,'same.txt')}));
 });
+
+test('file references resolve line suffixes without weakening project boundaries',async t=>{
+ const {artifactRequest}=require('../electron/artifacts.cjs');const root=await workspace(t);
+ await fs.writeFile(path.join(root,'notes.txt'),'first\nsecond');
+ for(const suffix of [':2',':2:1','#L2']){
+  const result=await artifactRequest(root,{action:'read',path:'notes.txt'+suffix});
+  assert.equal(result.path,'notes.txt');assert.equal(result.line,2);assert.equal(result.root,await fs.realpath(root));
+ }
+ await fs.writeFile(path.join(root,'notes.txt#L3'),'literal filename');
+ assert.equal((await artifactRequest(root,{action:'read',path:'notes.txt#L3'})).line,undefined);
+ await assert.rejects(artifactRequest(root,{action:'read',path:'../outside.txt:2'}));
+});

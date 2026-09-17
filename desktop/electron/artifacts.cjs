@@ -52,6 +52,15 @@ async function artifactRequest(defaultRoot, input) {
   if (typeof root !== 'string' || !path.isAbsolute(root)) throw Error('无效工作区目录');
   if (input?.action === 'undo') { await undoArtifact(root, input.change); return {}; }
   if (input?.action !== 'read') throw Error('无效文件操作');
-  return readArtifact(root, input.path);
+  const resolvedRoot = await fs.realpath(root);
+  try { return { ...await readArtifact(resolvedRoot, input.path), root: resolvedRoot, path: input.path }; }
+  catch (error) {
+    if (!['ENOENT', 'ENOTDIR'].includes(error.code) || typeof input.path !== 'string') throw error;
+    const reference = /^(.*?)(?::([1-9]\d*)(?::[1-9]\d*)?|#L([1-9]\d*))$/.exec(input.path);
+    if (!reference) throw error;
+    const line = Number(reference[2] || reference[3]);
+    if (!Number.isSafeInteger(line)) throw error;
+    return { ...await readArtifact(resolvedRoot, reference[1]), root: resolvedRoot, path: reference[1], line };
+  }
 }
 module.exports.artifactRequest = artifactRequest;

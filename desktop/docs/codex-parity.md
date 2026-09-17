@@ -1231,3 +1231,12 @@ Browser navigation verifies each conversation's artifact request root. Build pas
 Post-commit acceptance scopes file-change card state to its workspace/path/diff.
 A held undo request retains the original root; after switching roots its delayed
 response cannot mark the new card undone. Browser race acceptance and build pass.
+
+## Message file preview and editor navigation
+
+Local message file links now offer an in-app modal preview alongside download.
+References ending in :line, :line:column or #Lline resolve to the existing file,
+with literal filenames preferred and project boundaries enforced. The requested
+line is highlighted and scrolled into view. Editable text opens the existing
+revision-protected editor using the captured conversation workspace. Backend
+reference tests, browser preview-to-editor acceptance and production build pass.

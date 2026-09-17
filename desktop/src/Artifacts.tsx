@@ -3,10 +3,13 @@ import type { ToolActivity } from './domain';
 import './artifacts.css';
 import { messageLinkKind } from './messageLink';
 export const ArtifactWorkspaceContext = createContext<string | undefined>(undefined);
+export type ArtifactTarget = { root: string; path: string; line?: number };
+export const ArtifactOpenContext = createContext<((target: ArtifactTarget) => void) | undefined>(undefined);
 
 export function ArtifactLink({ path, label, preview = false, children }: { path: string; label: string; preview?: boolean; children?: ReactNode }) {
   const root = useContext(ArtifactWorkspaceContext);
-  const [file, setFile] = useState<{ name: string; data: string; image: boolean }>();
+  const open = useContext(ArtifactOpenContext);
+  const [file, setFile] = useState<{ name: string; data: string; image: boolean; root?: string; path?: string; line?: number }>();
   const [error, setError] = useState('');
   const kind = messageLinkKind(path);
   const version = useRef(0);
@@ -37,6 +40,7 @@ export function ArtifactLink({ path, label, preview = false, children }: { path:
     void window.desktop.openExternal(path).catch(() => { if (requestVersion === version.current) setError('无法打开链接，请重试'); });
   }}>{children || label}</a>{error && <small role="status">{error}</small>}</>;
   return <span className="artifact-link">
+    {file && !file.image && file.root && file.path && open && <button onClick={() => open({ root: file.root!, path: file.path!, line: file.line })}>{children || label}</button>}
     {file?.image && (preview || !/下载|download/i.test(label)) && <img className="artifact-image" src={file.data} alt={label} />}
     {file ? <a download={file.name} href={file.data}>↓ {preview ? `下载 ${file.name}` : children || label}</a> : <span title={path}>{error || `正在读取 ${label}…`}</span>}
   </span>;
