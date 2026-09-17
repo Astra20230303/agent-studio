@@ -431,3 +431,13 @@ restore failure/retry and history preservation. Live server acceptance remains.
 Acceptance correction keeps server-archived records visible when local cache still
 says active, while retaining local metadata. The browser test reproduces this
 disagreement and restores the record without duplication; build passes.
+
+Live archive acceptance found two protocol mismatches missed by mocked tests:
+ThreadSortKey uses recency_at, not recencyAt; omitted modelProviders filters by
+the server default provider and can hide MiniMax conversations. Both active and
+archive client requests now use recency_at and modelProviders: []. The isolated
+real app-server test completes two turns through a local controlled model endpoint,
+archives them, pages inventory, restores and resumes, and exercises the actual
+frontend list/unarchive functions. It passes together with both browser suites
+and build. Empty threads have no persisted rollout until a turn is recorded and
+cannot be archived on this server; the UI reports that server error.
