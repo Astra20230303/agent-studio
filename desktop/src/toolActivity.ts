@@ -70,9 +70,9 @@ export function finishTools(thread: Thread, turnId: string, failed = false) {
 export function restoreMessages(items: any[], previous: Message[]): Message[] {
   const thread = { messages: [] as Message[] } as Thread;
   for (const entry of items) {
-    if (!entry || typeof entry !== 'object') continue;
-    const item = entry.item && typeof entry.item === 'object' ? entry.item : entry;
-    if (!item || typeof item !== 'object') continue;
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+    const item = Object.hasOwn(entry, 'item') ? entry.item : entry;
+    if (!item || typeof item !== 'object' || Array.isArray(item) || typeof item.id !== 'string' || !item.id || typeof item.type !== 'string') continue;
     if (item && typeof item.type === 'string' && !['userMessage', 'agentMessage', 'plan'].includes(item.type)) {
       const saved = previous.find(message => message.id === `tool-${item.id}`);
       if (saved && !thread.messages.some(message => message.id === saved.id)) thread.messages.push(structuredClone(saved));
@@ -80,12 +80,13 @@ export function restoreMessages(items: any[], previous: Message[]): Message[] {
     } else if (item.type === 'userMessage' || item.type === 'agentMessage' || item.type === 'plan') {
       const id = item.type === 'plan' ? `plan-${item.id}` : item.type === 'agentMessage' ? `live-${item.id}` : item.id;
       const existing = thread.messages.find(message => message.id === id);
+      const parts = Array.isArray(item.content) ? item.content.filter((part: any) => part && typeof part === 'object' && !Array.isArray(part)) : undefined;
       const message = { id,
         turnId: entry.turnId || previous.find(message => message.id === `live-${item.id}`)?.turnId,
         role: item.type === 'userMessage' ? 'user' : 'assistant',
-        attachments: item.type === 'userMessage' ? item.content?.filter((part: any) => part.type === 'localImage' && typeof part.path === 'string').map((part: any) => part.path) : undefined,
-        skills: item.type === 'userMessage' ? item.content?.filter((part: any) => part.type === 'skill' && typeof part.name === 'string' && typeof part.path === 'string').map((part: any) => ({ name: part.name, path: part.path })) : undefined,
-        content: item.text ?? item.content?.map((part: any) => part.text || part.input_text || '').join('') ?? existing?.content ?? '',
+        attachments: item.type === 'userMessage' ? parts?.filter((part: any) => part.type === 'localImage' && typeof part.path === 'string').map((part: any) => part.path) : undefined,
+        skills: item.type === 'userMessage' ? parts?.filter((part: any) => part.type === 'skill' && typeof part.name === 'string' && typeof part.path === 'string').map((part: any) => ({ name: part.name, path: part.path })) : undefined,
+        content: typeof item.text === 'string' ? item.text : parts?.map((part: any) => typeof part.text === 'string' ? part.text : typeof part.input_text === 'string' ? part.input_text : '').join('') ?? existing?.content ?? '',
         createdAt: existing?.createdAt || new Date().toISOString() } as Message;
       if (existing) Object.assign(existing, message);
       else thread.messages.push(message);

@@ -122,3 +122,16 @@ test('malformed history entries are ignored without hiding valid records', () =>
   assert.deepEqual(restored.map(message => message.id), ['live-reply']);
   assert.deepEqual(previous, [{ id: 'old', role: 'assistant', content: 'old' }]);
 });
+
+test('malformed content blocks and identities cannot corrupt subsequent text', () => {
+  const restored = restoreMessages([
+    { type: 'agentMessage', text: 'missing id' }, { id: 42, type: 'plan', text: 'invalid id' },
+    { item: null, id: 'wrapper', type: 'agentMessage', text: 'not an item' },
+    { id: 'a', type: 'agentMessage', text: { invalid: true }, content: 'not an array' },
+    { id: 'u', type: 'userMessage', content: [null, 42, [], { type: 'text', text: 'valid' }, { type: 'text', text: {}, input_text: ' fallback' }, { type: 'localImage', path: 'picture.png' }] },
+    { id: 'final', type: 'agentMessage', text: 'done' }
+  ], []);
+  assert.deepEqual(restored.map(m => m.id), ['live-a', 'u', 'live-final']);
+  assert.deepEqual(restored.map(m => m.content), ['', 'valid fallback', 'done']);
+  assert.deepEqual(restored[1].attachments, ['picture.png']);
+});
