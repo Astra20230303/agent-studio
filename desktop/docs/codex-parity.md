@@ -1128,3 +1128,10 @@ filesystem write boundary on this Windows machine, not network isolation, every
 command tool, elevated provisioning or broader security guarantees.
 Run: node --test tests/windows-sandbox-live.test.cjs. No provider request is made;
 CODEX_HOME and all attempted writes are inside a fresh test fixture.
+Post-commit acceptance also rejects workspace writes under readOnly policy. The
+real unelevated setupStart/setupCompleted flow succeeds within the isolated
+profile and persists windows.sandbox in its config.toml. After restarting the
+server without the windows.sandbox command-line override, readiness remains ready.
+This supersedes the earlier unelevated provisioning uncertainty for this fixture;
+elevated provisioning and network isolation remain unverified. No product change
+was required by this scoped acceptance.
