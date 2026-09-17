@@ -120,3 +120,8 @@ turn-lifecycle-ui.cjs also passes. Browser tests use a mocked Electron bridge.
 The older shutdown.test.cjs main-process harness fails and leaves live handles;
 its run was stopped. Its incomplete mocks do not validate the current desktop
 startup path, so full shutdown/Electron acceptance remains pending.
+
+Post-commit fault review found that repeated `closed` events during failed
+handshakes could reset retry counts indefinitely. Recovery now retains the
+current retry budget until connected or explicitly retried. Five focused tests,
+the production build and reconnect browser acceptance pass after this fix.

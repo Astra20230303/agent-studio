@@ -24,13 +24,26 @@ test('cleanup cancels retries and ignores delayed connection success', async t =
   t.mock.timers.tick(10000); await flush();
   assert.equal(recovered, 0);
 });
-test('disconnect invalidates an in-flight connection and waits before reconnecting', async t => {
+test('disconnect after connection waits before reconnecting', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
-  let resolve, calls = 0, recovered = 0;
-  const recovery = createConnectionRecovery({ connect: () => { calls++; return calls === 1 ? new Promise(done => { resolve = done; }) : Promise.resolve(); }, status: () => {}, connected: () => recovered++, delays: [10] });
-  recovery.start(); recovery.disconnected(); resolve(); await flush();
-  assert.equal(recovered, 0); assert.equal(calls, 1);
+  let calls = 0, recovered = 0;
+  const recovery = createConnectionRecovery({ connect: async () => { calls++; }, status: () => {}, connected: () => recovered++, delays: [10] });
+  recovery.start(); await flush(); recovery.disconnected();
+  assert.equal(recovered, 1); assert.equal(calls, 1);
   t.mock.timers.tick(10); await flush();
-  assert.equal(recovered, 1); assert.equal(calls, 2);
+  assert.equal(recovered, 2); assert.equal(calls, 2);
+  recovery.stop();
+});
+
+test('a crash on every handshake cannot reset the retry budget', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let calls = 0;
+  const states = [];
+  const recovery = createConnectionRecovery({ connect: async () => { calls++; recovery.disconnected(); throw Error('Process exited'); }, status: state => states.push(state), connected: () => assert.fail('unexpected connection'), delays: [10, 20] });
+  recovery.start(); await flush();
+  t.mock.timers.tick(10); await flush();
+  t.mock.timers.tick(20); await flush();
+  t.mock.timers.tick(10000); await flush();
+  assert.equal(calls, 3); assert.equal(states.at(-1), 'offline');
   recovery.stop();
 });

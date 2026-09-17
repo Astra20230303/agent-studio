@@ -10,6 +10,7 @@ export function createConnectionRecovery(options: {
   let generation = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let stopped = true;
+  let recovering = false;
   const delays = options.delays || [500, 1500, 3000];
   const clear = () => { if (timer !== undefined) clearTimeout(timer); timer = undefined; };
   const attempt = async (token: number, index: number) => {
@@ -18,6 +19,7 @@ export function createConnectionRecovery(options: {
     try {
       await options.connect();
       if (stopped || token !== generation) return;
+      recovering = false;
       options.status('connected');
       options.connected();
     } catch (error) {
@@ -30,6 +32,7 @@ export function createConnectionRecovery(options: {
   };
   const restart = (defer: boolean) => {
     stopped = false;
+    recovering = true;
     clear();
     const token = ++generation;
     options.status(defer ? 'offline' : 'connecting');
@@ -38,7 +41,9 @@ export function createConnectionRecovery(options: {
   };
   return {
     start: () => restart(false),
-    disconnected: () => restart(true),
-    stop: () => { stopped = true; generation++; clear(); },
+    // A failed launch emits both closed and a rejected handshake. Let the
+    // current retry loop count that failure rather than resetting its budget.
+    disconnected: () => { if (!recovering) restart(true); },
+    stop: () => { stopped = true; recovering = false; generation++; clear(); },
   };
 }
