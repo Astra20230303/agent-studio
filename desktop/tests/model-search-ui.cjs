@@ -20,6 +20,9 @@ const assert = require('node:assert/strict');
     await picker.getByText('Beta-Code', { exact: true }).waitFor();
     await picker.click(); assert.equal(await search.inputValue(), '');
     assert.equal(await page.locator('.model-options button').count(), 3);
+    await search.fill('alpha'); await page.keyboard.press('Escape');
+    assert.ok(await picker.evaluate(el => el === document.activeElement));
+    await picker.getByText('Beta-Code', { exact: true }).waitFor();
     console.log('PASS: case-insensitive model search, no results, selection and reopen reset');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

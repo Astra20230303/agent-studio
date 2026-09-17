@@ -1753,3 +1753,5 @@ remains low. The expanded browser flow passes without further product changes.
 ## 模型目录搜索
 
 计划与交付：模型选择器支持按 ID 忽略大小写筛选、自动聚焦、空结果提示和重新打开清空查询。搜索不更改模型选择，点击结果才应用。模拟桥接浏览器测试与生产构建通过；主 JS 包略超过 500 KB，构建仍成功。
+
+提交后修正：Escape 关闭模型搜索后将键盘焦点还给选择模型按钮，取消搜索不改变选中模型。扩展浏览器验收、Provider 目录竞态回归和生产构建通过。
