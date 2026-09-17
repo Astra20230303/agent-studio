@@ -279,3 +279,9 @@ previous locked version; only validation dependencies were added.
 Post-commit review releases temporary compiled schemas after each validation to
 avoid accumulating form schemas across requests/retries. Tests additionally cover
 invalid schema rejection and repeated independent constraints.
+
+MCP choice increment: titled single choices and array choices now render selects
+and checkboxes, preserving wire values independently of displayed titles.
+Array size and membership constraints are validated before submission. Production
+build, option unit tests, primitive browser regression and choice browser acceptance
+pass. The browser uses a mocked bridge; live server integration remains unverified.
