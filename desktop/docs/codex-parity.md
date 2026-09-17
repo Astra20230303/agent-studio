@@ -139,3 +139,10 @@ Acceptance: production build, two queue state tests and turn-queue-ui.cjs cover
 FIFO dispatch, cancellation, failed predecessor pause, rejection/retry and
 persisted queue without automatic replay. Browser bridge is mocked; live model
 and native Electron validation remain pending.
+
+Post-commit queue acceptance reproduced an early-failure race: a completion
+notification preceding the start response incorrectly released the next entry.
+Runtime now retains bounded turn outcomes and releases only successful turns.
+Manual stop immediately pauses pending work, even if the stopped turn races to
+successful completion. Build, six focused queue/runtime tests, queue browser
+acceptance and the conversation lifecycle browser regression pass.

@@ -1,7 +1,7 @@
-export type TurnRuntime = { turnId?: string; activity?: string; completed: string[]; revision: number };
+export type TurnRuntime = { turnId?: string; activity?: string; completed: string[]; outcomes?: Record<string, string>; revision: number };
 export type TurnEvent =
   | { type: 'start'; turnId: string }
-  | { type: 'finish'; turnId: string }
+  | { type: 'finish'; turnId: string; status?: string }
   | { type: 'activity'; turnId?: string; activity?: string }
   | { type: 'restore'; turnId?: string; revision: number };
 
@@ -18,7 +18,8 @@ export function reduceTurn(current: TurnRuntime | undefined, event: TurnEvent): 
   }
   if (event.type === 'finish') {
     const completed = [...state.completed.filter(id => id !== event.turnId), event.turnId].slice(-64);
-    return { ...state, completed, ...(state.turnId === event.turnId ? { turnId: undefined, activity: undefined } : {}), revision: state.revision + 1 };
+    const outcomes = Object.fromEntries(completed.map(id => [id, id === event.turnId ? event.status || 'unknown' : state.outcomes?.[id] || 'unknown']));
+    return { ...state, completed, outcomes, ...(state.turnId === event.turnId ? { turnId: undefined, activity: undefined } : {}), revision: state.revision + 1 };
   }
   if (!state.turnId || event.turnId && state.turnId !== event.turnId) return state;
   return { ...state, activity: event.activity, revision: state.revision + 1 };

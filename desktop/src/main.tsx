@@ -152,7 +152,7 @@ function App() {
         }
         if (message.method === 'turn/completed') {
           queue.finish(params.threadId, params.turn?.id, params.turn?.status === 'completed');
-          if (params.threadId && params.turn?.id) runtime.apply(params.threadId, { type: 'finish', turnId: params.turn.id });
+          if (params.threadId && params.turn?.id) runtime.apply(params.threadId, { type: 'finish', turnId: params.turn.id, status: params.turn.status });
           update(next => {
             const thread = next.threads.find(item => params.threadId ? item.remoteId === params.threadId : item.id === activeThreadRef.current);
             if (!thread) return;
@@ -202,8 +202,9 @@ function App() {
           const turn = result.turn;
           if (!turn?.id) throw new Error('服务未返回回合编号，请检查会话记录。');
           runtime.apply(item.threadId, { type: 'start', turnId: turn.id });
-          const done = runtime.read(item.threadId)?.completed.includes(turn.id) || turn.status && turn.status !== 'inProgress';
-          queue.change(items => items.filter(entry => entry.id !== item.id).map(entry => entry.threadId === item.threadId && entry.status !== 'paused' ? { ...entry, waitingOn: turn.id, status: done ? 'ready' : 'waiting' } : entry));
+          if (turn.status && turn.status !== 'inProgress') runtime.apply(item.threadId, { type: 'finish', turnId: turn.id, status: turn.status });
+          const outcome = runtime.read(item.threadId)?.outcomes?.[turn.id];
+          queue.change(items => items.filter(entry => entry.id !== item.id).map(entry => entry.threadId === item.threadId && entry.status !== 'paused' ? { ...entry, waitingOn: turn.id, status: outcome ? outcome === 'completed' ? 'ready' : 'paused' : 'waiting', error: outcome && outcome !== 'completed' ? '上一轮未正常完成，请确认后继续。' : undefined } : entry));
           update(next => { const target = next.threads.find(thread => thread.id === item.localId); const message = target?.messages.find(message => message.id === item.id); if (message) message.turnId = turn.id; });
         } catch (error: any) {
           queue.change(items => items.map(entry => entry.threadId === item.threadId ? { ...entry, status: 'paused', error: `发送未确认：${error.message}。请检查会话记录后再试。` } : entry));
@@ -261,7 +262,7 @@ function App() {
       }
       if (turn.turn?.id) {
         runtime.apply(threadId, { type: 'start', turnId: turn.turn.id });
-        if (turn.turn.status && turn.turn.status !== 'inProgress') runtime.apply(threadId, { type: 'finish', turnId: turn.turn.id });
+        if (turn.turn.status && turn.turn.status !== 'inProgress') runtime.apply(threadId, { type: 'finish', turnId: turn.turn.id, status: turn.turn.status });
       }
       update(next => {
         const thread = next.threads.find(item => item.id === localId);
@@ -281,6 +282,7 @@ function App() {
     }
   };
   const cancel = () => {
+    queue.change(items => items.map(item => item.localId === active?.id ? { ...item, status: 'paused', error: '已停止，队列暂停。' } : item));
     if (active?.remoteId && runningTurnId) void interruptTurn(active.remoteId, runningTurnId).catch(error => setNotice(`停止失败：${error.message}`));
   };
   const newChat = () => { setRemoteThreadId(undefined); update(next => createThread(next)); setComposerPlugins([]); setAttachments([]); setPage('chat'); };
