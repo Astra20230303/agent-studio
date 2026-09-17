@@ -4,6 +4,8 @@ import { useTurnRuntime } from './useTurnRuntime';
 import { useThreadDraft } from './useThreadDraft';
 import { useTurnQueue } from './useTurnQueue';
 import { TurnQueue } from './TurnQueuePanel';
+import { PlanPanel } from './PlanPanel';
+import { readPlan } from './planning';
 import { createConnectionRecovery } from './connectionRecovery';
 import './connection.css';
 import { steerTurn } from './codexClient';
@@ -125,6 +127,20 @@ function App() {
         if (message.method === 'serverRequest/resolved') {
           setApprovals(pending => pending.filter(item => item.id !== params.requestId));
         }
+        if (message.method === 'turn/plan/updated') {
+          const plan = readPlan(params);
+          if (plan) update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) thread.plan = plan; });
+        }
+        if (message.method === 'item/completed' && params.item?.type === 'plan') {
+          update(next => {
+            const thread = next.threads.find(item => item.remoteId === params.threadId);
+            if (!thread) return;
+            const id = `plan-${params.item.id}`;
+            const saved = thread.messages.find(item => item.id === id);
+            if (saved) saved.content = params.item.text;
+            else thread.messages.push({ id, role: 'assistant', content: params.item.text, turnId: params.turnId, createdAt: new Date().toISOString() });
+          });
+        }
         if (message.method === 'turn/started' && params.threadId && params.turn?.id) {
           runtime.apply(params.threadId, { type: 'start', turnId: params.turn.id });
           update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) thread.status = 'running'; });
@@ -182,7 +198,7 @@ function App() {
   const update = (fn: (next: DesktopState) => void) => setState(previous => { const next = structuredClone(previous); fn(next); return next; });
   const enqueue = () => {
     if (!input.trim() || !active?.remoteId || !runningTurnId) return;
-    queue.change(items => [...items, { id: crypto.randomUUID(), localId: active.id, threadId: active.remoteId!, text: input.trim(), model: modelId(state.model), effort: state.reasoningEffort, plugins: composerPlugins.map(({ id, name }) => ({ id, name })), waitingOn: runningTurnId, status: 'waiting' }]);
+    queue.change(items => [...items, { id: crypto.randomUUID(), localId: active.id, threadId: active.remoteId!, text: input.trim(), model: modelId(state.model), effort: state.reasoningEffort, planningMode: active.planningMode || 'default', plugins: composerPlugins.map(({ id, name }) => ({ id, name })), waitingOn: runningTurnId, status: 'waiting' }]);
     setInput(''); setComposerPlugins([]);
   };
   useEffect(() => {
@@ -198,7 +214,7 @@ function App() {
       update(next => { const target = next.threads.find(thread => thread.id === item.localId); if (target) target.messages.push({ id: item.id, role: 'user', content: item.text, createdAt: new Date().toISOString() }); });
       void (async () => {
         try {
-          const result = await startTurn({ threadId: item.threadId, text: item.text, model: item.model, effort: item.effort, plugins: item.plugins });
+          const result = await startTurn({ threadId: item.threadId, text: item.text, model: item.model, effort: item.effort, plugins: item.plugins, planningMode: item.planningMode || 'default' });
           const turn = result.turn;
           if (!turn?.id) throw new Error('服务未返回回合编号，请检查会话记录。');
           runtime.apply(item.threadId, { type: 'start', turnId: turn.id });
@@ -258,7 +274,7 @@ function App() {
         const result = await steerTurn(threadId, runningTurnId, text, plugins);
         turn = { turn: { id: result.turnId } };
       } else {
-        turn = await startTurn({ threadId, text, plugins, model, modelProvider, effort: state.reasoningEffort, cwd });
+        turn = await startTurn({ threadId, text, plugins, model, modelProvider, effort: state.reasoningEffort, cwd, planningMode: existing?.planningMode || 'default' });
       }
       if (turn.turn?.id) {
         runtime.apply(threadId, { type: 'start', turnId: turn.turn.id });
@@ -409,7 +425,7 @@ function App() {
       </div>
       <div className="sidebar-footer"><button className="sidebar-nav" aria-current={page === 'settings' ? 'page' : undefined} onClick={() => setPage('settings')}><Badge aria-hidden="true" /><span>设置</span></button></div>
     </aside>
-      <main>{page === 'chat' && <><TurnQueue items={queue.items.filter(item => item.localId === active?.id)} disabled={codexStatus !== 'connected' || pending} onRemove={id => queue.change(items => items.filter(item => item.id !== id))} onResume={() => queue.change(items => items.map(item => item.localId === active?.id && item.status === 'paused' ? { ...item, status: runningTurnId ? 'waiting' : 'ready', waitingOn: runningTurnId, error: undefined } : item))} />{runningTurnId && <button className="queue-message" disabled={!input.trim() || pending || codexStatus !== 'connected'} onClick={enqueue}>本轮完成后发送</button>}</>}{!!active?.messages.length && page === 'chat' && <div className="thread-toolbar global-thread-toolbar"><span>{active.title}</span><div><button onClick={renameActive}>重命名</button><button onClick={forkActive}>分叉</button><button onClick={archiveActive}>归档</button><button onClick={deleteActive}>删除</button></div></div>}{page === 'chat' ? <Chat busy={pending} mode={state.mode} permission={state.permission} onOpenPlugins={() => setPage('plugins')} composerPlugins={composerPlugins} setComposerPlugins={setComposerPlugins} active={active} input={input} setInput={setInput} send={send} cancel={cancel} running={Boolean(runningTurnId)} activity={activity} model={state.model} reasoningEffort={state.reasoningEffort} catalog={catalog} update={update} attachments={attachments} addAttachment={addAttachment} showModel={showModel} setShowModel={setShowModel} showProjects={showProjects} setShowProjects={setShowProjects} toast={toast} projectId={state.activeProjectId} projects={state.projects} status={codexStatus} onForkMessage={forkFromMessage} /> : page === 'scheduled' ? <ScheduledPage models={availableModels} loadingModels={catalog.loading} refreshModels={catalog.refresh} /> : page === 'plugins' ? <ExtensionsPage connected={codexStatus === 'connected'} /> : <Workspace page={page} state={state} models={availableModels} update={update} toast={toast} providerStatus={providerStatus} onBack={() => { setPage('chat'); setSidebarVisible(true); }} />}</main>
+      <main>{page === 'chat' && <><div className="planning-controls"><label>协作模式 <select aria-label="协作模式" value={active?.planningMode || 'default'} disabled={Boolean(runningTurnId) || pending} onChange={event => { const mode = event.target.value as 'default' | 'plan'; update(next => { const thread = next.threads.find(item => item.id === next.activeThreadId) || createThread(next); thread.planningMode = mode; }); }}><option value="default">直接执行</option><option value="plan">先规划</option></select></label>{active?.planningMode === 'plan' && <span>先讨论方案，再切换执行</span>}{active?.planningMode === 'plan' && active.messages.some(message => message.id.startsWith('plan-')) && <button disabled={Boolean(runningTurnId) || pending} onClick={() => { update(next => { const thread = next.threads.find(item => item.id === next.activeThreadId); if (thread) thread.planningMode = 'default'; }); setInput('请按照刚才确认的计划逐步实现，并验证结果。'); }}>按计划执行</button>}</div><PlanPanel plan={active?.plan} /></>}{page === 'chat' && <><TurnQueue items={queue.items.filter(item => item.localId === active?.id)} disabled={codexStatus !== 'connected' || pending} onRemove={id => queue.change(items => items.filter(item => item.id !== id))} onResume={() => queue.change(items => items.map(item => item.localId === active?.id && item.status === 'paused' ? { ...item, status: runningTurnId ? 'waiting' : 'ready', waitingOn: runningTurnId, error: undefined } : item))} />{runningTurnId && <button className="queue-message" disabled={!input.trim() || pending || codexStatus !== 'connected'} onClick={enqueue}>本轮完成后发送</button>}</>}{!!active?.messages.length && page === 'chat' && <div className="thread-toolbar global-thread-toolbar"><span>{active.title}</span><div><button onClick={renameActive}>重命名</button><button onClick={forkActive}>分叉</button><button onClick={archiveActive}>归档</button><button onClick={deleteActive}>删除</button></div></div>}{page === 'chat' ? <Chat busy={pending} mode={state.mode} permission={state.permission} onOpenPlugins={() => setPage('plugins')} composerPlugins={composerPlugins} setComposerPlugins={setComposerPlugins} active={active} input={input} setInput={setInput} send={send} cancel={cancel} running={Boolean(runningTurnId)} activity={activity} model={state.model} reasoningEffort={state.reasoningEffort} catalog={catalog} update={update} attachments={attachments} addAttachment={addAttachment} showModel={showModel} setShowModel={setShowModel} showProjects={showProjects} setShowProjects={setShowProjects} toast={toast} projectId={state.activeProjectId} projects={state.projects} status={codexStatus} onForkMessage={forkFromMessage} /> : page === 'scheduled' ? <ScheduledPage models={availableModels} loadingModels={catalog.loading} refreshModels={catalog.refresh} /> : page === 'plugins' ? <ExtensionsPage connected={codexStatus === 'connected'} /> : <Workspace page={page} state={state} models={availableModels} update={update} toast={toast} providerStatus={providerStatus} onBack={() => { setPage('chat'); setSidebarVisible(true); }} />}</main>
       <RemoteBrowser open={browserOpen} onClose={() => setBrowserOpen(false)} />
     </div>{notice && <div className="toast">{notice}</div>}{approval && <ApprovalDialog request={approval} onDecision={respondApproval} />}{deleteCandidate && <DeleteDialog thread={state.threads.find(item => item.id === deleteCandidate)} onCancel={() => setDeleteCandidate(undefined)} onConfirm={() => { const id = deleteCandidate; setDeleteCandidate(undefined); void performDelete(id); }} />}
   </div>;

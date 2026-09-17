@@ -146,3 +146,17 @@ Runtime now retains bounded turn outcomes and releases only successful turns.
 Manual stop immediately pauses pending work, even if the stopped turn races to
 successful completion. Build, six focused queue/runtime tests, queue browser
 acceptance and the conversation lifecycle browser regression pass.
+
+## Feature 3a: planning workflow
+
+Per-thread “先规划/直接执行” selects real app-server collaborationMode, using
+built-in instructions (developer_instructions null). Active turns lock mode
+changes; queued messages retain their chosen mode. Plan progress events render
+step statuses and explanations. Completed proposed plans appear in the message
+timeline and restore from history. “按计划执行” prepares an editable instruction
+in execution mode; the user sends it normally.
+
+Acceptance: build, planning.test.cjs and planning-ui.cjs verify protocol settings,
+history restoration, live progress and the explicit transition to execution.
+Browser checks mock the bridge; model adherence and native Electron are not yet
+verified. Plan mode is an engine instruction mode, not a separate sandbox.

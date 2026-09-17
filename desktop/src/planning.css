@@ -1,0 +1,4 @@
+.planning-controls{display:flex;align-items:center;gap:10px;padding:8px 20px;font-size:13px;flex-wrap:wrap}
+.planning-controls select,.planning-controls button{font:inherit;padding:5px 8px;border:1px solid #aaa6;border-radius:6px;background:transparent;color:inherit}
+.plan-panel{margin:8px 20px;padding:10px 12px;border:1px solid #aaa5;border-radius:8px;max-height:220px;overflow:auto;font-size:13px}
+.plan-panel summary{cursor:pointer}.plan-panel p{opacity:.75}.plan-panel ol{list-style:none;padding:0}.plan-panel li{display:flex;gap:10px;margin:8px 0;overflow-wrap:anywhere}.plan-status{flex:none;opacity:.7}.plan-status.completed{color:#237f4b}.plan-status.inProgress{color:#367dd1}

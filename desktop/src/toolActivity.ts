@@ -55,10 +55,10 @@ export function restoreMessages(items: any[], previous: Message[]): Message[] {
       const saved = previous.find(message => message.id === `tool-${item.id}`);
       if (saved) thread.messages.push(structuredClone(saved));
       upsertTool(thread, item, entry.turnId, true);
-    } else if (item.type === 'userMessage' || item.type === 'agentMessage') {
-      thread.messages.push({ id: item.type === 'agentMessage' ? `live-${item.id}` : item.id,
+    } else if (item.type === 'userMessage' || item.type === 'agentMessage' || item.type === 'plan') {
+      thread.messages.push({ id: item.type === 'plan' ? `plan-${item.id}` : item.type === 'agentMessage' ? `live-${item.id}` : item.id,
         turnId: entry.turnId || previous.find(message => message.id === `live-${item.id}`)?.turnId,
-        role: item.type === 'agentMessage' ? 'assistant' : 'user',
+        role: item.type === 'userMessage' ? 'user' : 'assistant',
         content: item.text || item.content?.map((part: any) => part.text || part.input_text || '').join('') || '',
         createdAt: new Date().toISOString() });
     }
