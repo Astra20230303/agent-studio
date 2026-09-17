@@ -1555,3 +1555,8 @@ the source URL and hash both documents; verification requires them. Download or
 copy failure does not leave a completed-looking output directory. The existing
 runtime smoke test still starts the assembled binaries and bridges successfully.
 Rust dependency license inventory and release packaging remain outstanding.
+Post-commit acceptance injects a disk failure after the first binary has actually
+been copied; cleanup removes the partial directory while preserving its sibling
+file. A fresh .project-cache/felix-runtime-licensed artifact was generated with
+eight manifest entries and passed the CLI integrity verifier. Bundling now needs
+network access to the official versioned Node license source.

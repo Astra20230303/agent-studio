@@ -22,8 +22,13 @@ test('copy failure removes only its newly created output', async t => {
   const output = path.join(scratch, 'output');
   const keep = path.join(scratch, 'keep'); fs.writeFileSync(keep, 'untouched');
   t.mock.method(globalThis, 'fetch', async () => ({ ok: true, text: async () => 'Node.js\nPermission is hereby granted' }));
-  t.mock.method(fs, 'copyFileSync', () => { throw new Error('simulated disk failure'); });
+  const copy = fs.copyFileSync; let copies = 0;
+  t.mock.method(fs, 'copyFileSync', (...args) => {
+    if (++copies === 2) throw new Error('simulated disk failure');
+    return copy(...args);
+  });
   await assert.rejects(bundleRuntime({ output }), /simulated disk failure/);
+  assert.equal(copies, 2);
   assert.equal(fs.existsSync(output), false);
   assert.equal(fs.readFileSync(keep, 'utf8'), 'untouched');
 });
