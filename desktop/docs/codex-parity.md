@@ -40,6 +40,9 @@ missing there. Commit upstream edits there before updating the parent gitlink.
 - Run focused checks and commit each implemented feature separately.
 - Review/test the committed feature, fix findings, then commit acceptance fixes
   and evidence separately. Do not manufacture empty fixes.
+- After each deliverable passes its scoped acceptance checks, commit remaining
+  acceptance evidence and push to the configured tracking branch immediately.
+  Verify the remote commit and report any push failure; do not force-push.
 - Stage only task-owned files; keep credentials and existing local work out.
 - Distinguish mocked UI/protocol checks from live model and Electron acceptance.
 
