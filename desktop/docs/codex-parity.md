@@ -1587,3 +1587,12 @@ rejected. Existing credentials/encryption behavior is unchanged; a key field is
 still required (local servers can use a placeholder). URL boundary and provider
 registry regression tests pass. A new desktop directory artifact was assembled
 for full packaged conversation acceptance.
+Post-commit packaged acceptance found that a fresh Codex home had no minimax
+provider registration: model/list worked but thread/start failed. Interactive
+startup now explicitly registers its local Responses adapter. The relocated
+desktop configures a local controlled Provider, performs a real Get-Content tool
+call, validates its output at the model endpoint, then restores the response in
+the UI after restart. This passes with danger-full-access; read-only Windows
+execution was rejected by app-server policy and is not claimed as supported by
+this test. The model endpoint is controlled, so this proves integration rather
+than hosted model quality. Artifact: felix-desktop-provider-fixed.

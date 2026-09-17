@@ -127,7 +127,8 @@ class CodexServer {
     this.adapter = startMiniMaxAdapter({ apiKey: () => readProvider().apiKey, upstream: () => readProvider().baseUrl, onError: error => this.rpc?.emit('stderr', `Provider adapter error: ${error.message}`) });
     // Hosted web_search is unavailable through MiniMax Chat Completions. Felix
     // exposes an equivalent local MCP tool backed by public RSS search feeds.
-    this.child = spawn(resolved.command, [...resolved.args, '-c', `model_catalog_json=${tomlString(catalog)}`, '-c', 'web_search="disabled"', '-c', 'features.responses_websockets=false', '-c', 'features.responses_websockets_v2=false', 'app-server', '--stdio'], {
+    const providerSettings = ['model_providers.minimax.name="Felix Provider"', 'model_providers.minimax.wire_api="responses"', 'model_providers.minimax.env_key="MINIMAX_API_KEY"', 'model_providers.minimax.base_url="http://127.0.0.1:15821/v1"'];
+    this.child = spawn(resolved.command, [...resolved.args, ...providerSettings.flatMap(setting => ['-c', setting]), '-c', `model_catalog_json=${tomlString(catalog)}`, '-c', 'web_search="disabled"', '-c', 'features.responses_websockets=false', '-c', 'features.responses_websockets_v2=false', 'app-server', '--stdio'], {
       cwd: this.projectRoot, env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true
     });
     this.rpc = new CodexRpc(this.child);
