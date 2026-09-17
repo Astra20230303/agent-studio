@@ -38,7 +38,7 @@ import type { UserAnswers } from './UserInputDialog';
 import { RemoteDesktopPanel } from './RemoteDesktopPanel';
 import { RemoteBrowser } from './RemoteBrowser';
 import { Globe } from 'lucide-react';
-import { StrictMode, Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { StrictMode, Suspense, lazy, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { appendMessage, automaticThreadTitle, createThread, ensureThreadTitle, loadState, saveState } from './store';
@@ -608,6 +608,7 @@ function ApprovalDialog({ request, onDecision }: { request: any; onDecision: (de
 }
 
 function Chat({ loadFullHistory, onChangePermission, sendShortcut, composerSkills, setComposerSkills, onOpenAgent, removeAttachment, busy, mode, permission, onOpenPlugins, composerPlugins, setComposerPlugins, onForkMessage, catalog, active, input, setInput, send, cancel, running, activity, model, reasoningEffort, update, attachments, addAttachment, showModel, setShowModel, showProjects, setShowProjects, toast, projectId, projects, status }: { loadFullHistory: () => Promise<void>; onChangePermission: (permission: DesktopState['permission']) => Promise<void>; sendShortcut?: 'enter' | 'mod-enter'; composerSkills: SelectedSkill[]; setComposerSkills: (skills: SelectedSkill[]) => void; onOpenAgent: (id: string) => void; removeAttachment: (path: string) => void; busy: boolean; mode: DesktopState['mode']; permission: DesktopState['permission']; onOpenPlugins: () => void; composerPlugins: Plugin[]; setComposerPlugins: (plugins: Plugin[]) => void; onForkMessage: (messageId: string) => Promise<void>; catalog: ReturnType<typeof useModelCatalog>; active: DesktopState['threads'][number] | undefined; input: string; setInput: (value: string) => void; send: () => void; cancel: () => void; running: boolean; activity?: string; model: string; reasoningEffort: DesktopState['reasoningEffort']; update: (fn: (next: DesktopState) => void) => void; attachments: string[]; addAttachment: () => void; showModel: boolean; setShowModel: (value: boolean) => void; showProjects: boolean; setShowProjects: (value: boolean) => void; toast: (text: string) => void; projectId?: string; projects: DesktopState['projects']; status: string }) {
+  const pluginCwd = useContext(ArtifactWorkspaceContext);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const threadView = useRef<HTMLDivElement>(null);
   const followLatest = useRef(true);
@@ -672,7 +673,7 @@ function Chat({ loadFullHistory, onChangePermission, sendShortcut, composerSkill
     {workMode && empty && <h1 className="work-welcome-heading">我们要做什么？</h1>}
     <div className="project-strip">
       <button className="project" aria-expanded={showProjects} title={projectPath || projectName || '选择项目'} onClick={() => setShowProjects(!showProjects)}><FolderOpen aria-hidden="true" /><span>{projectName || '选择项目'}</span></button>
-      {workMode ? <><ComposerPlugins connected={status === 'connected'} onBrowse={onOpenPlugins} onSelect={plugin => {
+      {workMode ? <><ComposerPlugins key={pluginCwd || 'no-workspace'} cwd={pluginCwd} connected={status === 'connected'} onBrowse={onOpenPlugins} onSelect={plugin => {
         if (!composerPlugins.some(item => item.id === plugin.id)) setComposerPlugins([...composerPlugins, plugin]);
         textarea.current?.focus();
       }} /><span className="work-environment" title={project?.environment === 'worktree' ? '工作树' : '本地'} aria-label={project?.environment === 'worktree' ? '工作树' : '本地'}><Laptop aria-hidden="true" /></span></> : <><span className="project-context"><Laptop aria-hidden="true" />{project?.environment === 'worktree' ? '工作树' : '本地'}</span>

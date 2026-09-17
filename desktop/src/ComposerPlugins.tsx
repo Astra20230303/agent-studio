@@ -6,7 +6,7 @@ import { canInstall, extensionName, extensionRequest, flattenPlugins, matchesExt
 import type { Plugin, PluginCatalog } from './extensions';
 import './composerPlugins.css';
 
-export function ComposerPlugins({ connected, onBrowse, onSelect }: { connected: boolean; onBrowse: () => void; onSelect: (plugin: Plugin) => void }) {
+export function ComposerPlugins({ cwd, connected, onBrowse, onSelect }: { cwd?: string; connected: boolean; onBrowse: () => void; onSelect: (plugin: Plugin) => void }) {
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const submenu = useRef<HTMLDivElement>(null);
@@ -26,14 +26,13 @@ export function ComposerPlugins({ connected, onBrowse, onSelect }: { connected: 
     if (!connected) { setPlugins([]); setError('正在等待 Codex app-server 连接。'); setLoading(false); return; }
     setLoading(true); setError('');
     try {
-      const cwd = await window.desktop?.getProjectRoot?.();
       const catalog = await extensionRequest<PluginCatalog>('plugin/list', { cwds: cwd ? [cwd] : [], marketplaceKinds: ['local'] });
       if (revision !== generation.current) return;
       setPlugins(flattenPlugins(catalog));
       setError((catalog.marketplaceLoadErrors || []).map(item => item.message).join('；'));
     } catch (caught) { if (revision === generation.current) { setPlugins([]); setError(caught instanceof Error ? caught.message : '插件读取失败。'); } }
     finally { if (revision === generation.current) setLoading(false); }
-  }, [connected]);
+  }, [connected, cwd]);
   useEffect(() => { void refresh(); return () => { ++generation.current; }; }, [refresh]);
   const close = () => { setOpen(false); setConnecting(false); trigger.current?.focus(); };
   const place = useCallback(() => {
