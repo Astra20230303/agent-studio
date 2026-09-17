@@ -882,3 +882,13 @@ verify live/history display, merged fields, copy and search. This fallback does
 not replace dedicated views or interpret unknown operations.
 Post-commit acceptance verifies restoration merges omitted fields, keeps turn
 identity and avoids duplicating user/assistant/plan messages as raw records.
+
+## Web-search activity view
+
+Server webSearch records now display search queries, open-page and find-in-page
+actions, result titles and snippets, with raw records retained for unfamiliar
+result fields. Only HTTP(S) URLs without embedded credentials become links.
+Desktop links use the existing external-browser bridge and report opening errors.
+Build and browser fixtures verify restored results, live find-in-page actions and
+raw-field retention. This adds presentation for upstream records; the current
+MiniMax MCP search transport remains unchanged.
