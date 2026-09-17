@@ -322,3 +322,11 @@ Acceptance correction: a background session finishing startup no longer takes
 focus. Tabs support arrow/Home/End navigation with a single tab stop. The real
 shell browser test verifies keyboard selection/focus and recreating a terminal
 after all tabs have been closed; production build passes again.
+
+## Git review feedback
+
+Diff rows can be selected for review. Comments become an editable conversation
+draft including repository, file, staged status, old/new line number and code
+context. Existing draft text is preserved. Nothing is submitted automatically.
+Build, existing Git panel regression and git-review-ui.cjs pass with a mocked
+desktop bridge, covering added/deleted line references and draft append behavior.
