@@ -1205,3 +1205,13 @@ Post-commit acceptance preserves nested emphasis in link labels through the
 existing artifact component. Unsafe-scheme links cannot become executable anchors.
 Code-copy regression passes long/tilde/unfinished fences, exact copy and failure
 retry; rich Markdown browser acceptance and production build also pass.
+
+## Message link routing and section navigation
+
+Markdown section links now navigate within their own message, including duplicate
+heading suffixes and Unicode slugs. Web links use the desktop external-browser
+bridge with visible failure/retry feedback. Only local path links trigger artifact
+reads; unsupported schemes (including mailto) remain readable non-clickable text.
+Credential-bearing web URLs are not activated. Unit/browser checks cover link
+classification, scoped heading focus, missing anchors, external open failure/retry
+and absence of artifact reads for unsupported links. Production build passes.

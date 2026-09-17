@@ -1,13 +1,14 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { ToolActivity } from './domain';
 import './artifacts.css';
+import { messageLinkKind } from './messageLink';
 
 export function ArtifactLink({ path, label, preview = false, children }: { path: string; label: string; preview?: boolean; children?: ReactNode }) {
   const [file, setFile] = useState<{ name: string; data: string; image: boolean }>();
   const [error, setError] = useState('');
-  const remote = /^https?:\/\//i.test(path);
+  const kind = messageLinkKind(path);
   useEffect(() => {
-    if (remote) return;
+    if (kind !== 'file') return;
     let active = true;
     setFile(undefined); setError('');
     window.desktop?.artifact?.({ path, action: 'read' }).then(result => {
@@ -15,8 +16,21 @@ export function ArtifactLink({ path, label, preview = false, children }: { path:
       if (result?.ok) setFile(result.result); else setError(result?.error || '无法读取文件');
     }).catch(error => { if (active) setError(String(error)); });
     return () => { active = false; };
-  }, [path, remote]);
-  if (remote) return preview ? <img className="artifact-image" src={path} alt={label} /> : <a href={path} target="_blank" rel="noreferrer">{children || label}</a>;
+  }, [path, kind]);
+  if (kind === 'unsupported') return <span title={`不支持的链接：${path}`}>{children || label}</span>;
+  if (kind === 'anchor') return <><a href={path} onClick={event => {
+    event.preventDefault();
+    let name: string;
+    try { name = decodeURIComponent(path.slice(1)); } catch { setError('无效的章节链接'); return; }
+    const scope = event.currentTarget.closest('.markdown-content');
+    const target = Array.from(scope?.querySelectorAll<HTMLElement>('[data-markdown-anchor]') || []).find(element => element.dataset.markdownAnchor === name);
+    if (target) { setError(''); target.scrollIntoView({ block: 'start' }); target.focus({ preventScroll: true }); }
+    else setError('此消息中未找到对应章节');
+  }}>{children || label}</a>{error && <small role="status">{error}</small>}</>;
+  if (kind === 'web') return preview ? <img className="artifact-image" src={path} alt={label} /> : <><a href={path} target="_blank" rel="noreferrer" onClick={event => {
+    if (!window.desktop?.openExternal) return;
+    event.preventDefault(); setError(''); void window.desktop.openExternal(path).catch(() => setError('无法打开链接，请重试'));
+  }}>{children || label}</a>{error && <small role="status">{error}</small>}</>;
   return <span className="artifact-link">
     {file?.image && (preview || !/下载|download/i.test(label)) && <img className="artifact-image" src={file.data} alt={label} />}
     {file ? <a download={file.name} href={file.data}>↓ {preview ? `下载 ${file.name}` : children || label}</a> : <span title={path}>{error || `正在读取 ${label}…`}</span>}

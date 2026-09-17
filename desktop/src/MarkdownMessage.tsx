@@ -3,15 +3,16 @@ import { Lexer, type Token, type Tokens } from 'marked';
 import { ArtifactLink } from './Artifacts';
 import { CodeBlock } from './CodeBlock';
 import { replyText } from './messageActions';
+import { headingSlug } from './messageLink';
 
 function decode(value: string) {
   return value.replace(/&(?:#\d+|#x[\da-f]+|[a-z][a-z\d]+);/gi, entity => {
     const element = document.createElement('textarea'); element.innerHTML = entity; return element.value;
   });
 }
-function renderTokens(tokens: Token[], depth = 0): ReactNode {
+function renderTokens(tokens: Token[], depth = 0, slugs = new Set<string>()): ReactNode {
   if (depth > 100) return tokens.map(token => token.raw).join('');
-  const children = (items: Token[] = []) => renderTokens(items, depth + 1);
+  const children = (items: Token[] = []) => renderTokens(items, depth + 1, slugs);
   return tokens.map((token, index) => {
     let node: ReactNode;
     switch (token.type) {
@@ -21,7 +22,12 @@ function renderTokens(tokens: Token[], depth = 0): ReactNode {
       case 'paragraph': node = <p>{children(token.tokens)}</p>; break;
       case 'heading': {
         const Heading = `h${token.depth}` as 'h1';
-        node = <Heading className={`md-heading md-h${token.depth}`}>{children(token.tokens)}</Heading>; break;
+        const plain = (items: Token[]): string => items.map(item => 'tokens' in item && item.tokens ? plain(item.tokens) : 'text' in item ? item.text : '').join('');
+        const base = headingSlug(decode(plain(token.tokens || [])));
+        let slug = base; let suffix = 0;
+        while (slugs.has(slug)) slug = `${base}-${++suffix}`;
+        slugs.add(slug);
+        node = <Heading tabIndex={-1} data-markdown-anchor={slug} className={`md-heading md-h${token.depth}`}>{children(token.tokens)}</Heading>; break;
       }
       case 'blockquote': node = <blockquote>{children(token.tokens)}</blockquote>; break;
       case 'hr': node = <hr />; break;
