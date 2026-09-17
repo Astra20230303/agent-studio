@@ -1,6 +1,7 @@
 import { ArtifactLink } from './Artifacts';
 import { UserInputDialog } from './UserInputDialog';
 import { useTurnRuntime } from './useTurnRuntime';
+import { useThreadDraft } from './useThreadDraft';
 import { steerTurn } from './codexClient';
 import type { UserAnswers } from './UserInputDialog';
 import { RemoteDesktopPanel } from './RemoteDesktopPanel';
@@ -43,7 +44,7 @@ function projectLabel(pathOrName?: string) {
 
 function App() {
   const [state, setState] = useState<DesktopState>(() => { const loaded = loadState(); loaded.model = modelId(loaded.model); return loaded; });
-  const [input, setInput] = useState('');
+  const [input, setInput] = useThreadDraft(state.activeThreadId);
   const [composerPlugins, setComposerPlugins] = useState<Plugin[]>([]);
   const [page, setPage] = useState<Page>('chat');
   const [sidebarVisible, setSidebarVisible] = useState(true);
@@ -214,7 +215,8 @@ function App() {
         if (message) message.turnId = turn.turn?.id;
         thread.status = runtime.read(threadId!)?.turnId ? 'running' : 'completed';
       });
-      if (activeThreadRef.current === localId) { setInput(current => current === input ? '' : current); setComposerPlugins([]); }
+      setInput(current => current === input ? '' : current);
+      if (activeThreadRef.current === localId) setComposerPlugins([]);
     } catch (error: any) {
       update(next => { const thread = next.threads.find(item => item.id === localId); if (thread) thread.messages = thread.messages.filter(item => item.id !== messageId); });
       setNotice(`${runningTurnId ? '追加指令失败' : '发送失败'}：${error.message || error}`);
@@ -226,8 +228,8 @@ function App() {
   const cancel = () => {
     if (active?.remoteId && runningTurnId) void interruptTurn(active.remoteId, runningTurnId).catch(error => setNotice(`停止失败：${error.message}`));
   };
-  const newChat = () => { setRemoteThreadId(undefined); update(next => createThread(next)); setInput(''); setComposerPlugins([]); setAttachments([]); setPage('chat'); };
-  const selectThread = async (thread: DesktopState['threads'][number]) => { update(next => { next.activeThreadId = thread.id; }); setInput(''); setComposerPlugins([]); setPage('chat'); };
+  const newChat = () => { setRemoteThreadId(undefined); update(next => createThread(next)); setComposerPlugins([]); setAttachments([]); setPage('chat'); };
+  const selectThread = async (thread: DesktopState['threads'][number]) => { update(next => { next.activeThreadId = thread.id; }); setComposerPlugins([]); setPage('chat'); };
   useEffect(() => {
     const threadId = active?.remoteId;
     if (!threadId || codexStatus !== 'connected' || pendingThreads.includes(active.id)) return;
@@ -303,7 +305,7 @@ function App() {
       if (!result.thread?.id) throw new Error('服务未返回分支会话。');
       const copy = branchSnapshot(source, messageId, result.thread.id);
       update(next => { next.threads.push(copy); next.activeThreadId = copy.id; });
-      setRemoteThreadId(copy.remoteId); setInput(''); setPage('chat');
+      setRemoteThreadId(copy.remoteId); setPage('chat');
     } finally { forkingRef.current = false; }
   };
   const addAttachment = async () => {

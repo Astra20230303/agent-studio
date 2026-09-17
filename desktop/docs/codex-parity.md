@@ -93,3 +93,11 @@ the full sidebar suite is therefore not claimed as passing.
 
 Still pending in phase 2: explicit next-turn queue, reconnect UI/backoff and live
 Electron/model acceptance. No claim of full phase 2 completion.
+
+## Feature 2b: thread drafts
+
+Each thread has an independent persisted text draft. Switching threads and
+creating/forking a thread retain the source draft. Successful sends clear only
+the submitted text in its source draft, preserving edits made while waiting.
+Browser acceptance covers separate drafts and refresh recovery. Plugin and
+attachment draft persistence is not included in this increment.
