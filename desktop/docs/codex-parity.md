@@ -1628,3 +1628,12 @@ restarts the packaged process after setup, verifies real read-only model tool
 execution, then attempts a write: it returns a nonzero permission-denied result
 and no file is created. Browser feedback regression and production build pass.
 Read success before restart alone must not be interpreted as sandbox enforcement.
+
+## Sandbox readiness across service connections
+
+Plan and delivery: retain the existing restart control in settings, invalidate
+cached sandbox readiness when app-server disconnects and query current readiness
+after connection succeeds. In-progress setup subscriptions are cleaned up on
+disconnect and retain the unknown-result error. Browser restart acceptance checks
+unknown while stopped and ready after reconnection, alongside draft preservation
+and busy-turn protection. Sandbox workflow regression and production build pass.

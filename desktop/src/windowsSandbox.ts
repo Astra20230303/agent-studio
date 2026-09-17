@@ -5,6 +5,13 @@ const publish = (patch: Partial<State>) => { state = { ...state, ...patch }; lis
 export const sandboxSnapshot = () => state;
 export const subscribeSandbox = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
 let generation = 0;
+let cancelSetup: (() => void) | undefined;
+export function invalidateWindowsSandbox() {
+  const wasSettingUp = Boolean(cancelSetup);
+  cancelSetup?.();
+  ++generation;
+  publish({ status: 'unknown', busy: false, notice: '', error: wasSettingUp ? state.error : '' });
+}
 export async function checkWindowsSandbox() {
   if (state.busy) return;
   const token = ++generation;
@@ -30,9 +37,11 @@ export async function setupWindowsSandbox(mode: 'elevated' | 'unelevated', cwd?:
   const finish = (error?: string) => {
     if (settled || token !== generation) return;
     settled = true; offNotification(); offClosed();
+    cancelSetup = undefined;
     publish({ busy: false, status: 'unknown', error: error || '', notice: error ? '' : '沙箱设置已保存，请重新连接服务以启用隔离；已有会话权限请单独核对。' });
     if (!error) void checkWindowsSandbox();
   };
+  cancelSetup = () => finish('连接已断开，沙箱设置结果未知。重新连接后请刷新状态。');
   offNotification = bridge.onNotification((event: any) => {
     if (event.method === 'windowsSandbox/setupCompleted' && event.params?.mode === mode) finish(event.params.success === true ? undefined : event.params.error || '沙箱设置失败');
   });

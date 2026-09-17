@@ -4,7 +4,7 @@ import { UserInputDialog } from './UserInputDialog';
 import { useTurnRuntime } from './useTurnRuntime';
 import { useSkillDraft, type SelectedSkill } from './useSkillDraft';
 import { useThreadDraft } from './useThreadDraft';
-import { sandboxSnapshot, subscribeSandbox } from './windowsSandbox';
+import { checkWindowsSandbox, invalidateWindowsSandbox, sandboxSnapshot, subscribeSandbox } from './windowsSandbox';
 import { WindowsSandboxSettings } from './WindowsSandboxSettings';
 import { PermissionSettings, permissionOptions } from './PermissionSettings';
 import { ConversationFind } from './ConversationFind';
@@ -169,7 +169,7 @@ function App() {
     const recovery = createConnectionRecovery({
       connect: connectCodex,
       status: (status, error) => { setCodexStatus(status); setConnectionError(error || ''); },
-      connected: () => {},
+      connected: () => { if (window.desktop?.platform === 'win32') void checkWindowsSandbox(); },
     });
     reconnectRef.current = recovery.start; stopRecoveryRef.current = recovery.stop;
     const cleanup = subscribeCodex({
@@ -249,7 +249,7 @@ function App() {
           catch { if (/MINIMAX_API_KEY/.test(line)) setNotice(failureMessage(line)); }
         }
       },
-      closed: () => { queue.pause(); setApprovals([]); runtime.clear(); if (!restartingRef.current) recovery.disconnected(); }
+      closed: () => { invalidateWindowsSandbox(); queue.pause(); setApprovals([]); runtime.clear(); if (!restartingRef.current) recovery.disconnected(); }
     });
     recovery.start();
     return () => { disposed = true; recovery.stop(); cleanup(); reconnectRef.current = () => {}; stopRecoveryRef.current = () => {}; };
