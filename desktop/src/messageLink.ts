@@ -5,6 +5,8 @@ export function messageLinkKind(value: string): 'web' | 'anchor' | 'file' | 'uns
     try { const url = new URL(value); return url.username || url.password ? 'unsupported' : 'web'; } catch { return 'unsupported'; }
   }
   if (/^[a-z]:[\\/]/i.test(value)) return 'file';
+  // A bare filename with a line suffix otherwise resembles a URI scheme.
+  if (/^[^:/\\?#]+\.[^:/\\?#]+:[1-9]\d*(?::[1-9]\d*)?$/.test(value)) return 'file';
   return /^[a-z][a-z\d+.-]*:/i.test(value) || value.startsWith('//') ? 'unsupported' : 'file';
 }
 export function headingSlug(value: string) {

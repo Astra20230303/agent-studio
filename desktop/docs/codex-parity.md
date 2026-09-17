@@ -1240,3 +1240,7 @@ with literal filenames preferred and project boundaries enforced. The requested
 line is highlighted and scrolled into view. Editable text opens the existing
 revision-protected editor using the captured conversation workspace. Backend
 reference tests, browser preview-to-editor acceptance and production build pass.
+Post-commit acceptance fixes bare filename references such as notes.txt:2 being
+mistaken for URI schemes. Out-of-range lines now show an explicit notice.
+Browser acceptance covers failed refresh, unavailable edit action, shortened
+files and recovery into the editor. Seven backend/classifier tests and build pass.

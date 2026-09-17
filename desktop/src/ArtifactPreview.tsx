@@ -27,6 +27,7 @@ export function ArtifactPreview({ target, onClose, onEdit }: { target: ArtifactT
     {preview?.binary && <p>二进制文件无法预览文本。</p>}{preview?.image && <img src={preview.image} alt={target.path} style={{ maxWidth: '100%' }} />}
     {typeof preview?.text === 'string' && <pre style={{ overflow: 'auto', maxHeight: '55vh', whiteSpace: 'pre', margin: '12px 0' }}>{preview.text.split('\n').map((text: string, index: number) => <span key={index} ref={index + 1 === target.line ? line : undefined} style={index + 1 === target.line ? { background: '#ffe08a', color: '#202020' } : undefined}>{text}{'\n'}</span>)}</pre>}
     {preview?.truncated && <p>仅预览前 256 KB。</p>}
+    {target.line && typeof preview?.text === 'string' && target.line > preview.text.split('\n').length && <p role="status">第 {target.line} 行不在当前预览范围内。</p>}
     <div><button onClick={() => setRevision(value => value + 1)}>刷新预览</button>{preview?.revision && <button onClick={() => onEdit({ root: target.root, path: target.path, initial: { text: preview.text, revision: preview.revision } })}>编辑此文件</button>}<button onClick={onClose}>关闭预览</button></div>
   </dialog>;
 }
