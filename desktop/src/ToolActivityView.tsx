@@ -6,9 +6,11 @@ import { AgentActivity } from './AgentActivity';
 import { InvocationActivity } from './InvocationActivity';
 import { CopyText } from './CopyText';
 import { WebSearchActivity } from './WebSearchActivity';
+import { ImageViewActivity } from './ImageViewActivity';
 
 function ToolRow({ tool, onOpenAgent }: { tool: ToolActivity; onOpenAgent?: (id: string) => void }) {
   if (tool.rawRecord?.type === 'webSearch') return <WebSearchActivity tool={tool} />;
+  if (tool.rawRecord?.type === 'imageView') return <ImageViewActivity tool={tool} />;
   if (tool.kind === 'rawRecord') {
     const source = JSON.stringify(tool.rawRecord?.item || {}, null, 2);
     return <details className="tool-row"><summary>会话记录 · {tool.rawRecord?.type} · {tool.status}</summary><div className="tool-detail"><p>此记录尚无专用视图，以下保留服务端原始内容。</p><CopyText source={source} label="复制记录" /><pre className="tool-output">{source}</pre></div></details>;

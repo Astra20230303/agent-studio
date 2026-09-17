@@ -1438,3 +1438,14 @@ composer text remains intact, no turn/start is sent, no phantom queued item
 appears, and retry clears the warning. The same run then passes normal FIFO,
 cancellation, failure/retry and persisted paused-queue restoration. No additional
 product change was required for this acceptance.
+
+## Image-view tool results
+
+Plan and delivery: imageView records now have a dedicated workspace-bound image
+preview with download and reread, replacing raw JSON. Unsupported/nonlocal paths
+show an error instead of causing a remote image request. Existing raw-item storage
+preserves the protocol fields across history restoration. Full-chat browser
+acceptance uses restored messages and real artifactRequest against a temporary
+PNG: decoded image, correct root, download, missing-file retry and nonlocal path
+rejection pass. Production build passes. Workspace boundary/size limits remain;
+this does not add image generation capability.
