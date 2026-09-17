@@ -350,3 +350,10 @@ ignores stale OAuth responses after completion or context changes. Links clear
 when connection/thread context changes. The browser test now delivers completion
 before the login response and verifies the old link does not reappear. Build and
 the expanded MCP workflow pass; bundle-size warning remains.
+
+MCP URL elicitation: URL requests show the source and full address, open an HTTP(S)
+link through the system browser, and require explicit confirmation before sending
+accept with null content. Decline/cancel remain available for invalid URLs.
+Build and mocked browser tests pass open failure/retry, response failure/retry,
+invalid scheme rejection and all three response actions. Opening the browser is
+not treated as proof of remote workflow completion. Live server flow is pending.

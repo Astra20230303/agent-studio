@@ -11,6 +11,7 @@ import { WorkspaceFiles } from './WorkspaceFiles';
 import { GitPanel } from './GitPanel';
 import { ApprovalPrompt } from './ApprovalPrompt';
 import { McpForm } from './McpForm';
+import { McpUrl } from './McpUrl';
 import { readPlan } from './planning';
 import { createConnectionRecovery } from './connectionRecovery';
 import './connection.css';
@@ -543,6 +544,7 @@ function DeleteDialog({ thread, onCancel, onConfirm }: { thread?: DesktopState['
 }
 
 function ApprovalDialog({ request, onDecision }: { request: any; onDecision: (decision: string, answers?: UserAnswers, content?: Record<string, unknown>) => Promise<void> }) {
+  if (request.method === 'mcpServer/elicitation/request' && request.params?.mode === 'url') return <McpUrl key={request.id} request={request} onDecision={onDecision} />;
   if (request.method === 'mcpServer/elicitation/request') return <McpForm key={request.id} request={request} onSubmit={(action, content) => onDecision(action, undefined, content)} />;
   if (request.method === 'item/tool/requestUserInput') return <UserInputDialog key={request.id} request={request} onDecision={onDecision} />;
   if (['item/commandExecution/requestApproval', 'item/fileChange/requestApproval', 'item/permissions/requestApproval'].includes(request.method)) return <ApprovalPrompt key={request.id} request={request} onDecision={onDecision} />;
