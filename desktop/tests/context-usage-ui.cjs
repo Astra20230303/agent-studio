@@ -42,6 +42,16 @@ const assert = require('node:assert/strict');
     await page.evaluate(() => window.__notify({ method: 'thread/tokenUsage/updated', params: { threadId: 'remote-a', tokenUsage: { last: { totalTokens: 900 }, total: { totalTokens: 13000 }, modelContextWindow: null } } }));
     await page.getByText('最近上下文 900 Token', { exact: true }).waitFor();
     assert.equal(await page.getByRole('meter', { name: '上下文用量' }).count(), 0);
+    for (const status of ['failed', 'interrupted']) {
+      await page.evaluate(status => {
+        const turnId = `compact-${status}`;
+        window.__notify({ method: 'turn/started', params: { threadId: 'remote-a', turn: { id: turnId, status: 'inProgress' } } });
+        window.__notify({ method: 'item/started', params: { threadId: 'remote-a', turnId, item: { id: turnId, type: 'contextCompaction' } } });
+        window.__notify({ method: 'turn/completed', params: { threadId: 'remote-a', turn: { id: turnId, status } } });
+      }, status);
+      await page.getByText(status === 'failed' ? '上下文压缩失败' : '上下文压缩已中断', { exact: true }).waitFor();
+    }
+    assert.equal(await page.getByText('上下文压缩已完成', { exact: true }).count(), 1);
     console.log('PASS: context versus cumulative usage, explicit compact request, error retry and running-turn guard');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

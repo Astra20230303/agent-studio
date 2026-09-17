@@ -682,3 +682,7 @@ the generated summary appearing in the next model request. The UI now retains
 these items and renders running, completed, failed or interrupted compaction
 records. Build and browser acceptance pass. Summary quality with an external
 provider remains unverified.
+Post-commit acceptance restores real thread/items/list history and verifies one
+completed compaction record. Browser tests terminate separate compaction turns
+as failed and interrupted and verify distinct labels without false completion.
+These checks pass; failure notifications in this browser test are simulated.

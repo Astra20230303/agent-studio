@@ -8,6 +8,7 @@ const { once } = require('node:events');
 const { CodexRpc } = require('../electron/codex-rpc.cjs');
 const { findCommand, compatibilityCatalog } = require('../electron/codex-server.cjs');
 const { startMiniMaxAdapter } = require('../electron/minimax-adapter.cjs');
+const { restoreMessages } = require('../src/toolActivity.ts');
 test('real manual compaction completes and supplies its summary to the next turn', { timeout: 30000 }, async () => {
   const root = path.resolve(__dirname, '../..');
   const cache = path.join(root, '.project-cache/tmp'); fs.mkdirSync(cache, { recursive: true });
@@ -49,6 +50,10 @@ test('real manual compaction completes and supplies its summary to the next turn
     await run('turn/start', { input: [{ type: 'text', text: 'Continue from the summary.' }] });
     assert.equal(requests.length, 3);
     assert.ok(JSON.stringify(requests[2].messages).includes('COMPACTION_SUMMARY_MARKER'));
+    const history = await rpc.request('thread/items/list', { threadId: thread.id, limit: 100, sortDirection: 'asc' });
+    const records = restoreMessages(history.data, []).filter(message => message.tool?.kind === 'contextCompaction');
+    assert.equal(records.length, 1);
+    assert.equal(records[0].tool.status, 'completed');
   } finally {
     clearTimeout(timer); rpc.close(); await exited;
     adapter.closeAllConnections(); await new Promise(resolve => adapter.close(resolve));
