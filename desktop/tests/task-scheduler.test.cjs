@@ -16,6 +16,7 @@ test('agent workspace is persisted and relative paths are rejected', () => {
   const restored = new TaskScheduler({ directory, runner: async () => ({}) });
   assert.equal(restored.detail(saved.id).cwd, cwd);
   assert.throws(() => scheduler.save(task({ kind: 'agent', model: 'test', cwd: '../other' })), /绝对路径/);
+  for (const cwd of [0, false, {}, []]) assert.throws(() => scheduler.save(task({ kind: 'agent', model: 'test', cwd })), /工作目录/);
 });
 
 test('scheduleNext respects timezone and weekly day', () => {

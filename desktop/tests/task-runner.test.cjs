@@ -61,6 +61,13 @@ test('missing key fails explicitly before launching a Codex process', async () =
   await assert.rejects(runner(task, { signal: new AbortController().signal, runId: randomUUID() }), /MINIMAX_API_KEY/);
 });
 
+test('invalid workspace fails before credentials or process startup', async () => {
+  const runner = createTaskRunner(root, { apiKey: () => { throw Error('must not access credentials'); } });
+  for (const cwd of [path.join(root, randomUUID()), __filename, '../relative']) {
+    await assert.rejects(runner({ ...task, cwd }, { signal: new AbortController().signal, runId: randomUUID() }), /工作目录/);
+  }
+});
+
 test('cancellation closes active model connections and terminates the dedicated child', { timeout: 20000 }, async () => {
   const controller = new AbortController();
   let incoming;

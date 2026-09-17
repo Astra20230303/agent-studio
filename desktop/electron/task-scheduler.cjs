@@ -21,7 +21,7 @@ function validateTask(input, now) {
   const prompt = string(input.prompt, 20000, '任务内容');
   if (!['agent', 'reminder'].includes(input.kind)) throw new Error('任务类型无效。');
   const model = input.kind === 'agent' ? string(input.model, 200, '模型') : '';
-  const cwd = input.kind === 'agent' && input.cwd ? string(input.cwd, 32768, '工作目录') : undefined;
+  const cwd = input.kind === 'agent' && input.cwd != null && input.cwd !== '' ? string(input.cwd, 32768, '工作目录') : undefined;
   if (cwd && !path.isAbsolute(cwd)) throw new Error('工作目录必须是绝对路径。');
   if (!['read-only', 'workspace-write'].includes(input.permission)) throw new Error('执行权限无效。');
   const raw = input.schedule;

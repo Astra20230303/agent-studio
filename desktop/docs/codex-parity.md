@@ -385,3 +385,7 @@ by app-server policy, so actual project file access remains unverified. Existing
 allowed shell execution and cancellation pass. Full scheduler-backed browser
 workflow passes after correcting a multi-dialog test wait and narrow titlebar
 overflow; production build passes with the existing bundle-size warning.
+Post-commit acceptance rejects non-string workspace values and verifies missing,
+relative and file paths fail before credentials or child startup. Write-permission
+confirmation now names the saved task directory. All 15 scheduler/runner tests,
+including real app-server context and cancellation checks, and build pass.
