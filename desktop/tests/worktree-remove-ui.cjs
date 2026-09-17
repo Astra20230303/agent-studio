@@ -33,6 +33,10 @@ const assert = require('node:assert/strict');
     await page.getByText('已删除工作树 D:/child，分支与提交保留。', { exact: true }).waitFor();
     await page.getByRole('button', { name: '删除工作树 D:/child', exact: true }).waitFor({ state: 'detached' });
     assert.equal(await page.evaluate(() => window.__calls.find(c => c.action === 'remove-worktree').expectedHead), 'abc');
+    assert.ok(await page.getByRole('button', {name:'返回 Git 变更',exact:true}).isEnabled());
+    assert.ok(await page.getByRole('button', {name:'关闭 Git 面板',exact:true}).isEnabled());
+    await page.getByRole('button', {name:'返回 Git 变更',exact:true}).click();
+    await page.getByRole('button', {name:'浏览工作树',exact:true}).waitFor();
     console.log('PASS: worktree removal cancellation, failure retry, expected HEAD and refreshed inventory');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
