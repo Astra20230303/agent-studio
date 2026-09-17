@@ -6,8 +6,9 @@ const assert = require('node:assert/strict');
     const page = await browser.newPage();
     await page.addInitScript(() => {
       localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeProjectId: 'p', projects: [{ id: 'p', name: 'P', path: 'D:/P', git: {} }], activeThreadId: 'original', threads: [{ id: 'original', remoteId: 'remote-original', cwd: 'D:/P', title: 'Original', messages: [], status: 'completed', updatedAt: '' }] }));
-      window.__writes = []; window.__fail = true;
+      window.__writes = []; window.__reads = []; window.__fail = true;
       window.desktop = { onOpenConversation: fn => { window.__open = fn; return () => {}; }, listModels: async () => ({ ok: true, models: ['test'] }), workspaceFile: async input => {
+        if (input.action === 'read') window.__reads.push(input);
         if (input.action === 'read' && window.__readFail) return { ok: false, error: 'Read failed' };
         if (input.action === 'read' && window.__latest) return { ok: true, result: window.__latest };
         if (input.action === 'write') { window.__writes.push(input); if (window.__hold) await new Promise(resolve => { window.__release = resolve; }); return window.__fail ? { ok: false, error: '文件已被外部修改' } : { ok: true, result: { text: input.edit.text, revision: 'new' } }; }
@@ -62,10 +63,12 @@ const assert = require('node:assert/strict');
       assert.equal(await editor.inputValue(), 'keep until reload succeeds');
     }
     await page.evaluate(() => { window.__readFail = false; window.__latest = { text: 'disk\nversion', revision: 'disk-revision' }; });
+    await page.evaluate(() => window.__open('different-workspace'));
     page.once('dialog', dialog => dialog.accept());
     await page.getByRole('button', { name: '重新读取磁盘文件' }).click();
     await page.waitForFunction(() => document.querySelector('textarea[aria-label="文件内容"]').value === 'disk\nversion');
     assert.equal(await page.getByRole('button', { name: '保存文件', exact: true }).isDisabled(), true);
+    assert.equal(await page.evaluate(() => window.__reads.at(-1).root), 'D:/P');
     await editor.fill('edited\nversion');
     await editor.selectText();
     await editor.press('Tab');

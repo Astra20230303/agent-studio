@@ -991,3 +991,5 @@ active workspace no longer unmount the editor or retarget its save operation.
 The original workspace is displayed in the dialog; preview updates are scoped
 to the same root/path. Build and browser acceptance switch via the notification
 bridge during an unsaved edit, preserve its text and verify the write target.
+Post-commit acceptance switches workspace again before reloading disk content
+and verifies the reload still reads the captured editing workspace.
