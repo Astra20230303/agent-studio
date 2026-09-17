@@ -31,7 +31,7 @@ import type { UserAnswers } from './UserInputDialog';
 import { RemoteDesktopPanel } from './RemoteDesktopPanel';
 import { RemoteBrowser } from './RemoteBrowser';
 import { Globe } from 'lucide-react';
-import { Fragment, StrictMode, Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, StrictMode, Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { appendMessage, automaticThreadTitle, createThread, ensureThreadTitle, loadState, saveState } from './store';
@@ -622,6 +622,8 @@ function Chat({ loadFullHistory, onChangePermission, sendShortcut, composerSkill
   const textarea = useRef<HTMLTextAreaElement>(null);
   const threadView = useRef<HTMLDivElement>(null);
   const followLatest = useRef(true);
+  const [awayFromLatest, setAwayFromLatest] = useState(false);
+  const [findReset, setFindReset] = useState(0);
   const searchingConversation = useRef(false);
   const composing = useRef(false);
   const canSend = Boolean(input.trim() || attachments.length || composerSkills.length) && !busy && status === 'connected' && !catalog.loading && catalog.models.includes(model);
@@ -643,17 +645,19 @@ function Chat({ loadFullHistory, onChangePermission, sendShortcut, composerSkill
   const messageRevision = active?.messages.map(message => `${message.id}:${message.content.length}:${message.role}`).join('|') || '';
   useEffect(() => {
     const element = threadView.current;
+    setAwayFromLatest(false);
     if (!element) return;
     followLatest.current = true;
     element.scrollTop = element.scrollHeight;
     const updateFollowState = () => {
       followLatest.current = element.scrollHeight - element.scrollTop - element.clientHeight < 120;
+      setAwayFromLatest(!followLatest.current);
     };
     element.addEventListener('scroll', updateFollowState, { passive: true });
     updateFollowState();
     return () => element.removeEventListener('scroll', updateFollowState);
-  }, [active?.id]);
-  useEffect(() => {
+  }, [active?.id, empty]);
+  useLayoutEffect(() => {
     const element = threadView.current;
     if (!element || !messageRevision && !activity) return;
     if (followLatest.current && !searchingConversation.current) element.scrollTo({ top: element.scrollHeight, behavior: 'auto' });
@@ -664,7 +668,7 @@ function Chat({ loadFullHistory, onChangePermission, sendShortcut, composerSkill
     { text: '审查代码并提出修改建议', icon: RefreshCcw, color: 'review' },
     { text: '修复问题和失败', icon: Bug, color: 'fix' },
   ];
-  return <div className={`chat-layout${workMode ? ' work-mode' : ''}${workMode && empty ? ' work-new-chat' : ''}`}>{active && <ConversationFind key={active.id} messages={active.messages} view={threadView} searching={searchingConversation} loadHistory={active.remoteId && status === 'connected' ? loadFullHistory : undefined} disabled={busy || running} />}{active?.messages.length ? <div className="thread-view" ref={threadView}>{groupMessages(active.messages).map(group => {
+  return <div className={`chat-layout${workMode ? ' work-mode' : ''}${workMode && empty ? ' work-new-chat' : ''}`}>{active && <ConversationFind reset={findReset} key={active.id} messages={active.messages} view={threadView} searching={searchingConversation} loadHistory={active.remoteId && status === 'connected' ? loadFullHistory : undefined} disabled={busy || running} />}{active?.messages.length ? <div className="thread-view" ref={threadView}>{groupMessages(active.messages).map(group => {
     const message = group[0];
     return message.tool ? <ToolActivityGroup key={message.id} messages={group} onOpenAgent={onOpenAgent} /> : <div className={`message ${message.role}`} key={message.id} data-message-id={message.id}>{message.role === 'assistant' ? <><MarkdownMessage content={message.content} />{isFinalReply(active.messages, active.messages.indexOf(message)) && <MessageActions content={message.content} disabled={running || active.status === 'running' || status !== 'connected' || !active.remoteId} onFork={() => onForkMessage(message.id)} onError={toast} />}</> : <div className="user-text">{message.content}{message.skills?.map(skill => <div key={skill.path} className="message-attachment" title={skill.path}>${skill.name}</div>)}{message.attachments?.map(path => <div key={path} className="message-attachment" title={path}>📎 {path.replace(/^.*[\\/]/, '')}</div>)}</div>}</div>;
   })}{activity && <div className={`activity${activity === '正在思考…' ? ' thinking' : ''}`}>{activity}</div>}</div> : !workMode && <div className="welcome">
@@ -675,6 +679,7 @@ function Chat({ loadFullHistory, onChangePermission, sendShortcut, composerSkill
     </div>
   </div>}
   <div className="composer-dock">
+    {awayFromLatest && <button className="jump-to-latest" onClick={() => { setFindReset(value => value + 1); searchingConversation.current = false; followLatest.current = true; threadView.current?.scrollTo({ top: threadView.current.scrollHeight, behavior: 'auto' }); setAwayFromLatest(false); requestAnimationFrame(() => { threadView.current?.scrollTo({ top: threadView.current.scrollHeight, behavior: 'auto' }); followLatest.current = true; }); }}>↓ 回到最新消息</button>}
     {workMode && empty && <h1 className="work-welcome-heading">我们要做什么？</h1>}
     <div className="project-strip">
       <button className="project" aria-expanded={showProjects} title={projectPath || projectName || '选择项目'} onClick={() => setShowProjects(!showProjects)}><FolderOpen aria-hidden="true" /><span>{projectName || '选择项目'}</span></button>

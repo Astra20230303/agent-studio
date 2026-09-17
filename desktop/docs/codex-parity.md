@@ -849,3 +849,11 @@ Build and browser acceptance verify nested fences, Unicode/special characters,
 multiple independent blocks, clipboard rejection and exact copied text.
 Post-commit acceptance delays clipboard completion while a code block streams
 additional lines, verifies stale success is suppressed and copies the new content.
+
+## Return to latest message
+
+Scrolling away from the bottom exposes a return-to-latest button. It closes
+conversation find, returns to the bottom and resumes following streamed replies.
+The follow effect runs during layout to avoid scroll events mistaking newly
+grown content for a user scroll. Build and long-transcript browser acceptance
+verify search-to-latest navigation and following a newly streamed long reply.

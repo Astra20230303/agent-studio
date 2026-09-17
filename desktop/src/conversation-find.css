@@ -4,3 +4,5 @@
 .conversation-find button:hover { background:#8882; }
 .conversation-find button:disabled { opacity:.4; cursor:default; }
 .conversation-find-match { outline:2px solid #b88712; outline-offset:2px; background:#d4a72c18; }
+.jump-to-latest { align-self:center; pointer-events:auto; border:1px solid #aaa6; background:#f7f7f5; color:#333; padding:6px 14px; border-radius:16px; margin:0 auto 6px; cursor:pointer; }
+.dark .jump-to-latest { background:#383836; color:#eee; }

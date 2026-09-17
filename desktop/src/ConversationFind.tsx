@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { Message } from './domain';
 import './conversation-find.css';
 
-export function ConversationFind({ messages, view, searching, loadHistory, disabled }: { messages: Message[]; view: RefObject<HTMLDivElement | null>; searching: RefObject<boolean>; loadHistory?: () => Promise<void>; disabled?: boolean }) {
+export function ConversationFind({ messages, view, searching, loadHistory, disabled, reset = 0 }: { messages: Message[]; view: RefObject<HTMLDivElement | null>; searching: RefObject<boolean>; loadHistory?: () => Promise<void>; disabled?: boolean; reset?: number }) {
   const [loading, setLoading] = useState(false);
   const [historyStatus, setHistoryStatus] = useState('');
   const load = async () => {
@@ -14,6 +14,7 @@ export function ConversationFind({ messages, view, searching, loadHistory, disab
   };
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  useEffect(() => { setOpen(false); setQuery(''); setSelected(undefined); }, [reset]);
   const [selected, setSelected] = useState<string>();
   const input = useRef<HTMLInputElement>(null);
   const button = useRef<HTMLButtonElement>(null);
