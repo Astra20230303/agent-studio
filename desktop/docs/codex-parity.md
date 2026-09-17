@@ -747,3 +747,9 @@ existing thread through all three profiles in both Windows fixture modes and
 checks the returned settings notification. Browser acceptance verifies pending
 state, unrelated-thread isolation, rejection and default preservation. These
 tests establish configuration changes, not Windows sandbox tool enforcement.
+Post-commit acceptance verifies confirmation timeout, disconnect, RPC rejection,
+notification-before-ack ordering, temporary listener cleanup and disabling changes
+during a running turn. A controlled model reply creates a persisted rollout so
+real thread/resume can confirm each updated permission profile; empty threads
+cannot be used for that check. Restart persistence and tool enforcement are not
+established by this resume check.

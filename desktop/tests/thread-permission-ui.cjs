@@ -35,6 +35,9 @@ const assert = require('node:assert/strict');
     await page.getByText('修改权限失败：Policy rejected', { exact: true }).waitFor();
     await page.getByRole('button', { name: '权限待确认', exact: true }).waitFor();
     assert.equal(await page.evaluate(() => window.__listeners.length), 1);
+    await page.evaluate(() => window.__emit({ method: 'turn/started', params: { threadId: 'remote-saved', turn: { id: 'running', status: 'inProgress' } } }));
+    await page.getByRole('button', { name: '权限待确认', exact: true }).click();
+    for (const name of ['当前会话：按需审批', '当前会话：帮我审批', '当前会话：完全访问权限']) assert.equal(await page.getByRole('button', { name, exact: true }).isDisabled(), true);
     console.log('PASS: current-thread mutation waits for matching notification, blocks send, preserves defaults and handles rejection');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
