@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('desktop', {
+  platform: process.platform,
   customFrame: process.argv.includes('--felix-soft-frame'),
   conversationNotifications: input => ipcRenderer.invoke('desktop:conversation-notifications', input),
   onOpenConversation: listener => {

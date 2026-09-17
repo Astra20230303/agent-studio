@@ -1100,3 +1100,16 @@ Synthetic browser composition events verify one-step Chinese input undo/redo;
 native IME interaction remains unverified. Browser tests also retain history after
 save conflict and verify both history directions clear after successful reload.
 Production build passes.
+
+## Windows sandbox setup workflow
+
+Permissions settings on Windows now query app-server readiness and expose elevated
+or unelevated setup. The controller subscribes before setupStart and waits for
+setupCompleted; a started response is not reported as completion. Pending setup
+survives settings navigation, blocks duplicate starts, and handles failed setup
+or connection loss. Completion requests reconnection/readiness refresh rather
+than asserting that existing thread permissions changed. OS setup occurs only
+when the user presses the setup control.
+Real isolated app-server tests verify notConfigured and unelevated ready states;
+browser bridge tests cover setup completion/failure/retry and navigation. Build
+passes. Actual OS provisioning and sandbox enforcement remain unverified.

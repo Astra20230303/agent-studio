@@ -20,6 +20,7 @@ test(`real permission configuration through Felix client (Windows sandbox: ${win
   const exited = once(child, 'exit'); const rpc = new CodexRpc(child); const timer = setTimeout(() => rpc.close(), 25000);
   try {
     await rpc.request('initialize', { clientInfo: { name: 'permissions_test', version: '1' }, capabilities: { experimentalApi: true } }); rpc.notify('initialized', {});
+    assert.equal((await rpc.request('windowsSandbox/readiness', {})).status, windowsSandbox === 'unelevated' ? 'ready' : 'notConfigured');
     const source = fs.readFileSync(path.resolve(__dirname, '../src/codexClient.ts'), 'utf8');
     const compiled = require('node:module').stripTypeScriptTypes(source).replace(/^import .*;\r?\n/gm, '').replace(/\bexport /g, '') + '\nObject.assign(exports, { startThread, updateThreadPermission });';
     const client = {};
