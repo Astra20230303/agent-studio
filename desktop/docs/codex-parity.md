@@ -509,3 +509,12 @@ Post-commit acceptance changes the URI field after reading and verifies that the
 snapshot retains the returned resource URI. It also reloads the renderer before
 submission and verifies exact draft persistence and turn input. Both pass without
 further product changes.
+
+## Draft storage failure recovery
+
+Draft persistence now catches local storage write failures, retains editable
+in-memory drafts and shows a persistent warning with explicit retry. Successful
+writes clear the warning. Build and injected browser quota-failure acceptance
+verify retained text, successful retry, continued turn submission and no uncaught
+renderer errors. This does not increase the local storage quota or guarantee
+persistence while storage remains unavailable.

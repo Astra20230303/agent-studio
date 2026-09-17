@@ -3,6 +3,8 @@ import type { SetStateAction } from 'react';
 
 const key = 'felix-thread-drafts-v1';
 export function useThreadDraft(threadId?: string) {
+  const [saveFailed, setSaveFailed] = useState(false);
+  const [saveAttempt, setSaveAttempt] = useState(0);
   const [drafts, setDrafts] = useState<Record<string, string>>(() => {
     try {
       const parsed = JSON.parse(localStorage.getItem(key) || '{}');
@@ -11,12 +13,15 @@ export function useThreadDraft(threadId?: string) {
     } catch { return {}; }
   });
   const id = threadId || 'new';
-  useEffect(() => { localStorage.setItem(key, JSON.stringify(drafts)); }, [drafts]);
+  useEffect(() => {
+    try { localStorage.setItem(key, JSON.stringify(drafts)); setSaveFailed(false); }
+    catch { setSaveFailed(true); }
+  }, [drafts, saveAttempt]);
   const setDraft = (value: SetStateAction<string>) => setDrafts(previous => {
     const next = typeof value === 'function' ? value(previous[id] || '') : value;
     const result = { ...previous };
     if (next) result[id] = next; else delete result[id];
     return result;
   });
-  return [drafts[id] || '', setDraft] as const;
+  return [drafts[id] || '', setDraft, { saveFailed, retry: () => setSaveAttempt(attempt => attempt + 1) }] as const;
 }
