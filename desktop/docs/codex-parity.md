@@ -1228,3 +1228,6 @@ always used Felix's repository root. Explicit workspace roots must be absolute;
 existing realpath and project-boundary checks still apply. Backend tests read and
 undo same-named files in two directories without touching the other workspace.
 Browser navigation verifies each conversation's artifact request root. Build passes.
+Post-commit acceptance scopes file-change card state to its workspace/path/diff.
+A held undo request retains the original root; after switching roots its delayed
+response cannot mark the new card undone. Browser race acceptance and build pass.

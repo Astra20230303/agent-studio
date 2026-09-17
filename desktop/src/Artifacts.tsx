@@ -50,14 +50,20 @@ export function FileChangeCard({ change, applied }: { change: NonNullable<ToolAc
   const [undone, setUndone] = useState(false);
   const [error, setError] = useState('');
   const lines = change.diff?.split('\n') || [];
+  const generation = useRef(0);
+  useEffect(() => {
+    generation.current++; setBusy(false); setUndone(false); setConfirm(false); setError('');
+    return () => { generation.current++; };
+  }, [root, change.path, change.diff]);
   const added = lines.filter(line => line.startsWith('+') && !line.startsWith('+++')).length;
   const removed = lines.filter(line => line.startsWith('-') && !line.startsWith('---')).length;
   const kind = typeof change.kind === 'string' ? change.kind : change.kind?.type;
   const undo = async () => {
+    const token = generation.current;
     setBusy(true); setError('');
-    try { const result = await window.desktop?.artifact?.({ root, action: 'undo', change }); if (!result?.ok) throw Error(result?.error || '无法撤销'); setUndone(true); setConfirm(false); }
-    catch (error) { setError(error instanceof Error ? error.message : String(error)); }
-    finally { setBusy(false); }
+    try { const result = await window.desktop?.artifact?.({ root, action: 'undo', change }); if (token !== generation.current) return; if (!result?.ok) throw Error(result?.error || '无法撤销'); setUndone(true); setConfirm(false); }
+    catch (error) { if (token === generation.current) setError(error instanceof Error ? error.message : String(error)); }
+    finally { if (token === generation.current) setBusy(false); }
   };
   return <section className="artifact-change">
     <div className="artifact-change-bar"><span className="artifact-file-icon">▧</span><div className="artifact-file-title"><b>{undone ? '已撤销' : !applied ? '文件变更' : kind === 'add' ? '已创建' : kind === 'delete' ? '已删除' : '已编辑'} {change.path.split(/[\\/]/).at(-1)}</b><span className="diff-count"><em>+{added}</em> <b>-{removed}</b></span></div>
