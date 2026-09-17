@@ -30,12 +30,20 @@ const assert = require('node:assert/strict');
     });
     await page.getByText('任务计划 · 1/2', { exact: true }).waitFor();
     await page.getByText('Proposed feature design', { exact: true }).waitFor();
+    await page.getByRole('textbox', { name: '消息', exact: true }).fill('Unsent review notes');
+    assert.equal(await page.getByRole('button', { name: '按计划执行', exact: true }).isDisabled(), true);
+    await page.getByRole('textbox', { name: '消息', exact: true }).fill('');
     await page.getByRole('button', { name: '按计划执行', exact: true }).click();
     assert.equal(await mode.inputValue(), 'default');
     assert.equal(await page.evaluate(() => window.__sent.length), 1);
     await page.getByRole('button', { name: '发送', exact: true }).click();
     await page.waitForFunction(() => window.__sent.length === 2);
     assert.equal(await page.evaluate(() => window.__sent[1].collaborationMode.mode), 'default');
+    await page.evaluate(() => {
+      window.__notify({ method: 'turn/started', params: { threadId: 'a', turn: { id: 'new-turn' } } });
+      window.__notify({ method: 'turn/plan/updated', params: { threadId: 'a', turnId: 'turn', plan: [{ step: 'Stale plan', status: 'inProgress' }] } });
+    });
+    await page.locator('.plan-panel').waitFor({ state: 'hidden' });
     assert.deepEqual(errors, []);
     console.log('PASS: plan mode payload, locked active mode, plan events, reviewed transition to implementation');
   } finally { await browser.close(); }

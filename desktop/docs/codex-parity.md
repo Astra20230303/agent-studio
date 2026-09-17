@@ -160,3 +160,6 @@ Acceptance: build, planning.test.cjs and planning-ui.cjs verify protocol setting
 history restoration, live progress and the explicit transition to execution.
 Browser checks mock the bridge; model adherence and native Electron are not yet
 verified. Plan mode is an engine instruction mode, not a separate sandbox.
+Post-commit review fixed stale progress across turn boundaries and protected
+unsent drafts from the implementation shortcut. Browser acceptance now verifies
+both cases; entering a new turn clears the prior progress panel.
