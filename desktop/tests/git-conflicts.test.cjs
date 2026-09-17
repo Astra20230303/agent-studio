@@ -25,4 +25,15 @@ test('real merge conflict blocks commit until resolved and staged', async () => 
   assert.equal((await workspaceGit({ root, action: 'status' })).files.filter(isConflict).length, 0);
   await workspaceGit({ root, action: 'commit', message: 'resolve both' });
   assert.equal(git(['rev-list', '--parents', '-n', '1', 'HEAD']).split(' ').length, 3);
+  git(['checkout', '-b', 'delete-side']); git(['rm', 'a.txt']); git(['commit', '-m', 'delete file']);
+  git(['checkout', 'main']); await commit('modified after merge');
+  assert.throws(() => git(['merge', 'delete-side']));
+  const conflict = (await workspaceGit({ root, action: 'status' })).files.find(isConflict);
+  assert.equal(conflict.index + conflict.working, 'UD');
+  await fs.unlink(path.join(root, 'a.txt'));
+  await workspaceGit({ root, action: 'stage', path: 'a.txt' });
+  assert.equal((await workspaceGit({ root, action: 'status' })).files.filter(isConflict).length, 0);
+  await workspaceGit({ root, action: 'commit', message: 'accept deletion' });
+  assert.equal(git(['ls-files', 'a.txt']), '');
+  assert.equal(git(['rev-list', '--parents', '-n', '1', 'HEAD']).split(' ').length, 3);
 });

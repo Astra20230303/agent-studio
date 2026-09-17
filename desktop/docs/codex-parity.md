@@ -610,3 +610,7 @@ Build, browser and real merge tests pass conflict identification, commit rejecti
 draft handoff, staging resolved content and completing a two-parent merge commit.
 This is an assistance entry point; automatic resolution and merge/rebase controls
 remain pending.
+Post-commit acceptance additionally creates a real modify/delete conflict,
+resolves it by deleting the file, stages through the same action and completes
+the merge. The index has no remaining conflicts and the file is absent from the
+resulting commit. No product correction was required.
