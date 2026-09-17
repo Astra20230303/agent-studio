@@ -9,6 +9,7 @@ const assert = require('node:assert/strict');
       window.__calls = []; window.__rejectPush = true;
       window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }), workspaceGit: async input => {
         window.__calls.push(input);
+        if (input.action === 'pull') return window.__rejectPull ? { ok: false, error: 'Not possible to fast-forward' } : { ok: true, result: { upstream: 'origin/target', commit: '1234567890', changed: !window.__current } };
         if (input.action === 'publish') { window.__untracked = false; return { ok: true, result: { upstream: 'backup/main' } }; }
         if (input.action === 'push' && window.__rejectPush) return { ok: false, error: 'non-fast-forward' };
         return { ok: true, result: input.action === 'status' ? { root: 'D:/repo', branch: 'main', remotes: ['origin', 'backup'], upstream: window.__untracked ? undefined : 'origin/target', remote: 'origin', ahead: 1, behind: 2, files: [] } : { upstream: 'origin/target' } };
@@ -20,6 +21,15 @@ const assert = require('node:assert/strict');
     await page.getByText('上游：origin/target · 领先 1 · 落后 2', { exact: true }).waitFor();
     await page.getByRole('button', { name: '获取远端', exact: true }).click();
     await page.getByRole('status').filter({ hasText: '远端信息已更新' }).waitFor();
+    await page.evaluate(() => { window.__rejectPull = true; });
+    await page.getByRole('button', { name: '拉取更新（仅快进）', exact: true }).click();
+    await page.getByRole('alert').filter({ hasText: 'Not possible to fast-forward' }).waitFor();
+    await page.evaluate(() => { window.__rejectPull = false; });
+    await page.getByRole('button', { name: '拉取更新（仅快进）', exact: true }).click();
+    await page.getByRole('status').filter({ hasText: '已从 origin/target 更新到 12345678' }).waitFor();
+    await page.evaluate(() => { window.__current = true; });
+    await page.getByRole('button', { name: '拉取更新（仅快进）', exact: true }).click();
+    await page.getByRole('status').filter({ hasText: '当前分支已是最新' }).waitFor();
     await page.getByRole('button', { name: '推送到上游', exact: true }).click();
     await page.getByRole('alert').filter({ hasText: 'non-fast-forward' }).waitFor();
     await page.evaluate(() => { window.__rejectPush = false; });

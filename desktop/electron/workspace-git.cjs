@@ -28,6 +28,20 @@ async function workspaceGit(input) {
   if (typeof input?.root !== 'string' || !path.isAbsolute(input.root)) throw Error('请选择工作区目录');
   const cwd = await fs.realpath(input.root);
   const root = (await git(cwd, ['rev-parse', '--show-toplevel'])).trim();
+  if (input.action === 'pull') {
+    const currentBranch = () => git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).then(value => value.trim(), () => '');
+    const branch = await currentBranch();
+    if (!branch || branch !== input.expectedBranch) throw Error('当前分支已变化或处于游离状态，请刷新');
+    const target = await tracking(root);
+    if (!target.remote || target.remote === '.' || !target.remoteRef?.startsWith('refs/heads/')) throw Error('当前分支尚未配置远端上游分支');
+    const before = (await git(root, ['rev-parse', 'HEAD'])).trim();
+    await git(root, ['fetch', '--no-tags', '--', target.remote, target.remoteRef], true);
+    const fetched = (await git(root, ['rev-parse', '--verify', 'FETCH_HEAD^{commit}'])).trim();
+    if (await currentBranch() !== branch || (await git(root, ['rev-parse', 'HEAD'])).trim() !== before) throw Error('获取期间当前分支或提交已变化，请刷新后重试');
+    await git(root, ['-c', 'merge.autostash=false', 'merge', '--ff-only', '--no-edit', fetched]);
+    const commit = (await git(root, ['rev-parse', 'HEAD'])).trim();
+    return { upstream: target.upstream, commit, changed: commit !== before };
+  }
   if (input.action === 'publish') {
     const branch = (await git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).catch(() => '')).trim();
     if (!branch || branch !== input.expectedBranch) throw Error('当前分支已变化或处于游离状态，请刷新');

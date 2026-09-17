@@ -586,3 +586,13 @@ pull/merge UI remain pending.
 Post-commit acceptance attempts to publish a divergent same-name remote branch.
 Git rejects the publication, preserves the remote commit and leaves upstream
 unset. The real-repository regression passes without further product changes.
+
+## Fast-forward Git pull
+
+The Git panel can fetch its configured upstream and fast-forward the current
+branch, with updated/already-current feedback and retryable errors. It checks
+branch identity and HEAD again after fetch and disables automatic stashing.
+Build, browser and real-repository tests pass different upstream branch names,
+successful updates, already-current results, stale branch rejection, dirty-file
+protection and divergence rejection without rewriting commits. Merge/rebase and
+conflict-resolution workflows remain pending.
