@@ -255,3 +255,13 @@ pending; native/model approval flow is not yet verified.
 Post-commit acceptance adds initial focus, Tab/Shift-Tab containment and wrapped
 actions for narrow dialogs. Browser regression verifies focus cycling and a
 390px viewport without dialog overflow; unsupported choice sets are explicit.
+
+## Feature 6b: MCP form elicitation
+
+MCP primitive forms render strings, numbers/integers, booleans and string enums.
+Required fields, lengths and number bounds use browser validation; submissions
+preserve JSON types and failed sends preserve entered values. Decline/cancel
+return null content. Unsupported complex schemas remain explicitly unavailable
+instead of sending an empty acceptance. Build and mcp-form-ui.cjs pass required
+input, typed response and transport retry checks with a mocked bridge. URL-mode,
+array enums and complex extension forms remain pending.
