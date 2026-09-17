@@ -1707,3 +1707,6 @@ turn/start and queued input use the conversation choice; choosing another thread
 model no longer changes the global default. Browser acceptance verifies two-thread
 isolation, reload, outgoing request and queue model snapshot. Build passes.
 Provider credentials remain global; unavailable models require a new selection.
+Post-commit acceptance changes the Provider catalog and verifies the conversation
+retains its selected model, displays its ID as unavailable and disables sending
+instead of silently choosing a different model. Browser acceptance and build pass.

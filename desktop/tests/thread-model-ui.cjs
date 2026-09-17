@@ -36,6 +36,15 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: '本轮完成后发送', exact: true }).click();
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('felix-turn-queue-v1'))[0].model), 'model-b');
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).model), 'model-a');
+    await page.evaluate(() => {
+      window.desktop.listModels = async () => ({ ok: true, models: ['model-a'] });
+      window.dispatchEvent(new Event('provider-changed'));
+    });
+    await picker.getByText('model-b（不可用）', { exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.find(thread => thread.id === 'a').model), 'model-b');
+    await page.evaluate(() => window.__notify({ method: 'turn/completed', params: { threadId: 'a', turn: { id: 'turn', status: 'failed' } } }));
+    await page.getByRole('textbox', { name: '消息', exact: true }).fill('Do not silently switch');
+    assert.ok(await page.getByRole('button', { name: '发送', exact: true }).isDisabled());
     console.log('PASS: per-thread model isolation, reload, actual turn request and queued model snapshot');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

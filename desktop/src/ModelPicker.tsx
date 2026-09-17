@@ -39,7 +39,7 @@ export function ModelPicker({ catalog, selected, onSelect, open, setOpen }: {
   }, [open, setOpen]);
   return <div className="model-picker" ref={root}>
     <button className="model-button" aria-label="选择模型" aria-expanded={open} onClick={() => setOpen(!open)}>
-      <span>{catalog.loading ? '加载模型…' : catalog.models.includes(selected) ? selected : '选择模型'}</span><ChevronDown size={13} />
+      <span>{catalog.loading ? '加载模型…' : catalog.models.includes(selected) ? selected : selected ? `${selected}（不可用）` : '选择模型'}</span><ChevronDown size={13} />
     </button>
     {open && <div className="floating-menu model-catalog" aria-label="Provider 模型">
       <div className="model-catalog-header"><span>Provider</span><button type="button" title="刷新模型列表" aria-label="刷新模型列表" disabled={catalog.loading} onClick={() => void catalog.refresh()}><RefreshCw size={14} /></button></div>
