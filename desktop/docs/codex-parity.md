@@ -1692,3 +1692,8 @@ at its original position instead of duplicating assistant/user/plan messages or
 locally saved tools. Later completed tool records replace provisional output.
 Tool/reasoning tests and full-chat complete-history loading with overlapping
 records pass; production build passes.
+Post-commit acceptance covers overlap with existing cached tools, preservation of
+the prior snapshot and authoritative empty text replacing provisional content.
+Empty text handling was corrected. Runtime fixture cleanup now retries transient
+Windows file locks after child exit. All 19 selected registry, history, sandbox
+race and runtime tests, full-chat history acceptance and production build pass.

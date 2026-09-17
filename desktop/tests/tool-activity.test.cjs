@@ -88,6 +88,17 @@ test('overlapping history pages do not duplicate messages and completion wins', 
   assert.equal(restored[0].content, 'final');
   assert.equal(restored[1].tool.status, 'completed');
   assert.equal(restored[1].tool.output, 'D:/repo');
+  const saved = structuredClone(restored);
+  const repeated = restoreMessages([
+    { id: 'a', type: 'agentMessage', text: 'partial' },
+    { id: 'c', type: 'commandExecution', status: 'completed', aggregatedOutput: 'final output' },
+    { id: 'a', type: 'agentMessage', text: '' },
+    { id: 'c', type: 'commandExecution', status: 'completed', aggregatedOutput: 'final output' },
+  ], restored);
+  assert.deepEqual(repeated.map(message => message.id), ['live-a', 'tool-c']);
+  assert.equal(repeated[0].content, '');
+  assert.equal(repeated[1].tool.output, 'final output');
+  assert.deepEqual(restored, saved, 'restoration must not mutate previous history');
 });
 
 test('omitted remote tools retain their position before the next assistant message', () => {

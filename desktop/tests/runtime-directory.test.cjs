@@ -80,6 +80,6 @@ test('relocated runtime initializes real app-server without a source tree', { ti
   } finally {
     const exited = child && child.exitCode === null ? once(child, 'exit') : Promise.resolve();
     rpc?.close(); await exited;
-    fs.rmSync(scratch, { recursive: true, force: true });
+    await fs.promises.rm(scratch, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 });
