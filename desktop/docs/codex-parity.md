@@ -1187,3 +1187,6 @@ preceding tables in document order. Scroll containers are named and keyboard
 focusable. Unit tests cover escaping; narrow browser acceptance verifies actual
 cell content/alignment, malformed-header fallback and horizontal scrolling. Build
 passes. This remains a custom Markdown renderer, not full CommonMark/GFM parity.
+Post-commit acceptance retains table body rows without pipe delimiters and ends
+the table before a following heading/list/quote block. A heading containing a pipe
+is no longer swallowed as a table row. Narrow browser regression and build pass.

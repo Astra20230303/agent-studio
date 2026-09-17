@@ -10,6 +10,8 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
 | Single |
 | --- |
 | one |
+plain row
+## After table | heading
 
 Bad | Header
 --- | --- | ---
@@ -21,6 +23,8 @@ Bad | Header
  assert.deepEqual(await tables.first().locator('tbody tr').first().locator('td').allTextContents(),['a|b','value']);
  assert.equal(await tables.first().locator('tbody tr').count(),2);
  assert.equal(await tables.nth(1).locator('th').innerText(),'Single');
+ assert.deepEqual(await tables.nth(1).locator('tbody td').allTextContents(),['one','plain row']);
+ await page.locator('.md-heading').filter({hasText:'After table | heading'}).waitFor();
  assert.equal(await tables.first().locator('td').nth(1).evaluate(node=>getComputedStyle(node).textAlign),'right');
  const region=page.getByRole('region',{name:'消息表格',exact:true}).first();
  assert.equal(await region.evaluate(node=>node.scrollWidth>node.clientWidth),true);

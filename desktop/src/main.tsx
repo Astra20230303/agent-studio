@@ -589,6 +589,9 @@ function MarkdownMessage({ content }: { content: string }) {
     const image = line.match(/^!\[([^\]]*)\]\((?:<([^>]+)>|(.+))\)$/);
     if (image) { flushTable(); flushParagraph(); blocks.push(<ArtifactLink key={`image-${index}`} path={image[2] || image[3]} label={image[1] || '预览'} preview />); return; }
     if (!line.trim()) { flushTable(); flushParagraph(); return; }
+    const startsBlock = /^ {0,3}(?:#{1,6}(?:\s|$)|>|[-+*]\s|\d+[.)]\s)/.test(line) || /^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line);
+    if (table && startsBlock) flushTable();
+    if (table && !line.includes('|')) { table.push([line.trim()]); return; }
     if (line.includes('|')) {
       const cells = tableCells(line);
       if (!table && cells.length > 0) {
