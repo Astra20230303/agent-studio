@@ -2,7 +2,7 @@ const { execFile } = require('node:child_process');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 function git(cwd, args, network = false) {
-  return new Promise((resolve, reject) => execFile('git', ['--no-optional-locks', '--literal-pathspecs', '-c', 'core.quotepath=false', ...args], { cwd, windowsHide: true, encoding: 'utf8', timeout: network ? 60000 : 15000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' }, maxBuffer: 4 * 1024 * 1024 }, (error, stdout, stderr) => error ? reject(Error(stderr.trim() || error.message)) : resolve(stdout)));
+  return new Promise((resolve, reject) => execFile('git', ['--no-optional-locks', '-c', 'core.quotepath=false', ...args], { cwd, windowsHide: true, encoding: 'utf8', timeout: network ? 60000 : 15000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' }, maxBuffer: 4 * 1024 * 1024 }, (error, stdout, stderr) => error ? reject(Error(stderr.trim() || error.message)) : resolve(stdout)));
 }
 async function tracking(root) {
   const ref = (await git(root, ['symbolic-ref', '-q', 'HEAD']).catch(() => '')).trim();
@@ -28,6 +28,21 @@ async function workspaceGit(input) {
   if (typeof input?.root !== 'string' || !path.isAbsolute(input.root)) throw Error('请选择工作区目录');
   const cwd = await fs.realpath(input.root);
   const root = (await git(cwd, ['rev-parse', '--show-toplevel'])).trim();
+  if (input.action === 'stash' || input.action === 'stash-pop') {
+    const branch = (await git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).catch(() => '')).trim();
+    const head = (await git(root, ['rev-parse', '--verify', 'HEAD']).catch(() => '')).trim();
+    if (!branch || input.expectedBranch !== branch || input.expectedHead !== head) throw Error('当前分支或提交已变化，请刷新 Git 变更');
+    if (input.action === 'stash') {
+      if (!(await git(root, ['status', '--porcelain'])).trim()) throw Error('工作区没有可暂存的修改');
+      // Git for Windows may leave untracked files behind with -u when global
+      // sparse/index settings are active; --all guarantees a clean restore.
+      await git(root, ['stash', 'push', '--all', '-m', typeof input.message === 'string' && input.message.trim() ? input.message.trim() : 'Felix 工作区暂存']);
+      return { changed: true };
+    }
+    if (!(await git(root, ['stash', 'list', '--format=%gd']).catch(() => '')).trim()) throw Error('没有可恢复的工作区暂存');
+    await git(root, ['stash', 'pop']);
+    return { changed: true };
+  }
   if (['branches', 'switch-branch', 'track-branch'].includes(input.action)) {
     const branches = (await git(root, ['for-each-ref', '--format=%(refname:strip=2)', 'refs/heads/'])).trim().split('\n').filter(Boolean);
     const current = (await git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).catch(() => '')).trim();

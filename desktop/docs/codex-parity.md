@@ -1280,3 +1280,17 @@ Post-commit acceptance adds an actionable empty-remote message and verifies a
 selected remote disappearing on refresh. Its stale selection is cleared, the
 local name draft survives, submission stays disabled, and a later refreshed ref
 can be selected and checked out. Browser acceptance and build pass.
+
+## Planned delivery: stash and restore Git working changes
+
+The Git panel will expose reversible stash and restore-last-stash actions. Stash
+includes untracked files, refuses a changed branch/HEAD after status was read, and
+never discards content. Restore uses Git's conflict reporting and keeps the stash
+when conflicts occur. Isolated repository tests verify tracked/untracked content,
+branch guards and conflict preservation; browser acceptance verifies disabled
+busy controls, errors and refreshed status.
+Implemented and verified: stash includes tracked and untracked workspace content,
+restores it exactly, and keeps the stash on pop conflicts. Stale branch/HEAD
+checks prevent acting on a changed workspace. Two isolated repository tests, the
+stale-error browser acceptance, Git write/remote regressions and production build
+pass.
