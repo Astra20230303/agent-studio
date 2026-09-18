@@ -27,6 +27,8 @@ test('migrates legacy provider and preserves independent channels and secrets', 
     const id = config.saveProvider({ name: 'Second channel', baseUrl: 'https://api.rvcompute.com:60000/v1', apiKey: 'second-key', model: 'second-model' });
     assert.equal(config.listProviders().length, 3);
     assert.equal(config.readProvider().apiKey, 'first-key');
+    assert.equal(config.readProvider(id).apiKey, 'second-key');
+    assert.throws(() => config.readProvider('missing'), /不存在/);
     config.activateProvider(id);
     assert.equal(config.readProvider().apiKey, 'second-key');
     config.saveProvider({ id, name: 'Edited', baseUrl: 'https://api.rvcompute.com:60000/v1/', apiKey: '', model: 'edited-model' });

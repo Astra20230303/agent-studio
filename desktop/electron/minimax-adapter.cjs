@@ -214,16 +214,23 @@ async function translateStream(body, definitions, model, emit) {
   }
 }
 
-function startMiniMaxAdapter({ port = 15821, apiKey, upstream = 'https://api.minimaxi.com/v1', onError, timeoutMs = 180000 } = {}) {
+function startMiniMaxAdapter({ port = 15821, apiKey, resolveProvider, upstream = 'https://api.minimaxi.com/v1', onError, timeoutMs = 180000 } = {}) {
   const server = http.createServer(async (req, res) => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     res.on('close', () => controller.abort());
     const fail = (status, message) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: { message } })); };
     try {
-      if (req.method !== 'POST' || req.url !== '/v1/responses') { fail(404, 'Not found'); return; }
-      const requestKey = typeof apiKey === 'function' ? apiKey() : apiKey;
-      const requestUpstream = typeof upstream === 'function' ? upstream() : upstream;
+      const route = /^\/providers\/([A-Za-z0-9_-]+)\/v1\/responses$/.exec(req.url);
+      if (req.method !== 'POST' || (req.url !== '/v1/responses' && !(route && resolveProvider))) { fail(404, 'Not found'); return; }
+      let selected;
+      if (resolveProvider) {
+        try { selected = resolveProvider(route ? route[1] : undefined); }
+        catch { fail(404, 'Provider is unavailable'); return; }
+        if (!selected) { fail(404, 'Provider is unavailable'); return; }
+      }
+      const requestKey = selected ? selected.apiKey : typeof apiKey === 'function' ? apiKey() : apiKey;
+      const requestUpstream = selected ? selected.baseUrl : typeof upstream === 'function' ? upstream() : upstream;
       if (!requestKey && !require('./provider-url.cjs').isLocalProvider(requestUpstream)) { fail(401, 'Provider API key is not set'); return; }
       const buffers = [];
       let size = 0;

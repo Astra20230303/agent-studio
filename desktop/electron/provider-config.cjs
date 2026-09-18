@@ -18,9 +18,9 @@ function decrypt(provider) {
   return { ...provider, apiKey: provider.secret ? safeStorage.decryptString(Buffer.from(provider.secret, 'base64')) : provider.id === 'minimax-cn' ? process.env.MINIMAX_API_KEY || '' : '' };
 }
 
-function readProvider() {
+function readProvider(id) {
   const registry = readRegistry();
-  return decrypt(registry.providers.find(item => item.id === registry.activeId));
+  return decrypt(registry.providers.find(item => item.id === (id === undefined ? registry.activeId : id)));
 }
 
 function listProviders() {

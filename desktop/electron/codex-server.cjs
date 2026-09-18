@@ -136,7 +136,7 @@ class CodexServer {
     fs.mkdirSync(env.CODEX_HOME, { recursive: true });
     ensureProjectConfig(env.CODEX_HOME, this.projectRoot, this.runtimeRoot);
     const catalog = compatibilityCatalog(this.projectRoot, env.CODEX_HOME, this.runtimeRoot);
-    const adapter = startMiniMaxAdapter({ port: 0, apiKey: () => readProvider().apiKey, upstream: () => readProvider().baseUrl, onError: error => this.rpc?.emit('stderr', `Provider adapter error: ${error.message}`) });
+    const adapter = startMiniMaxAdapter({ port: 0, resolveProvider: readProvider, onError: error => this.rpc?.emit('stderr', `Provider adapter error: ${error.message}`) });
     this.adapter = adapter;
     try { await once(adapter, 'listening', { signal }); signal.throwIfAborted(); }
     catch (error) { adapter.close(); adapter.closeAllConnections(); if (this.adapter === adapter) this.adapter = null; throw error; }
