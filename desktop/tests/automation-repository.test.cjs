@@ -15,3 +15,14 @@ test('details must match the requested task and transport failures propagate',as
  assert.deepEqual(calls,[['taskDetail','a'],['taskDetail','b']]);
  await assert.rejects(createAutomationRepository(async()=>{throw Error('offline');}).list(),/offline/);
 });
+test('mutation methods preserve payloads, capture drafts and wait for transport',async()=>{
+ const calls=[];let finish;
+ const repo=createAutomationRepository((...args)=>{calls.push(args);return new Promise(resolve=>{finish=resolve;});});
+ const draft=structuredClone(task);let done=false;
+ const saving=repo.save(draft).then(()=>{done=true;});draft.schedule.time='11:00';
+ await Promise.resolve();assert.equal(done,false);assert.equal(calls[0][1].schedule.time,'09:00');finish();await saving;
+ for(const [method,args,operation] of [['run',['a'],'runTask'],['cancel',['a'],'cancelTask'],['remove',['a'],'deleteTask'],['setStatus',['a','paused'],'setTaskStatus']]){
+  const pending=repo[method](...args);assert.deepEqual(calls.at(-1),[operation,...args]);finish();await pending;
+ }
+ await assert.rejects(createAutomationRepository(async()=>{throw Error('rejected');}).save(task),/rejected/);
+});

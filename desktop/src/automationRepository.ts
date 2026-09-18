@@ -1,10 +1,15 @@
-import type { ScheduledTask } from './scheduledTasks';
+import type { ScheduledTask, TaskDraft } from './scheduledTasks';
 
 export interface AutomationRepository {
   list(): Promise<ScheduledTask[]>;
   detail(id: string): Promise<ScheduledTask>;
+  save(draft: TaskDraft): Promise<void>;
+  run(id: string): Promise<void>;
+  cancel(id: string): Promise<void>;
+  remove(id: string): Promise<void>;
+  setStatus(id: string, status: 'active' | 'paused'): Promise<void>;
 }
-type Request = (operation: 'listTasks' | 'taskDetail', ...args: unknown[]) => Promise<unknown>;
+type Request = (operation: 'listTasks' | 'taskDetail' | 'saveTask' | 'runTask' | 'cancelTask' | 'deleteTask' | 'setTaskStatus', ...args: unknown[]) => Promise<unknown>;
 const record = (value: any) => value && typeof value === 'object' && !Array.isArray(value);
 const date = (value: unknown) => typeof value === 'string' && Number.isFinite(Date.parse(value));
 function task(value: any): value is ScheduledTask {
@@ -26,6 +31,11 @@ function task(value: any): value is ScheduledTask {
 }
 export function createAutomationRepository(request: Request): AutomationRepository {
   return {
+    async save(draft) { await request('saveTask', structuredClone(draft)); },
+    async run(id) { await request('runTask', id); },
+    async cancel(id) { await request('cancelTask', id); },
+    async remove(id) { await request('deleteTask', id); },
+    async setStatus(id, status) { await request('setTaskStatus', id, status); },
     async list() {
       const result = await request('listTasks') as any;
       if (!Array.isArray(result?.tasks) || !result.tasks.every(task) || new Set(result.tasks.map((item: ScheduledTask) => item.id)).size !== result.tasks.length) throw Error('任务列表格式无效，请重试。');

@@ -22,22 +22,24 @@ function TaskEditor({ draft, providers, onClose, onSaved }: { draft: TaskDraft; 
   const [onceAt, setOnceAt] = useState(() => localDateInput(draft.schedule.kind === 'once' ? draft.schedule.at : new Date(Date.now() + 3600000).toISOString()));
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const saveLock = useRef(false);
   const [writeConfirmed, setWriteConfirmed] = useState(draft.permission === 'workspace-write');
   useEffect(() => { if (!form.model && models.length) setForm(current => ({ ...current, model: models[0] })); }, [models, form.model]);
   const patch = (fields: Partial<TaskDraft>) => setForm(current => ({ ...current, ...fields }));
   const patchSchedule = (fields: Partial<Exclude<TaskSchedule, { kind: 'once' }>>) => { if (form.schedule.kind !== 'once') patch({ schedule: { ...form.schedule, ...fields } }); };
   const submit = async (event: FormEvent) => {
-    event.preventDefault(); if (saving) return;
+    event.preventDefault(); if (saveLock.current) return;
+    saveLock.current = true;
     setError(''); setSaving(true);
     try {
       if (form.kind === 'agent' && (loadingModels || !models.includes(form.model))) throw new Error(catalog.error || '请从渠道模型列表中选择可用模型。');
       if (form.kind === 'agent' && form.permission === 'workspace-write' && !writeConfirmed) throw new Error('请确认允许无人值守修改工作区。');
       const schedule = form.schedule.kind === 'once' ? { kind: 'once' as const, at: new Date(onceAt).toISOString() } : form.schedule;
-      await taskRequest('saveTask', { ...form, schedule }); onSaved();
+      await automationRepository.save({ ...form, schedule }); onSaved();
     } catch (caught) { setError(caught instanceof Error ? caught.message : '保存失败。'); }
-    finally { setSaving(false); }
+    finally { saveLock.current = false; setSaving(false); }
   };
-  return <TaskModal title={draft.id ? '编辑任务' : '创建任务'} onClose={() => { if (!saving) onClose(); }}><form onSubmit={submit}>
+  return <TaskModal title={draft.id ? '编辑任务' : '创建任务'} onClose={() => { if (!saveLock.current) onClose(); }}><form onSubmit={submit}>
     <fieldset disabled={saving}>
       <label>任务名称<input required maxLength={120} autoFocus value={form.name} onChange={event => patch({ name: event.target.value })} /></label>
       <label>任务内容<textarea required maxLength={20000} rows={4} value={form.prompt} onChange={event => patch({ prompt: event.target.value })} /></label>
@@ -69,6 +71,7 @@ export function ScheduledPage({ providers, cwd }: { providers: { id: string; nam
   const [draft, setDraft] = useState<TaskDraft>(); const [selectedId, setSelectedId] = useState<string>();
   const [detail, setDetail] = useState<ScheduledTask>(); const [deleting, setDeleting] = useState<ScheduledTask>();
   const [error, setError] = useState(''); const [loading, setLoading] = useState(true); const [busy, setBusy] = useState(false);
+  const mutationLock = useRef(false);
   const [loadError, setLoadError] = useState(''); const [detailError, setDetailError] = useState('');
   const [createMenu, setCreateMenu] = useState(false); const createRoot = useRef<HTMLDivElement>(null);
   const alive = useRef(true); const refreshId = useRef(0);
@@ -99,11 +102,14 @@ export function ScheduledPage({ providers, cwd }: { providers: { id: string; nam
   const create = (kind: TaskDraft['kind'], template?: typeof taskTemplates[number]) => {
     setCreateMenu(false); setDraft({ name: '', prompt: '', kind, cwd, model: '', providerId: providers.find(provider => provider.enabled)?.id || providers[0]?.id, permission: 'read-only', notify: true, schedule: { kind: 'daily', time: '09:00', timezone: localZone }, ...template });
   };
-  const mutate = async (operation: 'runTask' | 'cancelTask' | 'deleteTask' | 'setTaskStatus', ...args: unknown[]) => {
-    if (busy) return; setBusy(true); setError('');
-    try { await taskRequest(operation, ...args); if (operation === 'deleteTask') { setSelectedId(undefined); setDeleting(undefined); } await reload(); }
+  const mutate = async (operation: 'runTask' | 'cancelTask' | 'deleteTask' | 'setTaskStatus', id: string, status?: 'active' | 'paused') => {
+    if (mutationLock.current) return; mutationLock.current = true; setBusy(true); setError('');
+    try { if (operation === 'runTask') await automationRepository.run(id);
+      else if (operation === 'cancelTask') await automationRepository.cancel(id);
+      else if (operation === 'deleteTask') await automationRepository.remove(id);
+      else if (status) await automationRepository.setStatus(id, status); if (operation === 'deleteTask') { setSelectedId(undefined); setDeleting(undefined); } await reload(); }
     catch (caught) { setError(caught instanceof Error ? caught.message : '操作失败。'); }
-    finally { setBusy(false); }
+    finally { mutationLock.current = false; setBusy(false); }
   };
   const visible = tasks.filter(task => `${task.name} ${task.prompt}`.toLowerCase().includes(query.toLowerCase()) && (filter === 'all' || task.status === filter));
   const anyRunning = tasks.some(task => task.runs[0]?.status === 'running');
@@ -135,6 +141,6 @@ export function ScheduledPage({ providers, cwd }: { providers: { id: string; nam
       {error && <p className="task-error" role="alert">{error}</p>}<footer><button className="task-danger" disabled={busy || detail.runs[0]?.status === 'running'} onClick={() => setDeleting(detail)}><Trash2 />删除</button><button disabled={busy || detail.runs[0]?.status === 'running'} onClick={() => setDraft(detail)}><Pencil />编辑</button><button disabled={busy || anyRunning && detail.runs[0]?.status !== 'running'} onClick={() => void mutate(detail.runs[0]?.status === 'running' ? 'cancelTask' : 'runTask', detail.id)}>{detail.runs[0]?.status === 'running' ? <Square /> : <Play />}{detail.runs[0]?.status === 'running' ? '停止运行' : '立即运行'}</button></footer>
     </>}</TaskModal>}
     {draft && <TaskEditor draft={draft} providers={providers} onClose={() => setDraft(undefined)} onSaved={() => { setDraft(undefined); void reload(); }} />}
-    {deleting && <TaskModal title="删除任务" onClose={() => { if (!busy) setDeleting(undefined); }}><p>删除“{deleting.name}”及其运行记录？</p>{error && <p role="alert" className="task-error">{error}</p>}<footer><button disabled={busy} onClick={() => setDeleting(undefined)}>取消</button><button disabled={busy} className="task-danger" onClick={() => void mutate('deleteTask', deleting.id)}>确认删除</button></footer></TaskModal>}
+    {deleting && <TaskModal title="删除任务" onClose={() => { if (!mutationLock.current) setDeleting(undefined); }}><p>删除“{deleting.name}”及其运行记录？</p>{error && <p role="alert" className="task-error">{error}</p>}<footer><button disabled={busy} onClick={() => setDeleting(undefined)}>取消</button><button disabled={busy} className="task-danger" onClick={() => void mutate('deleteTask', deleting.id)}>确认删除</button></footer></TaskModal>}
   </div>;
 }
