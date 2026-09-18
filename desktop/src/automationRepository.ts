@@ -29,6 +29,10 @@ function task(value: any): value is ScheduledTask {
     if (schedule.kind === 'weekly' && (!Number.isInteger(schedule.day) || schedule.day < 0 || schedule.day > 6)) return false;
   }
   return value.runs.every((run: any) => record(run) && typeof run.id === 'string' && !!run.id
+    && (run.configuration == null || record(run.configuration) && ['name','prompt','model'].every(key => typeof run.configuration[key] === 'string')
+      && ['agent','reminder'].includes(run.configuration.kind) && ['read-only','workspace-write'].includes(run.configuration.permission)
+      && [run.configuration.cwd, run.configuration.providerId].every(value => value == null || typeof value === 'string')
+      && (run.configuration.reasoningEffort == null || ['low','medium','high'].includes(run.configuration.reasoningEffort)))
     && (run.threadId == null || typeof run.threadId === 'string' && !!run.threadId.trim())
     && ['running','completed','failed','interrupted'].includes(run.status) && date(run.startedAt)
     && (run.finishedAt == null || date(run.finishedAt)) && (run.output == null || typeof run.output === 'string') && (run.error == null || typeof run.error === 'string'));

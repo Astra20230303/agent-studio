@@ -143,7 +143,9 @@ class TaskScheduler extends EventEmitter {
     if (this.closed || this.stopping) throw new Error('任务服务已停止。');
     if (this.active) throw new Error('已有任务正在执行，请等待完成。');
     const task = this.get(id);
-    const run = { id: randomUUID(), status: 'running', trigger, startedAt: new Date(this.now()).toISOString(), output: '' };
+    const { name, prompt, kind, model, providerId, cwd, reasoningEffort, permission } = task;
+    const configuration = { name, prompt, kind, model, providerId, cwd, reasoningEffort, permission };
+    const run = { configuration, id: randomUUID(), status: 'running', trigger, startedAt: new Date(this.now()).toISOString(), output: '' };
     this.change(() => {
       task.runs.unshift(run); task.runs = task.runs.slice(0, 50);
       // Advance before execution: crash recovery never reruns a possibly side-effecting occurrence.
