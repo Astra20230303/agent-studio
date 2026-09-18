@@ -1,6 +1,6 @@
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
-const { restoreMessages } = require('../src/toolActivity.ts');
+const { restoreMessages, applyToolEvent } = require('../src/toolActivity.ts');
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
@@ -22,6 +22,12 @@ const { restoreMessages } = require('../src/toolActivity.ts');
     assert.equal(await page.getByRole('link', {name:'下载生成图片',exact:true}).getAttribute('download'), 'generated.png');
     await page.getByText('生成提示词',{exact:true}).click();
     await page.getByText('<b>Draw a tree</b>',{exact:true}).waitFor();
+    const thread = { messages: restoreMessages([{ id: 'live', type: 'imageGeneration', status: 'inProgress', result: '' }], []) };
+    applyToolEvent(thread, 'item/completed', { turnId: 'turn', item: { id: 'live', type: 'imageGeneration', status: 'completed', result: png } });
+    assert.equal(thread.messages.length, 1);
+    assert.equal(thread.messages[0].tool.status, 'completed');
+    const restored = restoreMessages([{ id: 'live', type: 'imageGeneration', status: 'completed', result: png }], thread.messages);
+    assert.equal(restored.length, 1); assert.equal(restored[0].tool.rawRecord.item.result, png);
     console.log('PASS: restored image generation PNG decoding, download, prompt escaping, running and failure states');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
