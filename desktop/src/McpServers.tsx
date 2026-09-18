@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { extensionRequest } from './extensions';
 import { McpResources, type McpResource, type McpResourceTemplate } from './McpResources';
+import { parseMcpStatusPage } from './mcpStatus';
 
 type Server = { name: string; runtimeStatus?: string; authStatus: string; tools?: Record<string, { description?: string }>; toolsError?: string; resources?: McpResource[]; resourceTemplates?: McpResourceTemplate[] };
 const emptyResources: McpResource[] = [];
@@ -24,7 +25,7 @@ export function McpServers({ connected, threadId, onBack, onAddToDraft }: { conn
     try {
       const all: Server[] = []; let cursor: string | undefined; const seen = new Set<string>();
       do {
-        const result = await extensionRequest<{ data: Server[]; nextCursor?: string }>('mcpServerStatus/list', { threadId, cursor, limit: 100, detail: includeResources ? 'full' : 'toolsAndAuthOnly' });
+        const result = parseMcpStatusPage(await extensionRequest<unknown>('mcpServerStatus/list', { threadId, cursor, limit: 100, detail: includeResources ? 'full' : 'toolsAndAuthOnly' }));
         if (token !== generation.current) return;
         all.push(...result.data); cursor = result.nextCursor || undefined;
         if (cursor && seen.has(cursor)) throw Error('MCP 分页游标重复，请重试');
