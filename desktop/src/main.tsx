@@ -195,11 +195,12 @@ function App({ initialState }: { initialState: DesktopState }) {
   const serviceInUse = pendingThreads.length > 0 || Boolean(restoringThread) || approvals.length > 0 || state.threads.some(thread => thread.status === 'running') || Object.values(runtime.threads).some(thread => Boolean(thread.turnId)) || sandboxState.busy;
   const restartService = async () => {
     if (restartingRef.current || serviceInUse || codexStatus === 'connecting') return;
-    restartingRef.current = true; setRestarting(true); stopRecoveryRef.current(); queue.pause(); setConnectionError(''); setCodexStatus('connecting');
+    restartingRef.current = true; audit.record('请求重启工作区服务'); setRestarting(true); stopRecoveryRef.current(); queue.pause(); setConnectionError(''); setCodexStatus('connecting');
     try {
       const result = await window.codex?.stop?.();
       if (!result?.ok) throw Error(result?.error?.message || result?.error || '服务重启不可用');
-    } catch (error) { setNotice(`重启服务失败：${error instanceof Error ? error.message : String(error)}`); }
+      audit.record('工作区服务已停止');
+    } catch (error) { audit.record('停止工作区服务失败'); setNotice(`重启服务失败：${error instanceof Error ? error.message : String(error)}`); }
     finally { restartingRef.current = false; setRestarting(false); reconnectRef.current(); }
   };
   const savingImages = (pendingImages[active?.id || 'new'] || 0) > 0;
@@ -743,7 +744,7 @@ function App({ initialState }: { initialState: DesktopState }) {
     });
     setPage('chat');
   };
-  const serviceControl = <section className="settings-card" aria-label="工作区服务连接"><h2>工作区服务</h2><p role="status">服务连接：{codexStatus === 'connected' ? '已连接' : codexStatus === 'connecting' ? '连接中' : '未连接'}</p><p>配置变更后可重启服务并重新连接。{serviceInUse ? '请先等待运行中会话、审批和沙箱设置结束。' : '草稿保留，排队消息会暂停。'}</p><button disabled={serviceInUse || restarting || codexStatus === 'connecting'} onClick={() => { audit.record('重启工作区服务'); void restartService(); }}>重启并重新连接服务</button></section>;
+  const serviceControl = <section className="settings-card" aria-label="工作区服务连接"><h2>工作区服务</h2><p role="status">服务连接：{codexStatus === 'connected' ? '已连接' : codexStatus === 'connecting' ? '连接中' : '未连接'}</p><p>配置变更后可重启服务并重新连接。{serviceInUse ? '请先等待运行中会话、审批和沙箱设置结束。' : '草稿保留，排队消息会暂停。'}</p><button disabled={serviceInUse || restarting || codexStatus === 'connecting'} onClick={() => { void restartService(); }}>重启并重新连接服务</button></section>;
   return <div className={`desktop-app ${effectiveTheme} ${page === 'settings' ? 'settings-mode' : ''} ${terminalOpen ? 'terminal-visible' : ''}`}>
     <ServerWarnings warnings={serverWarnings.warnings} dismiss={serverWarnings.dismiss} />
     {queue.saveFailed && <div role="alert" className="state-save-warning">排队消息未能保存，自动发送已暂停。关闭窗口可能丢失更改或恢复旧队列。<button onClick={queue.retry}>重试保存队列</button></div>}

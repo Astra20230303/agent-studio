@@ -15,6 +15,8 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent==='重启并重新连接服务'&&!b.disabled));
  await page.evaluate(()=>window.__emit({method:'turn/started',params:{threadId:'remote',turn:{id:'running'}}}));
  assert.equal(await restart.isDisabled(),true);
+ await restart.dispatchEvent('click');
+ assert.equal(await page.evaluate(()=>window.__stops),0);
  await page.evaluate(()=>window.__emit({method:'turn/completed',params:{threadId:'remote',turn:{id:'running',status:'completed'}}}));
  await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent==='重启并重新连接服务'&&!b.disabled));
  const before=await page.evaluate(()=>window.__connections);
@@ -24,6 +26,9 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  assert.equal(await page.evaluate(()=>window.__connections),before);assert.equal(await page.evaluate(()=>window.__stops),1);
  await restart.dispatchEvent('click');
  assert.equal(await page.evaluate(()=>window.__stops),1);
+ const pendingAudit=await page.evaluate(()=>JSON.parse(localStorage.getItem('felix-audit-log-v1')));
+ assert.equal(pendingAudit.filter(e=>e.action==='请求重启工作区服务').length,1);
+ assert.equal(pendingAudit.filter(e=>e.action==='工作区服务已停止').length,0);
  await page.evaluate(()=>window.__releaseStop());
  await page.waitForFunction(before=>window.__connections>before,before);
  await page.getByText('服务连接：已连接',{exact:true}).waitFor();
@@ -37,5 +42,11 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  await page.getByText('状态：已就绪',{exact:true}).waitFor();
  await page.getByRole('button',{name:/返回应用/}).click();
  assert.equal(await page.getByRole('textbox',{name:'消息',exact:true}).inputValue(),'draft survives restart');
+ const entries=await page.evaluate(()=>JSON.parse(localStorage.getItem('felix-audit-log-v1')));
+ assert.equal(entries.filter(e=>e.action==='请求重启工作区服务').length,2);
+ assert.equal(entries.filter(e=>e.action==='工作区服务已停止').length,1);
+ assert.equal(entries.filter(e=>e.action==='停止工作区服务失败').length,1);
+ assert.equal(entries.filter(e=>e.action==='重启工作区服务').length,0);
+ assert.ok(entries.filter(e=>e.action.includes('工作区服务')).every(e=>e.detail===undefined));
  console.log('PASS: busy turn blocks restart, stop precedes reconnect, draft survives');
 }finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});
