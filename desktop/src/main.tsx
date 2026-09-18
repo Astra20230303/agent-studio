@@ -3,6 +3,7 @@ import { removeRecentProject } from './recentProjects';
 import { projectRepository } from './projectRepository';
 import { validateRestorableHistory } from './historyValidation';
 import { readThreadResume } from './threadResume';
+import { findMessageTurn } from './messageTurn';
 import { unarchiveThread } from './codexClient';
 import { createThreadMutations } from './threadMutations';
 import { approvalFileChanges } from './approvalFileChanges';
@@ -683,16 +684,7 @@ function App({ initialState }: { initialState: DesktopState }) {
     forkingRef.current = true; setForking(true);
     sendingRef.current.add(source.id); setPendingThreads(previous => [...previous, source.id]);
     try {
-      let turnId = message.turnId;
-      if (!turnId) {
-        let cursor: string | undefined;
-        do {
-          const result = await listThreadTurns(source.remoteId, cursor);
-          const turn = (result.data || []).find((entry: any) => (entry.items || []).some((item: any) => `live-${item.id}` === messageId || item.id === messageId));
-          if (turn) { turnId = turn.id; break; }
-          cursor = result.nextCursor || undefined;
-        } while (cursor);
-      }
+      const turnId = message.turnId || await findMessageTurn(listThreadTurns, source.remoteId, messageId);
       if (!turnId) throw new Error('无法定位回复所在的回合，请重新加载该会话后重试。');
       const result = await forkThread(source.remoteId, turnId);
       if (!result.thread?.id) throw new Error('服务未返回分支会话。');
