@@ -1,5 +1,15 @@
 # Felix capability roadmap
 
+## Conversation search shortcut scope and plugin references
+
+Conversation find and application shortcuts share one scope predicate: handled,
+repeated, composing/IME and Alt-modified keys, modal dialogs and terminal targets
+do not trigger app navigation. Ctrl/Command+F also leaves Shift-modified shortcuts
+alone. Search includes plugin names and IDs alongside text, files, skills and
+tool records. Browser acceptance covers guards, plugin matches, cyclic navigation,
+streaming scroll retention and conversation reset; app shortcut regression and
+production build pass.
+
 ## Load scheduled tasks on demand
 
 The scheduled page and its stylesheet now load only when opened. A local Suspense

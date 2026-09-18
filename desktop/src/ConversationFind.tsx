@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { Message } from './domain';
 import './conversation-find.css';
+import { canHandleAppShortcut } from './shortcutScope';
 
 export function ConversationFind({ messages, view, searching, loadHistory, disabled, reset = 0 }: { messages: Message[]; view: RefObject<HTMLDivElement | null>; searching: RefObject<boolean>; loadHistory?: () => Promise<void>; disabled?: boolean; reset?: number }) {
   const [loading, setLoading] = useState(false);
@@ -19,7 +20,7 @@ export function ConversationFind({ messages, view, searching, loadHistory, disab
   const input = useRef<HTMLInputElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const term = query.trim().toLocaleLowerCase();
-  const matches = term ? messages.filter(message => [message.content, ...(message.attachments || []), ...(message.skills || []).map(skill => `${skill.name} ${skill.path}`), message.tool ? JSON.stringify(message.tool) : ''].join('\n').toLocaleLowerCase().includes(term)) : [];
+  const matches = term ? messages.filter(message => [message.content, ...(message.attachments || []), ...(message.skills || []).map(skill => `${skill.name} ${skill.path}`), ...(message.plugins || []).map(plugin => `${plugin.name} ${plugin.id}`), message.tool ? JSON.stringify(message.tool) : ''].join('\n').toLocaleLowerCase().includes(term)) : [];
   const index = Math.max(0, matches.findIndex(message => message.id === selected));
   const id = open ? matches[index]?.id : undefined;
   searching.current = open && Boolean(term);
@@ -27,6 +28,7 @@ export function ConversationFind({ messages, view, searching, loadHistory, disab
   const move = (direction: number) => { if (matches.length) setSelected(matches[(index + direction + matches.length) % matches.length].id); };
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
+      if (!canHandleAppShortcut(event) || event.shiftKey) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f' && !event.altKey) { event.preventDefault(); setOpen(true); input.current?.focus(); }
     };
     window.addEventListener('keydown', listener);

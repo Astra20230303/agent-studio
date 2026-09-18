@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
     const page = await browser.newPage();
     await page.addInitScript(() => {
       const messages = [
-        { id: 'user', role: 'user', content: 'Needle question', attachments: ['D:/attachment.txt'] },
+        { id: 'user', role: 'user', content: 'Needle question', attachments: ['D:/attachment.txt'], plugins: [{ id: 'plugin-example-id', name: 'Example extension' }] },
         { id: 'tool', role: 'assistant', content: '', tool: { kind: 'commandExecution', status: 'completed', command: 'test', output: 'needle output' } },
         { id: 'reply', role: 'assistant', content: 'NEEDLE answer' },
       ];
@@ -17,6 +17,15 @@ const assert = require('node:assert/strict');
     });
     await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
     await page.getByRole('button', { name: '会话内查找', exact: true }).waitFor();
+    await page.evaluate(() => {
+      for (const options of [{ isComposing: true }, { repeat: true }, { shiftKey: true }, { keyCode: 229 }]) window.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', ctrlKey: true, bubbles: true, cancelable: true, ...options }));
+      const handled = new KeyboardEvent('keydown', { key: 'f', ctrlKey: true, cancelable: true }); handled.preventDefault(); window.dispatchEvent(handled);
+      const terminal = document.createElement('div'); terminal.className = 'xterm'; document.body.append(terminal);
+      terminal.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', ctrlKey: true, bubbles: true })); terminal.remove();
+      const dialog = document.createElement('dialog'); document.body.append(dialog); dialog.showModal();
+      dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', ctrlKey: true, bubbles: true })); dialog.close(); dialog.remove();
+    });
+    assert.equal(await page.getByRole('searchbox', { name: '查找会话内容' }).count(), 0);
     await page.keyboard.press('Control+f');
     const input = page.getByRole('searchbox', { name: '查找会话内容' });
     await input.fill('needle');
@@ -51,6 +60,11 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('.conversation-find-match').getAttribute('data-message-id'), 'reply');
     await input.fill('attachment.txt');
     await page.getByRole('status').filter({ hasText: '1 / 1 条匹配记录' }).waitFor();
+    for (const query of ['Example extension', 'plugin-example-id']) {
+      await input.fill(query);
+      await page.getByRole('status').filter({ hasText: '1 / 1 条匹配记录' }).waitFor();
+      assert.equal(await page.locator('.conversation-find-match').getAttribute('data-message-id'), 'user');
+    }
     await input.fill('missing-value');
     await page.getByRole('status').filter({ hasText: '没有匹配记录' }).waitFor();
     assert.equal(await page.getByRole('button', { name: '下一个匹配', exact: true }).isDisabled(), true);
