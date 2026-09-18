@@ -5,6 +5,7 @@ import { formatTaskDate, localDateInput, localZone, nextRunLabel, scheduleLabel,
 import type { ScheduledTask, TaskDraft, TaskSchedule } from './scheduledTasks';
 import { useModelCatalog } from './ModelPicker';
 import { TaskRunActions } from './TaskRunActions';
+import './scheduled.css';
 
 function TaskModal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const dialog = useRef<HTMLDialogElement>(null);

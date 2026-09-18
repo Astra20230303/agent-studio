@@ -1,5 +1,15 @@
 # Felix capability roadmap
 
+## Load scheduled tasks on demand
+
+The scheduled page and its stylesheet now load only when opened. A local Suspense
+boundary preserves the app shell during loading; a failed resource load offers
+return to chat without resetting drafts. Production request interception verifies
+no scheduled JS/CSS on chat startup, delayed loading, explicit failure and draft
+retention. Task Provider/catalog/save regression passes. The production entry JS
+drops from about 521 kB to 492 kB; shared chunks and the deferred page still count
+toward total application size. Build passes without the previous chunk warning.
+
 ## Persist effective model changes
 
 The main process observes thread/settings/updated and saves the engine-confirmed
