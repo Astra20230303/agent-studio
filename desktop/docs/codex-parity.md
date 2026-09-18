@@ -2743,3 +2743,9 @@ user-message-copy-ui.cjs 覆盖原文保真、键盘操作、失败重试、空�
 实现 d5fa15c：useTurnInterrupt 按会话/回合锁定中断请求，等待期间停止按钮禁用并标记 busy。失败在对应会话回合显示持续提示，可再次点击停止重试；迟到错误不显示到另一会话或后续回合。请求确认不冒充回合完成，运行状态仍由协议事件更新。
 
 验收：turn-interrupt-ui 覆盖同 tick 重复点击、跨会话独立停止、迟到失败隔离、返回重试、完成事件隐藏按钮及下一回合使用新 turn ID；turn-queue-ui 与生产构建通过。本轮为模拟桥接故障注入，不代表所有真实工具进程中断语义已验证。
+
+## 真实流式回合中断与继续验收
+
+验证实现 55ff8e5：隔离 profile 启动真实 app-server，本地 HTTP 模型替身持续保持首个响应流；收到 agentMessage delta 后中断，断言 turn/completed 状态为 interrupted。随后同一会话启动新回合并正常完成，thread/turns/list 保留两个正确状态。
+
+提交后验收改用 Felix codexClient.interruptTurn 封装调用真实服务端，补充 thread/resume 验证中断状态与后续完整正文，均通过；turn-interrupt-ui 回归通过。此项只验证模型流中断、会话继续及历史恢复，未执行外部工具进程，因此不宣称所有子进程终止语义或云模型网络取消已验证。无产品修正，未重复构建。

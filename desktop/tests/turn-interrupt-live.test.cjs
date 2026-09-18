@@ -45,7 +45,11 @@ test('real app-server interrupts a streaming turn and continues the same convers
     const firstCompletion = waitFor(message => message.method === 'turn/completed' && message.params.threadId === thread.id);
     const first = await rpc.request('turn/start', { threadId: thread.id, input: [{ type: 'text', text: 'Stream until interrupted.' }] });
     await firstDelta;
-    await rpc.request('turn/interrupt', { threadId: thread.id, turnId: first.turn.id });
+    const source = fs.readFileSync(path.resolve(__dirname, '../src/codexClient.ts'), 'utf8');
+    const compiled = require('node:module').stripTypeScriptTypes(source).replace(/^import .*;\r?\n/gm, '').replace(/\bexport /g, '') + '\nObject.assign(exports, { interruptTurn });';
+    const client = {};
+    require('node:vm').runInNewContext(compiled, { exports: client, require: () => ({}), window: { codex: { request: async (method, params) => ({ ok: true, result: await rpc.request(method, params) }) } } });
+    await client.interruptTurn(thread.id, first.turn.id);
     const interrupted = await firstCompletion;
     assert.equal(interrupted.params.turn.id, first.turn.id);
     assert.equal(interrupted.params.turn.status, 'interrupted');
@@ -61,6 +65,9 @@ test('real app-server interrupts a streaming turn and continues the same convers
     const history = await rpc.request('thread/turns/list', { threadId: thread.id, limit: 100 });
     assert.equal(history.data.find(turn => turn.id === first.turn.id).status, 'interrupted');
     assert.equal(history.data.find(turn => turn.id === second.turn.id).status, 'completed');
+    const restored = await rpc.request('thread/resume', { threadId: thread.id });
+    assert.equal(restored.thread.turns.find(turn => turn.id === first.turn.id).status, 'interrupted');
+    assert.ok(restored.thread.turns.find(turn => turn.id === second.turn.id).items.some(item => item.type === 'agentMessage' && item.text.includes('Resumed successfully.')));
   } finally {
     clearTimeout(timer);
     const exited = child.exitCode === null ? once(child, 'exit').catch(() => {}) : Promise.resolve();
