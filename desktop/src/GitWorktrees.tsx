@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Project } from './domain';
-type Worktree = { primary?: boolean; current?: boolean; path: string; branch?: string; head?: string; detached?: boolean; bare?: boolean; locked?: string | boolean; prunable?: string | boolean };
+import { parseGitWorktrees, type WorktreeValue } from './gitWorktreesResponse';
+type Worktree = WorktreeValue;
 export function GitWorktrees({ root, protectedPaths = [], onOpen, onBusyChange }: { protectedPaths?: string[]; onBusyChange?: (busy: boolean) => void; root: string; onOpen: (project: Project) => void }) {
   const isProtected = (path: string) => {
     const normalize = (value: string) => { const result = value.replaceAll('\\', '/').replace(/\/+$/, ''); return /^[a-z]:\//i.test(result) || result.startsWith('//') ? result.toLowerCase() : result; };
@@ -26,7 +27,7 @@ export function GitWorktrees({ root, protectedPaths = [], onOpen, onBusyChange }
         const result = await window.desktop?.workspaceGit?.({ root, action: 'worktrees' });
         if (disposed) return;
         if (!result?.ok) throw Error(result?.error || '无法读取工作树');
-        setEntries(result.result.worktrees);
+        setEntries(parseGitWorktrees(result.result));
       } catch (error) { if (!disposed) setError(String(error instanceof Error ? error.message : error)); }
       finally { if (!disposed) setLoading(false); }
     })();
