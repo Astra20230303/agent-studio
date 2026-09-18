@@ -178,3 +178,4 @@
 @keyframes icon-tap { 0%, 100% { transform: rotate(0); } 30%, 65% { transform: rotate(-28deg); } 45%, 80% { transform: rotate(12deg); } }
 @keyframes icon-turn { to { transform: rotate(360deg); } }
 @keyframes icon-wiggle { 0%, 100% { transform: translateX(0); } 25%, 65% { transform: translateX(-2px) rotate(-8deg); } 45%, 80% { transform: translateX(2px) rotate(8deg); } }
+.composer[data-file-drag] { outline: 2px solid #238779; outline-offset: 2px; }

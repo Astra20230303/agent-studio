@@ -1,7 +1,8 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('desktop', {
   platform: process.platform,
+  droppedFilePaths: files => files.map(file => webUtils.getPathForFile(file)),
   customFrame: process.argv.includes('--felix-soft-frame'),
   conversationNotifications: input => ipcRenderer.invoke('desktop:conversation-notifications', input),
   onOpenConversation: listener => {
