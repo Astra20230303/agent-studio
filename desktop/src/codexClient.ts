@@ -14,6 +14,7 @@ import { readAccountLoginStart } from './accountAuth';
 import { readServerDiagnostics } from './serverDiagnostics';
 import { readFeedbackUpload, validateFeedbackInput, type FeedbackInput } from './feedback';
 import { readThreadSearchOccurrences, type ThreadSearchOccurrence } from './threadSearchOccurrences';
+import { readRemoteProjectPage, type RemoteProject } from './remoteProjects';
 export type RpcMessage = { id?: number | string; method?: string; params?: any; result?: any; error?: any };
 type Bridge = { connect: () => Promise<any>; request: (method: string, params?: unknown) => Promise<any>; notify: (method: string, params?: unknown) => Promise<any>; respond: (id: number | string, result?: unknown, error?: unknown) => Promise<any>; onNotification: (listener: (message: RpcMessage) => void) => () => void; onServerRequest: (listener: (message: RpcMessage) => void) => () => void; onError: (listener: (message: any) => void) => () => void; onStderr: (listener: (message: any) => void) => () => void; onClosed: (listener: (message: any) => void) => () => void };
 const bridge = () => window.codex as Bridge;
@@ -111,6 +112,16 @@ export async function searchThreadOccurrences(threadId: string, searchTerm: stri
     seen.add(result.nextCursor); cursor = result.nextCursor;
   }
   throw new Error('会话完整搜索页数过多，请缩小搜索范围');
+}
+export async function listRemoteProjects(): Promise<RemoteProject[]> {
+  const projects: RemoteProject[] = []; const seen = new Set<string>(); let cursor: string | undefined;
+  for (let page = 0; page < 100; page++) {
+    const result = readRemoteProjectPage(await unwrap<unknown>(bridge().request('project/list', { limit: 100, sortKey: 'recencyAt', sortDirection: 'desc', ...(cursor ? { cursor } : {}) })));
+    projects.push(...result.data); if (!result.nextCursor) return projects;
+    if (seen.has(result.nextCursor)) throw new Error('远端项目分页重复，请重试');
+    seen.add(result.nextCursor); cursor = result.nextCursor;
+  }
+  throw new Error('远端项目页数过多');
 }
 export async function startAccountLogin(kind: 'chatgpt' | 'chatgptDeviceCode' | 'apiKey', apiKey?: string) {
   const params = kind === 'apiKey' ? { type: 'apiKey', apiKey: apiKey || '' } : kind === 'chatgptDeviceCode' ? { type: 'chatgptDeviceCode' } : { type: 'chatgpt', codexStreamlinedLogin: true, useHostedLoginSuccessPage: false };
