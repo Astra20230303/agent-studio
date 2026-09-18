@@ -7,7 +7,7 @@ const { findCommand, ensureProjectConfig, compatibilityCatalog } = require('./co
 const { startMiniMaxAdapter } = require('./minimax-adapter.cjs');
 
 function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_KEY, upstream, provider, onThreadCreated, timeoutMs, dataRoot = require('./data-directory.cjs').dataDirectory(projectRoot), runtimeRoot = require('./runtime-directory.cjs').runtimeDirectory() } = {}) {
-  return async (task, { signal, runId, onResolved, onProgress }) => {
+  return async (task, { signal, runId, onResolved, onProgress, onConversation }) => {
     if (task.timeoutMinutes != null && (!Number.isInteger(task.timeoutMinutes) || task.timeoutMinutes < 1 || task.timeoutMinutes > 120)) throw new Error('执行时限须为 1 至 120 分钟的整数。');
     const runTimeoutMs = timeoutMs ?? (task.timeoutMinutes ?? 10) * 60 * 1000;
     const cwd = task.cwd || projectRoot;
@@ -81,6 +81,7 @@ function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_
         threadId = result.thread?.id;
         if (!threadId) throw new Error('Codex 未返回任务线程。');
         await onThreadCreated?.({ threadId, providerId: selected.id, model: task.model });
+        await onConversation?.(threadId);
         await rpc.request('turn/start', { threadId, ...(task.reasoningEffort ? { effort: task.reasoningEffort } : {}), input: [{ type: 'text', text: task.prompt }] });
         await completed;
         if (!output.trim()) throw new Error('任务结束但没有输出。');

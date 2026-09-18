@@ -61,7 +61,7 @@ test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local
       assert.deepEqual(scheduler.detail(saved.id).runs[0].environment,{cwd:workspace,providerId:'original'});
       router.save(threadId,providerId,'minimax',model);
     }, timeoutMs: 45000 });
-    const runner=(task,options)=>realRunner(task,{...options,onProgress:text=>{progress.push(text);options.onProgress(text);}});
+    const runner=(task,options)=>realRunner(task,{...options,onConversation:async threadId=>{assert.equal(requests,0);await options.onConversation(threadId);assert.equal(JSON.parse(fs.readFileSync(path.join(directory,'tasks.json'),'utf8')).tasks[0].runs[0].threadId,threadId);},onProgress:text=>{progress.push(text);options.onProgress(text);}});
     const directory = fs.mkdtempSync(path.join(root, '.project-cache/tmp/task-real-runner-'));
     let clock = Date.now();
     const scheduler = new TaskScheduler({ directory, runner, now: () => clock });

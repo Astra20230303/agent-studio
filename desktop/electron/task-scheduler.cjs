@@ -195,7 +195,10 @@ class TaskScheduler extends EventEmitter {
       if (!progressTimer) progressTimer = setTimeout(() => { progressTimer = undefined; this.emit('changed'); }, 250);
     };
     try {
-      result = task.kind === 'reminder' ? { output: task.prompt } : await this.runner(task, { signal, runId, onProgress, onResolved: resolved => {
+      result = task.kind === 'reminder' ? { output: task.prompt } : await this.runner(task, { signal, runId, onProgress, onConversation: threadId => {
+        if (typeof threadId !== 'string' || !threadId.trim()) throw new Error('任务会话 ID 无效。');
+        this.change(() => { this.get(task.id).runs.find(item => item.id === runId).threadId = threadId; });
+      }, onResolved: resolved => {
         if (!resolved || typeof resolved.cwd !== 'string' || !path.isAbsolute(resolved.cwd) || resolved.providerId != null && typeof resolved.providerId !== 'string') throw new Error('任务执行环境无效。');
         this.change(() => {
           const run = this.get(task.id).runs.find(item => item.id === runId);
@@ -208,7 +211,7 @@ class TaskScheduler extends EventEmitter {
       this.change(() => {
         const current = this.get(task.id);
         const run = current.runs.find(item => item.id === runId);
-        Object.assign(run, { status: signal.aborted ? 'interrupted' : error ? 'failed' : 'completed', finishedAt: new Date(this.now()).toISOString(), output: String(result.output || error?.output || run.output || '').slice(-200000), error: error ? String(error.message || error).slice(0, 4000) : signal.aborted ? '执行已停止。' : undefined, threadId: result.threadId || error?.threadId });
+        Object.assign(run, { status: signal.aborted ? 'interrupted' : error ? 'failed' : 'completed', finishedAt: new Date(this.now()).toISOString(), output: String(result.output || error?.output || run.output || '').slice(-200000), error: error ? String(error.message || error).slice(0, 4000) : signal.aborted ? '执行已停止。' : undefined, threadId: result.threadId || error?.threadId || run.threadId });
         if (current.schedule.kind === 'once' && (trigger === 'scheduled' || !error && !signal.aborted)) { current.status = 'completed'; current.nextRunAt = null; }
       });
       this.emit('finished', this.detail(task.id));

@@ -42,3 +42,14 @@ test('real checkpoint timer persists before completion and is cancelled at final
   await new Promise(resolve=>setTimeout(resolve,2200));assert.equal(writes,count);assert.equal(JSON.parse(fs.readFileSync(scheduler.file,'utf8')).tasks[0].runs[0].output,'Complete');
  }finally{finish?.({output:'cleanup'});if(pending)await pending;await scheduler.stop();fs.rmSync(directory,{recursive:true,force:true});}
 });
+
+test('conversation reference is durable before execution completes and survives interrupted recovery',async()=>{
+ const directory=fs.mkdtempSync(path.join(os.tmpdir(),'felix-live-conversation-'));const recovery=fs.mkdtempSync(path.join(os.tmpdir(),'felix-live-conversation-recovery-'));let finish;
+ const scheduler=new TaskScheduler({directory,runner:async(task,{onConversation})=>{onConversation('live-thread');return new Promise(resolve=>{finish=resolve;});}});let pending;
+ try{
+  const task=scheduler.save({name:'Conversation',prompt:'Test',kind:'agent',model:'test',permission:'read-only',notify:false,schedule:{kind:'interval',minutes:60}});
+  pending=scheduler.run(task.id);await Promise.resolve();assert.equal(scheduler.detail(task.id).runs[0].threadId,'live-thread');
+  fs.copyFileSync(scheduler.file,path.join(recovery,'tasks.json'));const restored=new TaskScheduler({directory:recovery});assert.equal(restored.detail(task.id).runs[0].status,'interrupted');assert.equal(restored.detail(task.id).runs[0].threadId,'live-thread');await restored.stop();
+  finish({output:'Final without ID'});await pending;assert.equal(scheduler.detail(task.id).runs[0].threadId,'live-thread');
+ }finally{finish?.({output:'cleanup'});if(pending)await pending;await scheduler.stop();fs.rmSync(directory,{recursive:true,force:true});fs.rmSync(recovery,{recursive:true,force:true});}
+});
