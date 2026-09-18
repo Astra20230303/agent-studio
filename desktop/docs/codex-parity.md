@@ -24,6 +24,13 @@ independent snapshots bounded to 64 MiB each, not a transaction across stores or
 a guarantee against disk failure/power loss. An interrupted unacknowledged write
 may lose the latest change; restored queues remain paused for review.
 
+Post-commit real Electron acceptance blocks the actual draft destination with a
+directory, verifies the save failure preserves editor text, then repairs the
+destination and retries successfully. Corrupting both primary and backup blocks
+the composer without changing either file; restoring the primary and using the
+startup retry opens the preserved conversation and draft. No additional product
+fix was needed for these acceptance cases.
+
 ## Switch an existing conversation's Provider
 
 Idle conversations can switch Provider without replacing their thread ID, local
