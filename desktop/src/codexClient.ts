@@ -16,6 +16,7 @@ import { readFeedbackUpload, validateFeedbackInput, type FeedbackInput } from '.
 import { readThreadSearchOccurrences, type ThreadSearchOccurrence } from './threadSearchOccurrences';
 import { createRemoteProjectParams, deleteRemoteProjectParams, moveRemoteProjectParams, readRemoteProject, readRemoteProjectPage, updateRemoteProjectParams, type RemoteProject } from './remoteProjects';
 import { updateThreadProjectParams } from './threadMetadata';
+import { readRemoteControlClients as readRemoteControlClientPage, readRemoteControlPairing, readRemoteControlStatus, remoteControlId, type RemoteControlClient, type RemoteControlPairing, type RemoteControlStatus } from './remoteControl';
 export type RpcMessage = { id?: number | string; method?: string; params?: any; result?: any; error?: any };
 type Bridge = { connect: () => Promise<any>; request: (method: string, params?: unknown) => Promise<any>; notify: (method: string, params?: unknown) => Promise<any>; respond: (id: number | string, result?: unknown, error?: unknown) => Promise<any>; onNotification: (listener: (message: RpcMessage) => void) => () => void; onServerRequest: (listener: (message: RpcMessage) => void) => () => void; onError: (listener: (message: any) => void) => () => void; onStderr: (listener: (message: any) => void) => () => void; onClosed: (listener: (message: any) => void) => () => void };
 const bridge = () => window.codex as Bridge;
@@ -135,6 +136,19 @@ export async function updateRemoteProject(project: { id: string }, name: string,
 export async function deleteRemoteProject(id: string) { await unwrap<any>(bridge().request('project/delete', deleteRemoteProjectParams(id))); }
 export async function moveRemoteProject(id: string, beforeId?: string) { await unwrap<any>(bridge().request('project/move', moveRemoteProjectParams(id, beforeId))); }
 export async function updateThreadProject(threadId: string, projectId: string | null) { return unwrap<any>(bridge().request('thread/metadata/update', updateThreadProjectParams(threadId, projectId))); }
+export async function readRemoteControlStatusInfo(): Promise<RemoteControlStatus> { return readRemoteControlStatus(await unwrap<unknown>(bridge().request('remoteControl/status/read', {}))); }
+export async function enableRemoteControl(ephemeral = false): Promise<RemoteControlStatus> { return readRemoteControlStatus(await unwrap<unknown>(bridge().request('remoteControl/enable', { ephemeral }))); }
+export async function disableRemoteControl(ephemeral = false): Promise<RemoteControlStatus> { return readRemoteControlStatus(await unwrap<unknown>(bridge().request('remoteControl/disable', { ephemeral }))); }
+export async function startRemoteControlPairing(manualCode = false): Promise<RemoteControlPairing> { return readRemoteControlPairing(await unwrap<unknown>(bridge().request('remoteControl/pairing/start', { manualCode }))); }
+export async function readRemoteControlClients(environmentId: string): Promise<RemoteControlClient[]> {
+  const data: RemoteControlClient[] = []; let cursor: string | undefined; const seen = new Set<string>();
+  for (let page = 0; page < 100; page++) {
+    const result = readRemoteControlClientPage(await unwrap<unknown>(bridge().request('remoteControl/client/list', { environmentId: remoteControlId(environmentId), limit: 100, order: 'desc', ...(cursor ? { cursor } : {}) })));
+    data.push(...result.data); if (!result.nextCursor) return data; if (seen.has(result.nextCursor)) throw new Error('远程控制设备分页重复，请重试'); seen.add(result.nextCursor); cursor = result.nextCursor;
+  }
+  throw new Error('远程控制设备页数过多');
+}
+export async function revokeRemoteControlClient(environmentId: string, clientId: string) { await unwrap<any>(bridge().request('remoteControl/client/revoke', { environmentId: remoteControlId(environmentId), clientId: remoteControlId(clientId, '远程控制设备身份') })); }
 export async function startAccountLogin(kind: 'chatgpt' | 'chatgptDeviceCode' | 'apiKey', apiKey?: string) {
   const params = kind === 'apiKey' ? { type: 'apiKey', apiKey: apiKey || '' } : kind === 'chatgptDeviceCode' ? { type: 'chatgptDeviceCode' } : { type: 'chatgpt', codexStreamlinedLogin: true, useHostedLoginSuccessPage: false };
   if (kind === 'apiKey' && !apiKey?.trim()) throw new Error('API Key 不能为空');
