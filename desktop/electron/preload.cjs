@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('desktop', {
   providerStatus: () => ipcRenderer.invoke('desktop:provider-status'),
   saveProvider: input => ipcRenderer.invoke('desktop:save-provider', input),
   listProviders: () => ipcRenderer.invoke('desktop:list-providers'),
+  threadProvider: threadId => ipcRenderer.invoke('desktop:thread-provider', threadId),
   activateProvider: id => ipcRenderer.invoke('desktop:activate-provider', id),
   deleteProvider: id => ipcRenderer.invoke('desktop:delete-provider', id),
   listModels: input => ipcRenderer.invoke('desktop:list-models', input),

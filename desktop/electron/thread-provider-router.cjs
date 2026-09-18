@@ -13,6 +13,7 @@ class ThreadProviderRouter {
     fs.renameSync(this.file + '.tmp', this.file);
     this.bindings = next;
   }
+  get(threadId) { return typeof threadId === 'string' ? this.bindings[threadId] : undefined; }
   async request(rpc, method, params = {}) {
     if (!['thread/start', 'thread/resume', 'thread/fork', 'turn/start'].includes(method)) return rpc.request(method, params);
     const stored = Object.hasOwn(this.bindings, params.threadId) ? this.bindings[params.threadId] : params.providerId;

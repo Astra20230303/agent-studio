@@ -163,6 +163,7 @@ ipcMain.handle('desktop:save-provider', (_event, input) => {
   catch (error) { return { ok: false, error: error.message }; }
 });
 ipcMain.handle('desktop:list-providers', () => listProviders());
+ipcMain.handle('desktop:thread-provider', (_event, threadId) => threadProviders.get(threadId));
 ipcMain.handle('desktop:delete-provider', (_event, id) => {
   try { require('./provider-config.cjs').deleteProvider(id); return { ok: true }; }
   catch (error) { return { ok: false, error: error.message }; }
