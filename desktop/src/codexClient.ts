@@ -103,6 +103,7 @@ export async function cancelAccountLogin(loginId: string) { if (!/^\S+$/.test(lo
 export async function logoutAccount() { await unwrap<any>(bridge().request('account/logout', undefined)); }
 export async function listThreadSections() { return readThreadSections(await unwrap<any>(bridge().request('threadSection/list', { limit: 100 }))); }
 export async function createThreadSection(name: string) { if (!name.trim()) throw new Error('分组名称不能为空'); return readThreadSection(await unwrap<any>(bridge().request('threadSection/create', { name: name.trim() }))); }
+export async function updateThreadSection(sectionId: string, name: string) { if (!/^\S+$/.test(sectionId) || !name.trim()) throw new Error('分组更新参数无效'); return readThreadSection(await unwrap<any>(bridge().request('threadSection/update', { sectionId, name: name.trim() }))); }
 export async function deleteThreadSection(sectionId: string) { if (!/^\S+$/.test(sectionId)) throw new Error('分组身份无效'); await unwrap<any>(bridge().request('threadSection/delete', { sectionId })); }
 export async function moveThreadSection(threadId: string, sectionId: string | null) { if (!/^\S+$/.test(threadId) || sectionId != null && !/^\S+$/.test(sectionId)) throw new Error('分组移动参数无效'); await unwrap<any>(bridge().request('thread/section/move', { threadId, sectionId })); }
 export async function archiveThread(threadId: string) { return unwrap<any>(bridge().request('thread/archive', { threadId })); }
