@@ -1,5 +1,15 @@
 # Felix capability roadmap
 
+## Load file preview code on demand
+
+The file preview, text search and image controls now load only when a file is
+opened. Main JS decreases from 499.98 to 494.88 kB; preview JS (6.19 kB) and image
+CSS form deferred resources. Loading/failure uses a closable native modal with
+opener-focus restoration. Import failures explicitly require reopening the app:
+browser module failure caching makes a same-URL retry unreliable. Production HTTP
+acceptance verifies no startup preview requests, deferred JS/CSS, failure closure,
+reload recovery and draft retention. Attachment workflow and build pass.
+
 ## Inspect images at original size and zoom
 
 Image file previews provide fit-to-window, original size and incremental zoom

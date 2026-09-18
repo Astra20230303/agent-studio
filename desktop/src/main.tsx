@@ -4,7 +4,7 @@ import { pasteImage } from './pasteImage';
 import { CommandPalette } from './CommandPalette';
 import { useAppShortcuts } from './useAppShortcuts';
 import { usePluginDraft } from './usePluginDraft';
-import { ArtifactPreview } from './ArtifactPreview';
+import { LazyArtifactPreview as ArtifactPreview } from './LazyArtifactPreview';
 import { ArtifactWorkspaceContext, ArtifactOpenContext, type ArtifactTarget } from './Artifacts';
 import { UserInputDialog } from './UserInputDialog';
 import { useTurnRuntime } from './useTurnRuntime';
