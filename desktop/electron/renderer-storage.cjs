@@ -112,10 +112,16 @@ class RendererStorage {
   }
   async importLegacy(entries) {
     this.read();
-    for (const key of KEYS) {
-      if (this.values[key] !== null || entries?.[key] == null) continue;
-      if (key === QUEUE_KEY) this.writeQueue(entries[key]);
-      else await this.write(key, entries[key]);
+    const candidates = KEYS.filter(key => this.values[key] === null && entries?.[key] != null).map(key => [key, entries[key]]);
+    // Validate the complete import before persisting any of its records.
+    for (const [key, value] of candidates) {
+      try { validate(key, value); }
+      catch (error) { throw Error(`无法迁移 ${key}，旧数据已保留：${error.message}`); }
+    }
+    for (const [key, value] of candidates) {
+      if (this.values[key] !== null) continue;
+      if (key === QUEUE_KEY) this.writeQueue(value);
+      else await this.write(key, value);
     }
     return this.read();
   }

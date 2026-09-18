@@ -1,5 +1,14 @@
 # Felix capability roadmap
 
+## Validate legacy migration before writes
+
+Legacy import validates all missing native records before writing any candidate.
+A malformed late record reports its storage key and leaves earlier candidates
+unwritten, so repairing the source and retrying imports the intended snapshot.
+Existing native records take priority even if their obsolete browser copies are
+corrupt. Eight storage tests pass. This prevents validation-driven partial imports;
+disk failure during writes still uses the existing per-record retry behavior.
+
 ## Keyboard model selection
 
 Model search now exposes a combobox/listbox with one active result driving

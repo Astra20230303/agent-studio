@@ -6,6 +6,26 @@ const os = require('node:os');
 const { RendererStorage, KEYS, QUEUE_KEY } = require('../electron/renderer-storage.cjs');
 const key = 'felix-thread-drafts-v1';
 const value = text => JSON.stringify({ new: text });
+
+test('invalid late legacy record leaves earlier records unwritten and retry imports repaired data', async t => {
+  const { root, store } = fixture(t);
+  const entries = { [key]: value('preserved draft'), [QUEUE_KEY]: '[null]' };
+  await assert.rejects(store.importLegacy(entries), /无法迁移 felix-turn-queue-v1/);
+  assert.equal(store.read().values[key], null);
+  assert.deepEqual(fs.readdirSync(root), []);
+  assert.equal(entries[key], value('preserved draft'));
+  entries[QUEUE_KEY] = '[]';
+  await store.importLegacy(entries);
+  assert.equal(new RendererStorage(root).read().values[key], value('preserved draft'));
+});
+
+test('invalid obsolete browser record cannot block an existing native record', async t => {
+  const { store } = fixture(t);
+  await store.write(key, value('native'));
+  await store.importLegacy({ [key]: 'broken', [QUEUE_KEY]: '[]' });
+  assert.equal(store.read().values[key], value('native'));
+  assert.equal(store.read().values[QUEUE_KEY], '[]');
+});
 function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'felix-storage-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
