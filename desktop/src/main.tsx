@@ -72,6 +72,7 @@ import { FeedbackPanel } from './FeedbackPanel';
 import { RemoteProjectsPanel } from './RemoteProjectsPanel';
 import { RemoteControlPanel } from './RemoteControlPanel';
 import { ThreadTimelinePanel } from './ThreadTimelinePanel';
+import { readThreadProjectUpdated } from './threadMetadata';
 import { ServerWarnings, useServerWarnings } from './ServerWarnings';
 import { moveQueuedTurn } from './turnQueue';
 import { AttachmentPreviewButton, MessageAttachment } from './MessageAttachment';
@@ -317,6 +318,10 @@ function App({ initialState }: { initialState: DesktopState }) {
         }
         if (message.method === 'thread/settings/updated') {
           update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) thread.effectivePermissions = readThreadPermissions(params.threadSettings); });
+        }
+        if (message.method === 'thread/project/updated') {
+          const project = readThreadProjectUpdated(params);
+          if (project) update(next => { const thread = next.threads.find(item => item.remoteId === project.threadId); if (thread) { if (project.projectId) thread.projectId = project.projectId; else delete thread.projectId; } });
         }
         if (message.method === 'thread/tokenUsage/updated') {
           const usage = readContextTokens(params.tokenUsage);
