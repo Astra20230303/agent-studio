@@ -1,5 +1,14 @@
 # Felix capability roadmap
 
+## Block duplicate writes from copy controls
+
+Shared CopyText controls now lock synchronously while a clipboard write is
+pending, expose busy status and re-enable after success or failure. Changing
+source content invalidates old feedback but retains the pending lock until the
+underlying write settles. Browser mocked-clipboard acceptance covers same-tick
+duplicate clicks, source replacement, stale completion and failure/retry; build
+passes. The lock is per control, not a global clipboard transaction.
+
 ## Expand workspace files into the shared preview
 
 The workspace file panel opens the same deferred preview as conversation files,
