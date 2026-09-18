@@ -12,11 +12,11 @@ const assert = require('node:assert/strict');
       const listeners = new Set();
       window.desktop = {
         listProviders: async () => [{ id: 'a', name: 'Alpha', enabled: true, keyConfigured: true }, { id: 'b', name: 'Beta', enabled: false, keyConfigured: true }],
-        threadProvider: async id => id === 'remote-a' ? 'b' : undefined,
+        threadProvider: async () => new Promise(resolve => { (window.__bindingReads ||= []).push(resolve); }),
         providerStatus: async () => ({ keyConfigured: true }), listModels: async () => ({ ok: true, models: ['model-a'] }),
       };
       window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async (method, params) => {
-        if (method === 'thread/resume') return { ok: true, result: { model: 'model-a', thread: { id: params.threadId, turns: [] } } };
+        if (method === 'thread/resume') return { ok: true, result: { providerId: 'b', model: 'model-a', thread: { id: params.threadId, turns: [] } } };
         return { ok: true, result: { data: [] } };
       }, onNotification: fn => { listeners.add(fn); return () => listeners.delete(fn); }, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {}, onServerRequest: () => () => {} };
     });
@@ -25,6 +25,9 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(() => document.querySelector('[aria-label="会话渠道"]')?.value === 'b');
     assert.equal(await select.inputValue(), 'b');
     assert.equal(await select.isDisabled(), true);
+    await page.evaluate(() => { for (const resolve of window.__bindingReads || []) resolve('a'); });
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads[0].providerId === 'b');
+    assert.equal(await select.inputValue(), 'b');
     console.log('PASS: reopened thread restores provider binding and locks the selector');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

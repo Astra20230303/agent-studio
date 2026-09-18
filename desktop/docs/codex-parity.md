@@ -1,5 +1,19 @@
 # Felix capability roadmap
 
+## Authoritative thread Provider restoration
+
+Thread start, resume and fork now return the Provider ID after its binding has
+been persisted by the main process. The renderer uses this response for new,
+restored and forked conversations. This closes the legacy-thread race where an
+independent binding read completed before resume established the binding. Late
+compatibility reads cannot overwrite an already resolved Provider.
+
+Acceptance: the real app-server routing fixture checks returned Provider IDs for
+all three lifecycle operations alongside actual endpoint/credential isolation.
+The browser restores Beta from resume while holding a binding read, then releases
+an outdated Alpha result and verifies Beta remains selected and persisted.
+Production build passes with the existing bundle-size warning.
+
 ## Scheduled task model catalogs
 
 Task editors now query models independently for their selected Provider instead
