@@ -49,7 +49,7 @@ export function GitHistory({ root }: { root: string }) {
     {error && <div role="alert"><p>{error}</p><button onClick={() => setRetry(value => value + 1)}>重试读取提交</button></div>}
     {selected ? <><button onClick={() => setSelected('')}>返回提交列表</button><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{detail}</pre></> : !loading && !error && <>
       {commits.length === 0 && <p>{search ? '没有匹配的提交。' : '暂无提交。'}</p>}
-      {commits.map(commit => <div key={commit.id}><button onClick={() => setSelected(commit.id)}>{commit.id.slice(0, 8)} · {commit.subject}</button><p>{commit.author} · {commit.date}</p></div>)}
+      {commits.map(commit => <div key={commit.id}><button onClick={() => { setPage(current => ({ ...current, anchor: anchor.current })); setSelected(commit.id); }}>{commit.id.slice(0, 8)} · {commit.subject}</button><p>{commit.author} · {commit.date}</p></div>)}
       <button disabled={page.offset === 0} onClick={() => setPage({ anchor: anchor.current, offset: page.offset - 30 })}>较新提交</button>
       <button disabled={!hasMore} onClick={() => setPage({ anchor: anchor.current, offset: page.offset + 30 })}>更早提交</button>
     </>}
