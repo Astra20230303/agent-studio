@@ -5,4 +5,6 @@ test('thread sections validate identities and duplicates', () => {
   assert.deepEqual(readThreadSections({ data: [{ id: 'a', name: 'Work' }] }), [{ id: 'a', name: 'Work' }]);
   assert.deepEqual(readThreadSection({ section: { id: 'a', name: 'Work' } }), { id: 'a', name: 'Work' });
   for (const value of [null, {}, { data: [{ id: 'a', name: 'x' }, { id: 'a', name: 'y' }] }, { section: { id: '', name: 'x' } }]) assert.throws(() => value?.section ? readThreadSection(value) : readThreadSections(value));
+  assert.deepEqual(readThreadSection({ section: { id: 'b', name: 'Ops', appearance: { icon: '⚙', color: '#2f80ed' } } }).appearance, { icon: '⚙', color: '#2f80ed' });
+  assert.throws(() => readThreadSection({ section: { id: 'b', name: 'Ops', appearance: { color: 'blue' } } }), /外观无效/);
 });
