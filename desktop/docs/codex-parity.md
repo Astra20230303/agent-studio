@@ -8,6 +8,10 @@ Ctrl/Command+Shift+P remains the command palette. The shared shortcut scope bloc
 dialogs, terminal targets, repeats and IME composition; settings document the new
 binding. Browser shortcut/isolation acceptance and production build pass.
 
+Post-commit Windows Electron acceptance confirms native Ctrl+P focuses the search
+without opening print UI and preserves a typed query on repeated use. Preview,
+download and restart regression passes. Native macOS Command+P remains untested.
+
 ## Open a search result's containing folder
 
 Selected workspace files provide an open-containing-folder action. It clears the

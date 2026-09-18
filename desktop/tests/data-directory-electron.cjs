@@ -25,6 +25,16 @@ const path = require('node:path');
     assert.equal(await app.evaluate(({ app }) => app.getPath('userData')), path.join(dataRoot, 'electron-user-data'));
     await page.waitForFunction(() => window.desktop?.saveTask);
     await page.locator('.composer').waitFor();
+    await page.keyboard.press('Control+p');
+    const fileSearch = page.getByRole('textbox', { name: '查找工作区文件', exact: true });
+    await fileSearch.waitFor();
+    await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === '查找工作区文件');
+    await fileSearch.fill('native query');
+    await page.getByRole('textbox', { name: '消息', exact: true }).focus();
+    await page.keyboard.press('Control+p');
+    assert.equal(await fileSearch.inputValue(), 'native query');
+    await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === '查找工作区文件');
+    await page.getByRole('button', { name: '关闭文件面板', exact: true }).click();
     const brokenJpeg = path.join(scratch, 'broken.jpg'); fs.writeFileSync(brokenJpeg, 'not a JPEG');
     for (const method of ['turn/start', 'turn/steer']) {
       const rejected = await page.evaluate(({ method, file }) => window.codex.request(method, { threadId: 'invalid-thread', input: [{ type: 'localImage', path: file }] }), { method, file: brokenJpeg });
