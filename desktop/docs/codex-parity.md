@@ -1,5 +1,14 @@
 # Felix capability roadmap
 
+## Stable command palette selection
+
+Command selection follows command ID rather than list position, so live thread
+reordering cannot silently change the Enter target. Highlight, active descendant,
+scrolling and execution derive from the same selected result. Removed selections
+fall back to the first result; query changes reset selection. Home/End select the
+first/last result and arrow keys still wrap. Browser component acceptance covers
+reorder/removal/filtering and execution; app command regression and build pass.
+
 ## Conversation search shortcut scope and plugin references
 
 Conversation find and application shortcuts share one scope predicate: handled,
