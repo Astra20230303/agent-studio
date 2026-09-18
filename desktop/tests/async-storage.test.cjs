@@ -30,13 +30,41 @@ test('all writes reach the native owner immediately and late acknowledgements ca
   calls[1].finish(true); await last;
   assert.equal(disk.a, 'last');
 });
-test('failed write rejects its caller but queued latest write can recover', async () => {
+test('failed write rejects its caller but a later write can recover', async () => {
   const { store, calls, disk } = fixture(); await store.initialize();
   const failure = assert.rejects(store.setItem('a', 'failed'), /保存失败/);
   const next = store.setItem('a', 'recovered');
   await tick(); calls[0].finish(false); await failure; await tick();
   calls[1].finish(true); await next;
   assert.equal(disk.a, 'recovered');
+});
+test('independent instances cannot leak snapshots and failed initialization can retry', async () => {
+  const first = fixture(); const second = fixture();
+  first.bridge.read = async () => ({ ok: false, error: 'offline' });
+  await assert.rejects(first.store.initialize(), /offline/);
+  assert.throws(() => first.store.getItem('a'), /尚未加载/);
+  first.bridge.read = async () => ({ ok: true, values: { a: 'first' }, recovered: ['a'] });
+  assert.deepEqual(await first.store.initialize(), ['a']);
+  await second.store.initialize();
+  assert.equal(first.store.getItem('a'), 'first');
+  assert.equal(second.store.getItem('a'), 'old');
+});
+test('legacy migration only imports absent native keys, while browser fallback preserves failures', async () => {
+  const legacy = new Map([['a', 'obsolete'], ['b', 'migrated']]);
+  const backend = { getItem: key => legacy.get(key) ?? null, setItem: (key, value) => legacy.set(key, value) };
+  const bridge = {
+    read: async () => ({ ok: true, values: { a: 'native', b: null } }),
+    importLegacy: async values => { assert.deepEqual(values, { b: 'migrated' }); return { ok: true, values: { a: 'native', ...values } }; },
+  };
+  const native = createAsyncStorage(() => bridge, () => backend);
+  await native.initialize();
+  assert.equal(native.getItem('a'), 'native'); assert.equal(native.getItem('b'), 'migrated');
+  const browser = createAsyncStorage(() => undefined, () => backend);
+  await browser.initialize(); await browser.setItem('a', 'updated');
+  assert.equal(browser.getItem('a'), 'updated');
+  backend.setItem = () => { throw Error('quota'); };
+  await assert.rejects(browser.setItem('a', 'failed'), /quota/);
+  assert.equal(browser.getItem('a'), 'updated');
 });
 test('initialization and queue acknowledgement guard reads and writes', async () => {
   const { store, bridge } = fixture();

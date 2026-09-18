@@ -2669,3 +2669,11 @@ user-message-copy-ui.cjs 覆盖原文保真、键盘操作、失败重试、空�
 实现 8378546：查找输入框在 composition 会话、isComposing 或 keyCode 229 时不处理 Enter/Escape，避免确认候选词导致结果跳转或关闭。失焦、关闭和会话重置会清除组合输入状态。
 
 验收：conversation-find-ui.cjs 先复现 keyCode 229 确认触发错误跳转，修复后通过；提交后补充失焦及关闭重开恢复普通 Enter 操作。首次失焦夹具遗漏聚焦，补正为真实聚焦→组合输入→失焦顺序后通过。conversation-history-find-ui.cjs、app-shortcuts-ui.cjs 与生产构建通过。覆盖浏览器合成输入法事件，尚未代表全部原生输入法实机验收；构建仍有既有大包提示。
+
+## 独立存储适配器：第一阶段
+
+实现 1ead359：createAsyncStorage 注入原生桥接和浏览器存储，每个实例独立持有快照；persistentStorage 仅负责连接运行环境。读取返回最新本地意图，异步写入完成才确认持久化，失败向调用者传播。写入立即发送给主进程，由既有主进程顺序写入和退出 flush 负责落盘；队列保留同步确认接口，普通异步接口拒绝队列写入。初始化复制响应快照，避免后端对象变更隐式修改缓存。
+
+验收：5 项 async-storage 单测验证并发确认、失败恢复、实例隔离、初始化重试、迁移优先级、浏览器配额失败及队列保护；9 项原生存储单测通过。state-storage、draft-storage、queue-storage 浏览器回归通过，生产构建通过（既有大包提示）。renderer-storage-electron 在临时安装目录与独立 profile 中验证真实迁移、清空浏览器存储后读取、原生保存重试、备份恢复和损坏数据启动保护，全部通过。
+
+这是底层适配器抽离，尚未完成领域级 ThreadStore、项目与自动化接口的统一；不代表签名安装包和全部平台发布验收。
