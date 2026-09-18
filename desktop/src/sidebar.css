@@ -256,6 +256,9 @@
 
 @media (max-width: 760px) {
   .desktop-body aside.sidebar { flex-basis: 280px; width: 280px; }
+  .desktop-titlebar { gap: 4px; padding: 0 4px; }
+  .titlebar-navigation, .desktop-titlebar nav { gap: 0; }
+  .desktop-titlebar .titlebar-icon { width: 24px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

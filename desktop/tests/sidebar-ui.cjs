@@ -35,8 +35,8 @@ async function main() {
         theme: 'light', model: 'test-model', activeThreadId: 'thread-0', activeProjectId: 'project',
         projects: [{ id: 'project', name: 'my-agent-plantform', environment: 'local', git: { isRepository: true, branch: 'main' } }], automations: [],
         threads: Array.from({ length: 48 }, (_, index) => ({
-          id: `thread-${index}`, title: titles[index] || `工作区检查 ${index + 1}`, pinned: index === 2,
-          archived: false, status: 'completed', updatedAt: new Date().toISOString(),
+          id: `thread-${index}`, title: titles[index] || `工作区检查 ${index + 1}`, pinned: false,
+          archived: false, status: 'completed', updatedAt: new Date(1600000000000 - index * 1000).toISOString(),
           messages: [{ id: `message-${index}`, role: 'assistant', content: '检查完成。', createdAt: new Date().toISOString() }],
         })).reverse(),
       }));
@@ -78,7 +78,7 @@ async function main() {
     assert.equal(await modeTrigger.innerText(), '工作');
     assert.equal(await page.locator('#sidebar-projects').isVisible(), true);
     assert.equal(await page.locator('.sidebar-project').isVisible(), true);
-    assert.deepEqual(await page.locator('.sidebar-nav').allTextContents(), ['新对话', '已安排', '插件']);
+    assert.deepEqual(await page.locator('.sidebar-nav').allTextContents(), ['新对话', '已安排', '插件', '设置']);
     assert.equal(await rows.count(), 48);
     await page.screenshot({ path: path.join(artifacts, 'work-sidebar.png') });
     await page.reload();
@@ -177,7 +177,7 @@ async function main() {
     assert.equal(await selected.innerText(), '优化聊天排版与会话列表');
     await forward.click();
     assert.equal(await page.getByRole('button', { name: '已安排', exact: true }).getAttribute('aria-current'), 'page');
-    await page.getByRole('button', { name: '新对话', exact: true }).click();
+    await page.locator('.sidebar-nav').filter({ hasText: /^新对话$/ }).click();
     assert.equal(await selected.innerText(), '新对话');
     assert.equal(await page.locator('.sidebar-nav[aria-current="page"]').count(), 0);
     assert.equal(await page.locator('.global-thread-toolbar').count(), 0, 'Empty chats do not need a thread toolbar');
@@ -224,7 +224,8 @@ async function main() {
     await page.locator('.suggestion-icon.review').hover();
     assert.equal(await page.locator('.suggestion-icon.review').evaluate(element => getComputedStyle(element).animationName), 'none');
     await page.mouse.move(0, 0);
-    await rows.first().click();
+    await page.locator('.sidebar-nav').filter({ hasText: /^新对话$/ }).click();
+    await page.locator('.welcome').waitFor();
     for (const viewport of [{ width: 1280, height: 820 }, { width: 960, height: 640 }, { width: 600, height: 720 }]) {
       await page.setViewportSize(viewport);
       const layout = await page.evaluate(() => {
@@ -305,14 +306,15 @@ async function main() {
     await page.waitForFunction(() => window.__requests.some(request => request.method === 'thread/name/set'));
     assert.equal(await page.evaluate(() => window.__requests.filter(request => request.method === 'turn/start').length), turnsBeforeEnter + 1, 'Enter sends exactly one turn');
     assert.equal(await page.evaluate(() => window.__requests.find(request => request.method === 'thread/name/set').params.name), firstPrompt);
-    page.once('dialog', dialog => dialog.accept('新对话'));
     await page.getByRole('button', { name: '重命名', exact: true }).click();
+    await page.getByRole('dialog', { name: '重命名会话' }).getByRole('textbox').fill('新对话');
+    await page.getByRole('dialog', { name: '重命名会话' }).getByRole('button', { name: '保存名称', exact: true }).click();
     await page.waitForFunction(() => document.querySelector('.recent[aria-current="page"]')?.getAttribute('aria-label') === '新对话');
     await messageInput.fill('继续检查');
     await page.getByRole('button', { name: '发送', exact: true }).click();
-    assert.equal(await selected.innerText(), '新对话', 'An explicitly renamed placeholder is not automatically replaced');
+    assert.equal(await selected.getAttribute('aria-label'), '新对话', 'An explicitly renamed placeholder is not automatically replaced');
     await page.reload();
-    assert.equal(await selected.innerText(), '新对话');
+    assert.equal(await selected.getAttribute('aria-label'), '新对话');
     await modeTrigger.click();
     await page.getByRole('menuitemradio', { name: '工作', exact: true }).click();
     await page.locator('.sidebar-nav').filter({ hasText: '新对话' }).click();
@@ -334,7 +336,7 @@ async function main() {
           const footer = document.querySelector('.composer-footer');
           return { ordered: heading.bottom < composer.top && Math.abs(composer.bottom - strip.top) < 1, contained: strip.bottom <= main.bottom && heading.top >= main.top, fits: footer.scrollWidth <= footer.clientWidth && document.documentElement.scrollWidth <= innerWidth };
         });
-        assert.deepEqual(geometry, { ordered: true, contained: true, fits: true });
+        assert.deepEqual(geometry, { ordered: true, contained: true, fits: true }, `${theme} ${viewport.width}`);
         await page.screenshot({ path: path.join(artifacts, `work-new-chat-${theme}-${viewport.width}.png`) });
       }
     }
