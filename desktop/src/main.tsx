@@ -1,5 +1,4 @@
-import { applyAssistantMessage } from './assistantMessages';
-import { acceptTurnNotification } from './turnNotifications';
+import { createThreadEvents } from './threadEvents';
 import { modelCatalogIds } from './modelCatalog';
 import { removeRecentProject } from './recentProjects';
 import { projectRepository } from './projectRepository';
@@ -53,7 +52,6 @@ import { GitPanel } from './GitPanel';
 import { ApprovalPrompt } from './ApprovalPrompt';
 import { LazyMcpForm as McpForm } from './LazyMcpForm';
 import { McpUrl } from './McpUrl';
-import { readPlan, readPlanMessage } from './planning';
 import { createConnectionRecovery } from './connectionRecovery';
 import './connection.css';
 import { turnCommands } from './turnService';
@@ -71,10 +69,10 @@ import { appendMessage, automaticThreadTitle, createThread, ensureThreadTitle } 
 import { useDesktopState } from './useDesktopState';
 import { StorageGate } from './StorageGate';
 import type { DesktopState, Project } from './domain';
-import { failureMessage, recordTurnFailure } from './turnFailure';
+import { failureMessage } from './turnFailure';
 import { EffortPicker } from './EffortPicker';
 import { ModelPicker, useModelCatalog } from './ModelPicker';
-import { applyToolEvent, finishTools, restoreMessages } from './toolActivity';
+import { restoreMessages } from './toolActivity';
 import { ToolActivityGroup, groupMessages } from './ToolActivityView';
 import { MessageActions } from './ReplyActions';
 import { branchSnapshot, fullBranchSnapshot, isFinalReply } from './messageActions';
@@ -248,10 +246,11 @@ function App({ initialState }: { initialState: DesktopState }) {
       connected: () => { if (window.desktop?.platform === 'win32') void checkWindowsSandbox(); },
     });
     reconnectRef.current = recovery.start; stopRecoveryRef.current = recovery.stop;
+    const threadEvents = createThreadEvents({ update, runtime, queue, audit });
     const cleanup = subscribeCodex({
       notification: message => {
         const params = message.params || {};
-        if (!acceptTurnNotification(message.method, params, runtime.read)) return;
+        if (threadEvents(message)) return;
         if (message.method === 'warning' && typeof params.message === 'string' && params.message.trim()) {
           if (typeof params.threadId === 'string' && params.threadId) {
             const warningId = crypto.randomUUID();
@@ -275,68 +274,7 @@ function App({ initialState }: { initialState: DesktopState }) {
         if (message.method === 'serverRequest/resolved') {
           setApprovals(pending => pending.filter(item => item.id !== params.requestId));
         }
-        if (message.method === 'turn/plan/updated') {
-          const plan = readPlan(params);
-          const current = runtime.read(params.threadId);
-          if (current?.turnId && current.turnId !== params.turnId || current?.completed.includes(params.turnId)) return;
-          if (plan) update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) thread.plan = plan; });
-        }
-        if (message.method === 'item/completed' && params.item?.type === 'plan') {
-          const planMessage = readPlanMessage(params);
-          const current = runtime.read(params.threadId);
-          if (!planMessage || current?.turnId && current.turnId !== planMessage.turnId) return;
-          update(next => {
-            const thread = next.threads.find(item => item.remoteId === params.threadId);
-            if (!thread) return;
-            const saved = thread.messages.find(item => item.id === planMessage.id);
-            if (saved) { if (saved.role === 'assistant' && (!saved.turnId || saved.turnId === planMessage.turnId)) Object.assign(saved, planMessage); }
-            else thread.messages.push({ ...planMessage, role: 'assistant', createdAt: new Date().toISOString() });
-          });
-        }
-        if (message.method === 'turn/started' && params.threadId && params.turn?.id) {
-          audit.record('回合开始', params.threadId);
-          runtime.apply(params.threadId, { type: 'start', turnId: params.turn.id });
-          update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) { thread.status = 'running'; if (thread.plan?.turnId !== params.turn.id) thread.plan = undefined; } });
-        }
-        if (message.method === 'item/agentMessage/delta' || message.method === 'item/completed' && params.item?.type === 'agentMessage') {
-          if (message.method === 'item/agentMessage/delta') runtime.apply(params.threadId, { type: 'activity', turnId: params.turnId });
-          update(next => {
-            const thread = next.threads.find(item => item.remoteId === params.threadId);
-            if (thread) applyAssistantMessage(thread, message.method!, params);
-          });
-        }
-        if (message.method && ['item/started', 'item/completed', 'item/commandExecution/outputDelta', 'item/fileChange/outputDelta', 'item/fileChange/patchUpdated', 'item/reasoning/summaryTextDelta', 'item/reasoning/summaryPartAdded'].includes(message.method)) {
-          update(next => {
-            const thread = next.threads.find(item => item.remoteId === params.threadId);
-            if (thread) applyToolEvent(thread, message.method!, params);
-          });
-        }
-        if (message.method === 'error') {
-          if (params.willRetry) runtime.apply(params.threadId, { type: 'activity', turnId: params.turnId, activity: '服务暂时不可用，正在重试…' });
-          else update(next => {
-            const thread = next.threads.find(item => item.remoteId === params.threadId);
-            if (thread) {
-              recordTurnFailure(thread, params.turnId, params.error);
-              const currentTurn = runtime.read(params.threadId)?.turnId;
-              if (currentTurn && currentTurn !== params.turnId) thread.status = 'running';
-            }
-          });
-        }
-        if (message.method === 'turn/completed') {
-          if (typeof params.threadId === 'string') audit.record('回合结束', params.threadId);
-          queue.finish(params.threadId, params.turn?.id, params.turn?.status === 'completed');
-          if (params.threadId && params.turn?.id) runtime.apply(params.threadId, { type: 'finish', turnId: params.turn.id, status: params.turn.status });
-          update(next => {
-            const thread = next.threads.find(item => item.remoteId === params.threadId);
-            if (!thread) return;
-            finishTools(thread, params.turn?.id, params.turn?.status === 'failed');
-            if (params.turn?.error || params.turn?.status === 'failed') {
-              recordTurnFailure(thread, params.turn?.id, params.turn?.error);
-              if (runtime.read(params.threadId)?.turnId) thread.status = 'running';
-            }
-            else thread.status = runtime.read(params.threadId)?.turnId ? 'running' : 'completed';
-          });
-        }
+
       },
       serverRequest: message => setApprovals(pending => pending.some(item => item.id === message.id) ? pending : [...pending, message]),
       error: error => { setCodexStatus('error'); setNotice(`Codex 通信错误：${error?.message || '未知错误'}`); },
