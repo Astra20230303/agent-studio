@@ -6,7 +6,7 @@ function fixture() {
   const state = { threads: ['a', 'b'].map(id => ({ id, remoteId: id, status: 'completed', messages: [] })) };
   const records = new Map(); const finishes = []; const audits = [];
   const handle = createThreadEvents({ update: fn => fn(state), runtime: { read: id => records.get(id), apply: (id, event) => records.set(id, reduceTurn(records.get(id), event)) }, queue: { finish: (...args) => finishes.push(args) }, audit: { record: (...args) => audits.push(args) } });
-  return { state, records, finishes, audits, handle, emit: (method, params) => handle({ method, params }) };
+  return { state, records, finishes, audits, handle, emit: (method, params, eventId) => handle({ method, params, eventId }) };
 }
 test('complete event chain coordinates transcript, runtime, queue and audit across concurrent threads', () => {
   const f = fixture();
@@ -63,4 +63,13 @@ test('older completion and stale plan cannot replace an active turn or its trans
   assert.equal(f.state.threads[0].messages.length, 1);
   assert.equal(f.state.threads[0].messages[0].content, 'Old failure');
   assert.deepEqual(f.finishes, [['a', 'old', false]]);
+});
+test('transport event identity is forwarded to assistant delta deduplication', () => {
+  const f = fixture();
+  f.emit('turn/started', { threadId: 'a', turn: { id: 'turn' } });
+  const params = { threadId: 'a', turnId: 'turn', itemId: 'answer', delta: 'same' };
+  f.emit('item/agentMessage/delta', params, 'transport-1');
+  f.emit('item/agentMessage/delta', params, 'transport-1');
+  assert.equal(f.state.threads[0].messages[0].content, 'same');
+  assert.deepEqual(f.state.threads[0].messages[0].streamDeltaIds, ['transport-1']);
 });

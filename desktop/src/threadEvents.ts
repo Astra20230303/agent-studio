@@ -15,7 +15,7 @@ export function createThreadEvents({ update, runtime, queue, audit }: {
   audit: { record: (action: string, detail?: string) => void };
 }) {
   // One event boundary coordinates transcript, runtime, queue and audit effects.
-  return (message: { method?: string; params?: any }): boolean => {
+  return (message: { method?: string; params?: any; eventId?: string }): boolean => {
     if (!methods.has(message.method || '')) return false;
     const params = message.params || {};
     if (!acceptTurnNotification(message.method, params, runtime.read)) return true;
@@ -46,7 +46,7 @@ export function createThreadEvents({ update, runtime, queue, audit }: {
       if (message.method === 'item/agentMessage/delta') runtime.apply(params.threadId, { type: 'activity', turnId: params.turnId });
       update(next => {
         const thread = next.threads.find(item => item.remoteId === params.threadId);
-        if (thread) applyAssistantMessage(thread, message.method!, params);
+        if (thread) applyAssistantMessage(thread, message.method!, message.eventId && !params.eventId ? { ...params, eventId: message.eventId } : params);
       });
     }
     if (message.method && ['item/started', 'item/completed', 'item/commandExecution/outputDelta', 'item/fileChange/outputDelta', 'item/fileChange/patchUpdated', 'item/reasoning/summaryTextDelta', 'item/reasoning/summaryPartAdded'].includes(message.method)) {

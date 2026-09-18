@@ -4,6 +4,8 @@ export type AutomationStatus = 'active' | 'paused' | 'failed';
 
 export interface Message {
   streamCompleted?: boolean;
+  /** Explicit server/transport delta identities already applied to this reply. */
+  streamDeltaIds?: string[];
   plugins?: { id: string; name: string }[];
   attachments?: string[];
   skills?: { name: string; path: string }[];
