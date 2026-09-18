@@ -20,3 +20,18 @@ test('content search returns literal matches with lines, skips binary/large/git,
   assert.equal(capped.entries.length,200);assert.equal(capped.truncated,true);
  }finally{await fs.rm(root,{recursive:true,force:true});}
 });
+
+test('content options preserve literal matching and Unicode word boundaries and columns', async () => {
+ const root = await fs.mkdtemp(path.join(os.tmpdir(), 'felix-search-options-'));
+ try {
+  await fs.writeFile(path.join(root, 'words.txt'), 'Needle\nneedle\nneedles needle\n_needle\nneedle2\néneedle\nneedle\u0301\nİ needle\n[a.b]\naXb\n中文\n中文词');
+  const search = async (query, options) => (await workspaceFile(root, '.', 'search-content', query, undefined, options)).entries.map(x => [x.line, x.column]);
+  assert.deepEqual(await search('needle', {caseSensitive:true}), [[2,1],[3,1],[4,2],[5,1],[6,2],[7,1],[8,3]]);
+  assert.deepEqual(await search('needle', {wholeWord:true}), [[1,1],[2,1],[3,9],[8,3]]);
+  assert.deepEqual(await search('Needle', {wholeWord:true,caseSensitive:true}), [[1,1]]);
+  assert.deepEqual(await search('[a.b]', {wholeWord:true}), [[9,1]]);
+  assert.deepEqual(await search('中文', {wholeWord:true}), [[11,1]]);
+  assert.deepEqual(await search('absent', {wholeWord:true}), []);
+  await assert.rejects(workspaceFile(root, '.', 'search-content', 'needle', undefined, {caseSensitive:'false'}), /无效搜索选项/);
+ } finally { await fs.rm(root, {recursive:true,force:true}); }
+});
