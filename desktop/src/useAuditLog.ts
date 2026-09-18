@@ -6,7 +6,7 @@ const KEY = 'felix-audit-log-v1';
 const MAX = 200;
 function readEntries(): { entries: AuditEntry[]; error: string; needsRedaction?: boolean } {
   try {
-    const value = JSON.parse(persistentStorage.getItem(KEY) || '[]');
+    const value = JSON.parse(persistentStorage.getItem(KEY) ?? '[]');
     if (!Array.isArray(value) || !value.every(item => typeof item?.id === 'string' && typeof item?.at === 'string' && typeof item?.action === 'string' && (item.detail === undefined || typeof item.detail === 'string'))) throw Error('操作记录格式无效');
     const needsRedaction = value.some(item => item.action === '切换项目' && item.detail !== undefined);
     const entries = value.slice(0, MAX).map((item: AuditEntry) => {
@@ -21,6 +21,8 @@ export function useAuditLog() {
   const [loaded] = useState(readEntries);
   const [entries, setEntries] = useState(loaded.entries);
   const [error, setError] = useState(loaded.error);
+  const [readFailed, setReadFailed] = useState(!!loaded.error);
+  const unread = useRef(!!loaded.error);
   const current = useRef(entries);
   const write = useRef(Promise.resolve());
   const revision = useRef(0);
@@ -36,12 +38,21 @@ export function useAuditLog() {
     if (loaded.needsRedaction) persist(current.current);
   }, [loaded, persist]);
   const record = useCallback((action: string, detail?: string) => {
-    if (loaded.error) return;
+    if (unread.current) return;
     // Native project IDs are absolute paths, not opaque identifiers.
     if (action === '切换项目') detail = undefined;
     const next = [{ id: crypto.randomUUID(), at: new Date().toISOString(), action, ...(detail ? { detail: detail.slice(0, 300) } : {}) }, ...current.current].slice(0, MAX);
     current.current = next; setEntries(next); persist(next);
-  }, [persist, loaded.error]);
-  const clear = useCallback(() => { if (loaded.error) return; current.current = []; setEntries([]); persist([]); }, [persist, loaded.error]);
-  return { entries, error, record, clear, retry: () => { if (!loaded.error) persist(current.current); }, readFailed: !!loaded.error };
+  }, [persist]);
+  const clear = useCallback(() => { if (unread.current) return; current.current = []; setEntries([]); persist([]); }, [persist]);
+  const retry = () => {
+    if (!unread.current) { persist(current.current); return; }
+    const restored = readEntries();
+    setError(restored.error);
+    if (restored.error) return;
+    current.current = restored.entries; setEntries(restored.entries);
+    unread.current = false; setReadFailed(false);
+    if (restored.needsRedaction) persist(restored.entries);
+  };
+  return { entries, error, record, clear, retry, readFailed };
 }
