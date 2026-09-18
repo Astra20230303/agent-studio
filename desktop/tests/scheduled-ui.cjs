@@ -12,7 +12,7 @@ async function main() {
   const artifacts = path.join(root, '.project-cache/ui-checks');
   fs.mkdirSync(artifacts, { recursive: true });
   const directory = fs.mkdtempSync(path.join(root, '.project-cache/tmp/tasks-ui-'));
-  let clock = Date.now(), failList = false, failDetail = false, browser;
+  let clock = Date.now(), failList = false, failDetail = false, badList = false, badDetail = false, browser;
   const runner = async (task, { signal }) => {
     if (task.prompt === 'FAIL') throw new Error('TEST_MODEL_FAILURE');
     if (task.prompt === 'WAIT') await new Promise((resolve, reject) => {
@@ -36,8 +36,8 @@ async function main() {
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     await page.exposeFunction('taskOperation', async (operation, args) => {
       try {
-        if (operation === 'listTasks') { if (failList) throw new Error('TEST_LIST_FAILURE'); return { ok: true, tasks: scheduler.list() }; }
-        if (operation === 'taskDetail') { if (failDetail) throw new Error('TEST_DETAIL_FAILURE'); return { ok: true, task: scheduler.detail(args[0]) }; }
+        if (operation === 'listTasks') { if (failList) throw new Error('TEST_LIST_FAILURE'); return { ok: true, tasks: badList ? [...scheduler.list(), {id:'broken',runs:null}] : scheduler.list() }; }
+        if (operation === 'taskDetail') { if (failDetail) throw new Error('TEST_DETAIL_FAILURE'); return { ok: true, task: badDetail ? {...scheduler.detail(args[0]), id:'wrong-task'} : scheduler.detail(args[0]) }; }
         if (operation === 'saveTask') return { ok: true, task: scheduler.save(args[0]) };
         if (operation === 'setTaskStatus') scheduler.setStatus(...args);
         if (operation === 'deleteTask') scheduler.remove(args[0]);
@@ -145,10 +145,20 @@ async function main() {
     assert.equal(scheduler.detail(sample.id).runs.length, 3, 'Results survive service restart');
     failList = true; await changed(); await page.getByRole('alert').getByText('TEST_LIST_FAILURE').waitFor();
     failList = false; await page.getByRole('button', { name: '重试', exact: true }).click(); await page.getByRole('alert').waitFor({ state: 'detached' });
+    badList = true; await changed();
+    await page.getByRole('alert').getByText('任务列表格式无效，请重试。').waitFor();
+    await page.getByRole('button', { name: '查看任务 每日工作区检查' }).waitFor();
+    badList = false; await page.getByRole('button', { name: '重试', exact: true }).click();
+    await page.getByRole('alert').waitFor({state:'detached'});
     failDetail = true; await page.getByRole('button', { name: '查看任务 每日工作区检查' }).click();
     await page.getByRole('dialog').getByRole('alert').getByText('TEST_DETAIL_FAILURE').waitFor();
     failDetail = false; await page.getByRole('dialog').getByRole('button', { name: '重试', exact: true }).click();
     await page.getByRole('dialog').getByText('运行记录', { exact: true }).waitFor();
+    badDetail = true; await changed();
+    await page.getByRole('dialog').getByRole('alert').getByText('任务详情格式无效，请重试。').waitFor();
+    await page.getByRole('dialog').getByText('运行记录', {exact:true}).waitFor();
+    badDetail = false; await page.getByRole('dialog').getByRole('button', {name:'重试',exact:true}).click();
+    await page.getByRole('dialog').getByRole('alert').waitFor({state:'detached'});
     await page.keyboard.press('Escape');
     await page.evaluate(() => window.__taskChanged?.({ error: 'TEST_SERVICE_FAILURE' }));
     await page.getByRole('alert').getByText('TEST_SERVICE_FAILURE').waitFor();
