@@ -1,5 +1,19 @@
 # Felix capability roadmap
 
+## Persist effective model changes
+
+The main process observes thread/settings/updated and saves the engine-confirmed
+model to the existing Provider binding. Previously only lifecycle operations
+updated this record, so selecting another model for a later turn could revert on
+cold resume. Unknown threads, mismatched Providers, malformed models and updates
+during migration are ignored. Disk failures preserve the effective in-memory
+model and emit a thread warning without misreporting an accepted turn as failed.
+A later confirmation or lifecycle save retries persistence.
+
+Real Codex acceptance changes the model after Provider migration, verifies the
+HTTP model request, restarts the process and verifies the next request retains
+that model. Nine notification/failure/migration tests and production build pass.
+
 ## WebP and GIF attachment preflight
 
 WebP/GIF attachments now decode first-frame pixels in the image worker using

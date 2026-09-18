@@ -39,7 +39,8 @@ test('real threads retain their provider through global switches, resume and for
     await connect();
     let router = new ThreadProviderRouter(path.join(home, 'bindings.json'), read, url);
     const start = () => router.request(rpc, 'thread/start', { cwd: home, model: 'MiniMax-M2.1', sandbox: 'read-only', approvalPolicy: 'never' });
-    const turn = async threadId => {
+    rpc.on('notification', message => { const warning = router.observe(message); assert.equal(warning, undefined); });
+    const turn = async (threadId, model) => {
       const done = new Promise((resolve, reject) => {
         const listener = message => {
           if (message.method === 'turn/completed' && message.params.threadId === threadId) {
@@ -48,7 +49,7 @@ test('real threads retain their provider through global switches, resume and for
           }
         }; rpc.on('notification', listener);
       });
-      await router.request(rpc, 'turn/start', { threadId, input: [{ type: 'text', text: 'Reply briefly' }] }); await done;
+      await router.request(rpc, 'turn/start', { threadId, ...(model ? { model } : {}), input: [{ type: 'text', text: 'Reply briefly' }] }); await done;
     };
     const createdA = await start();
     assert.equal(createdA.providerId, 'a');
@@ -81,27 +82,30 @@ test('real threads retain their provider through global switches, resume and for
     const migratedFork = await router.request(rpc, 'thread/fork', { threadId: a });
     await turn(migratedFork.thread.id);
     assert.equal(received.at(-1).id, 'b');
+    await turn(a, 'beta-second-model');
+    assert.equal(received.at(-1).body.model, 'beta-second-model');
+    assert.equal(new ThreadProviderRouter(path.join(home, 'bindings.json'), read, url).bindings[a].model, 'beta-second-model');
     const exited = once(rpc.child, 'exit');
     rpc.close(); await exited;
     await connect();
     router = new ThreadProviderRouter(path.join(home, 'bindings.json'), read, url);
     const cold = await router.request(rpc, 'thread/resume', { threadId: a });
     assert.equal(cold.modelProvider, 'felix_b');
-    assert.equal(cold.model, 'beta-model');
+    assert.equal(cold.model, 'beta-second-model');
     assert.equal(cold.thread.id, a);
     assert.deepEqual(cold.sandbox, createdA.sandbox);
     await turn(a);
     assert.equal(received.at(-1).id, 'b');
     assert.equal(received.at(-1).key, 'Bearer b-key');
     assert.match(JSON.stringify(received.at(-1).body.messages), /Reply from a/);
-    assert.equal(received.at(-1).body.model, 'beta-model');
+    assert.equal(received.at(-1).body.model, 'beta-second-model');
     await router.request(rpc, 'felix/thread/provider', { threadId: a, providerId: 'a' });
     delete providers.b;
     await turn(a);
     assert.equal(received.at(-1).id, 'a', 'A bound thread remains usable when the active B provider is unavailable');
     delete providers.a;
     await assert.rejects(turn(a), /Provider missing/);
-    assert.equal(received.length, 8);
+    assert.equal(received.length, 9);
   } finally {
     rpc?.close();
     for (const server of [adapter, ...servers].filter(Boolean)) { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }

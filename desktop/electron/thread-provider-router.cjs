@@ -18,6 +18,19 @@ class ThreadProviderRouter {
   }
   get(threadId) { const binding = typeof threadId === 'string' && Object.hasOwn(this.bindings, threadId) ? this.bindings[threadId] : undefined; return typeof binding === 'string' ? binding : binding?.providerId; }
   engine(threadId) { return this.bindings[threadId]?.modelProvider || 'minimax'; }
+  observe(message) {
+    if (message?.method !== 'thread/settings/updated') return;
+    const { threadId, threadSettings } = message.params || {};
+    const providerId = this.get(threadId);
+    if (!providerId || this.migrating.has(threadId) || typeof threadSettings?.model !== 'string' || !threadSettings.model.trim() || threadSettings.modelProvider !== this.engine(threadId)) return;
+    const engine = this.engine(threadId);
+    try { this.save(threadId, providerId, engine, threadSettings.model); }
+    catch (error) {
+      // The engine has already applied these settings; preserve them in memory.
+      this.bindings = { ...this.bindings, [threadId]: { providerId, modelProvider: engine, model: threadSettings.model } };
+      return { method: 'warning', params: { threadId, message: `会话模型已生效，但未能保存恢复设置：${error.message}。重启后可能恢复旧模型。` } };
+    }
+  }
   provider(id) {
     const provider = this.readProvider(id);
     if (!/^[A-Za-z0-9_-]+$/.test(provider.id)) throw Error('Invalid Provider ID');
