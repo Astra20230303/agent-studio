@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Project } from './domain';
 type Worktree = { primary?: boolean; current?: boolean; path: string; branch?: string; head?: string; detached?: boolean; bare?: boolean; locked?: string | boolean; prunable?: string | boolean };
-export function GitWorktrees({ root, onOpen, onBusyChange }: { onBusyChange?: (busy: boolean) => void; root: string; onOpen: (project: Project) => void }) {
+export function GitWorktrees({ root, protectedPaths = [], onOpen, onBusyChange }: { protectedPaths?: string[]; onBusyChange?: (busy: boolean) => void; root: string; onOpen: (project: Project) => void }) {
+  const isProtected = (path: string) => {
+    const normalize = (value: string) => { const result = value.replaceAll('\\', '/').replace(/\/+$/, ''); return /^[a-z]:\//i.test(result) || result.startsWith('//') ? result.toLowerCase() : result; };
+    const target = normalize(path);
+    return protectedPaths.some(value => { const workspace = normalize(value); return workspace === target || workspace.startsWith(target + '/'); });
+  };
   const [entries, setEntries] = useState<Worktree[]>([]);
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -29,6 +34,7 @@ export function GitWorktrees({ root, onOpen, onBusyChange }: { onBusyChange?: (b
   }, [root, revision]);
   const open = async (path: string, remove = false) => {
     if (lock.current) return;
+    if (remove && isProtected(path)) { setError('工作树仍有会话活动或待发送消息，请先完成或取消。'); return; }
     lock.current = true; setBusy(true); setError('');
     const requestGeneration = generation.current;
     try {
@@ -42,11 +48,11 @@ export function GitWorktrees({ root, onOpen, onBusyChange }: { onBusyChange?: (b
   };
   return <section aria-label="已有工作树"><h3>已有工作树</h3><button disabled={loading || busy} onClick={() => setRevision(value => value + 1)}>刷新工作树</button>
     {notice && <p role="status">{notice}</p>}
-    {removing && <div role="alert"><p>删除工作树目录 {removing.path}？分支和提交记录将保留。</p><button disabled={busy} onClick={() => void open(removing.path, true)}>确认删除工作树</button><button disabled={busy} onClick={() => setRemoving(undefined)}>取消删除工作树</button></div>}
+    {removing && <div role="alert"><p>删除工作树目录 {removing.path}？分支和提交记录将保留。</p><button disabled={busy || isProtected(removing.path)} onClick={() => void open(removing.path, true)}>确认删除工作树</button><button disabled={busy} onClick={() => setRemoving(undefined)}>取消删除工作树</button></div>}
     {error && <p role="alert">{error}</p>}{loading ? <p>正在读取工作树…</p> : entries.map(entry => <div key={entry.path}>
-      <p>{entry.path}</p><p>{entry.bare ? '裸仓库' : entry.branch || `游离 HEAD · ${entry.head?.slice(0, 8) || ''}`}{entry.primary ? ' · 主工作树' : ''}{entry.current ? ' · 当前工作树' : ''}{entry.locked !== undefined ? ' · 已锁定' : ''}{entry.prunable ? ' · 已失效' : ''}</p>
+      <p>{entry.path}</p><p>{entry.bare ? '裸仓库' : entry.branch || `游离 HEAD · ${entry.head?.slice(0, 8) || ''}`}{entry.primary ? ' · 主工作树' : ''}{entry.current ? ' · 当前工作树' : ''}{entry.locked !== undefined ? ' · 已锁定' : ''}{entry.prunable ? ' · 已失效' : ''}{isProtected(entry.path) ? ' · 会话使用中' : ''}</p>
       <button disabled={busy || entry.bare || !!entry.prunable} onClick={() => void open(entry.path)} aria-label={`在工作树开始会话 ${entry.path}`}>在此开始会话</button>
-      <button disabled={busy || entry.primary || entry.current || entry.bare || !!entry.prunable || entry.locked !== undefined || entry.path.replaceAll('\\', '/').toLowerCase() === root.replaceAll('\\', '/').toLowerCase()} onClick={() => { setRemoving(entry); setError(''); setNotice(''); }} aria-label={`删除工作树 ${entry.path}`}>删除工作树</button>
+      <button disabled={busy || isProtected(entry.path) || entry.primary || entry.current || entry.bare || !!entry.prunable || entry.locked !== undefined || entry.path.replaceAll('\\', '/').toLowerCase() === root.replaceAll('\\', '/').toLowerCase()} onClick={() => { setRemoving(entry); setError(''); setNotice(''); }} aria-label={`删除工作树 ${entry.path}`}>删除工作树</button>
     </div>)}
   </section>;
 }

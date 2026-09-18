@@ -5,7 +5,10 @@ const assert = require('node:assert/strict');
   try {
     const page = await browser.newPage();
     await page.addInitScript(() => {
-      localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeProjectId: 'p', projects: [{ id: 'p', path: 'D:/repo' }], threads: [] }));
+      localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeProjectId: 'p', projects: [{ id: 'p', path: 'D:/repo' }], threads: [{ id: 'child-local', remoteId: 'child-remote', cwd: 'd:\\child\\src', title: 'Background', status: 'completed', messages: [], updatedAt: new Date().toISOString() }] }));
+      const listeners = new Set();
+      window.__emit = message => listeners.forEach(listener => listener(message));
+      window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async () => ({ ok: true, result: { data: [] } }), onNotification: listener => { listeners.add(listener); return () => listeners.delete(listener); }, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {}, onServerRequest: () => () => {} };
       window.__calls = []; window.__allow = false;
       window.desktop = { workspaceGit: async input => {
         window.__calls.push(input);
@@ -18,6 +21,12 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: '查看 Git 变更', exact: true }).click();
     await page.getByRole('button', { name: '浏览工作树', exact: true }).click();
     await page.getByRole('button', { name: '删除工作树 D:/child', exact: true }).click();
+    await page.evaluate(() => window.__emit({ method: 'turn/started', params: { threadId: 'child-remote', turn: { id: 'busy-turn', status: 'inProgress' } } }));
+    await page.getByText(/会话使用中/).waitFor();
+    assert.ok(await page.getByRole('button', { name: '确认删除工作树', exact: true }).isDisabled());
+    assert.ok(await page.getByRole('button', { name: '删除工作树 D:/child', exact: true }).isDisabled());
+    assert.equal(await page.evaluate(() => window.__calls.filter(c => c.action === 'remove-worktree').length), 0);
+    await page.evaluate(() => window.__emit({ method: 'turn/completed', params: { threadId: 'child-remote', turn: { id: 'busy-turn', status: 'completed' } } }));
     await page.getByRole('button', { name: '取消删除工作树', exact: true }).click();
     assert.equal(await page.evaluate(() => window.__calls.filter(c => c.action === 'remove-worktree').length), 0);
     await page.getByRole('button', { name: '删除工作树 D:/child', exact: true }).click();
