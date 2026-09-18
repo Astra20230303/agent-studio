@@ -15,7 +15,7 @@ import { readServerDiagnostics } from './serverDiagnostics';
 import { readFeedbackUpload, validateFeedbackInput, type FeedbackInput } from './feedback';
 import { readThreadSearchOccurrences, type ThreadSearchOccurrence } from './threadSearchOccurrences';
 import { createRemoteProjectParams, deleteRemoteProjectParams, moveRemoteProjectParams, readRemoteProject, readRemoteProjectPage, updateRemoteProjectParams, type RemoteProject } from './remoteProjects';
-import { updateThreadProjectParams } from './threadMetadata';
+import { updateThreadGitParams, updateThreadProjectParams } from './threadMetadata';
 import { readRemoteControlClients as readRemoteControlClientPage, readRemoteControlPairing, readRemoteControlStatus, remoteControlId, type RemoteControlClient, type RemoteControlPairing, type RemoteControlStatus } from './remoteControl';
 export type RpcMessage = { id?: number | string; method?: string; params?: any; result?: any; error?: any };
 type Bridge = { connect: () => Promise<any>; request: (method: string, params?: unknown) => Promise<any>; notify: (method: string, params?: unknown) => Promise<any>; respond: (id: number | string, result?: unknown, error?: unknown) => Promise<any>; onNotification: (listener: (message: RpcMessage) => void) => () => void; onServerRequest: (listener: (message: RpcMessage) => void) => () => void; onError: (listener: (message: any) => void) => () => void; onStderr: (listener: (message: any) => void) => () => void; onClosed: (listener: (message: any) => void) => () => void };
@@ -136,6 +136,7 @@ export async function updateRemoteProject(project: { id: string }, name: string,
 export async function deleteRemoteProject(id: string) { await unwrap<any>(bridge().request('project/delete', deleteRemoteProjectParams(id))); }
 export async function moveRemoteProject(id: string, beforeId?: string) { await unwrap<any>(bridge().request('project/move', moveRemoteProjectParams(id, beforeId))); }
 export async function updateThreadProject(threadId: string, projectId: string | null) { return unwrap<any>(bridge().request('thread/metadata/update', updateThreadProjectParams(threadId, projectId))); }
+export async function updateThreadGitInfo(threadId: string, gitInfo: { sha?: string | null; branch?: string | null; originUrl?: string | null }) { return unwrap<any>(bridge().request('thread/metadata/update', updateThreadGitParams(threadId, gitInfo))); }
 export async function readRemoteControlStatusInfo(): Promise<RemoteControlStatus> { return readRemoteControlStatus(await unwrap<unknown>(bridge().request('remoteControl/status/read', {}))); }
 export async function enableRemoteControl(ephemeral = false): Promise<RemoteControlStatus> { return readRemoteControlStatus(await unwrap<unknown>(bridge().request('remoteControl/enable', { ephemeral }))); }
 export async function disableRemoteControl(ephemeral = false): Promise<RemoteControlStatus> { return readRemoteControlStatus(await unwrap<unknown>(bridge().request('remoteControl/disable', { ephemeral }))); }
