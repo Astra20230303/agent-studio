@@ -39,6 +39,24 @@ const assert = require('node:assert/strict');
   await page.waitForFunction(() => window.__loads.length === 3);
   await page.evaluate(() => window.__loads[2].resolve());
   await host.getByText('历史已加载，可查找消息和工具记录', { exact: true }).waitFor();
-  console.log('PASS: reset cancels old history request, ignores stale progress/completion, preserves new lock and canceled outcome');
+  await load.click();
+  await page.waitForFunction(() => window.__loads.length === 4);
+  await page.evaluate(() => window.__renderFind(2));
+  await page.waitForFunction(() => window.__loads[3].options.signal.aborted);
+  await open.click(); await load.click();
+  await page.waitForFunction(() => window.__loads.length === 5);
+  await page.evaluate(() => {
+   window.__loads[4].options.onProgress({ pages: 1, items: 10 });
+   window.__loads[3].reject(Error('stale failure'));
+  });
+  await host.getByText('已读取 1 页，10 条记录', { exact: true }).waitFor();
+  assert.equal(await host.getByRole('button', { name: '正在加载历史…', exact: true }).isDisabled(), true);
+  await page.evaluate(() => window.__loads[4].reject(Error('current failure')));
+  await host.getByText('加载失败：current failure', { exact: true }).waitFor();
+  await load.click();
+  await page.waitForFunction(() => window.__loads.length === 6);
+  await page.evaluate(() => window.__loads[5].resolve());
+  await host.getByText('历史已加载，可查找消息和工具记录', { exact: true }).waitFor();
+  console.log('PASS: stale progress/success/failure isolation, cancellation, current failure and successful retry');
  } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
