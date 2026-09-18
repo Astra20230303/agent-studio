@@ -1,5 +1,21 @@
 # Felix capability roadmap
 
+## Paste clipboard screenshots
+
+PNG clipboard images are validated and saved with unique names under the Felix
+data directory, then added to the originating attachment draft. Normal text paste
+is left to the editor. PNG decoding, CRC, byte and pixel limits use the shared
+preflight validator. Save errors remain visible without adding a broken path.
+
+Build, storage/validator tests and real Electron acceptance pass IPC byte transfer,
+actual PNG files, attachment display and restart persistence. Browser acceptance
+holds a save across conversation navigation and verifies source-draft ownership;
+failed saves add nothing and text paste is not intercepted. Post-commit review
+preserves an existing file if exclusive creation ever reports a name collision.
+Clipboard images currently require PNG; other formats use the attachment picker.
+Saved images are retained for history/draft references; automatic cleanup of
+unreferenced attachment files is not implemented.
+
 ## Drag files into the composer
 
 The composer accepts dropped local files through Electron webUtils.getPathForFile,

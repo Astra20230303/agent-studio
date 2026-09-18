@@ -11,7 +11,7 @@ async function savePastedImage(dataRoot, bytes) {
   await fs.mkdir(directory, { recursive: true });
   const filename = path.join(directory, `clipboard-${randomUUID()}.png`);
   try { await fs.writeFile(filename, data, { flag: 'wx', mode: 0o600 }); }
-  catch (error) { await fs.unlink(filename).catch(() => {}); throw error; }
+  catch (error) { if (error.code !== 'EEXIST') await fs.unlink(filename).catch(() => {}); throw error; }
   return filename;
 }
 
