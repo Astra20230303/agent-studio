@@ -1,5 +1,15 @@
 # Felix capability roadmap
 
+## Inspect images at original size and zoom
+
+Image file previews provide fit-to-window, original size and incremental zoom
+controls, dimensions and scale status. Fit mode limits both width and height;
+explicit scales use a keyboard-focusable scrolling viewport. Zoom starts from
+the actual fitted display size and is bounded at 10–800 percent (fit may be
+smaller). New image payloads reset dimensions, errors and scale. Browser tests
+cover rendered dimensions, scrolling, mode changes and payload reset; real-file
+attachment/error recovery regression and production build pass.
+
 ## Find text in read-only file previews
 
 File previews support Ctrl/Command+F, literal search, case sensitivity, match

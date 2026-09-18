@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ArtifactTarget } from './Artifacts';
 import type { FileEditSession } from './WorkspaceFiles';
 import { PreviewText, type PreviewTextHandle } from './PreviewText';
+import { PreviewImage } from './PreviewImage';
 export function ArtifactPreview({ target, onClose, onEdit }: { target: ArtifactTarget; onClose: () => void; onEdit: (session: FileEditSession) => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const textPreview = useRef<PreviewTextHandle>(null);
@@ -36,7 +37,7 @@ export function ArtifactPreview({ target, onClose, onEdit }: { target: ArtifactT
   }} onCancel={event => { event.preventDefault(); onClose(); }}>
     <h2>{target.path}{target.line ? `:${target.line}` : ''}</h2><p>工作区：{target.root}</p>
     {error && <p role="alert">{error}</p>}{!preview && !error && <p>正在读取…</p>}
-    {preview?.binary && <p>二进制文件无法预览文本。</p>}{preview?.image && <img src={preview.image} alt={target.path} onError={() => setError('图片无法解码，文件可能已损坏。请修复文件后刷新预览。')} style={{ maxWidth: '100%' }} />}
+    {preview?.binary && <p>二进制文件无法预览文本。</p>}{preview?.image && <PreviewImage source={preview.image} name={target.path} />}
     {typeof preview?.text === 'string' && <PreviewText ref={textPreview} text={preview.text} lineNumber={target.line} truncated={preview.truncated} />}
     {preview?.truncated && <p role="status">仅预览前 {preview.previewBytes ?? 256 * 1024} 字节，文件共 {preview.size} 字节。末尾不完整的字符已省略，不能编辑截断内容。</p>}
     {preview?.encodingInvalid && <p role="status">文件包含无法按 UTF-8 解码的字符，预览使用替代字符，不能编辑。</p>}
