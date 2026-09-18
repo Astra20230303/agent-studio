@@ -12,7 +12,7 @@ const { chromium } = require('playwright');
     if (method === 'thread/backgroundTerminals/list') {
      if (window.__failList) return { ok: false, error: 'List unavailable' };
      const id = params.cursor ? '2' : '1';
-     return { ok: true, result: { data: [{ processId: id, command: `command ${params.threadId} ${id}`, cwd: 'D:/test' }], nextCursor: params.cursor ? null : 'next' } };
+     return { ok: true, result: { data: [{ processId: id, command: `command ${params.threadId} ${id}`, cwd: 'D:/test', ...(params.cursor ? {} : { osPid: 321, cpuPercent: window.__cpu || 0, rssKb: 2048 }) }], nextCursor: params.cursor ? null : 'next' } };
     }
     if (method === 'thread/backgroundTerminals/terminate') { window.__kills.push(params); return new Promise(resolve => { window.__finish = resolve; }); }
     return { ok: true, result: method === 'thread/resume' ? { thread: { turns: [] } } : { data: [] } };
@@ -26,6 +26,11 @@ const { chromium } = require('playwright');
   await refresh.click(); await page.getByText('command a 1', { exact: true }).waitFor();
   await page.getByRole('button', { name: '加载更多后台命令' }).click();
   await page.getByText('command a 2', { exact: true }).waitFor();
+  await page.getByText('PID 321 · CPU 0.0% · 内存 2.0 MiB', { exact: true }).waitFor();
+  await page.getByText('PID 未知 · CPU 未知 · 内存 未知', { exact: true }).waitFor();
+  await page.evaluate(() => { window.__cpu = 150; });
+  await refresh.click();
+  await page.getByText('PID 321 · CPU 150.0% · 内存 2.0 MiB', { exact: true }).waitFor();
   const kill = page.getByRole('button', { name: '终止后台命令 1', exact: true });
   await kill.evaluate(el => { el.click(); el.click(); });
   assert.equal(await page.evaluate(() => window.__kills.length), 1);

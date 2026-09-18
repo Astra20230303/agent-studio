@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { listBackgroundTerminals, terminateBackgroundTerminal, type BackgroundTerminal } from './codexClient';
+import { backgroundTerminalMetrics } from './backgroundTerminalMetrics';
 
 export function BackgroundTerminals({ threadId, connected }: { threadId: string; connected: boolean }) {
   const [items, setItems] = useState<BackgroundTerminal[]>([]);
@@ -34,13 +35,13 @@ export function BackgroundTerminals({ threadId, connected }: { threadId: string;
     finally { lock.current = false; setBusy(false); }
   };
   return <details className="settings-card"><summary>后台命令</summary>
-    <p>停止生成后，后台命令可能继续运行。刷新查看本会话命令，可单独终止。</p>
+    <p>停止生成后，后台命令可能继续运行。刷新查看本会话命令及资源快照，可单独终止。资源数据以最近一次刷新为准。</p>
     <button disabled={!connected || busy} onClick={() => void load()}>刷新后台命令</button>
     {!connected && <p role="status">连接服务后可管理后台命令</p>}
     {error && <p role="alert">{error}</p>}{status && <p role="status">{status}</p>}
     {busy && <p role="status">正在处理后台命令…</p>}
     {loaded && !items.length && <p role="status">没有运行中的后台命令</p>}
-    <ul>{items.map(item => <li key={item.processId}><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{item.command}</pre><small>{item.cwd}</small><button disabled={!connected || busy} aria-label={`终止后台命令 ${item.processId}`} onClick={() => void terminate(item)}>终止命令</button></li>)}</ul>
+    <ul>{items.map(item => <li key={item.processId}><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{item.command}</pre><small>{item.cwd}</small><p>{backgroundTerminalMetrics(item)}</p><button disabled={!connected || busy} aria-label={`终止后台命令 ${item.processId}`} onClick={() => void terminate(item)}>终止命令</button></li>)}</ul>
     {cursor && <button disabled={!connected || busy} onClick={() => void load(true)}>加载更多后台命令</button>}
   </details>;
 }
