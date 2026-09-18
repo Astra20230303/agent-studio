@@ -1,5 +1,13 @@
 # Felix capability roadmap
 
+## Open a search result's containing folder
+
+Selected workspace files provide an open-containing-folder action. It clears the
+search and opens the file's parent inside the workspace panel; both filename and
+content search use the same parent resolver as ordinary upward navigation.
+Windows separators and root-level files are handled without navigating beyond
+the workspace. Browser name/content/root navigation acceptance and build pass.
+
 ## Explain workspace preview decoding failures
 
 The workspace panel now reports invalid UTF-8 and image decode errors, matching
