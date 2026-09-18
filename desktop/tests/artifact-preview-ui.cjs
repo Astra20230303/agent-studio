@@ -26,6 +26,17 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  page.once('dialog',dialog=>dialog.accept());
  await editor.press('Escape');await editor.waitFor({state:'detached'});
  assert.ok(await page.getByRole('button',{name:'open notes',exact:true}).evaluate(el=>el===document.activeElement));
- console.log('PASS: message file opens preview at line and enters existing editor in original workspace');
+ await page.getByRole('button',{name:'open notes',exact:true}).click();
+ await modal.getByRole('button',{name:'编辑此文件'}).click();await contents.fill('Saved edits');
+ await page.evaluate(()=>window.__result={ok:false,error:'write denied'});
+ await contents.press('Control+s');
+ await editor.getByRole('alert').getByText('write denied',{exact:true}).waitFor();
+ assert.equal(await contents.inputValue(),'Saved edits');
+ assert.ok(await contents.evaluate(el=>el===document.activeElement));
+ await page.evaluate(()=>window.__result={ok:true,result:{text:'Saved edits',revision:'saved'}});
+ await contents.press('Control+s');await editor.waitFor({state:'detached'});
+ assert.ok(await page.getByRole('button',{name:'open notes',exact:true}).evaluate(el=>el===document.activeElement));
+ assert.deepEqual(await page.evaluate(()=>window.__reads.filter(input=>input.action==='write').map(input=>input.edit)),[{text:'Saved edits',revision:'original'},{text:'Saved edits',revision:'original'}]);
+ console.log('PASS: preview/edit focus transitions, cancel confirmation, save failure retention and retry');
 }finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});
 

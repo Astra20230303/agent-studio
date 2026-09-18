@@ -8,6 +8,11 @@ transitions return to the original message link after editing, rather than an
 unmounted preview button. Browser acceptance covers initial focus, clean Escape,
 declining to discard dirty content and confirming discard. Build passes.
 
+Post-commit browser acceptance simulates a failed Ctrl+S write, verifies retained
+text and editor focus, then retries successfully and checks focus returns to the
+message link. Both write attempts carry the original revision and unchanged edit
+text. No further product correction was required.
+
 ## Load file preview code on demand
 
 The file preview, text search and image controls now load only when a file is
