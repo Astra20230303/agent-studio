@@ -42,6 +42,25 @@ const { chromium } = require('playwright'); const assert = require('node:assert/
    assert.equal(await editor.evaluate(node => node.value.slice(node.selectionStart, node.selectionEnd)), '中文🙂');
    await editor.press('Escape'); await editor.waitFor({ state: 'detached' });
   }
-  console.log('PASS: source and current preview positions enter editor, including fresh manual/search locations after stale source');
+  for (const refresh of [false, true]) {
+   await page.evaluate(() => window.__preview(1, 'old'));
+   const preview = page.getByRole('dialog', { name: '消息文件预览' });
+   await preview.getByLabel('文件预览文本', { exact: true }).waitFor();
+   await preview.getByRole('textbox', { name: '预览行号', exact: true }).fill('3');
+   await preview.getByRole('button', { name: '跳转到行', exact: true }).click();
+   await preview.getByRole('button', { name: '查找预览内容', exact: true }).click();
+   await preview.getByRole('textbox', { name: '查找预览内容', exact: true }).fill('中文');
+   await preview.getByRole('button', { name: '关闭预览查找', exact: true }).click();
+   if (refresh) {
+    await preview.getByRole('button', { name: '刷新预览', exact: true }).click();
+    await preview.getByLabel('文件预览文本', { exact: true }).waitFor();
+   }
+   await preview.getByRole('button', { name: '编辑此文件', exact: true }).click();
+   const editor = page.getByRole('textbox', { name: '文件内容', exact: true }); await editor.waitFor();
+   assert.equal(await page.evaluate(() => window.__editLine), refresh ? null : 3);
+   if (!refresh) assert.equal(await editor.evaluate(node => node.selectionStart), 'first\n中文🙂\n'.length);
+   await editor.press('Escape'); await editor.waitFor({ state: 'detached' });
+  }
+  console.log('PASS: current preview position transfers to editing, search close restores manual line and refresh discards old position');
  } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
