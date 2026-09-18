@@ -837,8 +837,12 @@ function Chat({ savingImages, onPasteImages, onDropAttachments, loadFullHistory,
 
 function Workspace({ serviceControl, page, state, models, update, toast, providerStatus, onBack }: { serviceControl: ReactNode; page: Page; state: DesktopState; models: string[]; update: (fn: (next: DesktopState) => void) => void; toast: (text: string) => void; providerStatus?: any; onBack: () => void }) {
   if (page === 'settings') return <SettingsWorkspace serviceControl={serviceControl} state={state} update={update} toast={toast} onBack={onBack} />;
-  const title = page === 'scheduled' ? '已安排' : page === 'plugins' ? '插件' : '设置';
-return <section className="page"><h1>{title}</h1><p>本地工作区演示页面，已准备好接入对应 connector。</p></section>;
+  if (page === 'scheduled' || page === 'plugins') {
+    // These routes are rendered by their dedicated lazy entry points in App.
+    // Keep this component honest if a future refactor accidentally reaches it.
+    return <section className="page" role="alert"><h1>页面暂不可用</h1><p>请返回聊天后重试。</p><button onClick={onBack}>返回聊天</button></section>;
+  }
+  return <section className="page" role="alert"><h1>页面暂不可用</h1><p>请返回聊天后重试。</p><button onClick={onBack}>返回聊天</button></section>;
 }
 
 function SettingsWorkspace({ serviceControl, state, update, toast, onBack }: { serviceControl: ReactNode; state: DesktopState; update: (fn: (next: DesktopState) => void) => void; toast: (text: string) => void; onBack: () => void }) {
