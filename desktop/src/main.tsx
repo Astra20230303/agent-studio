@@ -76,7 +76,7 @@ import { applyToolEvent, finishTools, restoreMessages } from './toolActivity';
 import { ToolActivityGroup, groupMessages } from './ToolActivityView';
 import { MessageActions } from './ReplyActions';
 import { branchSnapshot, fullBranchSnapshot, isFinalReply } from './messageActions';
-import { switchThreadProvider, updateThreadPermission, connectCodex, subscribeCodex } from './codexClient';
+import { updateThreadPermission, connectCodex, subscribeCodex } from './codexClient';
 import { ExtensionsPage, ExtensionIcon } from './ExtensionsPage';
 import { ThreadButton } from './ThreadButton';
 import { ModePicker } from './ModePicker';
@@ -491,8 +491,8 @@ function App({ initialState }: { initialState: DesktopState }) {
       const targetCatalog = await window.desktop?.listModels?.({ providerId });
       const models = modelCatalogIds(targetCatalog);
       const model = models.includes(activeModel) ? activeModel : models[0];
-      const result = await switchThreadProvider(thread.remoteId, providerId, model);
-      update(next => { const target = next.threads.find(item => item.id === thread.id); if (target) { target.providerId = result.providerId; target.model = result.model || model; target.effectivePermissions = readThreadPermissions(result); } });
+      const result = await threadStore.switchProvider({ id: thread.id, remoteId: thread.remoteId }, providerId, model);
+      update(next => { const target = next.threads.find(item => item.id === thread.id); if (target) { target.providerId = result.providerId; target.model = result.model; target.effectivePermissions = result.permissions; } });
       audit.record('会话渠道已切换', thread.remoteId); toast('会话渠道已切换');
     } catch (error: any) { setNotice(`切换会话渠道失败：${error.message}`); }
     finally { sendingRef.current.delete(thread.id); setPendingThreads(previous => previous.filter(id => id !== thread.id)); }

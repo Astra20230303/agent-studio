@@ -1,3 +1,4 @@
+import { readThreadProvider } from './threadProvider.ts';
 import { createThreadHistory, type HistoryReadOptions } from './threadHistory.ts';
 import { validateRestorableHistory } from './historyValidation.ts';
 import { findMessageTurn } from './messageTurn.ts';
@@ -9,6 +10,7 @@ import { createThreadRepository, type ThreadRepository, type ThreadSource } from
 import { createThreadMutations, type ThreadMutations, type ThreadRemoteMutations } from './threadMutations.ts';
 
 export interface ThreadStore extends ThreadRepository, ThreadMutations {
+  switchProvider(source: Pick<Thread, 'id'> & { remoteId: string }, providerId: string, model: string): Promise<ReturnType<typeof readThreadProvider>>;
   readHistory(threadId: string, options?: HistoryReadOptions): Promise<unknown[]>;
   findMessageTurn(threadId: string, messageId: string): Promise<string | undefined>;
   start(localId: string, options: ThreadStartOptions): Promise<ReturnType<typeof readThreadStart>>;
@@ -16,7 +18,7 @@ export interface ThreadStore extends ThreadRepository, ThreadMutations {
   resume(threadId: string): Promise<ReturnType<typeof readThreadResume>>;
   syncInitialTitle(thread: Pick<Thread, 'id'> & { remoteId: string }, title: string): Promise<void>;
 }
-export type ThreadBackend = ThreadSource & ThreadRemoteMutations & { items(threadId: string, cursor?: string): Promise<unknown>; turns(threadId: string, cursor?: string): Promise<unknown>; resume(threadId: string): Promise<unknown>; start(options: ThreadStartOptions): Promise<unknown>; fork(threadId: string, lastTurnId?: string): Promise<unknown> };
+export type ThreadBackend = ThreadSource & ThreadRemoteMutations & { switchProvider(threadId: string, providerId: string, model: string): Promise<unknown>; items(threadId: string, cursor?: string): Promise<unknown>; turns(threadId: string, cursor?: string): Promise<unknown>; resume(threadId: string): Promise<unknown>; start(options: ThreadStartOptions): Promise<unknown>; fork(threadId: string, lastTurnId?: string): Promise<unknown> };
 
 // One instance per application state. View lifetimes and queue persistence remain
 // with callers; mutation exclusion spans all views and survives reconnects.
@@ -42,6 +44,10 @@ export function createThreadStore(backend: ThreadBackend, update: (mutate: (stat
   }
   return {
     query: repository.query,
+    switchProvider(source, providerId, model) {
+      const identity = { id: source.id, remoteId: source.remoteId };
+      return exclusive(identity, async () => readThreadProvider(await backend.switchProvider(identity.remoteId, providerId, model), identity.remoteId, providerId, model));
+    },
     async readHistory(threadId, options) {
       const items = await history.readAll(threadId, options);
       validateRestorableHistory(items);
