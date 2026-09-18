@@ -27,3 +27,16 @@ test('snapshot and environment fields reject malformed values while supporting c
  for(const patch of [{timeoutMinutes:0},{timeoutMinutes:121},{timeoutMinutes:'10'},{reasoningEffort:'bad'},{prompt:{}},{cwd:[]},{permission:'bad'}])assert.throws(()=>validateTaskRuns([{...complete,configuration:{...configuration,...patch}}]),/配置快照/);
  for(const environment of [{cwd:''},{cwd:'D:/work',providerId:{}},[]])assert.throws(()=>validateTaskRuns([{...complete,environment}]),/环境记录/);
 });
+
+test('same scheduler retries repaired storage without resetting missing or still-corrupt files',async()=>{
+ const directory=fs.mkdtempSync(path.join(os.tmpdir(),'felix-retry-storage-'));const file=path.join(directory,'tasks.json');fs.writeFileSync(file,'broken');
+ const scheduler=new TaskScheduler({directory});
+ try{
+  assert.throws(()=>scheduler.list(),/原文件未覆盖/);assert.equal(fs.readFileSync(file,'utf8'),'broken');
+  fs.unlinkSync(file);assert.throws(()=>scheduler.list(),/仍缺失/);assert.equal(fs.existsSync(file),false);
+  fs.writeFileSync(file,JSON.stringify({version:1,tasks:[task]}));
+  assert.equal(scheduler.list()[0].runs[0].status,'interrupted');assert.equal(scheduler.loadError,'');
+  scheduler.setStatus('task','paused');assert.equal(scheduler.list()[0].status,'paused');
+  fs.writeFileSync(file,'external edit');assert.equal(scheduler.list()[0].status,'paused','Healthy reads must not reload external edits');
+ }finally{await scheduler.stop();fs.rmSync(directory,{recursive:true,force:true});}
+});

@@ -63,7 +63,14 @@ class TaskScheduler extends EventEmitter {
     this.stopping = false;
     this.loadError = '';
     fs.mkdirSync(directory, { recursive: true });
+    this.readStoredTasks();
+  }
+
+  readStoredTasks() {
+    if (this.active || this.closed || this.stopping) return;
+    const recovering = Boolean(this.loadError);
     try {
+      if (recovering && !fs.existsSync(this.file)) throw new Error('任务文件仍缺失，请恢复文件后重试。');
       if (fs.existsSync(this.file)) {
         const data = JSON.parse(fs.readFileSync(this.file, 'utf8'));
         if (data.version !== 1 || !Array.isArray(data.tasks)) throw new Error('任务文件格式无效。');
@@ -72,14 +79,15 @@ class TaskScheduler extends EventEmitter {
           if (!task || typeof task.id !== 'string' || !task.id.trim() || taskIds.has(task.id) || !['active', 'paused', 'completed'].includes(task.status) || !Array.isArray(task.runs)) throw new Error('任务记录无效。');
           taskIds.add(task.id);
           validateTaskRuns(task.runs);
-          validateTask(task, task.schedule?.kind === 'once' ? Date.parse(task.schedule.at) - 1 : now());
+          validateTask(task, task.schedule?.kind === 'once' ? Date.parse(task.schedule.at) - 1 : this.now());
           if (task.nextRunAt && !Number.isFinite(Date.parse(task.nextRunAt))) throw new Error('下次运行时间无效。');
           for (const run of task.runs) if (run.status === 'running') {
-            run.status = 'interrupted'; run.error = '应用在上次执行期间退出。'; run.finishedAt = new Date(now()).toISOString();
+            run.status = 'interrupted'; run.error = '应用在上次执行期间退出。'; run.finishedAt = new Date(this.now()).toISOString();
             if (task.schedule.kind === 'once' && !task.nextRunAt) task.status = 'completed';
           }
         }
         this.tasks = data.tasks;
+        this.loadError = '';
         this.persist();
       }
     } catch (error) { this.loadError = `任务数据读取失败，原文件未覆盖：${error.message}`; this.tasks = []; }
@@ -102,6 +110,7 @@ class TaskScheduler extends EventEmitter {
     return value;
   }
   list() {
+    if (this.loadError) this.readStoredTasks();
     if (this.loadError) throw new Error(this.loadError);
     return structuredClone(this.tasks.map(task => ({ ...task, runs: task.runs.map(({ output, ...run }) => run) })));
   }
