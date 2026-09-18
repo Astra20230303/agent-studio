@@ -9,6 +9,11 @@ fall back to the first result; query changes reset selection. Home/End select th
 first/last result and arrow keys still wrap. Browser component acceptance covers
 reorder/removal/filtering and execution; app command regression and build pass.
 
+Post-commit acceptance exercises every navigation key and Enter with an empty
+result set: no active descendant, highlight or execution remains. Clearing the
+filter restores the first result, and ArrowUp wraps to the last. Tests pass with
+no additional product correction.
+
 ## Conversation search shortcut scope and plugin references
 
 Conversation find and application shortcuts share one scope predicate: handled,
