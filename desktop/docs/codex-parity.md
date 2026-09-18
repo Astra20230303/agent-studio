@@ -2663,3 +2663,9 @@ archive-restore-lock-ui.cjs 用延迟 IPC 验证断线重连、关闭保护、�
 
 user-message-copy-ui.cjs 覆盖原文保真、键盘操作、失败重试、空正文和反馈复位；生产构建通过。剪贴板在浏览器测试中模拟，不宣称所有原生系统权限场景已验证。
 提交后验收：message-actions.test.cjs 的 4 项复制/分叉回归通过，无额外产品修正。
+
+## 会话查找输入法保护
+
+实现 8378546：查找输入框在 composition 会话、isComposing 或 keyCode 229 时不处理 Enter/Escape，避免确认候选词导致结果跳转或关闭。失焦、关闭和会话重置会清除组合输入状态。
+
+验收：conversation-find-ui.cjs 先复现 keyCode 229 确认触发错误跳转，修复后通过；提交后补充失焦及关闭重开恢复普通 Enter 操作。首次失焦夹具遗漏聚焦，补正为真实聚焦→组合输入→失焦顺序后通过。conversation-history-find-ui.cjs、app-shortcuts-ui.cjs 与生产构建通过。覆盖浏览器合成输入法事件，尚未代表全部原生输入法实机验收；构建仍有既有大包提示。

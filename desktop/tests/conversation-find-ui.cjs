@@ -78,6 +78,19 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: '上一个匹配', exact: true }).click();
     await page.getByRole('status').filter({ hasText: '3 / 3 条匹配记录' }).waitFor();
     assert.equal(await page.locator('.conversation-find-match').getAttribute('data-message-id'), 'reply');
+    // Missing compositionend on focus loss must not leave keyboard navigation locked.
+    await input.focus();
+    await input.dispatchEvent('compositionstart');
+    await page.getByRole('button', { name: '下一个匹配', exact: true }).focus();
+    await input.focus();
+    await input.press('Enter');
+    await page.getByRole('status').filter({ hasText: '1 / 3 条匹配记录' }).waitFor();
+    // Closing through a pointer action during composition must also reset the session.
+    await input.dispatchEvent('compositionstart');
+    await page.getByRole('button', { name: '关闭会话查找', exact: true }).click();
+    await page.getByRole('button', { name: '会话内查找', exact: true }).click();
+    await input.press('Enter');
+    await page.getByRole('status').filter({ hasText: '2 / 3 条匹配记录' }).waitFor();
     await input.fill('attachment.txt');
     await page.getByRole('status').filter({ hasText: '1 / 1 条匹配记录' }).waitFor();
     for (const query of ['Example extension', 'plugin-example-id']) {
