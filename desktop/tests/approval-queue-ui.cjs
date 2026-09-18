@@ -28,6 +28,19 @@ const {chromium} = require('playwright');
   await page.evaluate(()=>window.__finish[2]({ok:true}));
   await page.getByRole('dialog').waitFor({state:'detached'});
   assert.deepEqual(await page.evaluate(()=>window.__responses),[{id:1,result:{decision:'accept'}},{id:2,result:{decision:'decline'}}]);
+  await page.evaluate(()=>{
+   for(const id of [3,3,4])window.__ask({id,method:'item/commandExecution/requestApproval',params:{command:`command ${id}`,availableDecisions:['decline','accept']}});
+  });
+  await page.getByText('command 3',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'拒绝',exact:true}).click();
+  await page.evaluate(()=>window.__notify({method:'serverRequest/resolved',params:{requestId:3}}));
+  await page.getByText('command 4',{exact:true}).waitFor();
+  await page.evaluate(()=>window.__finish[3]({ok:true}));
+  assert.equal(await page.getByText('command 4',{exact:true}).count(),1);
+  await page.getByRole('button',{name:'拒绝',exact:true}).click();
+  await page.evaluate(()=>window.__finish[4]({ok:true}));
+  await page.getByRole('dialog').waitFor({state:'detached'});
+  assert.deepEqual(await page.evaluate(()=>window.__responses.map(item=>item.id)),[1,2,3,4]);
   assert.deepEqual(errors,[]);
   console.log('PASS: resolved approval advances queue, restores focus, isolates stale errors and prevents duplicate responses');
  }finally{await browser.close();}
