@@ -19,3 +19,17 @@ for(const method of ['rename','archive','remove'])test(`${method} waits for remo
  if(method==='remove')assert.equal(state.threads.length,1);
  assert.deepEqual(calls[0],method==='rename'?[method,'remote-a','Renamed']:[method,'remote-a']);
 });
+test('local conversations require no remote service and removing current selection clears it',async()=>{
+ let state={...defaultState(),activeThreadId:'local',threads:[{id:'local',title:'Local',messages:[]}]};
+ const unexpected=async()=>{throw Error('local operation called remote');};
+ const service=createThreadMutations({rename:unexpected,archive:unexpected,remove:unexpected},fn=>fn(state));
+ await service.rename(state.threads[0],'Local renamed');assert.equal(state.threads[0].title,'Local renamed');
+ await service.archive(state.threads[0]);assert.equal(state.activeThreadId,undefined);assert.equal(state.threads[0].archived,true);
+ state.activeThreadId='local';await service.remove(state.threads[0]);assert.equal(state.activeThreadId,undefined);assert.deepEqual(state.threads,[]);
+});
+test('late rename cannot resurrect a removed conversation',async()=>{
+ let state={...defaultState(),threads:[{id:'a',remoteId:'remote',title:'A',messages:[]}]};let resolve;
+ const service=createThreadMutations({rename:()=>new Promise(done=>{resolve=done;}),archive:async()=>{},remove:async()=>{}},fn=>fn(state));
+ const pending=service.rename(state.threads[0],'Late name');state.threads=[];resolve();await pending;
+ assert.deepEqual(state.threads,[]);
+});

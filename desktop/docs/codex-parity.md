@@ -2817,3 +2817,9 @@ user-message-copy-ui.cjs 覆盖原文保真、键盘操作、失败重试、空�
 实现 21fa03e：useDesktopState 接管应用快照、不可变更新、保存失败与重试，主界面已迁移；可注入 StateRepository 验证异步行为。每次提交的状态立即交给原生存储，不增加渲染器保存队列，保留关闭窗口前原生 flush 的可见性。
 
 验收：desktop-state-ui 验证旧成功不清除新失败、旧失败不污染新成功、重试最新快照及连续函数式更新；state-storage-ui、state-load-recovery-ui、state-repository 单测和真实 Electron 迁移/重启/损坏存储保护通过。生产构建通过，保留体积提示。此次完成共享状态生命周期抽离，领域级 ThreadStore、ProjectStore 与 AutomationStore 仍待继续，不将此 hook 等同于完整领域接口。
+
+## 异步会话变更服务
+
+实现 99a4f58：createThreadMutations 提供可注入远端的 rename/archive/remove，主界面已迁移；远端确认后才对最新应用状态执行目标会话变更。队列持久化暂停、操作锁、连接检查和审计继续由调用流程协调。
+
+验收：五项领域测试覆盖远端失败不修改、重试、跨会话迟到响应、本地操作无 RPC、已删除会话不复活；archive-concurrency-ui、thread-lifecycle-queue-ui、delete-thread-ui、rename-thread-ui 通过。真实 app-server 归档分页恢复测试通过（验证客户端协议路径，不等同整个服务的真实端到端界面）。生产构建通过。首次重命名测试命令误用了不存在的 rename-ui.cjs，修正为 rename-thread-ui.cjs 后通过。本轮完成变更服务边界，完整 ThreadStore 的读取/创建/恢复等接口仍待整合。
