@@ -20,6 +20,8 @@ const path = require('node:path');
   try {
     app = await launch();
     let page = await app.firstWindow();
+    const requests = [];
+    page.on('request', request => requests.push(request.url()));
     assert.equal(await app.evaluate(({ app }) => app.getPath('userData')), path.join(dataRoot, 'electron-user-data'));
     await page.waitForFunction(() => window.desktop?.saveTask);
     await page.locator('.composer').waitFor();
@@ -56,6 +58,19 @@ const path = require('node:path');
     });
     assert.deepEqual(resolved, [attachment]);
     await page.getByRole('button', { name: `移除附件：${attachment}`, exact: true }).waitFor();
+    assert.ok(page.url().startsWith('file:'), 'desktop acceptance must load production file URLs');
+    assert.equal(requests.some(url => /ArtifactPreview-/.test(url)), false);
+    const textOpener = page.getByRole('button', { name: `预览附件：${attachment}`, exact: true });
+    await textOpener.click();
+    const preview = page.getByRole('dialog', { name: '消息文件预览', exact: true });
+    await preview.locator('pre').getByText('real attachment', { exact: true }).waitFor();
+    assert.ok(requests.some(url => /ArtifactPreview-.*\.js$/.test(url)));
+    assert.ok(requests.some(url => /ArtifactPreview-.*\.css$/.test(url)));
+    await preview.press('Control+f');
+    await preview.getByRole('textbox', { name: '查找预览内容', exact: true }).fill('attachment');
+    await preview.getByRole('status').getByText('1 / 1 处匹配', { exact: true }).waitFor();
+    await preview.getByRole('button', { name: '关闭预览', exact: true }).click();
+    assert.ok(await textOpener.evaluate(element => element === document.activeElement));
     assert.deepEqual(await page.evaluate(() => window.desktop.droppedFilePaths([new File(['virtual'], 'virtual.txt')])), ['']);
     await page.evaluate(async () => {
       const canvas = document.createElement('canvas'); canvas.width = 4; canvas.height = 4;
@@ -70,6 +85,29 @@ const path = require('node:path');
     assert.ok(persistedAttachments.includes(pasted));
     assert.equal(path.dirname(pasted), path.join(dataRoot, 'attachments'));
     assert.deepEqual([...fs.readFileSync(pasted).subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+    await page.getByRole('button', { name: `预览附件：${pasted}`, exact: true }).click();
+    await preview.getByRole('status').getByText('4 × 4 · 适应窗口', { exact: true }).waitFor();
+    await preview.getByRole('button', { name: '原始尺寸', exact: true }).click();
+    await preview.getByRole('button', { name: '放大图片', exact: true }).click();
+    await preview.getByRole('status').getByText('4 × 4 · 125%', { exact: true }).waitFor();
+    const downloadedImage = path.join(scratch, 'downloaded-original.png');
+    await app.evaluate(({ session }, filename) => {
+      globalThis.__previewDownload = undefined;
+      session.defaultSession.once('will-download', (_event, item) => {
+        item.setSavePath(filename);
+        item.once('done', (_event, state) => { globalThis.__previewDownload = state; });
+      });
+    }, downloadedImage);
+    await preview.getByRole('link', { name: '下载原图', exact: true }).click();
+    let downloadState;
+    for (let attempt = 0; attempt < 100; attempt++) {
+      downloadState = await app.evaluate(() => globalThis.__previewDownload);
+      if (downloadState) break;
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    assert.equal(downloadState, 'completed');
+    assert.deepEqual(fs.readFileSync(downloadedImage), fs.readFileSync(pasted));
+    await preview.getByRole('button', { name: '关闭预览', exact: true }).click();
     const saved = await page.evaluate(async () => {
       localStorage.setItem('felix-data-test', 'persisted');
       return window.desktop.saveTask({ name: 'External profile task', prompt: 'Persist this reminder', kind: 'reminder', model: '', permission: 'read-only', notify: false, schedule: { kind: 'once', at: new Date(Date.now() + 86400000).toISOString() } });

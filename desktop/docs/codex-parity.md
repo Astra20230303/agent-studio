@@ -1,5 +1,16 @@
 # Felix capability roadmap
 
+## Native desktop preview acceptance
+
+The copied production app now has real Electron acceptance for deferred preview
+JS/CSS loaded over file URLs, outside-project text reads via production IPC,
+search and focus restoration. A pasted image is opened and zoomed, then saved
+through Electron's native download handler to a fixture destination; its bytes
+match the stored original. External-profile persistence and restart regressions
+pass. This validates a copied production app with local dependencies, not a
+signed installer or clean-machine deployment. Clipboard writes are not exercised
+by this native acceptance.
+
 ## Go to a line in file previews
 
 Preview text has a line-number control and Ctrl/Command+G. Range validation,
