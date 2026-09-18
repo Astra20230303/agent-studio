@@ -45,6 +45,17 @@ const assert = require('node:assert/strict');
   assert.equal(await editor.inputValue(), '');
   await line.fill('2'); await line.press('Enter');
   await dialog.getByText('请输入 1 至 1 的编辑行号。', { exact: true }).waitFor();
-  console.log('PASS: editor jump selection/scroll, draft coordinates, empty files, invalid lines, IME and history preservation');
+  const longDraft = Array.from({ length: 80 }, () => 'filler').join('\n') + '\n\t' + '中文🙂long '.repeat(120) + 'TARGET';
+  await editor.fill(longDraft);
+  await editor.press('Control+f');
+  const find = dialog.getByRole('textbox', { name: '查找编辑内容', exact: true });
+  await find.fill('TARGET');
+  assert.equal(await editor.evaluate(node => node.value.slice(node.selectionStart, node.selectionEnd)), 'TARGET');
+  assert.equal(await editor.evaluate(node => node.scrollLeft > 0 && node.scrollTop > 0), true);
+  assert.equal(await find.evaluate(node => node === document.activeElement), true);
+  await find.fill('filler');
+  assert.equal(await editor.evaluate(node => node.scrollLeft), 0);
+  assert.equal(await editor.evaluate(node => node.scrollTop), 0);
+  console.log('PASS: line navigation and long Unicode/tab search selections scroll into view without stealing focus');
  } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

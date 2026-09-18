@@ -1,3 +1,4 @@
+import { revealEditorSelection } from './editorLine';
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { editorMatches } from './editorSearchMatches';
 export function EditorFind({ text, onChange, editor, disabled, onClose }: { text: string; onChange: (text: string) => void; editor: RefObject<HTMLTextAreaElement | null>; disabled: boolean; onClose: () => void }) {
@@ -9,7 +10,7 @@ export function EditorFind({ text, onChange, editor, disabled, onClose }: { text
   const matches = useMemo(() => editorMatches(text, query, caseSensitive), [text, query, caseSensitive]);
   const current = Math.min(index, Math.max(0, matches.length - 1));
   useEffect(() => { input.current?.focus(); }, []);
-  useEffect(() => { const match = matches[current]; if (match) editor.current?.setSelectionRange(match.start, match.end); }, [matches, current, editor]);
+  useEffect(() => { const match = matches[current]; if (match && editor.current) { editor.current.setSelectionRange(match.start, match.end); revealEditorSelection(editor.current, match.start); } }, [matches, current, editor]);
   const move = (direction: number) => { if (matches.length) setIndex((current + direction + matches.length) % matches.length); };
   const replace = (all: boolean) => {
     if (disabled || !matches.length) return;
