@@ -9,6 +9,12 @@ Existing native records take priority even if their obsolete browser copies are
 corrupt. Eight storage tests pass. This prevents validation-driven partial imports;
 disk failure during writes still uses the existing per-record retry behavior.
 
+Post-commit real Electron upgrade acceptance seeds a corrupt legacy queue and
+valid history/drafts. Startup identifies the queue error, creates no native store
+and preserves browser drafts. Repairing the queue and clicking retry migrates all
+records; cleared-browser-storage, write-failure and backup recovery regressions
+also pass. No additional product correction was needed.
+
 ## Keyboard model selection
 
 Model search now exposes a combobox/listbox with one active result driving

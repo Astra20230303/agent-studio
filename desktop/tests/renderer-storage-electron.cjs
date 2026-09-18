@@ -37,12 +37,21 @@ const path = require('node:path');
         'felix-turn-queue-v1': [{ id: 'queued', localId: 'legacy', threadId: 'remote', text: 'Keep queued', model: 'test', effort: 'low', plugins: [], status: 'ready' }],
       };
       for (const [key, value] of Object.entries(values)) localStorage.setItem(key, JSON.stringify(value));
+      localStorage.setItem('migration-test-queue', localStorage.getItem('felix-turn-queue-v1'));
+      localStorage.setItem('felix-turn-queue-v1', '[null]');
     });
     await app.close(); app = undefined;
     // Only remove the empty native store created by this fixture to emulate an upgrade.
     assert.ok(native.startsWith(scratch + path.sep));
     fs.rmSync(native, { recursive: true, force: true });
-    page = await launch();
+    page = await launch(false);
+    await page.getByRole('button', { name: '重试读取', exact: true }).waitFor();
+    await page.getByText(/无法迁移 felix-turn-queue-v1/).waitFor();
+    assert.equal(fs.existsSync(native), false, 'validation failure must not persist earlier migration records');
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('felix-thread-drafts-v1')).legacy), 'Migrated draft');
+    await page.evaluate(() => { localStorage.setItem('felix-turn-queue-v1', localStorage.getItem('migration-test-queue')); localStorage.removeItem('migration-test-queue'); });
+    await page.getByRole('button', { name: '重试读取', exact: true }).click();
+    await page.getByRole('textbox', { name: '消息', exact: true }).waitFor();
     assert.equal(await page.getByRole('textbox', { name: '消息', exact: true }).inputValue(), 'Migrated draft');
     await page.getByText('Retained history', { exact: true }).waitFor();
     await page.getByRole('button', { name: '移除附件：D:/legacy.txt', exact: true }).waitFor();
