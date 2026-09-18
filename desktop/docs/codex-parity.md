@@ -3565,3 +3565,9 @@ Codex Rust 传递依赖和原生二进制传递依赖仍需进一步许可审计
 - restoreQueue 现在校验 planningMode（default/plan）、插件 ID/名称、技能名称/路径，并继续校验核心消息、附件、工作目录和唯一 ID。旧记录缺失 planningMode 自动归一为 default；未知或损坏字段整队列拒绝，原始 localStorage 保留并显示恢复失败。
 - turn-queue.test.cjs 新增模式/引用保留及坏值测试；queue-storage-ui.cjs 验证 unknown planningMode 的原始数据不被覆盖，原有读写失败、重试和未确认发送保护回归通过。构建通过。
 - 该校验只保护本地快照完整性，不重新确认服务端 threadId、模型或强度当前是否可用；继续队列时仍由发送/服务端确认。
+
+### 会话导出运行配置摘要（2026-09-19）
+
+- Markdown 导出在消息前写入非敏感配置摘要：模型、Provider、推理强度、执行模式、工作目录、请求权限、实际沙箱和审批策略。值中的换行会清理，未设置字段省略；不导出 API key/token 等密钥。
+- conversation-export.test.cjs 验证摘要字段和敏感字段排除；conversation-export-ui.cjs 通过服务端完整分页、工具/未知记录、历史错误、取消读取、保存取消/失败和本机会话导出回归，并检查配置摘要出现在最终内容。构建通过。
+- 恢复会话返回的新配置会成为导出快照；模拟恢复必须提供同等配置才能验证实际界面。导出仍只嵌入本地附件路径，不复制附件文件。
