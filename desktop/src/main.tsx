@@ -1,3 +1,4 @@
+import { applyAssistantMessage } from './assistantMessages';
 import { acceptTurnNotification } from './turnNotifications';
 import { modelCatalogIds } from './modelCatalog';
 import { removeRecentProject } from './recentProjects';
@@ -295,9 +296,12 @@ function App({ initialState }: { initialState: DesktopState }) {
           runtime.apply(params.threadId, { type: 'start', turnId: params.turn.id });
           update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) { thread.status = 'running'; if (thread.plan?.turnId !== params.turn.id) thread.plan = undefined; } });
         }
-        if (message.method === 'item/agentMessage/delta' && params.delta) {
-          runtime.apply(params.threadId, { type: 'activity', turnId: params.turnId });
-          update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (!thread) return; const last = thread.messages.find(message => message.id === `live-${params.itemId}`); if (last?.role === 'assistant') last.content += params.delta; else thread.messages.push({ id: `live-${params.itemId}`, role: 'assistant', turnId: params.turnId, content: params.delta, createdAt: new Date().toISOString() }); thread.status = 'running'; });
+        if (message.method === 'item/agentMessage/delta' || message.method === 'item/completed' && params.item?.type === 'agentMessage') {
+          if (message.method === 'item/agentMessage/delta') runtime.apply(params.threadId, { type: 'activity', turnId: params.turnId });
+          update(next => {
+            const thread = next.threads.find(item => item.remoteId === params.threadId);
+            if (thread) applyAssistantMessage(thread, message.method!, params);
+          });
         }
         if (message.method && ['item/started', 'item/completed', 'item/commandExecution/outputDelta', 'item/fileChange/outputDelta', 'item/fileChange/patchUpdated', 'item/reasoning/summaryTextDelta', 'item/reasoning/summaryPartAdded'].includes(message.method)) {
           update(next => {
