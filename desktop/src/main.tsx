@@ -1,3 +1,4 @@
+import { acceptTurnNotification } from './turnNotifications';
 import { modelCatalogIds } from './modelCatalog';
 import { removeRecentProject } from './recentProjects';
 import { projectRepository } from './projectRepository';
@@ -249,6 +250,7 @@ function App({ initialState }: { initialState: DesktopState }) {
     const cleanup = subscribeCodex({
       notification: message => {
         const params = message.params || {};
+        if (!acceptTurnNotification(message.method, params, runtime.read)) return;
         if (message.method === 'warning' && typeof params.message === 'string' && params.message.trim()) {
           if (typeof params.threadId === 'string' && params.threadId) {
             const warningId = crypto.randomUUID();
@@ -295,7 +297,7 @@ function App({ initialState }: { initialState: DesktopState }) {
         }
         if (message.method === 'item/agentMessage/delta' && params.delta) {
           runtime.apply(params.threadId, { type: 'activity', turnId: params.turnId });
-          update(next => { const thread = next.threads.find(item => params.threadId ? item.remoteId === params.threadId : item.id === activeThreadRef.current); if (!thread) return; const last = thread.messages.find(message => message.id === `live-${params.itemId}`); if (last?.role === 'assistant') last.content += params.delta; else thread.messages.push({ id: `live-${params.itemId}`, role: 'assistant', turnId: params.turnId, content: params.delta, createdAt: new Date().toISOString() }); thread.status = 'running'; });
+          update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (!thread) return; const last = thread.messages.find(message => message.id === `live-${params.itemId}`); if (last?.role === 'assistant') last.content += params.delta; else thread.messages.push({ id: `live-${params.itemId}`, role: 'assistant', turnId: params.turnId, content: params.delta, createdAt: new Date().toISOString() }); thread.status = 'running'; });
         }
         if (message.method && ['item/started', 'item/completed', 'item/commandExecution/outputDelta', 'item/fileChange/outputDelta', 'item/fileChange/patchUpdated', 'item/reasoning/summaryTextDelta', 'item/reasoning/summaryPartAdded'].includes(message.method)) {
           update(next => {
@@ -319,7 +321,7 @@ function App({ initialState }: { initialState: DesktopState }) {
           queue.finish(params.threadId, params.turn?.id, params.turn?.status === 'completed');
           if (params.threadId && params.turn?.id) runtime.apply(params.threadId, { type: 'finish', turnId: params.turn.id, status: params.turn.status });
           update(next => {
-            const thread = next.threads.find(item => params.threadId ? item.remoteId === params.threadId : item.id === activeThreadRef.current);
+            const thread = next.threads.find(item => item.remoteId === params.threadId);
             if (!thread) return;
             finishTools(thread, params.turn?.id, params.turn?.status === 'failed');
             if (params.turn?.error || params.turn?.status === 'failed') {
