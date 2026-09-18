@@ -40,3 +40,12 @@ test('timeout gives a retry message', async () => {
   const result = await listMiniMaxModels({ apiKey: 'test-only', fetchImpl: async () => { throw new DOMException('timed out', 'TimeoutError'); } });
   assert.match(result.error, /超时/);
 });
+
+test('preserves explicit effort metadata without inferring capabilities for ID-only models', async () => {
+  const result = await listMiniMaxModels({ apiKey: 'test', fetchImpl: async () => Response.json({ data: [
+    { id: 'limited', supported_reasoning_efforts: [{ effort: 'low', description: 'Fast' }, { effort: 'high' }] },
+    { id: 'defaults', supported_reasoning_efforts: [] }, { id: 'unknown' },
+    { id: 'duplicate', supported_reasoning_efforts: ['high'] }, { id: 'duplicate' },
+  ] }) });
+  assert.deepEqual(result.effortCapabilities, [{ model: 'limited', values: ['low','high'] }, { model: 'defaults', values: [] }]);
+});

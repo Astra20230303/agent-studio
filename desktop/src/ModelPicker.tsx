@@ -1,29 +1,31 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Check, ChevronDown, RefreshCw } from 'lucide-react';
-import { modelCatalogIds } from './modelCatalog';
+import { modelCatalogIds, modelEffortCapabilities } from './modelCatalog';
 
 export function useModelCatalog(providerId?: string) {
   const [models, setModels] = useState<string[]>([]);
+  const [efforts, setEfforts] = useState<ReturnType<typeof modelEffortCapabilities>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const generation = useRef(0);
   const refresh = useCallback(async () => {
     const revision = ++generation.current;
     setLoading(true);
-    setModels([]);
+    setModels([]); setEfforts({});
     setError('');
     try {
       const result = await window.desktop?.listModels?.(providerId ? { providerId } : undefined);
       if (revision !== generation.current) return;
-      setModels(modelCatalogIds(result));
+      const ids = modelCatalogIds(result);
+      setModels(ids); setEfforts(modelEffortCapabilities(result, ids));
     } catch (err) {
       if (revision !== generation.current) return;
-      setModels([]);
+      setModels([]); setEfforts({});
       setError(err instanceof Error ? err.message : '无法获取模型列表。');
     } finally { if (revision === generation.current) setLoading(false); }
   }, [providerId]);
   useEffect(() => { const changed = () => { void refresh(); }; changed(); window.addEventListener('provider-changed', changed); return () => { generation.current++; window.removeEventListener('provider-changed', changed); }; }, [refresh]);
-  return { models, loading, error, refresh };
+  return { models, efforts, loading, error, refresh };
 }
 
 export function ModelPicker({ catalog, selected, onSelect, open, setOpen }: {
