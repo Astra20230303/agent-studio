@@ -3,12 +3,7 @@ import { ChevronDown, RotateCcw } from 'lucide-react';
 import type { DesktopState } from './domain';
 import './effortPicker.css';
 
-const levels = [
-  { value: 'default', label: '模型默认', description: '由模型和运行配置决定推理强度' },
-  { value: 'low', label: '低', description: '响应更快，适合简单操作' },
-  { value: 'medium', label: '中', description: '平衡响应速度与推理深度' },
-  { value: 'high', label: '高', description: '深入推理，可能需要更长时间' },
-] as const;
+import { effortLevels as levels } from './reasoningEffort';
 
 export function EffortPicker({ model, value, onChange }: { model: string; value: DesktopState['reasoningEffort']; onChange: (value: DesktopState['reasoningEffort']) => void }) {
   const [open, setOpen] = useState(false);

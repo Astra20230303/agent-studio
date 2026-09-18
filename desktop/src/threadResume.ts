@@ -1,3 +1,4 @@
+import { isReasoningEffort } from './reasoningEffort.ts';
 import { readThreadPermissions } from './threadPermissions.ts';
 import type { Thread } from './domain';
 import { validateRestorableHistory } from './historyValidation.ts';
@@ -27,7 +28,7 @@ export function readThreadResume(value: any, threadId: string) {
   }
   validateRestorableHistory(items);
   const reasoningEffort: Thread['reasoningEffort'] = value.reasoningEffort === null ? 'default'
-    : ['low', 'medium', 'high'].includes(value.reasoningEffort) ? value.reasoningEffort : undefined;
+    : isReasoningEffort(value.reasoningEffort) && value.reasoningEffort !== 'default' ? value.reasoningEffort : undefined;
   return structuredClone({ items, running,
     providerId: (value.providerId || undefined) as string | undefined,
     model: (value.model || undefined) as string | undefined,

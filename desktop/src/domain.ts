@@ -1,3 +1,4 @@
+import type { ReasoningEffort } from './reasoningEffort';
 export type ThreadStatus = 'idle' | 'running' | 'needs_input' | 'completed' | 'failed';
 export type AutomationStatus = 'active' | 'paused' | 'failed';
 
@@ -33,7 +34,7 @@ export interface ToolActivity {
 export interface Thread {
   providerId?: string;
   model?: string;
-  reasoningEffort?: 'default' | 'low' | 'medium' | 'high';
+  reasoningEffort?: ReasoningEffort;
   effectivePermissions?: import('./threadPermissions').ThreadPermissions;
   requestedPermission?: DesktopState['permission'];
   contextTokens?: import('./ContextUsage').ContextTokens;
@@ -80,7 +81,7 @@ export interface LlmProvider {
 }
 
 export interface DesktopState {
-  reasoningEffort: 'default' | 'low' | 'medium' | 'high';
+  reasoningEffort: ReasoningEffort;
   mode: 'code' | 'work';
   activeThreadId?: string;
   activeProjectId?: string;
