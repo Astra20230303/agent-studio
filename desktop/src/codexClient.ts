@@ -85,6 +85,7 @@ export async function setThreadMemoryMode(threadId: string, mode: 'enabled' | 'd
   const validMode = validateThreadMemoryInput(threadId, mode);
   return unwrap<any>(bridge().request('thread/memoryMode/set', { threadId, mode: validMode }));
 }
+export async function resetMemory() { return unwrap<any>(bridge().request('memory/reset', {})); }
 export async function archiveThread(threadId: string) { return unwrap<any>(bridge().request('thread/archive', { threadId })); }
 export async function unarchiveThread(threadId: string) { return unwrap<any>(bridge().request('thread/unarchive', { threadId })); }
 export async function listArchivedThreads(cursor?: string) { return unwrap<any>(bridge().request('thread/list', { modelProviders: [], archived: true, limit: 100, sortKey: 'recency_at', sortDirection: 'desc', ...(cursor ? { cursor } : {}) })); }
