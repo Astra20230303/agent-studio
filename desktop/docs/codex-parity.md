@@ -2925,3 +2925,9 @@ user-message-copy-ui.cjs 覆盖原文保真、键盘操作、失败重试、空�
 实现 d4a343c：聊天与任务编辑共用模型目录校验，拒绝非数组、空目录、非字符串及空白 ID，保留合法 ID 顺序并去重。错误显示后可刷新重试，保留当前选择，任务在目录无效时禁止保存。
 
 验收：model-catalog 单测、model-search-ui、task-provider-catalog-ui 通过，覆盖损坏响应、错误恢复、选择保留及重复选项；model-catalog-race-ui 补测迟到的损坏响应不影响新 Provider 目录。生产构建通过，保留现有包体大小警告。目录仅提供模型 ID，尚不能据此判断模型支持哪些推理强度；本轮未验证云端模型能力。
+
+## 渠道配置与会话迁移目录校验
+
+实现 654e3a5：渠道设置连接及已有会话迁移统一调用模型目录校验。损坏目录不进入配置列表，不发送迁移 RPC；错误后保留原渠道、会话历史和草稿，可重新连接/切换。
+
+验收：provider-catalog-validation-ui 覆盖损坏响应、去重、已有选择后失败禁存及恢复选择；thread-provider-migration-ui 覆盖无效目录零迁移及修复重试。manual-model-ui 与 thread-provider-catalog-ui 回归通过，后者修正旧相对路径夹具以符合当前项目仓库契约。生产构建通过。模型能力字段尚未接入，不能声称已按模型限制推理强度。

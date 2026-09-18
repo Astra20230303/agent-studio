@@ -10,7 +10,7 @@ const assert = require('node:assert/strict');
         listProviders: async () => [{ id: 'a', name: 'Alpha', enabled: true }, { id: 'b', name: 'Beta' }],
         listModels: async input => ({ ok: true, models: [input?.providerId === 'b' ? 'beta-model' : 'alpha-model'] }),
         providerStatus: async id => { window.__checks.push(id); return { keyConfigured: id === 'b' }; },
-        getProjectRoot: async () => '.',
+        getProjectRoot: async () => 'D:/Workspace2026/my-agent-plantform',
       };
       window.codex = {
         connect: async () => ({ ok: true }), notify: async () => ({}),
