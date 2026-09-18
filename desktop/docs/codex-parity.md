@@ -1,5 +1,13 @@
 # Felix capability roadmap
 
+## Explain workspace preview decoding failures
+
+The workspace panel now reports invalid UTF-8 and image decode errors, matching
+expanded preview feedback. Image failures belong to the specific preview object;
+this prevents a post-render reset from erasing a fast decoder error. Refreshing
+with repaired data clears the error and restores the image; valid text restores
+editing. Browser decoder/recovery and encoding-status acceptance and build pass.
+
 ## Keep saved previews authoritative
 
 Workspace preview updates from a completed save invalidate older pending reads,

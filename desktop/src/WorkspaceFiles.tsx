@@ -14,6 +14,8 @@ export function WorkspaceFiles({ root, onAttach, onClose, onEdit, onPreview, pre
   const [selected, setSelected] = useState<Entry>();
   const [listing, setListing] = useState<{ entries: Entry[]; truncated?: boolean; skipped?: number }>();
   const [preview, setPreview] = useState<any>();
+  const [failedImagePreview, setFailedImagePreview] = useState<unknown>();
+  const imageFailed = !!preview?.image && failedImagePreview === preview;
   const requestVersion = useRef(0);
   useEffect(() => {
     if (previewUpdate && previewUpdate.root === root && previewUpdate.path === selected?.path) {
@@ -46,6 +48,6 @@ export function WorkspaceFiles({ root, onAttach, onClose, onEdit, onPreview, pre
     {error && <p role="alert">{error}</p>}{root && !listing && !preview && !error && <p>正在读取…</p>}
     {listing && !listing.entries.length && <p>{search ? '没有匹配文件。' : '此目录为空。'}</p>}
     {selected && root && isEditablePreview(preview) && <button onClick={() => onEdit({ root, path: selected.path, initial: { text: preview.text, revision: preview.revision } })}>编辑文件</button>}
-    {preview?.image && <img src={preview.image} alt={selected?.name} />}{preview?.binary && <p>二进制文件，无法显示文本预览。</p>}{staleMatch && <p role="status">文件在搜索后已变化，请返回并刷新搜索结果。</p>}{typeof preview?.text === 'string' && <pre>{selected?.line && !staleMatch ? preview.text.split('\n').map((line: string, index: number) => <span key={index} ref={index + 1 === selected.line ? matchLine : undefined} style={index + 1 === selected.line ? { background: '#ffe08a', color: '#202020' } : undefined}>{line}{'\n'}</span>) : preview.text}</pre>}{preview?.truncated && <p>仅预览前 256 KB。</p>}
+    {preview?.image && <img src={preview.image} alt={selected?.name} onError={() => setFailedImagePreview(preview)} />}{imageFailed && <p role="alert">图片无法解码，文件可能已损坏。请修复文件后刷新文件。</p>}{preview?.encodingInvalid && <p role="status">文件包含无法按 UTF-8 解码的字符，预览使用替代字符，不能编辑。</p>}{preview?.binary && <p>二进制文件，无法显示文本预览。</p>}{staleMatch && <p role="status">文件在搜索后已变化，请返回并刷新搜索结果。</p>}{typeof preview?.text === 'string' && <pre>{selected?.line && !staleMatch ? preview.text.split('\n').map((line: string, index: number) => <span key={index} ref={index + 1 === selected.line ? matchLine : undefined} style={index + 1 === selected.line ? { background: '#ffe08a', color: '#202020' } : undefined}>{line}{'\n'}</span>) : preview.text}</pre>}{preview?.truncated && <p>仅预览前 256 KB。</p>}
   </section>;
 }

@@ -38,7 +38,21 @@ const assert = require('node:assert/strict');
       await page.evaluate(extra => window.__renderPanel({ text: 'Not editable', revision: 'present', ...extra }), extra);
       await page.locator('pre').getByText('Not editable', { exact: true }).waitFor();
       assert.equal(await page.getByRole('button', { name: '编辑文件', exact: true }).count(), 0);
+      if (extra.encodingInvalid) await page.getByRole('status').getByText('文件包含无法按 UTF-8 解码的字符，预览使用替代字符，不能编辑。', { exact: true }).waitFor();
     }
+    await page.getByRole('alert').getByText('图片无法解码，文件可能已损坏。请修复文件后刷新文件。', { exact: true }).waitFor();
+    await page.evaluate(() => { delete window.__resolveRead; });
+    await page.getByRole('button', { name: '刷新文件', exact: true }).click();
+    await page.waitForFunction(() => !!window.__resolveRead);
+    await page.evaluate(() => {
+      const canvas = document.createElement('canvas'); canvas.width = 8; canvas.height = 8;
+      window.__resolveRead({ ok: true, result: { image: canvas.toDataURL() } });
+    });
+    await page.waitForFunction(() => document.querySelector('.workspace-files img')?.naturalWidth === 8);
+    assert.equal(await page.getByRole('alert').count(), 0);
+    await page.evaluate(() => window.__renderPanel({ text: 'Valid text', revision: 'valid' }));
+    await page.getByRole('button', { name: '编辑文件', exact: true }).waitFor();
+    assert.equal(await page.getByRole('status').count(), 0);
     console.log('PASS: saved preview supersedes old reads; incomplete or nontext previews never expose editing');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
