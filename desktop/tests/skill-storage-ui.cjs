@@ -32,6 +32,12 @@ const { chromium } = require('playwright');
     await page.reload();
     await page.getByRole('button', { name: '移除技能 keep', exact: true }).waitFor();
     assert.equal(await page.getByRole('button', { name: '移除技能 remove', exact: true }).count(), 0);
+    await page.getByRole('button', { name: '移除技能 keep', exact: true }).click();
+    await page.evaluate(() => { window.__fail = false; });
+    await retry.click(); await retry.waitFor({ state: 'detached' });
+    const cleared = await page.evaluate(() => JSON.parse(localStorage.getItem('felix-skill-drafts-v1')));
+    assert.deepEqual(cleared.a, []);
+    assert.deepEqual(cleared.b, expected.b);
     console.log('PASS: skill save retry preserves latest per-thread selection across quota failure and reload');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
