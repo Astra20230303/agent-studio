@@ -1,7 +1,8 @@
+import { recordGitAction } from './gitAudit';
 import { useEffect, useRef, useState } from 'react';
 import { parseGitBranches, type GitBranchesSnapshot } from './gitBranchesResponse';
 
-export function GitBranches({ root, onSwitched, onBusyChange }: { root: string; onSwitched: (branch: string) => void; onBusyChange: (busy: boolean) => void }) {
+export function GitBranches({ root, onSwitched, onBusyChange, onRecord }: { onRecord?: (action: string) => void; root: string; onSwitched: (branch: string) => void; onBusyChange: (busy: boolean) => void }) {
   const [snapshot, setSnapshot] = useState<GitBranchesSnapshot>();
   const [target, setTarget] = useState('');
   const [remoteRef, setRemoteRef] = useState('');
@@ -37,8 +38,9 @@ export function GitBranches({ root, onSwitched, onBusyChange }: { root: string; 
     locked.current = true; setBusy(true); onBusyChange(true); setError(''); setNotice('');
     try {
       const result = await window.desktop?.workspaceGit?.({ root, action: creating ? 'create-branch' : deleting ? 'delete-branch' : track ? 'track-branch' : 'switch-branch', branch: creating ? newName : deleting ? deleteName : track ? localName : target, expectedBranch: snapshot.current, expectedHead: snapshot.head, ...(track ? { ref: remote!.ref, expectedRemoteHead: remote!.head } : {}) });
-      if (!mounted.current) return;
       if (!result?.ok) throw Error(result?.error || '无法切换分支');
+      recordGitAction(creating ? 'create-branch' : deleting ? 'delete-branch' : track ? 'track-branch' : 'switch-branch', onRecord);
+      if (!mounted.current) return;
       if (deleting) { setRevision(value => value + 1); setDeleteName(''); setError(''); setNotice(`已删除本地分支 ${deleteName}`); } else onSwitched(result.result.branch);
     } catch (error) { if (mounted.current) setError(error instanceof Error ? error.message : String(error)); }
     finally { locked.current = false; onBusyChange(false); if (mounted.current) setBusy(false); }

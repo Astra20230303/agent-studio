@@ -1,9 +1,10 @@
+import { recordGitAction } from './gitAudit';
 import { useEffect, useRef, useState } from 'react';
 import type { Project } from './domain';
 import { parseGitWorktrees, type WorktreeValue } from './gitWorktreesResponse';
 import { parseWorktreeProject } from './worktreeProjectResponse';
 type Worktree = WorktreeValue;
-export function GitWorktrees({ root, protectedPaths = [], onOpen, onBusyChange }: { protectedPaths?: string[]; onBusyChange?: (busy: boolean) => void; root: string; onOpen: (project: Project) => void }) {
+export function GitWorktrees({ root, protectedPaths = [], onOpen, onBusyChange, onRecord }: { onRecord?: (action: string) => void; protectedPaths?: string[]; onBusyChange?: (busy: boolean) => void; root: string; onOpen: (project: Project) => void }) {
   const isProtected = (path: string) => {
     const normalize = (value: string) => { const result = value.replaceAll('\\', '/').replace(/\/+$/, ''); return /^[a-z]:\//i.test(result) || result.startsWith('//') ? result.toLowerCase() : result; };
     const target = normalize(path);
@@ -41,8 +42,9 @@ export function GitWorktrees({ root, protectedPaths = [], onOpen, onBusyChange }
     const requestGeneration = generation.current;
     try {
       const result = await window.desktop?.workspaceGit?.({ root, action: remove ? 'remove-worktree' : 'open-worktree', path, ...(remove ? { expectedHead: removing?.head } : {}) });
-      if (requestGeneration !== generation.current) return;
       if (!result?.ok) throw Error(result?.error || (remove ? '无法删除工作树' : '无法打开工作树'));
+      if (remove) recordGitAction('remove-worktree', onRecord);
+      if (requestGeneration !== generation.current) return;
       if (remove) { setRemoving(undefined); setNotice(`已删除工作树 ${path}，分支与提交保留。`); setRevision(value => value + 1); }
       else onOpen(parseWorktreeProject(result.result));
     } catch (error) { setError(error instanceof Error ? error.message : String(error)); }
