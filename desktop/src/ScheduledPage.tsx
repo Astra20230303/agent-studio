@@ -25,6 +25,9 @@ function TaskModal({ title, onClose, children }: { title: string; onClose: () =>
 function TaskEditor({ draft, providers, onClose, onSaved }: { draft: TaskDraft; providers: { id: string; name: string; enabled?: boolean }[]; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState<TaskDraft>(() => structuredClone(draft));
   const catalog = useModelCatalog(form.providerId);
+  const supportedEfforts = catalog.efforts[form.model];
+  const effortUnavailable = !!form.reasoningEffort && supportedEfforts !== undefined && !supportedEfforts.includes(form.reasoningEffort);
+  const effortOptions = explicitEffortLevels.filter(level => supportedEfforts === undefined || supportedEfforts.includes(level.value));
   const { models, loading: loadingModels, refresh: refreshModels } = catalog;
   const [onceAt, setOnceAt] = useState(() => localDateInput(draft.schedule.kind === 'once' ? draft.schedule.at : new Date(Date.now() + 3600000).toISOString()));
   const [error, setError] = useState('');
@@ -50,6 +53,7 @@ function TaskEditor({ draft, providers, onClose, onSaved }: { draft: TaskDraft; 
     setError(''); setSaving(true);
     try {
       if (form.kind === 'agent' && (loadingModels || !models.includes(form.model))) throw new Error(catalog.error || '请从渠道模型列表中选择可用模型。');
+      if (form.kind === 'agent' && effortUnavailable) throw new Error('请为此模型重新选择支持的推理强度。');
       if (form.kind === 'agent' && form.permission === 'workspace-write' && !writeConfirmed) throw new Error('请确认允许无人值守修改工作区。');
       const schedule = form.schedule.kind === 'once' ? { kind: 'once' as const, at: new Date(onceAt).toISOString() } : form.schedule;
       await automationRepository.save({ ...form, schedule }); onSaved();
@@ -70,7 +74,8 @@ function TaskEditor({ draft, providers, onClose, onSaved }: { draft: TaskDraft; 
         {form.schedule.kind === 'weekly' && <label>星期<select aria-label="星期" value={form.schedule.day ?? 1} onChange={event => patchSchedule({ day: Number(event.target.value) })}>{Array.from('日一二三四五六').map((day, index) => <option key={index} value={index}>星期{day}</option>)}</select></label>}
       </>}
       {form.kind === 'agent' && <><label>执行渠道<select aria-label="任务 Provider" value={form.providerId || ''} onChange={event => patch({ providerId: event.target.value || undefined })}><option value="">跟随当前启用渠道</option>{form.providerId && !providers.some(provider => provider.id === form.providerId) && <option value={form.providerId} disabled>{form.providerId}（不可用）</option>}{providers.map(provider => <option key={provider.id} value={provider.id}>{provider.name}{provider.enabled ? ' · 当前启用' : ''}</option>)}</select></label><div className="task-model-field"><label>模型<select aria-label="任务模型" required value={form.model} onChange={event => patch({ model: event.target.value })}><option value="">{loadingModels ? '正在读取模型…' : '选择模型'}</option>{form.model && !models.includes(form.model) && <option value={form.model} disabled>{form.model}（不可用）</option>}{models.map(model => <option key={model}>{model}</option>)}</select></label><button type="button" className="task-icon-button" title="刷新模型" aria-label="刷新模型" onClick={refreshModels} disabled={loadingModels}><RefreshCw /></button></div>
-        <label>推理强度<select aria-label="任务推理强度" value={form.reasoningEffort || ''} onChange={event => patch({ reasoningEffort: event.target.value ? event.target.value as TaskDraft['reasoningEffort'] : undefined })}><option value="">模型默认</option>{explicitEffortLevels.map(level => <option key={level.value} value={level.value}>{level.label}</option>)}</select></label>
+        <label>推理强度<select aria-label="任务推理强度" value={form.reasoningEffort || ''} onChange={event => patch({ reasoningEffort: event.target.value ? event.target.value as TaskDraft['reasoningEffort'] : undefined })}><option value="">模型默认</option>{effortUnavailable && <option value={form.reasoningEffort} disabled>{effortLabel(form.reasoningEffort)}（不受支持）</option>}{effortOptions.map(level => <option key={level.value} value={level.value}>{level.label}</option>)}</select></label>
+        {effortUnavailable && <p role="status">当前强度不在此模型声明的支持范围内，请重新选择后保存。原配置已保留。</p>}
         <label>执行时限（分钟）<input aria-label="任务执行时限" type="number" min={1} max={120} step={1} placeholder="默认 10" value={form.timeoutMinutes ?? ''} onChange={event => patch({ timeoutMinutes: event.target.value === '' ? undefined : Number(event.target.value) })} /><small>超时后停止本次运行，最长 120 分钟。</small></label>
         <label>工作目录<input aria-label="任务工作目录" value={form.cwd || ''} placeholder="留空使用 Felix 项目目录" onChange={event => { patch({ cwd: event.target.value }); setWriteConfirmed(false); }} /></label><button type="button" onClick={() => { void projectRepository.pick().then(project => { if (project?.path) { patch({ cwd: project.path }); setWriteConfirmed(false); } }).catch(error => setError(String(error))); }}>选择任务目录</button>
         <label>执行权限<select value={form.permission} onChange={event => { patch({ permission: event.target.value as TaskDraft['permission'] }); setWriteConfirmed(false); }}><option value="read-only">只读</option><option value="workspace-write">允许修改工作区</option></select></label>
@@ -82,7 +87,7 @@ function TaskEditor({ draft, providers, onClose, onSaved }: { draft: TaskDraft; 
     {error && <div className="task-error" role="alert">{error}</div>}
     {form.kind === 'agent' && catalog.error && <div className="task-error" role="alert">{catalog.error}</div>}
     {discarding && <section role="alert" aria-label="放弃任务修改"><p>任务修改尚未保存，是否放弃？</p><button ref={continueButton} type="button" onClick={() => setDiscarding(false)}>继续编辑</button><button type="button" onClick={() => { if (!saveLock.current) onClose(); }}>放弃修改</button></section>}
-    <footer><button type="button" disabled={saving} onClick={requestClose}>取消</button><button className="task-primary" disabled={saving || form.kind === 'agent' && (loadingModels || !models.includes(form.model))}>{saving ? '保存中…' : '保存任务'}</button></footer>
+    <footer><button type="button" disabled={saving} onClick={requestClose}>取消</button><button className="task-primary" disabled={saving || form.kind === 'agent' && (loadingModels || !models.includes(form.model) || effortUnavailable)}>{saving ? '保存中…' : '保存任务'}</button></footer>
   </form></TaskModal>;
 }
 
