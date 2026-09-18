@@ -83,6 +83,8 @@ async function main() {
     await dialog.getByText(/真实持久化结果/).waitFor();
     await page.screenshot({ path: path.join(artifacts, 'scheduled-results.png') });
     await dialog.getByRole('button', { name: '编辑', exact: true }).click();
+    assert.equal(await page.getByRole('dialog', { name: '编辑任务', exact: true }).getByLabel('任务 Provider', { exact: true }).inputValue(), '');
+    assert.equal(scheduler.detail(sample.id).providerId, undefined);
     const editor = page.getByRole('dialog', { name: '编辑任务', exact: true });
     await editor.getByRole('textbox', { name: '任务内容', exact: true }).fill('FAIL');
     await editor.getByRole('button', { name: '保存任务' }).click(); await editor.waitFor({ state: 'detached' });

@@ -1,5 +1,21 @@
 # Felix capability roadmap
 
+## Scheduled task model catalogs
+
+Task editors now query models independently for their selected Provider instead
+of borrowing the active chat catalog. Changing Provider retains the old model
+as unavailable until a valid model is selected. Failed reads are visible, block
+agent-task saving and support refresh/retry. Legacy tasks explicitly show that
+they follow the globally active Provider; missing bindings display their ID.
+
+Acceptance: browser checks select Beta, inject catalog failure, retry and verify
+the saved Provider/model pair. The production-build UI with a real TaskScheduler
+passes CRUD, run/cancel/failure, output persistence, restart, legacy unbound-task
+editing and responsive/dark checks. Acceptance found and fixed titlebar overflow
+at 390px by reducing window-button widths on the narrow scheduled page. The
+build retains its existing main-bundle size warning. Hosted inference remains
+outside this UI acceptance.
+
 ## Provider-scoped model catalog and credential checks
 
 The conversation's bound Provider (or the new conversation's selection) now

@@ -65,6 +65,7 @@
 @media (max-width:480px) {
   .desktop-app:has(.scheduled-page) .desktop-titlebar { gap:4px; padding-left:8px; padding-right:0; }
   .desktop-app:has(.scheduled-page) .desktop-titlebar nav { gap:4px; }
+  .desktop-app:has(.scheduled-page) .desktop-titlebar .window-controls button { width:36px; min-width:36px; }
   .desktop-app:has(.scheduled-page) .desktop-titlebar nav button { padding-inline:4px; white-space:nowrap; }
 }
 @media (prefers-reduced-motion:reduce) { .task-spin { animation:none; } }
