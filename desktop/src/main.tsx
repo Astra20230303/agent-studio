@@ -76,7 +76,7 @@ import { applyToolEvent, finishTools, restoreMessages } from './toolActivity';
 import { ToolActivityGroup, groupMessages } from './ToolActivityView';
 import { MessageActions } from './ReplyActions';
 import { branchSnapshot, fullBranchSnapshot, isFinalReply } from './messageActions';
-import { updateThreadPermission, connectCodex, subscribeCodex } from './codexClient';
+import { connectCodex, subscribeCodex } from './codexClient';
 import { ExtensionsPage, ExtensionIcon } from './ExtensionsPage';
 import { ThreadButton } from './ThreadButton';
 import { ModePicker } from './ModePicker';
@@ -472,8 +472,8 @@ function App({ initialState }: { initialState: DesktopState }) {
     setPendingThreads(previous => [...previous, thread.id]);
     update(next => { const target = next.threads.find(item => item.id === thread.id); if (target) target.effectivePermissions = undefined; });
     try {
-      const settings = await updateThreadPermission(thread.remoteId, permission);
-      update(next => { const target = next.threads.find(item => item.id === thread.id); if (target) { target.effectivePermissions = readThreadPermissions(settings); target.requestedPermission = permission; } });
+      const settings = await threadStore.changePermission({ id: thread.id, remoteId: thread.remoteId }, permission);
+      update(next => { const target = next.threads.find(item => item.id === thread.id); if (target) { target.effectivePermissions = settings; target.requestedPermission = permission; } });
       audit.record('修改会话权限', permission);
     } catch (error: any) { setNotice(`修改权限失败：${error.message}`); }
     finally { sendingRef.current.delete(thread.id); setPendingThreads(previous => previous.filter(id => id !== thread.id)); }

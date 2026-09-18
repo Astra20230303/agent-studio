@@ -29,6 +29,9 @@ test(`real permission configuration through Felix client (Windows sandbox: ${win
       onNotification: listener => { rpc.on('notification', listener); return () => rpc.off('notification', listener); },
       onClosed: listener => { rpc.on('closed', listener); return () => rpc.off('closed', listener); },
     } } });
+    const { createThreadStore } = require('../src/threadStore.ts');
+    let settings;
+    const store = createThreadStore({ changePermission: async (...args) => { settings = await client.updateThreadPermission(...args); return settings; } }, () => { throw Error('Unexpected mutation'); });
     // Exercise the production client mapping, including workspace-write's reviewer.
     for (const [permission, sandboxType, approvalPolicy, reviewer] of [
       ['on-request', 'readOnly', 'on-request', 'user'],
@@ -70,7 +73,8 @@ test(`real permission configuration through Felix client (Windows sandbox: ${win
       ['workspace-write', 'workspaceWrite', 'auto_review', 'on-request'],
       ['on-request', 'readOnly', 'user', 'on-request'],
     ]) {
-      const settings = await client.updateThreadPermission(created.thread.id, permission);
+      const confirmed = await store.changePermission({id: created.thread.id, remoteId: created.thread.id}, permission);
+      assert.deepEqual(confirmed, { sandbox, approvalPolicy, reviewer });
       assert.equal(settings.sandboxPolicy.type, sandbox);
       assert.equal(settings.approvalsReviewer, reviewer);
       assert.equal(settings.approvalPolicy, approvalPolicy);

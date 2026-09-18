@@ -1,3 +1,4 @@
+import { readPermissionUpdate } from './threadPermissionUpdate.ts';
 import { readThreadProvider } from './threadProvider.ts';
 import { createThreadHistory, type HistoryReadOptions } from './threadHistory.ts';
 import { validateRestorableHistory } from './historyValidation.ts';
@@ -10,6 +11,7 @@ import { createThreadRepository, type ThreadRepository, type ThreadSource } from
 import { createThreadMutations, type ThreadMutations, type ThreadRemoteMutations } from './threadMutations.ts';
 
 export interface ThreadStore extends ThreadRepository, ThreadMutations {
+  changePermission(source: Pick<Thread, 'id'> & { remoteId: string }, permission: DesktopState['permission']): Promise<ReturnType<typeof readPermissionUpdate>>;
   switchProvider(source: Pick<Thread, 'id'> & { remoteId: string }, providerId: string, model: string): Promise<ReturnType<typeof readThreadProvider>>;
   readHistory(threadId: string, options?: HistoryReadOptions): Promise<unknown[]>;
   findMessageTurn(threadId: string, messageId: string): Promise<string | undefined>;
@@ -18,7 +20,7 @@ export interface ThreadStore extends ThreadRepository, ThreadMutations {
   resume(threadId: string): Promise<ReturnType<typeof readThreadResume>>;
   syncInitialTitle(thread: Pick<Thread, 'id'> & { remoteId: string }, title: string): Promise<void>;
 }
-export type ThreadBackend = ThreadSource & ThreadRemoteMutations & { switchProvider(threadId: string, providerId: string, model: string): Promise<unknown>; items(threadId: string, cursor?: string): Promise<unknown>; turns(threadId: string, cursor?: string): Promise<unknown>; resume(threadId: string): Promise<unknown>; start(options: ThreadStartOptions): Promise<unknown>; fork(threadId: string, lastTurnId?: string): Promise<unknown> };
+export type ThreadBackend = ThreadSource & ThreadRemoteMutations & { changePermission(threadId: string, permission: DesktopState['permission']): Promise<unknown>; switchProvider(threadId: string, providerId: string, model: string): Promise<unknown>; items(threadId: string, cursor?: string): Promise<unknown>; turns(threadId: string, cursor?: string): Promise<unknown>; resume(threadId: string): Promise<unknown>; start(options: ThreadStartOptions): Promise<unknown>; fork(threadId: string, lastTurnId?: string): Promise<unknown> };
 
 // One instance per application state. View lifetimes and queue persistence remain
 // with callers; mutation exclusion spans all views and survives reconnects.
@@ -44,6 +46,10 @@ export function createThreadStore(backend: ThreadBackend, update: (mutate: (stat
   }
   return {
     query: repository.query,
+    changePermission(source, permission) {
+      const identity = { id: source.id, remoteId: source.remoteId };
+      return exclusive(identity, async () => readPermissionUpdate(await backend.changePermission(identity.remoteId, permission), permission));
+    },
     switchProvider(source, providerId, model) {
       const identity = { id: source.id, remoteId: source.remoteId };
       return exclusive(identity, async () => readThreadProvider(await backend.switchProvider(identity.remoteId, providerId, model), identity.remoteId, providerId, model));
