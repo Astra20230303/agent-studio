@@ -6,8 +6,9 @@ const assert = require('node:assert/strict');
     const page = await browser.newPage();
     await page.addInitScript(() => {
       localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeThreadId: 'a', threads: [{ id: 'a', remoteId: 'remote-a', title: 'Original', status: 'completed', messages: [{ id: 'm', role: 'user', content: 'hello' }], updatedAt: '' }] }));
-      window.__names = [];
+      window.__names = []; window.__archives = [];
       window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async (method, params) => {
+        if (method === 'thread/archive') { window.__archives.push(params.threadId); return { ok: true, result: {} }; }
         if (method === 'thread/name/set') { window.__names.push(params); if (!window.__allow) return { ok: false, error: { message: 'Rename failed' } }; return new Promise(resolve => window.__finish = () => resolve({ ok: true, result: {} })); }
         return { ok: true, result: method === 'thread/resume' ? { thread: { id: params.threadId, turns: [] } } : { data: [] } };
       }, onNotification: () => () => {}, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
@@ -25,9 +26,15 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: '保存名称', exact: true }).click();
     await page.waitForFunction(() => !!window.__finish); await page.keyboard.press('Escape');
     assert.ok(await page.getByRole('dialog', { name: '重命名会话', exact: true }).isVisible());
+    await page.locator('.global-thread-toolbar').getByRole('button', { name: '归档', exact: true }).evaluate(button => button.click());
+    await page.getByText(/归档失败：此会话的操作尚未完成/).waitFor();
+    assert.deepEqual(await page.evaluate(() => window.__archives), []);
     await page.evaluate(() => window.__finish());
     await page.getByRole('button', { name: 'New name', exact: true }).waitFor();
     assert.deepEqual(await page.evaluate(() => window.__names), [{ threadId: 'remote-a', name: 'New name' }, { threadId: 'remote-a', name: 'New name' }]);
+    await page.locator('.global-thread-toolbar').getByRole('button', { name: '归档', exact: true }).click();
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads[0].archived);
+    assert.deepEqual(await page.evaluate(() => window.__archives), ['remote-a']);
     console.log('PASS: in-app rename validation, retained failed draft, retry, pending guard and sidebar update');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

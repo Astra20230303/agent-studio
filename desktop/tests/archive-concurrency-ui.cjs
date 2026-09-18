@@ -10,7 +10,7 @@ const { chromium } = require('playwright');
       window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }) };
       window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async (method, params) => {
         if (method === 'thread/archive') { window.__archives.push(params.threadId); return new Promise(resolve => { window.__resolvers[params.threadId] = resolve; }); }
-        return { ok: true, result: method === 'thread/resume' ? { thread: { turns: [] } } : { data: [] } };
+        return { ok: true, result: method === 'thread/resume' ? { thread: { id: params.threadId, turns: [] } } : { data: [] } };
       }, onNotification: () => () => {}, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
     });
     await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');

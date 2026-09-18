@@ -110,6 +110,17 @@ test('real app-server archives, paginates and restores isolated conversations', 
     const branch = await client.listThreadItems(fork.thread.id);
     assert.ok(branch.data.some(entry => entry.item.type === 'agentMessage' && entry.item.text.includes('Archive test completed.')));
     assert.deepEqual((await client.listThreadItems(ids[0])).data.map(entry => entry.item.id), items.data.map(entry => entry.item.id));
+    const restoredLocal = localState.threads[0];
+    await repository.rename(restoredLocal, 'Store acceptance');
+    assert.equal(localState.threads[0].title, 'Store acceptance');
+    assert.equal((await repository.query()).data.find(thread => thread.id === ids[1]).name, 'Store acceptance');
+    await repository.archive(restoredLocal);
+    assert.equal(localState.threads[0].archived, true);
+    assert.ok((await repository.query({archived:true})).data.some(thread => thread.id === ids[1]));
+    await repository.remove(restoredLocal);
+    assert.equal(localState.threads.length, 0);
+    assert.ok(!(await repository.query({archived:true})).data.some(thread => thread.id === ids[1]));
+
   } finally {
     clearTimeout(timer);
     const exited = child.exitCode === null ? once(child, 'exit').catch(() => {}) : Promise.resolve();

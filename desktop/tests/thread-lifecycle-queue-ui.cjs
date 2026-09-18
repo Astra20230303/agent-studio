@@ -11,10 +11,10 @@ const { chromium } = require('playwright');
         const write = Storage.prototype.setItem;
         Storage.prototype.setItem = function(key, value) { if (key === 'felix-turn-queue-v1' && window.__quota) throw Error('quota'); return write.call(this, key, value); };
         window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }), providerStatus: async () => ({ keyConfigured: true }) };
-        window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async method => {
+        window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async (method, params) => {
           if (['thread/archive', 'thread/delete'].includes(method)) { window.__mutations++; return new Promise(resolve => { window.__finish = resolve; }); }
           if (method === 'turn/start') window.__sent++;
-          return { ok: true, result: method === 'thread/resume' ? { thread: { turns: [{ id: 'live', status: 'inProgress', items: [] }] } } : { data: [] } };
+          return { ok: true, result: method === 'thread/resume' ? { thread: { id: params.threadId, turns: [{ id: 'live', status: 'inProgress', items: [] }] } } : { data: [] } };
         }, onNotification: fn => { window.__notify = fn; return () => {}; }, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
       });
       await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
