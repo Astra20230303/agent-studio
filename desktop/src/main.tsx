@@ -188,7 +188,7 @@ function App() {
     if (!remoteId || active?.providerId || !window.desktop?.threadProvider) return;
     void window.desktop.threadProvider(remoteId).then((providerId?: string) => {
       if (!providerId) return;
-      update(next => { const thread = next.threads.find(item => item.remoteId === remoteId); if (thread) thread.providerId = providerId; });
+      update(next => { const thread = next.threads.find(item => item.remoteId === remoteId); if (thread && !thread.providerId) thread.providerId = providerId; });
     }).catch(() => undefined);
   }, [active?.remoteId, active?.providerId]);
   useEffect(() => {
@@ -345,7 +345,7 @@ function App() {
         const started = await startThread({ effort: activeEffort, model, modelProvider, providerId: newThreadProviderId, cwd, permission: state.permission });
         const id = started.thread?.id;
         if (!id) throw new Error('没有返回 thread id');
-        update(next => { const thread = next.threads.find(item => item.id === localId); if (thread) { thread.remoteId = id; thread.providerId = newThreadProviderId; thread.effectivePermissions = readThreadPermissions(started); thread.requestedPermission = state.permission; } });
+        update(next => { const thread = next.threads.find(item => item.id === localId); if (thread) { thread.remoteId = id; thread.providerId = started.providerId || newThreadProviderId; thread.effectivePermissions = readThreadPermissions(started); thread.requestedPermission = state.permission; } });
         return id;
       };
       if (!threadId) threadId = await createRemoteThread();
@@ -424,6 +424,7 @@ function App() {
       try {
         const loaded = await resumeThread(threadId);
         if (disposed) return;
+        if (loaded.providerId) update(next => { const thread = next.threads.find(item => item.remoteId === threadId); if (thread) thread.providerId = loaded.providerId; });
         const turns = loaded?.thread?.turns || [];
         const running = turns.find((turn: any) => turn.status === 'inProgress');
         // Only use a snapshot that predates no live turn events.
@@ -502,6 +503,7 @@ function App() {
       const result = await forkThread(source.remoteId);
       if (!result?.thread?.id) throw new Error('没有返回分叉线程');
       const copy = fullBranchSnapshot(source, result.thread.id);
+      copy.providerId = result.providerId || source.providerId;
       copy.model = activeModel; copy.reasoningEffort = activeEffort;
       copy.effectivePermissions = readThreadPermissions(result);
       const stillOnSource = activeThreadRef.current === source.id;
@@ -538,6 +540,7 @@ function App() {
       const result = await forkThread(source.remoteId, turnId);
       if (!result.thread?.id) throw new Error('服务未返回分支会话。');
       const copy = branchSnapshot(source, messageId, result.thread.id);
+      copy.providerId = result.providerId || source.providerId;
       copy.model = activeModel; copy.reasoningEffort = activeEffort;
       copy.effectivePermissions = readThreadPermissions(result); copy.requestedPermission = undefined;
       const stillOnSource = activeThreadRef.current === source.id;

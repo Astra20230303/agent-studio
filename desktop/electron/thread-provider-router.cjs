@@ -26,7 +26,10 @@ class ThreadProviderRouter {
       routed.config = { ...params.config, 'model_providers.minimax.base_url': `${this.adapterUrl()}/providers/${provider.id}/v1` };
     }
     const result = await rpc.request(method, routed);
-    if (method !== 'turn/start' && result.thread?.id) this.save(result.thread.id, provider.id);
+    if (method !== 'turn/start' && result.thread?.id) {
+      this.save(result.thread.id, provider.id);
+      return { ...result, providerId: provider.id };
+    }
     return result;
   }
 }
