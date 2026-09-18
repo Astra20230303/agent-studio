@@ -1,3 +1,4 @@
+import { EditorGoToLine } from './EditorGoToLine';
 import { useEffect, useRef, useState } from 'react';
 import { CopyText } from './CopyText';
 import { isEditablePreview } from './editablePreview';
@@ -71,8 +72,9 @@ export function FileEditor({ root, path, initial, onClose, onSaved }: { root: st
   };
   return <dialog ref={dialog} aria-label="编辑工作区文件" className="file-editor" onKeyDown={event => {
     if ((event.ctrlKey || event.metaKey) && ['f', 'h'].includes(event.key.toLowerCase()) && !event.altKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); setFinding(true); requestAnimationFrame(() => dialog.current?.querySelector<HTMLInputElement>('[aria-label="查找编辑内容"]')?.focus()); }
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'g' && !event.altKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); const input = dialog.current?.querySelector<HTMLInputElement>('[aria-label="编辑行号"]'); input?.focus(); input?.select(); }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's' && !event.altKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); void save(); }
-  }} onCancel={event => { event.preventDefault(); close(); }}><h2>{path}</h2><p>编辑工作区：{root}</p><p>Ctrl / ⌘ + S 保存；Tab 缩进，Shift+Tab 取消缩进；Ctrl / ⌘ + M 切换 Tab 焦点导航。</p><button disabled={busy || !history.past.length} onClick={() => navigateHistory()}>撤销编辑</button><button disabled={busy || !history.future.length} onClick={() => navigateHistory(true)}>重做编辑</button><button onClick={() => setFinding(value => !value)}>查找与替换</button>{finding && <EditorFind text={text} onChange={setText} editor={editor} disabled={busy} onClose={() => setFinding(false)} />}<textarea ref={editor} aria-label="文件内容" onKeyDown={event => {
+  }} onCancel={event => { event.preventDefault(); close(); }}><h2>{path}</h2><p>编辑工作区：{root}</p><p>Ctrl / ⌘ + S 保存；Ctrl / ⌘ + G 跳转到行；Tab 缩进，Shift+Tab 取消缩进；Ctrl / ⌘ + M 切换 Tab 焦点导航。</p><button disabled={busy || !history.past.length} onClick={() => navigateHistory()}>撤销编辑</button><button disabled={busy || !history.future.length} onClick={() => navigateHistory(true)}>重做编辑</button><button onClick={() => setFinding(value => !value)}>查找与替换</button>{finding && <EditorFind text={text} onChange={setText} editor={editor} disabled={busy} onClose={() => setFinding(false)} />}<EditorGoToLine text={text} editor={editor} disabled={busy} /><textarea ref={editor} aria-label="文件内容" onKeyDown={event => {
     if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.nativeEvent.isComposing && ['z', 'y'].includes(event.key.toLowerCase())) { event.preventDefault(); event.stopPropagation(); navigateHistory(event.key.toLowerCase() === 'y' || event.shiftKey); return; }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'm') { event.preventDefault(); setTabNavigation(value => !value); return; }
     if (event.key !== 'Tab' || tabNavigation || event.ctrlKey || event.metaKey || event.altKey || event.nativeEvent.isComposing || busy) return;
