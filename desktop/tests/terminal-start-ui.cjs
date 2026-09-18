@@ -76,12 +76,22 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(count => window.__creates.length === count + 1, count);
     // Exit can arrive before create acknowledgement; it must not leave running enabled.
     await page.evaluate(() => {
+      for (let i = 0; i < 1100; i++) window.__emit({ id: 'already-exited', type: 'invalid' });
       window.__emit({ id: 'already-exited', type: 'exit', code: 7 });
       window.__creates.at(-1).resolve({ ok: true, id: 'already-exited' });
     });
     await status.filter({ hasText: '已退出 (7)' }).waitFor();
     assert.equal(await restart.isEnabled(), true);
     assert.equal(await page.getByRole('button', { name: '终止终端', exact: true }).isDisabled(), true);
-    console.log('PASS: startup lock, sync/async failures, malformed confirmation, retry, early exit and late cleanup');
+    await page.evaluate(() => {
+      window.desktop.saveTerminal = async input => { window.__exported = input.content; return { ok: true }; };
+      window.__emit({ id: 'already-exited', type: 'exit', code: 99 });
+      window.__emit({ id: 'already-exited', type: 'data', data: 'LATE_OUTPUT_MUST_NOT_APPEAR\r\n' });
+    });
+    assert.equal(await status.textContent(), '已退出 (7)');
+    await page.getByRole('button', { name: '导出终端日志', exact: true }).click();
+    await page.getByText('已导出当前终端缓冲区', { exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => window.__exported), '');
+    console.log('PASS: terminal event validation, pre-ack invalid flood, retained exit code, late-output exclusion and lifecycle retry');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
