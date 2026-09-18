@@ -173,12 +173,25 @@ class TaskScheduler extends EventEmitter {
     return done;
   }
   async execute(task, runId, signal, trigger) {
-    let result = {}, error, progressTimer;
+    let result = {}, error, progressTimer, checkpointTimer, checkpointFailed = false;
+    const checkpoint = () => {
+      if (checkpointTimer || this.active?.runId !== runId) return;
+      checkpointTimer = setTimeout(() => {
+        checkpointTimer = undefined;
+        if (this.active?.runId !== runId) return;
+        try { this.persist(); checkpointFailed = false; }
+        catch (error) {
+          if (!checkpointFailed) this.emit('failure', `运行输出暂未保存，将自动重试：${error.message}`);
+          checkpointFailed = true; checkpoint();
+        }
+      }, 2000);
+    };
     const onProgress = output => {
       if (typeof output !== 'string' || this.active?.runId !== runId) return;
       const run = this.get(task.id).runs.find(item => item.id === runId);
       if (!run || run.status !== 'running') return;
       run.output = output.slice(-200000);
+      checkpoint();
       if (!progressTimer) progressTimer = setTimeout(() => { progressTimer = undefined; this.emit('changed'); }, 250);
     };
     try {
@@ -190,7 +203,7 @@ class TaskScheduler extends EventEmitter {
         });
       } });
     } catch (caught) { error = caught; }
-    clearTimeout(progressTimer);
+    clearTimeout(progressTimer); clearTimeout(checkpointTimer);
     try {
       this.change(() => {
         const current = this.get(task.id);

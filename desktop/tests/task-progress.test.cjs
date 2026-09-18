@@ -11,3 +11,20 @@ test('live output is bounded, coalesced, finalized on failure and ignores late c
   await scheduler.stop();scheduler=new TaskScheduler({directory});assert.equal(scheduler.detail(task.id).runs[0].output,saved.output);
  }finally{await scheduler.stop();fs.rmSync(directory,{recursive:true,force:true});}
 });
+
+test('periodic output checkpoint survives abrupt exit and retries disk failure without new output',async t=>{
+ const directory=fs.mkdtempSync(path.join(os.tmpdir(),'felix-checkpoint-'));const recoveredDirectory=fs.mkdtempSync(path.join(os.tmpdir(),'felix-checkpoint-recovery-'));
+ let progress,finish;const timers=[];const timer=global.setTimeout;
+ t.mock.method(global,'setTimeout',(callback,delay,...args)=>{if(delay===2000){timers.push(callback);return {checkpoint:true};}return timer(callback,delay,...args);});
+ const scheduler=new TaskScheduler({directory,runner:async(task,{onProgress})=>{progress=onProgress;return new Promise(resolve=>{finish=resolve;});}});
+ let pending;
+ try{
+  const task=scheduler.save({name:'Checkpoint',prompt:'Test',kind:'agent',model:'test',permission:'read-only',notify:false,schedule:{kind:'interval',minutes:60}});
+  pending=scheduler.run(task.id);await Promise.resolve();let writes=0;const persist=scheduler.persist.bind(scheduler);scheduler.persist=()=>{writes++;persist();};
+  progress('First partial');progress('Second partial');assert.equal(timers.length,1);timers.shift()();assert.equal(writes,1);
+  fs.copyFileSync(scheduler.file,path.join(recoveredDirectory,'tasks.json'));const recovered=new TaskScheduler({directory:recoveredDirectory});assert.equal(recovered.detail(task.id).runs[0].status,'interrupted');assert.equal(recovered.detail(task.id).runs[0].output,'Second partial');await recovered.stop();
+  const before=fs.readFileSync(scheduler.file,'utf8');let failures=0;scheduler.on('failure',()=>failures++);scheduler.persist=()=>{throw Error('Disk full');};progress('Latest partial');timers.shift()();assert.equal(failures,1);assert.equal(fs.readFileSync(scheduler.file,'utf8'),before);assert.equal(scheduler.detail(task.id).runs[0].status,'running');
+  timers.shift()();assert.equal(failures,1);scheduler.persist=persist;timers.shift()();assert.equal(JSON.parse(fs.readFileSync(scheduler.file,'utf8')).tasks[0].runs[0].output,'Latest partial');
+  finish({output:'Final output'});await pending;assert.equal(scheduler.detail(task.id).runs[0].output,'Final output');
+ }finally{finish?.({output:'cleanup'});if(pending)await pending;await scheduler.stop();fs.rmSync(directory,{recursive:true,force:true});fs.rmSync(recoveredDirectory,{recursive:true,force:true});}
+});
