@@ -25,18 +25,30 @@ const assert = require('node:assert/strict');
     const delta = (threadId, turnId, itemId, text) => ({ method: 'item/agentMessage/delta', params: { threadId, turnId, itemId, delta: text } });
     const baseline = (await state()).threads;
     await emit([start('a', 123), delta(undefined, 'old', 'reply', 'Unrouted'), delta('a', 'old', undefined, 'Missing item'), delta('a', 'old', 'reply', {}), finish(undefined, 'old'), finish('a', 'old', 'invalid')]);
+    await emit([
+      { method: 'error', params: { threadId: 'a', error: { message: 'Missing turn' }, willRetry: false } },
+      { method: 'error', params: { threadId: 'a', turnId: 'bad', error: { message: {} }, willRetry: false } },
+      { method: 'error', params: { threadId: 'a', turnId: 'bad', error: { message: 'Wrong retry type' }, willRetry: 'false' } },
+    ]);
     assert.deepEqual((await state()).threads, baseline);
     await emit([start('a', 'first'), delta('a', 'first', 'answer', 'Hello'), delta('a', 'first', 'answer', ' world'), finish('a', 'first')]);
     await page.getByText('Hello world', { exact: true }).waitFor();
     assert.equal((await state()).threads[0].status, 'completed');
     const finished = (await state()).threads[0];
     await emit([start('a', 'first'), delta('a', 'first', 'answer', ' late'), finish('a', 'first', 'failed')]);
+    await emit([
+      { method: 'error', params: { threadId: 'a', turnId: 'first', error: { message: 'Late failure' }, willRetry: false } },
+      { method: 'error', params: { threadId: 'a', turnId: 'first', error: { message: 'Late retry' }, willRetry: true } },
+    ]);
     assert.deepEqual((await state()).threads[0], finished);
     await emit([start('a', 'second'), delta('a', 'other', 'wrong', 'Wrong turn'), finish('a', 'second', 'inProgress'), delta('b', 'background', 'other-answer', 'Background reply'), finish('b', 'background')]);
     assert.equal((await state()).threads[0].status, 'running');
     assert.equal((await state()).threads[0].messages.length, 1);
     assert.equal((await state()).threads[1].messages[0].content, 'Background reply');
     await page.getByRole('button', { name: '停止生成', exact: true }).waitFor();
+    await emit([{ method: 'error', params: { threadId: 'a', turnId: 'second', error: { message: 'Temporary failure' }, willRetry: true } }]);
+    assert.equal((await state()).threads[0].status, 'running');
+    assert.equal((await state()).threads[0].messages.some(message => message.id.startsWith('error-')), false);
     await emit([delta('a', 'second', 'second-answer', 'Next reply'), finish('a', 'second')]);
     await page.getByText('Next reply', { exact: true }).waitFor();
     await page.getByRole('button', { name: '停止生成', exact: true }).waitFor({ state: 'hidden' });
