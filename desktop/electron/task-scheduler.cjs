@@ -161,7 +161,13 @@ class TaskScheduler extends EventEmitter {
   async execute(task, runId, signal, trigger) {
     let result = {}, error;
     try {
-      result = task.kind === 'reminder' ? { output: task.prompt } : await this.runner(task, { signal, runId });
+      result = task.kind === 'reminder' ? { output: task.prompt } : await this.runner(task, { signal, runId, onResolved: resolved => {
+        if (!resolved || typeof resolved.cwd !== 'string' || !path.isAbsolute(resolved.cwd) || resolved.providerId != null && typeof resolved.providerId !== 'string') throw new Error('任务执行环境无效。');
+        this.change(() => {
+          const run = this.get(task.id).runs.find(item => item.id === runId);
+          run.environment = { cwd: resolved.cwd, ...(resolved.providerId ? { providerId: resolved.providerId } : {}) };
+        });
+      } });
     } catch (caught) { error = caught; }
     try {
       this.change(() => {

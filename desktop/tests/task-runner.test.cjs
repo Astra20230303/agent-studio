@@ -57,6 +57,7 @@ test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local
     const router=new ThreadProviderRouter(bindings,()=>activeProvider,()=> 'http://127.0.0.1:1');
     const runner = createTaskRunner(root, { dataRoot, provider: () => { providerReads++; return activeProvider; }, onThreadCreated:({threadId,providerId,model})=>{
       assert.equal(requests,0,'Bind the conversation before starting model work');
+      assert.deepEqual(scheduler.detail(saved.id).runs[0].environment,{cwd:workspace,providerId:'original'});
       router.save(threadId,providerId,'minimax',model);
     }, timeoutMs: 45000 });
     const directory = fs.mkdtempSync(path.join(root, '.project-cache/tmp/task-real-runner-'));
@@ -70,6 +71,7 @@ test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local
     if (upstreamError) throw upstreamError;
     assert.equal(result.status, 'completed', result.error);
     assert.equal(result.trigger, 'scheduled');
+    assert.deepEqual(result.environment,{cwd:workspace,providerId:'original'});
     assert.ok(fs.existsSync(path.join(dataRoot, 'codex-home', 'config.toml')));
     assert.equal(providerReads, 1); assert.equal(requests, 2); assert.match(result.output, /Verified FELIX_SCHEDULE_OK/); assert.ok(result.threadId);
     const restarted = new TaskScheduler({ directory, runner });

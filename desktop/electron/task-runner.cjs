@@ -7,11 +7,12 @@ const { findCommand, ensureProjectConfig, compatibilityCatalog } = require('./co
 const { startMiniMaxAdapter } = require('./minimax-adapter.cjs');
 
 function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_KEY, upstream, provider, onThreadCreated, timeoutMs = 10 * 60 * 1000, dataRoot = require('./data-directory.cjs').dataDirectory(projectRoot), runtimeRoot = require('./runtime-directory.cjs').runtimeDirectory() } = {}) {
-  return async (task, { signal, runId }) => {
+  return async (task, { signal, runId, onResolved }) => {
     const cwd = task.cwd || projectRoot;
     if (!path.isAbsolute(cwd) || !fs.existsSync(cwd) || !fs.statSync(cwd).isDirectory()) throw new Error('任务工作目录不存在或无效，请编辑任务选择有效目录。');
     // Capture one provider for the entire run, including all tool round trips.
     const selected = provider ? provider(task.providerId) : { apiKey: apiKey(), baseUrl: typeof upstream === 'function' ? upstream() : upstream };
+    await onResolved?.({ cwd, ...(selected.id ? { providerId: selected.id } : {}) });
     const runKey = selected.apiKey;
     const runUpstream = selected.baseUrl;
     if (!runKey?.trim() && !require('./provider-url.cjs').isLocalProvider(runUpstream)) throw new Error('未配置 MINIMAX_API_KEY，请带密钥重新启动项目副本。');

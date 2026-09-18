@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import type { TaskRunConfiguration } from './scheduledTasks';
-export function TaskRunConfigurationView({ configuration: config }: { configuration?: TaskRunConfiguration }) {
+import type { TaskRun, TaskRunConfiguration } from './scheduledTasks';
+export function TaskRunConfigurationView({ configuration: config, environment }: { configuration?: TaskRunConfiguration; environment?: TaskRun['environment'] }) {
   const [open, setOpen] = useState(false);
   if (!config) return <p className="task-muted">此运行记录没有配置快照。</p>;
   return <section><button type="button" aria-expanded={open} onClick={() => setOpen(value => !value)}>运行时任务配置</button>{open && <><dl className="task-metadata">
+    {environment && <><dt>实际工作目录</dt><dd>{environment.cwd}</dd><dt>实际渠道 ID</dt><dd>{environment.providerId || '未提供渠道 ID'}</dd></>}
     <dt>任务名称</dt><dd>{config.name}</dd><dt>类型</dt><dd>{config.kind === 'agent' ? 'Agent 任务' : '提醒'}</dd>
     {config.kind === 'agent' && <><dt>渠道配置</dt><dd>{config.providerId || '跟随运行时启用渠道'}</dd><dt>模型</dt><dd>{config.model}</dd>
       <dt>推理强度</dt><dd>{config.reasoningEffort ? {low:'低',medium:'中',high:'高'}[config.reasoningEffort] : '模型默认'}</dd>
