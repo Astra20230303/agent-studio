@@ -113,6 +113,21 @@ test('missing key fails explicitly before launching a Codex process', async () =
   await assert.rejects(runner(task, { signal: new AbortController().signal, runId: randomUUID() }), /MINIMAX_API_KEY/);
 });
 
+test('binding failure stops before model execution and retains the created conversation ID', {timeout:20000}, async()=>{
+  let requests=0;
+  const server=http.createServer((req,res)=>{requests++;res.writeHead(500);res.end();});
+  server.listen(0,'127.0.0.1');await once(server,'listening');
+  const dataRoot=fs.mkdtempSync(path.join(require('node:os').tmpdir(),'felix-binding-failure-'));
+  let created;
+  try {
+    const runner=createTaskRunner(root,{dataRoot,provider:()=>({id:'selected',apiKey:'test',baseUrl:`http://127.0.0.1:${server.address().port}`}),onThreadCreated:binding=>{created=binding;throw Error('Binding disk full');}});
+    await assert.rejects(runner(task,{signal:new AbortController().signal,runId:randomUUID()}),error=>{
+      assert.equal(error.message,'Binding disk full');assert.equal(error.threadId,created.threadId);return true;
+    });
+    assert.equal(created.providerId,'selected');assert.equal(created.model,task.model);assert.equal(requests,0);
+  }finally{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
+});
+
 test('invalid workspace fails before credentials or process startup', async () => {
   const runner = createTaskRunner(root, { apiKey: () => { throw Error('must not access credentials'); } });
   for (const cwd of [path.join(root, randomUUID()), __filename, '../relative']) {
