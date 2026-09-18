@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { RotateCcw, X } from 'lucide-react';
-import { threadRepository } from './threadQueries';
+import type { ThreadRepository } from './threadRepository';
 import type { Thread } from './domain';
 
-export function ArchivedThreads({ threads, connected, onRestore, onClose }: { threads: Thread[]; connected: boolean; onRestore: (thread: Thread) => Promise<void>; onClose: () => void }) {
+export function ArchivedThreads({ repository, threads, connected, onRestore, onClose }: { repository: ThreadRepository; threads: Thread[]; connected: boolean; onRestore: (thread: Thread) => Promise<void>; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [remote, setRemote] = useState<(Thread & { snippet?: string })[]>([]);
   const [query, setQuery] = useState('');
@@ -23,7 +23,7 @@ export function ArchivedThreads({ threads, connected, onRestore, onClose }: { th
     lock.current = true; setLoading(true); setError('');
     if (!next) cursors.current.clear();
     try {
-      const result = await threadRepository.query({ search, cursor: next, archived: true });
+      const result = await repository.query({ search, cursor: next, archived: true });
       if (token !== generation.current) return;
       if (result.nextCursor && (result.nextCursor === next || cursors.current.has(result.nextCursor))) throw Error('归档分页游标重复');
       const entries: (Thread & { snippet?: string })[] = result.data.map((item: any) => ({ snippet: item.snippet, id: `remote-${item.id}`, remoteId: item.id, title: item.name || item.preview || '归档会话', cwd: item.cwd, status: 'completed', pinned: false, archived: true, messages: [], updatedAt: new Date().toISOString() }));
@@ -33,7 +33,7 @@ export function ArchivedThreads({ threads, connected, onRestore, onClose }: { th
     } catch (error) { if (token === generation.current) setError(String(error)); }
     finally { if (token === generation.current) { lock.current = false; setLoading(false); } }
   };
-  useEffect(() => { generation.current++; lock.current = false; setLoading(false); setRemote([]); setCursor(undefined); void load(); return () => { generation.current++; }; }, [connected, search]);
+  useEffect(() => { generation.current++; lock.current = false; setLoading(false); setRemote([]); setCursor(undefined); void load(); return () => { generation.current++; }; }, [connected, search, repository]);
   const restore = async (thread: Thread) => {
     if (lock.current || restoreLock.current || (thread.remoteId && !connected)) return;
     restoreLock.current = true; setRestoring(thread.id); setError('');

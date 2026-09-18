@@ -5,8 +5,8 @@ import { validateRestorableHistory } from './historyValidation';
 import { readThreadResume } from './threadResume';
 import { findMessageTurn } from './messageTurn';
 import type { HistoryReadOptions } from './threadHistory';
-import { unarchiveThread } from './codexClient';
-import { createThreadMutations } from './threadMutations';
+import { threadBackend } from './threadBackend';
+import { createThreadStore } from './threadStore';
 import { approvalFileChanges } from './approvalFileChanges';
 import { BackgroundTerminals } from './BackgroundTerminals';
 import { useTurnInterrupt } from './useTurnInterrupt';
@@ -79,7 +79,7 @@ import { applyToolEvent, finishTools, restoreMessages } from './toolActivity';
 import { ToolActivityGroup, groupMessages } from './ToolActivityView';
 import { MessageActions } from './ReplyActions';
 import { branchSnapshot, fullBranchSnapshot, isFinalReply } from './messageActions';
-import { listAllThreadItems, switchThreadProvider, updateThreadPermission, archiveThread, connectCodex, deleteThread, forkThread, listThreadItems, listThreadTurns, resumeThread, setThreadName, startThread, startTurn, subscribeCodex } from './codexClient';
+import { listAllThreadItems, switchThreadProvider, updateThreadPermission, connectCodex, forkThread, listThreadItems, listThreadTurns, resumeThread, setThreadName, startThread, startTurn, subscribeCodex } from './codexClient';
 import { ExtensionsPage, ExtensionIcon } from './ExtensionsPage';
 import { ThreadButton } from './ThreadButton';
 import { ModePicker } from './ModePicker';
@@ -105,7 +105,7 @@ function projectLabel(pathOrName?: string) {
 
 function App({ initialState }: { initialState: DesktopState }) {
   const { state, setState, update, saveFailed: stateSaveFailed, retrySave } = useDesktopState(() => ({ ...initialState, model: modelId(initialState.model) }));
-  const threadMutations = useMemo(() => createThreadMutations({ rename: setThreadName, archive: archiveThread, remove: deleteThread, restore: unarchiveThread }, update), [update]);
+  const threadStore = useMemo(() => createThreadStore(threadBackend, update), [update]);
   const audit = useAuditLog();
   const effectiveTheme = useTheme(state.theme);
   const [input, setInput, draftStorage] = useThreadDraft(state.activeThreadId);
@@ -152,7 +152,7 @@ function App({ initialState }: { initialState: DesktopState }) {
   const [notice, setNotice] = useState('');
   const serverWarnings = useServerWarnings();
   const [codexStatus, setCodexStatus] = useState<'connecting' | 'connected' | 'offline' | 'error'>('connecting');
-  const threadList = useThreadList(codexStatus === 'connected', setState, search);
+  const threadList = useThreadList(threadStore, codexStatus === 'connected', setState, search);
   const reconnectRef = useRef<() => void>(() => {});
   const stopRecoveryRef = useRef<() => void>(() => {});
   const restartingRef = useRef(false);
@@ -600,7 +600,7 @@ function App({ initialState }: { initialState: DesktopState }) {
     if (thread.remoteId) {
       if (codexStatus !== 'connected') throw Error('请重新连接服务后重试。');
     }
-    await threadMutations.rename(thread, name);
+    await threadStore.rename(thread, name);
     audit.record('重命名会话');
   };
   const archiveConversation = async (threadId: string) => {
@@ -613,7 +613,7 @@ function App({ initialState }: { initialState: DesktopState }) {
     setPendingThreads(previous => [...previous, threadId]);
     try {
       if (queue.read().some(item => item.localId === threadId) && !queue.pauseThread(threadId)) throw Error('排队消息暂停未能保存，请重试保存队列后再归档。');
-      await threadMutations.archive(thread);
+      await threadStore.archive(thread);
       audit.record('归档会话', thread.id);
       setRemoteThreadId(value => value === thread.remoteId ? undefined : value);
     } catch (error) { toast(`归档失败：${error instanceof Error ? error.message : String(error)}`); }
@@ -633,7 +633,7 @@ function App({ initialState }: { initialState: DesktopState }) {
     setPendingThreads(previous => [...previous, threadId]);
     try {
       if (queue.read().some(item => item.localId === threadId) && !queue.pauseThread(threadId)) throw Error('排队消息暂停未能保存，请重试保存队列后再删除。');
-      await threadMutations.remove(thread);
+      await threadStore.remove(thread);
       queue.change(items => items.filter(item => item.localId !== threadId));
       audit.record('删除会话');
       setRemoteThreadId(value => value === thread.remoteId ? undefined : value);
@@ -827,7 +827,7 @@ function App({ initialState }: { initialState: DesktopState }) {
     </div>{notice && <div className="toast">{notice}</div>}{approval && <ApprovalDialog fileChanges={approvalFileChanges(approval, state.threads)} request={approval} onDecision={respondApproval} />}{deleteCandidate && <DeleteThread title={state.threads.find(item => item.id === deleteCandidate)?.title || '会话'} onCancel={() => setDeleteCandidate(undefined)} onConfirm={() => performDelete(deleteCandidate)} />}
     {artifactTarget && <ArtifactPreview target={artifactTarget} onClose={() => setArtifactTarget(undefined)} onEdit={session => { setArtifactTarget(undefined); setFileEdit(session); }} />}
     {fileEdit && <FileEditor root={fileEdit.root} path={fileEdit.path} initial={fileEdit.initial} onClose={() => setFileEdit(undefined)} onSaved={preview => setFilePreviewUpdate({ root: fileEdit.root, path: fileEdit.path, preview })} />}
-    {archivesOpen && <ArchivedThreads threads={state.threads} connected={codexStatus === 'connected'} onClose={() => setArchivesOpen(false)} onRestore={async thread => { await threadMutations.restore(thread); audit.record('恢复归档会话', thread.id); }} />}
+    {archivesOpen && <ArchivedThreads repository={threadStore} threads={state.threads} connected={codexStatus === 'connected'} onClose={() => setArchivesOpen(false)} onRestore={async thread => { await threadStore.restore(thread); audit.record('恢复归档会话', thread.id); }} />}
   </div>;
 }
 

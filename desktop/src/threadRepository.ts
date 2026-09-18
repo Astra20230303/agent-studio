@@ -9,7 +9,7 @@ export interface ThreadQuery {
 export interface ThreadRepository {
   query(options?: ThreadQuery): Promise<ThreadPage>;
 }
-interface ThreadSource {
+export interface ThreadSource {
   list(cursor?: string): Promise<unknown>;
   archived(cursor?: string): Promise<unknown>;
   search(search: string, cursor?: string, archived?: boolean): Promise<unknown>;

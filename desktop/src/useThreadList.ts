@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { DesktopState } from './domain';
-import { threadRepository } from './threadQueries';
+import type { ThreadRepository } from './threadRepository';
 
-export function useThreadList(connected: boolean, setState: Dispatch<SetStateAction<DesktopState>>, search = '') {
+export function useThreadList(repository: ThreadRepository, connected: boolean, setState: Dispatch<SetStateAction<DesktopState>>, search = '') {
   const query = search.trim();
   const [matches, setMatches] = useState<{ query: string; ids: string[]; snippets?: Record<string, string> }>({ query: '', ids: [] });
   const [cursor, setCursor] = useState<string>();
@@ -17,7 +17,7 @@ export function useThreadList(connected: boolean, setState: Dispatch<SetStateAct
     const generation = epoch.current;
     lock.current = true; setLoading(true); setError('');
     try {
-      const result = await threadRepository.query({ search: query, cursor: next });
+      const result = await repository.query({ search: query, cursor: next });
       if (generation !== epoch.current) return;
       const nextCursor = result.nextCursor || undefined;
       if (nextCursor && (nextCursor === next || seen.current.has(nextCursor))) throw Error('会话分页游标重复，请重新连接后重试。');
@@ -40,7 +40,7 @@ export function useThreadList(connected: boolean, setState: Dispatch<SetStateAct
       setCursor(nextCursor);
     } catch (error) { if (generation === epoch.current) setError(error instanceof Error ? error.message : String(error)); }
     finally { if (generation === epoch.current) { lock.current = false; setLoading(false); } }
-  }, [connected, setState, query]);
+  }, [connected, setState, query, repository]);
   useEffect(() => {
     epoch.current++; lock.current = false; seen.current.clear(); setCursor(undefined); setError(''); setLoading(connected && !!query);
     setMatches({ query, ids: [] });
