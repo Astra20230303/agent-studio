@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Copy, Download } from 'lucide-react';
 import { taskRunLabels, type TaskRun } from './scheduledTasks';
 
-export function TaskRunActions({ name, run }: { name: string; run: TaskRun }) {
+export function TaskRunActions({ name, run, onOpenConversation }: { name: string; run: TaskRun; onOpenConversation?: (threadId: string, title: string) => void }) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
@@ -25,6 +25,7 @@ export function TaskRunActions({ name, run }: { name: string; run: TaskRun }) {
     finally { lock.current = false; setBusy(false); }
   };
   return <div><div className="task-actions">
+    {run.threadId && onOpenConversation && <button disabled={run.status === 'running'} onClick={() => onOpenConversation(run.threadId!, name)}>打开运行会话</button>}
     <button className="task-icon-button" title="复制运行结果" aria-label="复制运行结果" disabled={busy || run.status === 'running'} onClick={() => void act(false)}><Copy /></button>
     <button className="task-icon-button" title="导出运行结果" aria-label="导出运行结果" disabled={busy || run.status === 'running'} onClick={() => void act(true)}><Download /></button>
   </div>{notice && <p role="status">{notice}</p>}{error && <p role="alert">{error}</p>}</div>;

@@ -27,6 +27,7 @@ function task(value: any): value is ScheduledTask {
     if (schedule.kind === 'weekly' && (!Number.isInteger(schedule.day) || schedule.day < 0 || schedule.day > 6)) return false;
   }
   return value.runs.every((run: any) => record(run) && typeof run.id === 'string' && !!run.id
+    && (run.threadId == null || typeof run.threadId === 'string' && !!run.threadId.trim())
     && ['running','completed','failed','interrupted'].includes(run.status) && date(run.startedAt)
     && (run.finishedAt == null || date(run.finishedAt)) && (run.output == null || typeof run.output === 'string') && (run.error == null || typeof run.error === 'string'));
 }
