@@ -46,6 +46,14 @@ const assert = require('node:assert/strict');
     await status.filter({ hasText: '运行中' }).waitFor();
     assert.equal(await page.evaluate(() => window.__closes.includes('replacement')), false);
     await page.evaluate(() => {
+      for (const event of [null, {}, { id: 'replacement', type: 'unknown', code: 0 }, { id: 'replacement', type: 'exit', code: '0' }, { id: 'replacement', type: 'data', data: { bad: true } }, { id: 'other-session', type: 'exit', code: 1 }]) window.__emit(event);
+      window.__emit({ id: 'replacement', type: 'data', data: 'VALID_TERMINAL_OUTPUT\r\n' });
+    });
+    await page.waitForFunction(() => document.querySelector('.terminal-session:not([hidden]) .xterm-screen')?.textContent?.includes('VALID_TERMINAL_OUTPUT'));
+    assert.equal(await status.textContent(), '运行中');
+    assert.equal(await restart.isDisabled(), true);
+
+    await page.evaluate(() => {
       window.__emit({ id: 'replacement', type: 'exit', code: 0 });
       window.__originalCreate = window.desktop.terminal.create;
       window.desktop.terminal.create = () => { throw Error('synchronous spawn failure'); };

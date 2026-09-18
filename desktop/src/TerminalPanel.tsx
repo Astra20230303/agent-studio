@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
+import { readTerminalEvent } from './terminalEvents';
+import type { ValidTerminalEvent } from './terminalEvents';
 import { terminalText } from './terminalExport';
 import { Play, Plus, Square, X, Trash2 } from 'lucide-react';
 import '@xterm/xterm/css/xterm.css';
@@ -96,14 +98,20 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
     const parsed = term.onWriteParsed(() => refreshSearch.current());
     let disposed = false;
     let ownedId: string | undefined;
-    const pending: TerminalEvent[] = [];
+    const pending: ValidTerminalEvent[] = [];
+    let exited = false;
     const report = (failure: unknown) => { if (!disposed) setError(String(failure)); };
-    const receive = (event: TerminalEvent) => {
-      if (event.id !== ownedId || disposed) return;
-      if (event.type === 'data') term.write(event.data || '');
-      else { setStatus(`已退出 (${event.code})`); setRunning(false); session.current = undefined; }
+    const receive = (event: ValidTerminalEvent) => {
+      if (event.id !== ownedId || disposed || exited) return;
+      if (event.type === 'data') term.write(event.data);
+      else { exited = true; setStatus(`已退出 (${event.code})`); setRunning(false); session.current = undefined; }
     };
-    const off = bridge.onData(event => { if (!ownedId) { if (pending.length < 1000) pending.push(event); } else receive(event); });
+    const off = bridge.onData(value => {
+      if (disposed) return;
+      const event = readTerminalEvent(value);
+      if (!event) return;
+      if (!ownedId) { if (pending.length < 1000) pending.push(event); } else receive(event);
+    });
     const input = term.onData(data => { if (session.current) void bridge.write(session.current, data).catch(report); });
     const resize = () => { if (!host.current?.clientWidth) return; addon.fit(); if (session.current) void bridge.resize(session.current, term.cols, term.rows).catch(report); };
     const observer = new ResizeObserver(resize); observer.observe(host.current);
