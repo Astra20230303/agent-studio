@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown, RefreshCw } from 'lucide-react';
 
-export function useModelCatalog() {
+export function useModelCatalog(providerId?: string) {
   const [models, setModels] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -12,7 +12,7 @@ export function useModelCatalog() {
     setModels([]);
     setError('');
     try {
-      const result = await window.desktop?.listModels?.();
+      const result = await window.desktop?.listModels?.(providerId ? { providerId } : undefined);
       if (revision !== generation.current) return;
       if (!result?.ok || !result.models?.length) throw new Error(result?.error || '无法获取模型列表。');
       setModels(result.models);
@@ -21,7 +21,7 @@ export function useModelCatalog() {
       setModels([]);
       setError(err instanceof Error ? err.message : '无法获取模型列表。');
     } finally { if (revision === generation.current) setLoading(false); }
-  }, []);
+  }, [providerId]);
   useEffect(() => { const changed = () => { void refresh(); }; changed(); window.addEventListener('provider-changed', changed); return () => { generation.current++; window.removeEventListener('provider-changed', changed); }; }, [refresh]);
   return { models, loading, error, refresh };
 }

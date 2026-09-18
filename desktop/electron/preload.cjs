@@ -20,7 +20,7 @@ contextBridge.exposeInMainWorld('desktop', {
   toggleMaximize: () => ipcRenderer.invoke('window:toggle-maximize'),
   minimize: () => ipcRenderer.invoke('window:minimize'),
   close: () => ipcRenderer.invoke('window:close'),
-  providerStatus: () => ipcRenderer.invoke('desktop:provider-status'),
+  providerStatus: providerId => ipcRenderer.invoke('desktop:provider-status', providerId),
   saveProvider: input => ipcRenderer.invoke('desktop:save-provider', input),
   listProviders: () => ipcRenderer.invoke('desktop:list-providers'),
   threadProvider: threadId => ipcRenderer.invoke('desktop:thread-provider', threadId),

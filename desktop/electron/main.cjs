@@ -157,7 +157,7 @@ ipcMain.handle('window:toggle-maximize', async event => {
 });
 ipcMain.handle('window:minimize', event => BrowserWindow.fromWebContents(event.sender)?.minimize());
 ipcMain.handle('window:close', event => BrowserWindow.fromWebContents(event.sender)?.close());
-ipcMain.handle('desktop:provider-status', () => { const provider = readProvider(); return { provider: provider.name || 'MiniMax', endpoint: provider.baseUrl, keyConfigured: Boolean(provider.apiKey), authRequired: !require('./provider-url.cjs').isLocalProvider(provider.baseUrl) }; });
+ipcMain.handle('desktop:provider-status', (_event, providerId) => { const provider = readProvider(providerId); return { provider: provider.name || 'MiniMax', endpoint: provider.baseUrl, keyConfigured: Boolean(provider.apiKey), authRequired: !require('./provider-url.cjs').isLocalProvider(provider.baseUrl) }; });
 ipcMain.handle('desktop:save-provider', (_event, input) => {
   try { const id = saveProvider(input); return { ok: true, id }; }
   catch (error) { return { ok: false, error: error.message }; }
@@ -173,7 +173,7 @@ ipcMain.handle('desktop:activate-provider', (_event, id) => {
   catch (error) { return { ok: false, error: error.message }; }
 });
 ipcMain.handle('desktop:list-models', async (_event, input) => {
-  try { const provider = providerCredentials(input); if (!input && provider.manualModel && provider.model) return { ok: true, models: [provider.model], manual: true }; return await listMiniMaxModels(provider); }
+  try { const provider = input?.providerId !== undefined ? readProvider(input.providerId) : providerCredentials(input); if ((!input || input.providerId !== undefined) && provider.manualModel && provider.model) return { ok: true, models: [provider.model], manual: true }; return await listMiniMaxModels(provider); }
   catch (error) { return { ok: false, models: [], error: error.message }; }
 });
 ipcMain.handle('desktop:artifact', async (_event, input) => {
