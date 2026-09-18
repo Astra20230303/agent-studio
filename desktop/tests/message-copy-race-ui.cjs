@@ -35,6 +35,16 @@ const assert = require('node:assert/strict');
    await button.click();
    await page.evaluate(() => window.__copies.at(-1).resolve());
    await page.waitForFunction(() => document.querySelector('#copy-race button').getAttribute('aria-label').includes('已复制'));
+   await page.evaluate(kind => window.__renderCopy(kind, 'changed after success'), kind);
+   await page.waitForFunction(() => !document.querySelector('#copy-race button').getAttribute('aria-label').includes('已复制'));
+   const errorCount = await page.evaluate(() => window.__errors.length);
+   await button.click();
+   await page.evaluate(async kind => { window.__renderCopy(kind, 'newer content'); await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); }, kind);
+   await page.evaluate(() => window.__copies.at(-1).reject(Error('stale denied')));
+   await page.waitForFunction(() => !document.querySelector('#copy-race button').disabled);
+   assert.equal(await page.evaluate(() => window.__errors.length), errorCount);
+   assert.equal((await button.getAttribute('aria-label')).includes('已复制'), false);
+
   }
   assert.equal(await page.evaluate(() => window.__errors.length), 2);
   console.log('PASS: user and assistant copy deduplicate, preserve snapshots, ignore stale success and retry failures');
