@@ -60,7 +60,14 @@ test('real app-server archives, paginates and restores isolated conversations', 
     const searched = await client.searchThreads('Archive test completed', undefined, true);
     assert.deepEqual(searched.data.map(item => item.thread.id), [ids[1]]);
     assert.match(searched.data[0].snippet, /Archive test completed/);
-    await client.unarchiveThread(ids[1]);
+    const { createThreadMutations } = require('../src/threadMutations.ts');
+    const localState = { threads: [], activeThreadId: 'current-selection' };
+    const mutations = createThreadMutations({ restore: client.unarchiveThread }, mutate => mutate(localState));
+    await mutations.restore({ id: 'restored-local', remoteId: ids[1], title: 'Archive acceptance 1', archived: true, messages: [] });
+    assert.equal(localState.threads.length, 1);
+    assert.equal(localState.threads[0].remoteId, ids[1]);
+    assert.equal(localState.threads[0].archived, false);
+    assert.equal(localState.activeThreadId, 'current-selection');
     assert.equal((await client.listArchivedThreads()).data.length, 0);
     const active = await rpc.request('thread/list', { modelProviders: [], archived: false, limit: 100 });
     assert.ok(active.data.some(thread => thread.id === ids[0]));

@@ -44,3 +44,12 @@ test('restore waits for acknowledgement and preserves newer local history and se
  assert.equal(state.threads.length,1);assert.equal(state.threads[0].title,'Latest title');assert.equal(state.threads[0].messages[0].content,'Retained message');
  assert.equal(state.threads[0].archived,false);assert.equal(state.activeThreadId,'b');assert.deepEqual(calls,['remote-a','remote-a']);
 });
+test('first restore captures input before awaiting and local restore works offline',async()=>{
+ const state={...defaultState(),threads:[]};let resolve;
+ const service=createThreadMutations({restore:()=>new Promise(done=>{resolve=done;})},fn=>fn(state));
+ const input={id:'a',remoteId:'remote',title:'Captured',messages:[{content:'Original'}],archived:true};
+ const pending=service.restore(input);input.title='Changed';input.messages[0].content='Changed';resolve();await pending;
+ assert.equal(state.threads[0].title,'Captured');assert.equal(state.threads[0].messages[0].content,'Original');
+ await service.restore({id:'local',title:'Offline',messages:[],archived:true});
+ assert.equal(state.threads[1].archived,false);
+});

@@ -2823,3 +2823,9 @@ user-message-copy-ui.cjs 覆盖原文保真、键盘操作、失败重试、空�
 实现 99a4f58：createThreadMutations 提供可注入远端的 rename/archive/remove，主界面已迁移；远端确认后才对最新应用状态执行目标会话变更。队列持久化暂停、操作锁、连接检查和审计继续由调用流程协调。
 
 验收：五项领域测试覆盖远端失败不修改、重试、跨会话迟到响应、本地操作无 RPC、已删除会话不复活；archive-concurrency-ui、thread-lifecycle-queue-ui、delete-thread-ui、rename-thread-ui 通过。真实 app-server 归档分页恢复测试通过（验证客户端协议路径，不等同整个服务的真实端到端界面）。生产构建通过。首次重命名测试命令误用了不存在的 rename-ui.cjs，修正为 rename-thread-ui.cjs 后通过。本轮完成变更服务边界，完整 ThreadStore 的读取/创建/恢复等接口仍待整合。
+
+## 归档恢复服务整合
+
+实现 e7907cb：归档弹窗等待异步 onRestore，主界面通过 ThreadMutations.restore 完成远端确认及本地合并；恢复前捕获输入快照，优先保留最新本地会话内容，不改变当前选择，成功后记录审计。弹窗保留恢复锁、重连保护与失败重试。
+
+验收：七项会话服务测试覆盖恢复失败、remoteId 去重、本地历史保留、输入快照隔离与离线本地恢复；archive-restore-lock-ui、archived-threads-ui 和生产构建通过。真实 app-server 归档测试已直接调用新服务，验证远端取消归档与本地插入、当前选择保留同时成立。此轮完成恢复变更接口，完整会话读取/创建服务仍待继续。
