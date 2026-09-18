@@ -1,5 +1,15 @@
 # Felix capability roadmap
 
+## Preserve consecutive service warnings
+
+Global service warnings now queue in arrival order instead of replacing an unread
+warning. One warning is shown at a time with a pending count; dismissal targets
+its stable ID. The close button stays mounted between warnings for keyboard use.
+Warnings remain session-local, while thread-scoped warnings retain their existing
+conversation persistence. Browser acceptance covers ordered delivery, pending
+counts, literal text and background-thread isolation; production build passes.
+Upstream image preparation still logs failures without emitting these notifications.
+
 ## Paste JPEG, WebP and GIF images
 
 Clipboard image saving now detects PNG/JPEG/WebP/GIF from bytes, reuses attachment
