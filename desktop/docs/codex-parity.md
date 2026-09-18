@@ -1,5 +1,15 @@
 # Felix capability roadmap
 
+## Find text in read-only file previews
+
+File previews support Ctrl/Command+F, literal search, case sensitivity, match
+counts and cyclic previous/next navigation. Enter/Shift+Enter move from the search
+input; Escape closes search and returns focus to the preview. Matching and active
+highlight use shared editorMatches UTF-16 offsets. Only the active match is
+highlighted, limiting markup for repetitive files. Line references retain their
+existing target highlight; truncated previews label the search scope explicitly.
+Real-file browser acceptance and production build pass.
+
 ## Complete bounded UTF-8 text previews
 
 The file reader accumulates partial reads up to a shared 256 KiB preview/edit
