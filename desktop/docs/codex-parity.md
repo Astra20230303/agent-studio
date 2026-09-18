@@ -1,5 +1,23 @@
 # Felix capability roadmap
 
+## Switch an existing conversation's Provider
+
+Idle conversations can switch Provider without replacing their thread ID, local
+history or drafts. The main-process router checks the engine's thread status,
+unsubscribes and resumes with an explicit Provider definition. A distinct engine
+Provider name confirms the override took effect before the binding is persisted.
+Concurrent operations are blocked during migration; failure restores the previous
+engine configuration, and failed rollback blocks requests until service restart.
+The selector is disabled for running conversations and nonempty message queues.
+After success the composer loads the target catalog and resets its model choice.
+
+Build, four migration fault/concurrency tests, browser migration/reload/catalog
+checks and a real Codex process test pass. Two local HTTP model services verify
+new address and credentials, previous assistant history in the new request,
+binding reload, fork inheritance and switching back. This validates routing and
+history transfer, not the quality of any hosted model. Process restart acceptance
+is the next verification step.
+
 ## Paste clipboard screenshots
 
 PNG clipboard images are validated and saved with unique names under the Felix

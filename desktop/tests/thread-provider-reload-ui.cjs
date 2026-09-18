@@ -24,10 +24,10 @@ const assert = require('node:assert/strict');
     const select = page.getByRole('combobox', { name: '会话渠道', exact: true });
     await page.waitForFunction(() => document.querySelector('[aria-label="会话渠道"]')?.value === 'b');
     assert.equal(await select.inputValue(), 'b');
-    assert.equal(await select.isDisabled(), true);
+    await page.waitForFunction(() => !document.querySelector('[aria-label="会话渠道"]')?.disabled);
     await page.evaluate(() => { for (const resolve of window.__bindingReads || []) resolve('a'); });
     await page.waitForFunction(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads[0].providerId === 'b');
     assert.equal(await select.inputValue(), 'b');
-    console.log('PASS: reopened thread restores provider binding and locks the selector');
+    console.log('PASS: reopened idle thread restores provider binding and permits switching');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
