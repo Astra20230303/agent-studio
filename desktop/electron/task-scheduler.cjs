@@ -173,9 +173,16 @@ class TaskScheduler extends EventEmitter {
     return done;
   }
   async execute(task, runId, signal, trigger) {
-    let result = {}, error;
+    let result = {}, error, progressTimer;
+    const onProgress = output => {
+      if (typeof output !== 'string' || this.active?.runId !== runId) return;
+      const run = this.get(task.id).runs.find(item => item.id === runId);
+      if (!run || run.status !== 'running') return;
+      run.output = output.slice(-200000);
+      if (!progressTimer) progressTimer = setTimeout(() => { progressTimer = undefined; this.emit('changed'); }, 250);
+    };
     try {
-      result = task.kind === 'reminder' ? { output: task.prompt } : await this.runner(task, { signal, runId, onResolved: resolved => {
+      result = task.kind === 'reminder' ? { output: task.prompt } : await this.runner(task, { signal, runId, onProgress, onResolved: resolved => {
         if (!resolved || typeof resolved.cwd !== 'string' || !path.isAbsolute(resolved.cwd) || resolved.providerId != null && typeof resolved.providerId !== 'string') throw new Error('任务执行环境无效。');
         this.change(() => {
           const run = this.get(task.id).runs.find(item => item.id === runId);
@@ -183,11 +190,12 @@ class TaskScheduler extends EventEmitter {
         });
       } });
     } catch (caught) { error = caught; }
+    clearTimeout(progressTimer);
     try {
       this.change(() => {
         const current = this.get(task.id);
         const run = current.runs.find(item => item.id === runId);
-        Object.assign(run, { status: signal.aborted ? 'interrupted' : error ? 'failed' : 'completed', finishedAt: new Date(this.now()).toISOString(), output: String(result.output || error?.output || '').slice(-200000), error: error ? String(error.message || error).slice(0, 4000) : signal.aborted ? '执行已停止。' : undefined, threadId: result.threadId || error?.threadId });
+        Object.assign(run, { status: signal.aborted ? 'interrupted' : error ? 'failed' : 'completed', finishedAt: new Date(this.now()).toISOString(), output: String(result.output || error?.output || run.output || '').slice(-200000), error: error ? String(error.message || error).slice(0, 4000) : signal.aborted ? '执行已停止。' : undefined, threadId: result.threadId || error?.threadId });
         if (current.schedule.kind === 'once' && (trigger === 'scheduled' || !error && !signal.aborted)) { current.status = 'completed'; current.nextRunAt = null; }
       });
       this.emit('finished', this.detail(task.id));

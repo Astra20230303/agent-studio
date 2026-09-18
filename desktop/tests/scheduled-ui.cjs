@@ -13,8 +13,9 @@ async function main() {
   fs.mkdirSync(artifacts, { recursive: true });
   const directory = fs.mkdtempSync(path.join(root, '.project-cache/tmp/tasks-ui-'));
   let clock = Date.now(), failList = false, failDetail = false, badList = false, badDetail = false, browser;
-  const runner = async (task, { signal }) => {
+  const runner = async (task, { signal, onProgress }) => {
     if (task.prompt === 'FAIL') throw new Error('TEST_MODEL_FAILURE');
+    if (task.prompt === 'WAIT') onProgress('LIVE_TASK_PROGRESS');
     if (task.prompt === 'WAIT') await new Promise((resolve, reject) => {
       if (signal.aborted) reject(new Error('Cancelled'));
       else signal.addEventListener('abort', () => reject(new Error('Cancelled')), { once: true });
@@ -125,6 +126,9 @@ async function main() {
     await editor.getByRole('textbox', { name: '任务内容', exact: true }).fill('WAIT');
     await editor.getByRole('button', { name: '保存任务' }).click(); await editor.waitFor({ state: 'detached' });
     await dialog.getByRole('button', { name: '立即运行', exact: true }).click();
+    await dialog.locator('.task-run > summary').filter({hasText:'运行中'}).click();
+    await dialog.locator('pre').getByText('LIVE_TASK_PROGRESS', {exact:true}).waitFor();
+    assert.ok(await dialog.locator('.task-run').first().getByRole('button', {name:'复制运行结果',exact:true}).isDisabled());
     await dialog.getByRole('button', { name: '停止运行', exact: true }).click(); await changed();
     await dialog.getByText('已中断', { exact: true }).waitFor();
     await dialog.getByRole('button', { name: '关闭对话框' }).click();

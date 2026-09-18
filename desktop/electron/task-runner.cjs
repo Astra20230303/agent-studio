@@ -7,7 +7,7 @@ const { findCommand, ensureProjectConfig, compatibilityCatalog } = require('./co
 const { startMiniMaxAdapter } = require('./minimax-adapter.cjs');
 
 function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_KEY, upstream, provider, onThreadCreated, timeoutMs, dataRoot = require('./data-directory.cjs').dataDirectory(projectRoot), runtimeRoot = require('./runtime-directory.cjs').runtimeDirectory() } = {}) {
-  return async (task, { signal, runId, onResolved }) => {
+  return async (task, { signal, runId, onResolved, onProgress }) => {
     if (task.timeoutMinutes != null && (!Number.isInteger(task.timeoutMinutes) || task.timeoutMinutes < 1 || task.timeoutMinutes > 120)) throw new Error('执行时限须为 1 至 120 分钟的整数。');
     const runTimeoutMs = timeoutMs ?? (task.timeoutMinutes ?? 10) * 60 * 1000;
     const cwd = task.cwd || projectRoot;
@@ -24,7 +24,7 @@ function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_
     fs.mkdirSync(home, { recursive: true });
     fs.mkdirSync(temp, { recursive: true });
     let rpc, adapter, timer, child, threadId, halted = false, output = '';
-    const append = text => { output = (output + text).slice(-200000); };
+    const append = text => { if (halted) return; output = (output + text).slice(-200000); onProgress?.(output); };
     let fail;
     const aborted = new Promise((_, reject) => { fail = error => { halted = true; reject(error); }; });
     const cancel = () => fail(new Error('执行已停止。'));

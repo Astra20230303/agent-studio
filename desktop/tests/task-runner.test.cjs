@@ -55,11 +55,13 @@ test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local
     activeProvider = { id:'original', apiKey, baseUrl: `http://127.0.0.1:${server.address().port}` };
     const bindings=path.join(dataRoot,'thread-providers.json');
     const router=new ThreadProviderRouter(bindings,()=>activeProvider,()=> 'http://127.0.0.1:1');
-    const runner = createTaskRunner(root, { dataRoot, provider: () => { providerReads++; return activeProvider; }, onThreadCreated:({threadId,providerId,model})=>{
+    const progress=[];
+    const realRunner = createTaskRunner(root, { dataRoot, provider: () => { providerReads++; return activeProvider; }, onThreadCreated:({threadId,providerId,model})=>{
       assert.equal(requests,0,'Bind the conversation before starting model work');
       assert.deepEqual(scheduler.detail(saved.id).runs[0].environment,{cwd:workspace,providerId:'original'});
       router.save(threadId,providerId,'minimax',model);
     }, timeoutMs: 45000 });
+    const runner=(task,options)=>realRunner(task,{...options,onProgress:text=>{progress.push(text);options.onProgress(text);}});
     const directory = fs.mkdtempSync(path.join(root, '.project-cache/tmp/task-real-runner-'));
     let clock = Date.now();
     const scheduler = new TaskScheduler({ directory, runner, now: () => clock });
@@ -71,6 +73,7 @@ test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local
     if (upstreamError) throw upstreamError;
     assert.equal(result.status, 'completed', result.error);
     assert.equal(result.trigger, 'scheduled');
+    assert.ok(progress.some(text=>text.includes('FELIX_SCHEDULE_OK')));assert.equal(progress.at(-1),result.output);
     assert.deepEqual(result.environment,{cwd:workspace,providerId:'original'});
     assert.ok(fs.existsSync(path.join(dataRoot, 'codex-home', 'config.toml')));
     assert.equal(providerReads, 1); assert.equal(requests, 2); assert.match(result.output, /Verified FELIX_SCHEDULE_OK/); assert.ok(result.threadId);
