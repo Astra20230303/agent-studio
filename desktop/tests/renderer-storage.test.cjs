@@ -97,3 +97,12 @@ test('queue acknowledgement is synchronous and invalid keys or records cannot be
   assert.throws(() => store.writeQueue('[null]'), /Invalid queue data/);
   await assert.rejects(store.write(QUEUE_KEY, '[]'), /synchronous/);
 });
+
+test('audit records are bounded and strictly validated', async t => {
+  const { root, store } = fixture(t);
+  const key = 'felix-audit-log-v1';
+  await store.write(key, JSON.stringify([{ id: 'a', at: new Date().toISOString(), action: '打开设置' }]));
+  assert.equal(JSON.parse(new RendererStorage(root).read().values[key])[0].action, '打开设置');
+  await assert.rejects(store.write(key, JSON.stringify([{ id: 'a', at: 'now', action: 'x'.repeat(301) }])), /Invalid audit data|保存/);
+  await assert.rejects(store.write(key, JSON.stringify(Array.from({ length: 201 }, (_, index) => ({ id: String(index), at: 'now', action: 'x' })))), /Invalid audit data|保存/);
+});

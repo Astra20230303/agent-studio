@@ -21,6 +21,7 @@
 .dark .reply-action:hover,.dark .reply-action:focus-visible{background:#414446;color:#e4e6e8}
 .dark .reply-action::after{background:#303335;border-color:#54585a;color:#eee}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.audit-toolbar{display:flex;gap:8px;align-items:center;margin:12px 0}.audit-toolbar input{flex:1;min-width:0;padding:7px 9px;border:1px solid #ddd;border-radius:7px}.audit-toolbar button{padding:7px 10px;border:1px solid #ddd;border-radius:7px;background:#fff;cursor:pointer}.audit-toolbar button:disabled{opacity:.45;cursor:default}.audit-list{list-style:none;padding:0;margin:0;border-top:1px solid #e5e5e1}.audit-list li{display:grid;grid-template-columns:155px minmax(100px,auto) 1fr;gap:10px;padding:9px 0;border-bottom:1px solid #e5e5e1;font-size:12px;align-items:baseline}.audit-list time{color:#888}.audit-list span{color:#666;overflow-wrap:anywhere}.dark .audit-toolbar input,.dark .audit-toolbar button{background:#383836;color:#eee;border-color:#555}.dark .audit-list{border-color:#454542}.dark .audit-list li{border-color:#454542}.dark .audit-list span,.dark .audit-list time{color:#bbb}@media(max-width:620px){.audit-list li{grid-template-columns:1fr;gap:3px}}
 .action-spinner{animation:action-spin 1s linear infinite}@keyframes action-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.action-spinner{animation:none}}
 .tool-activity{margin:12px 0 22px;color:#7a7d80;font-size:13px;line-height:1.6;min-width:0}

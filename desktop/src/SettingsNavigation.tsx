@@ -9,6 +9,7 @@ const sections = [
   { name: '配置', keywords: '渠道 模型 密钥 连接 provider api key base url model' },
   { name: '键盘快捷键', keywords: '发送 消息 换行 enter ctrl keyboard shortcuts' },
   { name: '电脑操控', keywords: '远程 桌面 连接 remote desktop' },
+  { name: '操作记录', keywords: '审计 活动 历史 audit activity log' },
 ] as const;
 export type SettingsSection = typeof sections[number]['name'];
 
