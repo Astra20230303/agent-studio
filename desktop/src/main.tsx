@@ -53,7 +53,7 @@ import { GitPanel } from './GitPanel';
 import { ApprovalPrompt } from './ApprovalPrompt';
 import { LazyMcpForm as McpForm } from './LazyMcpForm';
 import { McpUrl } from './McpUrl';
-import { readPlan } from './planning';
+import { readPlan, readPlanMessage } from './planning';
 import { createConnectionRecovery } from './connectionRecovery';
 import './connection.css';
 import { turnCommands } from './turnService';
@@ -282,13 +282,15 @@ function App({ initialState }: { initialState: DesktopState }) {
           if (plan) update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) thread.plan = plan; });
         }
         if (message.method === 'item/completed' && params.item?.type === 'plan') {
+          const planMessage = readPlanMessage(params);
+          const current = runtime.read(params.threadId);
+          if (!planMessage || current?.turnId && current.turnId !== planMessage.turnId) return;
           update(next => {
             const thread = next.threads.find(item => item.remoteId === params.threadId);
             if (!thread) return;
-            const id = `plan-${params.item.id}`;
-            const saved = thread.messages.find(item => item.id === id);
-            if (saved) saved.content = params.item.text;
-            else thread.messages.push({ id, role: 'assistant', content: params.item.text, turnId: params.turnId, createdAt: new Date().toISOString() });
+            const saved = thread.messages.find(item => item.id === planMessage.id);
+            if (saved) { if (saved.role === 'assistant' && (!saved.turnId || saved.turnId === planMessage.turnId)) Object.assign(saved, planMessage); }
+            else thread.messages.push({ ...planMessage, role: 'assistant', createdAt: new Date().toISOString() });
           });
         }
         if (message.method === 'turn/started' && params.threadId && params.turn?.id) {
