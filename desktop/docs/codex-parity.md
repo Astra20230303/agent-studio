@@ -1,5 +1,15 @@
 # Felix capability roadmap
 
+## Reorder paused messages
+
+Paused queue messages offer move-up/move-down actions. Shared neighbor resolution
+drives button availability and immutable queue updates: movement stays within the
+same conversation, does not wrap and cannot cross an unpaused or sending item.
+Other conversations retain their positions. The existing save-before-dispatch
+path persists order; failed writes retain the original order. Four queue tests,
+browser persistence-failure/retry and reordered turn/start payload acceptance,
+and the production build pass. Resume remains an explicit user action.
+
 ## Queue editor lifecycle follows the current queue
 
 The editor is identified by message ID and resolved against the current paused

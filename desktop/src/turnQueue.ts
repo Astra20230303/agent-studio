@@ -16,6 +16,25 @@ export function pauseThreadQueue(queue: QueuedTurn[], localId: string): QueuedTu
   return queue.map(item => item.localId === localId && item.status !== 'sending'
     ? { ...item, status: 'paused', error: '队列已手动暂停。' } : item);
 }
+export function queueMoveTarget(queue: QueuedTurn[], id: string, direction: -1 | 1): number {
+  const source = queue.findIndex(item => item.id === id);
+  const item = queue[source];
+  if (!item || item.status !== 'paused') return -1;
+  for (let index = source + direction; index >= 0 && index < queue.length; index += direction) {
+    const target = queue[index];
+    if (target.threadId !== item.threadId) continue;
+    return target.localId === item.localId && target.status === 'paused' ? index : -1;
+  }
+  return -1;
+}
+export function moveQueuedTurn(queue: QueuedTurn[], id: string, direction: -1 | 1): QueuedTurn[] {
+  const target = queueMoveTarget(queue, id, direction);
+  if (target < 0) return queue;
+  const source = queue.findIndex(item => item.id === id);
+  const next = [...queue];
+  [next[source], next[target]] = [next[target], next[source]];
+  return next;
+}
 export function restoreQueue(raw: string | null): QueuedTurn[] {
   try {
     const items = JSON.parse(raw || '[]');
