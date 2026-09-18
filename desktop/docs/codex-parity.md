@@ -14,6 +14,12 @@ Real Codex acceptance changes the model after Provider migration, verifies the
 HTTP model request, restarts the process and verifies the next request retains
 that model. Nine notification/failure/migration tests and production build pass.
 
+Post-commit real-engine acceptance forks after the model change and confirms the
+fork's HTTP request uses that model. A separate thread/settings/update then
+changes the source model without sending a turn; its applied notification updates
+the binding, and cold resume plus the next HTTP request retain the new setting.
+No additional product correction was needed.
+
 ## WebP and GIF attachment preflight
 
 WebP/GIF attachments now decode first-frame pixels in the image worker using

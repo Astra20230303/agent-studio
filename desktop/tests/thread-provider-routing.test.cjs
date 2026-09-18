@@ -85,27 +85,42 @@ test('real threads retain their provider through global switches, resume and for
     await turn(a, 'beta-second-model');
     assert.equal(received.at(-1).body.model, 'beta-second-model');
     assert.equal(new ThreadProviderRouter(path.join(home, 'bindings.json'), read, url).bindings[a].model, 'beta-second-model');
+    const changedFork = await router.request(rpc, 'thread/fork', { threadId: a });
+    assert.equal(changedFork.model, 'beta-second-model');
+    await turn(changedFork.thread.id);
+    assert.equal(received.at(-1).body.model, 'beta-second-model');
+    const applied = new Promise(resolve => {
+      const listener = message => {
+        if (message.method === 'thread/settings/updated' && message.params.threadId === a && message.params.threadSettings.model === 'beta-settings-model') {
+          rpc.off('notification', listener); resolve();
+        }
+      };
+      rpc.on('notification', listener);
+    });
+    await router.request(rpc, 'thread/settings/update', { threadId: a, model: 'beta-settings-model' });
+    await applied;
+    assert.equal(new ThreadProviderRouter(path.join(home, 'bindings.json'), read, url).bindings[a].model, 'beta-settings-model');
     const exited = once(rpc.child, 'exit');
     rpc.close(); await exited;
     await connect();
     router = new ThreadProviderRouter(path.join(home, 'bindings.json'), read, url);
     const cold = await router.request(rpc, 'thread/resume', { threadId: a });
     assert.equal(cold.modelProvider, 'felix_b');
-    assert.equal(cold.model, 'beta-second-model');
+    assert.equal(cold.model, 'beta-settings-model');
     assert.equal(cold.thread.id, a);
     assert.deepEqual(cold.sandbox, createdA.sandbox);
     await turn(a);
     assert.equal(received.at(-1).id, 'b');
     assert.equal(received.at(-1).key, 'Bearer b-key');
     assert.match(JSON.stringify(received.at(-1).body.messages), /Reply from a/);
-    assert.equal(received.at(-1).body.model, 'beta-second-model');
+    assert.equal(received.at(-1).body.model, 'beta-settings-model');
     await router.request(rpc, 'felix/thread/provider', { threadId: a, providerId: 'a' });
     delete providers.b;
     await turn(a);
     assert.equal(received.at(-1).id, 'a', 'A bound thread remains usable when the active B provider is unavailable');
     delete providers.a;
     await assert.rejects(turn(a), /Provider missing/);
-    assert.equal(received.length, 9);
+    assert.equal(received.length, 10);
   } finally {
     rpc?.close();
     for (const server of [adapter, ...servers].filter(Boolean)) { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
