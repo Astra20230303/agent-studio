@@ -1,5 +1,14 @@
 # Felix capability roadmap
 
+## Keyboard model selection
+
+Model search now exposes a combobox/listbox with one active result driving
+highlight, scrolling, active-descendant and Enter selection. Arrow keys cycle
+through filtered models; selection returns focus to the model button. Empty,
+loading or failed catalogs cannot select a model. Opening resets search and
+starts at the current model when available. IME key events are ignored.
+Browser search, catalog-race and per-thread/queued model tests and build pass.
+
 ## Stable command palette selection
 
 Command selection follows command ID rather than list position, so live thread

@@ -20,7 +20,7 @@ const assert = require('node:assert/strict');
     await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
     const picker = page.getByRole('button', { name: '选择模型', exact: true });
     await picker.getByText('model-a', { exact: true }).waitFor();
-    await picker.click(); await page.getByRole('button', { name: 'model-b', exact: true }).click();
+    await picker.click(); await page.getByRole('option', { name: 'model-b', exact: true }).click();
     await page.getByRole('button', { name: 'Chat b', exact: true }).click();
     await picker.getByText('model-a', { exact: true }).waitFor();
     await page.getByRole('button', { name: 'Chat a', exact: true }).click();
