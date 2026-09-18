@@ -182,6 +182,10 @@ ipcMain.handle('desktop:artifact', async (_event, input) => {
   } catch (error) { return { ok: false, error: error.message }; }
 });
 ipcMain.handle('desktop:project-root', () => projectRoot);
+ipcMain.handle('desktop:pasted-image', async (_event, bytes) => {
+  try { return { ok: true, path: await require('./pasted-image.cjs').savePastedImage(dataRoot, bytes) }; }
+  catch (error) { return { ok: false, error: error.message }; }
+});
 ipcMain.handle('desktop:workspace-git', async (_event, input) => {
   try { return { ok: true, result: await require('./workspace-git.cjs').workspaceGit(input, { assertWorktreeIdle: directory => require('./workspace-usage.cjs').assertWorkspaceIdle(directory, { terminals, scheduler, projectRoot }) }) }; }
   catch (error) { return { ok: false, error: error.message }; }

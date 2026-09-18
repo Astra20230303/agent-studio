@@ -1,0 +1,20 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
+const { PNG } = require('pngjs');
+const { savePastedImage } = require('../electron/pasted-image.cjs');
+test('clipboard PNG storage validates bytes and preserves independent files', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'felix-paste-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  await assert.rejects(savePastedImage(root, 'not bytes'), /无效/);
+  await assert.rejects(savePastedImage(root, new Uint8Array([1, 2])), /无效/);
+  assert.deepEqual(await fs.readdir(root), []);
+  const png = new PNG({ width: 2, height: 2 }); png.data.fill(255);
+  const data = PNG.sync.write(png);
+  const first = await savePastedImage(root, data), second = await savePastedImage(root, data);
+  assert.notEqual(first, second);
+  assert.equal(path.dirname(first), path.join(root, 'attachments'));
+  assert.deepEqual(await fs.readFile(first), data);
+});

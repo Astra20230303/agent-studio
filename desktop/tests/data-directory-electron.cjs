@@ -35,6 +35,16 @@ const path = require('node:path');
     assert.deepEqual(resolved, [attachment]);
     await page.getByRole('button', { name: `移除附件：${attachment}`, exact: true }).waitFor();
     assert.deepEqual(await page.evaluate(() => window.desktop.droppedFilePaths([new File(['virtual'], 'virtual.txt')])), ['']);
+    await page.evaluate(async () => {
+      const canvas = document.createElement('canvas'); canvas.width = 4; canvas.height = 4;
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      const data = new DataTransfer(); data.items.add(new File([blob], 'clipboard.png', { type: 'image/png' }));
+      document.querySelector('.composer textarea').dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: data }));
+    });
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('felix-attachments-v1') || '{}').new?.some(path => path.includes('clipboard-')));
+    const pasted = await page.evaluate(() => JSON.parse(localStorage.getItem('felix-attachments-v1')).new.find(path => path.includes('clipboard-')));
+    assert.equal(path.dirname(pasted), path.join(dataRoot, 'attachments'));
+    assert.deepEqual([...fs.readFileSync(pasted).subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
     const saved = await page.evaluate(async () => {
       localStorage.setItem('felix-data-test', 'persisted');
       return window.desktop.saveTask({ name: 'External profile task', prompt: 'Persist this reminder', kind: 'reminder', model: '', permission: 'read-only', notify: false, schedule: { kind: 'once', at: new Date(Date.now() + 86400000).toISOString() } });
@@ -46,6 +56,8 @@ const path = require('node:path');
     app = await launch(); page = await app.firstWindow();
     await page.waitForFunction(() => window.desktop?.taskDetail);
     assert.equal(await page.evaluate(() => localStorage.getItem('felix-data-test')), 'persisted');
+    assert.ok(fs.existsSync(pasted));
+    await page.getByRole('button', { name: `移除附件：${pasted}`, exact: true }).waitFor();
     const restored = await page.evaluate(id => window.desktop.taskDetail(id), saved.task.id);
     assert.equal(restored.task.name, 'External profile task');
     assert.equal(restored.task.runs.length, 0);
