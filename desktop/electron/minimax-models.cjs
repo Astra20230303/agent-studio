@@ -19,9 +19,14 @@ async function listMiniMaxModels({ apiKey, baseUrl = 'https://api.minimaxi.com/v
     const models = [...new Set(items.map(item => typeof item === 'string' ? item : item?.id)
       .filter(id => typeof id === 'string' && id.trim()).map(id => id.trim()))];
     if (!models.length) return { ok: false, models: [], error: '接口未返回可用模型。' };
+    const idCounts = new Map();
+    for (const item of items) {
+      const id = typeof item === 'string' ? item : item?.id;
+      if (typeof id === 'string' && id.trim()) idCounts.set(id.trim(), (idCounts.get(id.trim()) || 0) + 1);
+    }
     // Optional provider extension matching the upstream ModelPreset field.
     const effortCapabilities = items.filter(item => item && typeof item === 'object' && typeof item.id === 'string'
-      && items.filter(other => (typeof other === 'string' ? other : other?.id)?.trim() === item.id.trim()).length === 1
+      && idCounts.get(item.id.trim()) === 1
       && Array.isArray(item.supported_reasoning_efforts))
       .map(item => ({ model: item.id.trim(), values: item.supported_reasoning_efforts.map(level => typeof level === 'string' ? level : level?.effort) }));
     return { ok: true, models, ...(effortCapabilities.length ? { effortCapabilities } : {}) };

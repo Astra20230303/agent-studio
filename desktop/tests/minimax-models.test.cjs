@@ -49,3 +49,12 @@ test('preserves explicit effort metadata without inferring capabilities for ID-o
   ] }) });
   assert.deepEqual(result.effortCapabilities, [{ model: 'limited', values: ['low','high'] }, { model: 'defaults', values: [] }]);
 });
+
+test('invalid IDs alongside capability metadata do not discard valid models', async () => {
+ const result = await listMiniMaxModels({apiKey:'test',fetchImpl:async()=>Response.json({data:[
+  {id:7},{id:{}},null,{id:'known',supported_reasoning_efforts:['high']},'plain'
+ ]})});
+ assert.equal(result.ok,true);
+ assert.deepEqual(result.models,['known','plain']);
+ assert.deepEqual(result.effortCapabilities,[{model:'known',values:['high']}]);
+});
