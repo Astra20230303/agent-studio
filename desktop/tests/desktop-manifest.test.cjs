@@ -31,3 +31,12 @@ test('incomplete directories and existing manifests cannot be silently sealed',t
  const root=fixture(t);writeDesktopManifest(root);assert.throws(()=>writeDesktopManifest(root),/EEXIST/);
  fs.unlinkSync(path.join(root,'Felix.exe'));assert.throws(()=>writeDesktopManifest(root),/incomplete/);
 });
+
+test('directory junctions are rejected without including their external contents',t=>{
+ const root=fixture(t);writeDesktopManifest(root);
+ const external=fs.mkdtempSync(path.join(os.tmpdir(),'felix-external-'));
+ t.after(()=>fs.rmSync(external,{recursive:true,force:true}));fs.writeFileSync(path.join(external,'outside.txt'),'outside');
+ const link=path.join(root,'linked');fs.symlinkSync(external,link,'junction');
+ try{assert.throws(()=>verifyDesktop(root),/links are not supported/);assert.equal(fs.readFileSync(path.join(external,'outside.txt'),'utf8'),'outside');}
+ finally{fs.unlinkSync(link);}
+});
