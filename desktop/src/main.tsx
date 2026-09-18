@@ -78,7 +78,7 @@ import { applyToolEvent, finishTools, restoreMessages } from './toolActivity';
 import { ToolActivityGroup, groupMessages } from './ToolActivityView';
 import { MessageActions } from './ReplyActions';
 import { branchSnapshot, fullBranchSnapshot, isFinalReply } from './messageActions';
-import { listAllThreadItems, switchThreadProvider, updateThreadPermission, connectCodex, forkThread, listThreadItems, listThreadTurns, subscribeCodex } from './codexClient';
+import { listAllThreadItems, switchThreadProvider, updateThreadPermission, connectCodex, listThreadItems, listThreadTurns, subscribeCodex } from './codexClient';
 import { ExtensionsPage, ExtensionIcon } from './ExtensionsPage';
 import { ThreadButton } from './ThreadButton';
 import { ModePicker } from './ModePicker';
@@ -659,12 +659,11 @@ function App({ initialState }: { initialState: DesktopState }) {
     forkingRef.current = true; setForking(true);
     sendingRef.current.add(source.id); setPendingThreads(previous => [...previous, source.id]);
     try {
-      const result = await forkThread(source.remoteId);
-      if (!result?.thread?.id) throw new Error('没有返回分叉线程');
-      const copy = fullBranchSnapshot(source, result.thread.id);
+      const result = await threadStore.fork({ id: source.id, remoteId: source.remoteId });
+      const copy = fullBranchSnapshot(source, result.id);
       copy.providerId = result.providerId || source.providerId;
       copy.model = activeModel; copy.reasoningEffort = activeEffort;
-      copy.effectivePermissions = readThreadPermissions(result);
+      copy.effectivePermissions = result.permissions;
       const stillOnSource = activeThreadRef.current === source.id;
       update(next => { next.threads.push(copy); if (stillOnSource) next.activeThreadId = copy.id; });
       if (stillOnSource) setRemoteThreadId(copy.remoteId);
@@ -688,12 +687,11 @@ function App({ initialState }: { initialState: DesktopState }) {
     try {
       const turnId = message.turnId || await findMessageTurn(listThreadTurns, source.remoteId, messageId);
       if (!turnId) throw new Error('无法定位回复所在的回合，请重新加载该会话后重试。');
-      const result = await forkThread(source.remoteId, turnId);
-      if (!result.thread?.id) throw new Error('服务未返回分支会话。');
-      const copy = branchSnapshot(source, messageId, result.thread.id);
+      const result = await threadStore.fork({ id: source.id, remoteId: source.remoteId }, turnId);
+      const copy = branchSnapshot(source, messageId, result.id);
       copy.providerId = result.providerId || source.providerId;
       copy.model = activeModel; copy.reasoningEffort = activeEffort;
-      copy.effectivePermissions = readThreadPermissions(result); copy.requestedPermission = undefined;
+      copy.effectivePermissions = result.permissions; copy.requestedPermission = undefined;
       const stillOnSource = activeThreadRef.current === source.id;
       update(next => { next.threads.push(copy); if (stillOnSource) next.activeThreadId = copy.id; });
       if (stillOnSource) setRemoteThreadId(copy.remoteId);

@@ -1,3 +1,4 @@
+import { readThreadFork } from './threadFork.ts';
 import { readThreadStart, type ThreadStartOptions } from './threadStart.ts';
 import { readThreadResume } from './threadResume.ts';
 import type { DesktopState, Thread } from './domain';
@@ -6,10 +7,11 @@ import { createThreadMutations, type ThreadMutations, type ThreadRemoteMutations
 
 export interface ThreadStore extends ThreadRepository, ThreadMutations {
   start(localId: string, options: ThreadStartOptions): Promise<ReturnType<typeof readThreadStart>>;
+  fork(source: Pick<Thread, 'id'> & { remoteId: string }, lastTurnId?: string): Promise<ReturnType<typeof readThreadFork>>;
   resume(threadId: string): Promise<ReturnType<typeof readThreadResume>>;
   syncInitialTitle(thread: Pick<Thread, 'id'> & { remoteId: string }, title: string): Promise<void>;
 }
-export type ThreadBackend = ThreadSource & ThreadRemoteMutations & { resume(threadId: string): Promise<unknown>; start(options: ThreadStartOptions): Promise<unknown> };
+export type ThreadBackend = ThreadSource & ThreadRemoteMutations & { resume(threadId: string): Promise<unknown>; start(options: ThreadStartOptions): Promise<unknown>; fork(threadId: string, lastTurnId?: string): Promise<unknown> };
 
 // One instance per application state. View lifetimes and queue persistence remain
 // with callers; mutation exclusion spans all views and survives reconnects.
@@ -21,11 +23,11 @@ export function createThreadStore(backend: ThreadBackend, update: (mutate: (stat
   const manualNames = new Map<string, { name: string; revision: number }>();
   let titleRevision = 0;
   const identityKeys = (thread: Pick<Thread, 'id' | 'remoteId'>) => [`local:${thread.id}`, ...(thread.remoteId ? [`remote:${thread.remoteId}`] : [])];
-  async function exclusive(thread: Pick<Thread, 'id' | 'remoteId'>, operation: () => Promise<void>) {
+  async function exclusive<T>(thread: Pick<Thread, 'id' | 'remoteId'>, operation: () => Promise<T>) {
     const keys = identityKeys(thread);
     if (keys.some(key => pending.has(key))) throw Error('此会话的操作尚未完成，请稍后重试。');
     keys.forEach(key => pending.add(key));
-    try { await operation(); }
+    try { return await operation(); }
     finally { keys.forEach(key => pending.delete(key)); }
   }
   return {
@@ -36,6 +38,10 @@ export function createThreadStore(backend: ThreadBackend, update: (mutate: (stat
       pending.add(key);
       try { return readThreadStart(await backend.start(structuredClone(options))); }
       finally { pending.delete(key); }
+    },
+    fork(source, lastTurnId) {
+      const identity = { ...source };
+      return exclusive(identity, async () => readThreadFork(await backend.fork(identity.remoteId, lastTurnId), identity.remoteId));
     },
     async resume(threadId) { return readThreadResume(await backend.resume(threadId), threadId); },
     rename: (thread, name) => {
