@@ -29,6 +29,26 @@ const assert = require('node:assert/strict');
   await pre.focus();
   assert.equal(await pre.evaluate(node => node === document.activeElement), true);
   await page.keyboard.press('ArrowRight');
-  console.log('PASS: code wrap toggles independently, fits narrow viewport, preserves exact copy and keyboard access');
+  await page.evaluate(async () => {
+   const { default: React } = await import('/node_modules/.vite/deps/react.js');
+   const { default: ReactDOM } = await import('/node_modules/.vite/deps/react-dom_client.js');
+   const { CodeBlock } = await import('/src/CodeBlock.tsx');
+   const host = document.createElement('div'); host.id = 'updating-code'; document.body.appendChild(host);
+   const root = ReactDOM.createRoot(host);
+   window.__updateCode = source => root.render(React.createElement(CodeBlock, { source, language: 'text' }));
+   window.__updateCode('partial');
+  });
+  const updating = page.locator('#updating-code');
+  await updating.getByRole('button', { name: '代码自动换行', exact: true }).click();
+  await page.evaluate(() => window.__updateCode('partial\ncompleted 中文'));
+  await updating.locator('code').filter({ hasText: 'completed 中文' }).waitFor();
+  assert.equal(await updating.getByRole('button', { name: '代码自动换行', exact: true }).getAttribute('aria-pressed'), 'true');
+  await updating.getByRole('button', { name: '复制代码', exact: true }).click();
+  await page.waitForFunction(() => window.__copied === 'partial\ncompleted 中文');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: '收起侧栏', exact: true }).click();
+  await blocks.first().getByRole('button', { name: '代码自动换行', exact: true }).click();
+  assert.equal(await pre.evaluate(node => node.scrollWidth <= node.clientWidth + 1), true);
+  console.log('PASS: independent code wrap, exact copy, keyboard access, 390px layout and incremental source updates');
  } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
