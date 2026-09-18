@@ -1,13 +1,16 @@
 # Project context audit verification
 
-实现提交：`d993da0`；修正提交：`c95f01b`。
+修正实现：`749c26b`。早期 `d993da0`、`c95f01b` 的 ID 脱敏结论无效：Electron 实际返回绝对路径作为项目 ID，而早期测试使用虚构的 `project-a` / `wt`。
 
-验收覆盖：
+本次证据：
 
-- `workspace-ui.cjs`：选择文件夹后记录 `切换项目`，详情只包含稳定项目 ID；项目名称和绝对路径不会进入日志；线程与回合仍使用所选项目的 `cwd`。
-- `project-audit-ui.cjs`：项目选择取消或选择器抛错时不产生成功审计事件。
-- `worktree-ui.cjs`：从 Git 面板创建工作树并切换项目时同样记录项目 ID。
-- `audit-log-ui.cjs`：操作记录持久化、搜索、清空和既有导航审计回归。
-- `pnpm --dir desktop run build`：生产构建通过。
+- `workspace-ui.cjs`：模拟主进程实际数据形态（ID 等于路径），验证打开文件夹和选择已有项目均只记录动作，不记录详情；线程/回合 cwd 保持正确。
+- `worktree-ui.cjs`：创建工作树使用路径 ID，项目审计仍无详情。
+- `worktree-list-ui.cjs`：重新打开工作树使用路径 ID，等待完成后仅写一次事件；更新旧验收中已过时的“忙碌中可关闭”假设，验证当前关闭保护。
+- `project-audit-redaction-ui.cjs`：历史 Windows 路径立即从显示和当前持久记录移除，保留事件 ID、时间和其他动作；写入失败提示与重试、重载均通过。
+- `project-audit-ui.cjs`：取消/失败不写成功记录。
+- `audit-log-ui.cjs`：搜索、清空和持久化回归通过。
+- `renderer-storage.test.cjs`：9 项存储测试通过。
+- 生产构建通过，仍有既有包体积警告。
 
-验收结果：全部通过，无需产品修正。
+范围：浏览器测试模拟 Electron 桥接，数据形态由 main.cjs 和 workspace-git.cjs 的实际返回值核对。历史清理通过现有存储接口执行，不保证安全擦除旧备份或外部副本。尚未宣称完整审计日志或全部 Codex 能力完成。
