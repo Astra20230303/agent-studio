@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Archive, Pin, Trash2 } from 'lucide-react';
 import type { Thread } from './domain';
+import { threadStatusLabel, threadStatusMark } from './threadStatusPresentation';
 
 export function ThreadButton({ thread, selected, onSelect, onTogglePin, onArchive, onDelete }: { thread: Thread; selected: boolean; onSelect: () => void; onTogglePin: () => void; onArchive: () => void; onDelete: () => void }) {
   const viewport = useRef<HTMLSpanElement>(null);
@@ -25,7 +26,7 @@ export function ThreadButton({ thread, selected, onSelect, onTogglePin, onArchiv
   } as CSSProperties;
   const action = (event: React.MouseEvent, callback: () => void) => { event.stopPropagation(); callback(); };
   return <button className="recent" aria-current={selected ? 'page' : undefined} aria-label={thread.title} aria-describedby={thread.cwd ? workspaceId : undefined} title={[thread.title, thread.cwd].filter(Boolean).join('\n')} onClick={onSelect} style={style} data-overflow={overflow > 1}>
-    <span className="thread-labels"><span className="thread-title-viewport" ref={viewport}><span className="thread-title-text" ref={text}>{thread.title}</span>{thread.unread && <span className="thread-unread" aria-label="有新活动">●</span>}</span>{thread.cwd && <span id={workspaceId} className="thread-workspace" title={thread.cwd}>{thread.cwd}</span>}</span>
+    <span className="thread-labels"><span className="thread-title-viewport" ref={viewport}><span className="thread-title-text" ref={text}>{thread.title}</span>{thread.unread && <span className="thread-unread" aria-label="有新活动">●</span>}{threadStatusMark(thread.status) && <span className={`thread-status thread-status-${thread.status}`} aria-label={threadStatusLabel[thread.status]} title={threadStatusLabel[thread.status]}>{threadStatusMark(thread.status)}</span>}</span>{thread.cwd && <span id={workspaceId} className="thread-workspace" title={thread.cwd}>{thread.cwd}</span>}</span>
     <span className="thread-actions" aria-label={`${thread.title} 操作`}>
       <span role="button" tabIndex={0} className={`thread-action${thread.pinned ? ' active' : ''}`} aria-label={thread.pinned ? '取消置顶' : '置顶'} title={thread.pinned ? '取消置顶' : '置顶'} onClick={event => action(event, onTogglePin)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); action(event as unknown as React.MouseEvent, onTogglePin); } }}><Pin aria-hidden="true" /></span>
       <span role="button" tabIndex={0} className="thread-action" aria-label="归档" title="归档" onClick={event => action(event, onArchive)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); action(event as unknown as React.MouseEvent, onArchive); } }}><Archive aria-hidden="true" /></span>
