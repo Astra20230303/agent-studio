@@ -5,6 +5,7 @@ import { SearchMatchText } from './SearchMatchText';
 
 export type PreviewTextHandle = { find: () => void; goToLine: () => void };
 export function PreviewText({ text, lineNumber, column, matchLength, truncated, ref }: { text: string; lineNumber?: number; column?: number; matchLength?: number; truncated?: boolean; ref: Ref<PreviewTextHandle> }) {
+  const [wrap, setWrap] = useState(false);
   const [finding, setFinding] = useState(false);
   const [query, setQuery] = useState('');
   const [caseSensitive, setCaseSensitive] = useState(false);
@@ -25,14 +26,15 @@ export function PreviewText({ text, lineNumber, column, matchLength, truncated, 
   const find = () => { setFinding(true); requestAnimationFrame(() => input.current?.focus()); };
   useImperativeHandle(ref, () => ({ find, goToLine: () => { lineInput.current?.focus(); lineInput.current?.select(); } }));
   useEffect(() => { setSelectedLine(lineNumber); setRequestedLine(String(lineNumber || 1)); setLineError(''); setShowSearchMatch(true); }, [text, lineNumber, column, matchLength]);
-  useEffect(() => { if (!finding && showSearchMatch) pre.current?.querySelector('[data-search-match]')?.scrollIntoView({ block: 'center', inline: 'center' }); }, [text, lineNumber, column, matchLength, finding, showSearchMatch]);
-  useEffect(() => { line.current?.scrollIntoView({ block: 'center' }); }, [text, selectedLine]);
-  useEffect(() => { selected.current?.scrollIntoView({ block: 'center' }); }, [match]);
+  useEffect(() => { if (!finding && showSearchMatch) pre.current?.querySelector('[data-search-match]')?.scrollIntoView({ block: 'center', inline: 'center' }); }, [text, lineNumber, column, matchLength, finding, showSearchMatch, wrap]);
+  useEffect(() => { line.current?.scrollIntoView({ block: 'center' }); }, [text, selectedLine, wrap]);
+  useEffect(() => { selected.current?.scrollIntoView({ block: 'center' }); }, [match, wrap]);
   const close = () => { setFinding(false); pre.current?.focus(); };
   const move = (direction: number) => { if (matches.length) setIndex((current + direction + matches.length) % matches.length); };
   let offset = 0;
   return <div className="preview-text">
     {!finding && <button onClick={find}>查找预览内容</button>}
+    <button aria-label="预览自动换行" aria-pressed={wrap} onClick={() => setWrap(value => !value)}>{wrap ? '取消自动换行' : '自动换行'}</button>
     <CopyText source={text} label={truncated ? '复制已预览部分' : '复制预览内容'} />
     <form className="preview-line-navigation" aria-label="跳转到预览行" onSubmit={event => {
       event.preventDefault();
@@ -58,7 +60,7 @@ export function PreviewText({ text, lineNumber, column, matchLength, truncated, 
       <span role="status">{matches.length ? `${current + 1} / ${matches.length} 处匹配` : query ? '没有匹配' : '输入查找内容'}{truncated ? '（仅查找已预览部分）' : ''}</span>
       <button disabled={!matches.length} onClick={() => move(-1)}>上一处</button><button disabled={!matches.length} onClick={() => move(1)}>下一处</button><button onClick={close}>关闭预览查找</button>
     </section>}
-    <pre ref={pre} tabIndex={0} aria-label="文件预览文本" style={{ overflow: 'auto', maxHeight: '55vh', minHeight: '1.5em', whiteSpace: 'pre', margin: '12px 0' }}>{lines.map((value, index) => {
+    <pre ref={pre} tabIndex={0} aria-label="文件预览文本" style={{ overflow: 'auto', maxHeight: '55vh', minHeight: '1.5em', whiteSpace: wrap ? 'pre-wrap' : 'pre', overflowWrap: wrap ? 'anywhere' : 'normal', margin: '12px 0' }}>{lines.map((value, index) => {
       const start = offset; offset += value.length + 1;
       const highlighted = match && match.start < start + value.length && match.end > start;
       const from = highlighted ? Math.max(0, match.start - start) : 0;
