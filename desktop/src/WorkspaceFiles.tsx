@@ -12,6 +12,16 @@ export function WorkspaceFiles({ root, onAttach, onClose, onEdit, onPreview, pre
   const matchLine = useRef<HTMLSpanElement>(null);
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState('');
+  const [activeResult, setActiveResult] = useState<number>();
+  const resultButtons = useRef<(HTMLButtonElement | null)[]>([]);
+  function moveResult(direction: number) {
+    const count = listing?.entries.length || 0;
+    if (!search || selected || !count) return false;
+    const next = activeResult === undefined ? (direction > 0 ? 0 : count - 1) : (activeResult + direction + count) % count;
+    resultButtons.current[next]?.focus();
+    resultButtons.current[next]?.scrollIntoView({ block: 'nearest' });
+    return true;
+  }
   const [selected, setSelected] = useState<Entry>();
   const [listing, setListing] = useState<{ entries: Entry[]; truncated?: boolean; skipped?: number }>();
   const [preview, setPreview] = useState<any>();
@@ -28,7 +38,7 @@ export function WorkspaceFiles({ root, onAttach, onClose, onEdit, onPreview, pre
   useEffect(() => {
     let disposed = false;
     const version = ++requestVersion.current;
-    setError(''); setPreview(undefined); setListing(undefined);
+    setError(''); setPreview(undefined); setListing(undefined); setActiveResult(undefined); resultButtons.current = [];
     if (!root) return;
     const read = async () => {
       const response = await window.desktop?.workspaceFile?.({ root, path: selected?.path || (search ? '.' : directory), action: selected ? 'read' : search ? contentSearch ? 'search-content' : 'search' : 'list', query: search });
@@ -42,9 +52,9 @@ export function WorkspaceFiles({ root, onAttach, onClose, onEdit, onPreview, pre
   useEffect(() => { matchLine.current?.scrollIntoView({ block: 'center' }); }, [preview, selected]);
   const staleMatch = Boolean(selected?.line && selected.revision && preview && selected.revision !== preview.revision);
   return <section className="workspace-files" aria-label="工作区文件"><header><b>文件</b><button onClick={() => { setSelected(undefined); setDirectory('.'); setQuery(''); setSearch(''); }}>根目录</button><button onClick={() => setRefresh(value => value + 1)}>刷新文件</button><button onClick={onClose} aria-label="关闭文件面板">×</button></header><small>{root || '请先选择项目目录'}</small>
-    <form onSubmit={event => { event.preventDefault(); setSelected(undefined); setSearch(query.trim()); }}><select aria-label="文件搜索方式" value={contentSearch ? "content" : "name"} onChange={event => { setContentSearch(event.target.value === "content"); setSelected(undefined); setSearch(''); }}><option value="name">文件名</option><option value="content">文件内容</option></select><input aria-label="查找工作区文件" placeholder={contentSearch ? "文本关键词（不区分大小写）" : "文件名或相对路径"} value={query} onChange={event => setQuery(event.target.value)} /><button disabled={!root}>查找文件</button>{search && <button type="button" onClick={() => { setQuery(''); setSearch(''); setSelected(undefined); }}>清除文件查找</button>}</form>
+    <form onSubmit={event => { event.preventDefault(); setSelected(undefined); setSearch(query.trim()); }}><select aria-label="文件搜索方式" value={contentSearch ? "content" : "name"} onChange={event => { setContentSearch(event.target.value === "content"); setSelected(undefined); setSearch(''); }}><option value="name">文件名</option><option value="content">文件内容</option></select><input aria-label="查找工作区文件" placeholder={contentSearch ? "文本关键词（不区分大小写）" : "文件名或相对路径"} value={query} onChange={event => { setQuery(event.target.value); setActiveResult(undefined); }} onKeyDown={event => { if (!event.nativeEvent.isComposing && query.trim() === search && (event.key === 'ArrowDown' || event.key === 'ArrowUp') && moveResult(event.key === 'ArrowDown' ? 1 : -1)) event.preventDefault(); }} /><button disabled={!root}>查找文件</button>{search && <button type="button" onClick={() => { setQuery(''); setSearch(''); setSelected(undefined); }}>清除文件查找</button>}</form>
     {search && <small>搜索工作区内文件，跳过 .git 和符号链接；最多扫描 20000 项、返回 200 个结果。{contentSearch && " 内容搜索限完整 UTF-8 文本，每文件不超过 256 KB，总读取约 32 MB。"}</small>}
-    {selected ? <><button onClick={() => setSelected(undefined)}>返回目录</button><button disabled={!root} onClick={() => { setDirectory(parentDirectory(selected.path)); setSelected(undefined); setQuery(''); setSearch(''); }}>打开所在目录</button><h3>{selected.name}</h3><button disabled={!root || !preview} onClick={() => { if (root) onPreview({ root, path: selected.path, line: staleMatch ? undefined : selected.line, revision: selected.revision }); }}>展开文件预览</button><button onClick={() => onAttach(`${root}/${selected.path}`)}>添加到消息</button></> : <><p>{search ? `文件查找：${search}` : directory}</p>{!search && directory !== '.' && <button onClick={() => setDirectory(parentDirectory(directory))}>上级目录</button>}{listing?.entries.map(entry => <button className="workspace-file-row" key={`${entry.path}:${entry.line || 0}`} onClick={() => entry.directory ? setDirectory(entry.path) : setSelected(entry)}>{entry.directory ? '▸' : '▧'} {search ? entry.path : entry.name}{entry.line ? `:${entry.line}:${entry.column} · ${entry.snippet}` : ''}{entry.symlink ? ' ↗' : ''}</button>)}{listing?.truncated && <p>{search ? '搜索达到上限，请缩小关键词范围。' : '仅显示前 1000 项。'}</p>}</>}
+    {selected ? <><button onClick={() => setSelected(undefined)}>返回目录</button><button disabled={!root} onClick={() => { setDirectory(parentDirectory(selected.path)); setSelected(undefined); setQuery(''); setSearch(''); }}>打开所在目录</button><h3>{selected.name}</h3><button disabled={!root || !preview} onClick={() => { if (root) onPreview({ root, path: selected.path, line: staleMatch ? undefined : selected.line, revision: selected.revision }); }}>展开文件预览</button><button onClick={() => onAttach(`${root}/${selected.path}`)}>添加到消息</button></> : <><p>{search ? `文件查找：${search}` : directory}</p>{!search && directory !== '.' && <button onClick={() => setDirectory(parentDirectory(directory))}>上级目录</button>}{listing?.entries.map((entry, index) => <button ref={element => { resultButtons.current[index] = element; }} aria-current={search && activeResult === index ? 'true' : undefined} onFocus={() => setActiveResult(index)} onKeyDown={event => { if (!event.nativeEvent.isComposing && (event.key === 'ArrowDown' || event.key === 'ArrowUp') && moveResult(event.key === 'ArrowDown' ? 1 : -1)) event.preventDefault(); }} className="workspace-file-row" key={`${entry.path}:${entry.line || 0}`} onClick={() => entry.directory ? setDirectory(entry.path) : setSelected(entry)}>{entry.directory ? '▸' : '▧'} {search ? entry.path : entry.name}{entry.line ? `:${entry.line}:${entry.column} · ${entry.snippet}` : ''}{entry.symlink ? ' ↗' : ''}</button>)}{listing?.truncated && <p>{search ? '搜索达到上限，请缩小关键词范围。' : '仅显示前 1000 项。'}</p>}</>}
     {!!listing?.skipped && <p>有 {listing.skipped} 个文件或目录未搜索（无法读取、过大或非 UTF-8 文本），结果可能不完整。</p>}
     {error && <p role="alert">{error}</p>}{root && !listing && !preview && !error && <p>正在读取…</p>}
     {listing && !listing.entries.length && <p>{search ? '没有匹配文件。' : '此目录为空。'}</p>}
