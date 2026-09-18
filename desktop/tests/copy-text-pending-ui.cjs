@@ -37,6 +37,16 @@ const assert = require('node:assert/strict');
     await button.click(); await page.evaluate(() => window.__resolve());
     await page.getByRole('status').getByText('内容已复制', { exact: true }).waitFor();
     assert.equal(await page.getByRole('alert').count(), 0);
+    await button.click();
+    await page.evaluate(() => window.__renderCopy('latest'));
+    await page.getByRole('status').getByText('正在复制…', { exact: true }).waitFor();
+    await page.evaluate(() => window.__reject(Error('old failure')));
+    await page.waitForFunction(() => !document.querySelector('button').disabled);
+    assert.equal(await page.getByRole('alert').count(), 0);
+    assert.equal(await button.textContent(), '复制内容');
+    await button.click(); await page.evaluate(() => window.__resolve());
+    await page.getByRole('status').getByText('内容已复制', { exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => window.__writes.at(-1)), 'latest');
     console.log('PASS: duplicate writes blocked, source changes retain pending lock, stale completion ignored and failed writes retry');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

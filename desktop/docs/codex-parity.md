@@ -9,6 +9,10 @@ underlying write settles. Browser mocked-clipboard acceptance covers same-tick
 duplicate clicks, source replacement, stale completion and failure/retry; build
 passes. The lock is per control, not a global clipboard transaction.
 
+Post-commit acceptance verifies an old rejected write cannot display an error for
+replacement content, and the new content can then be copied. Tool command/output,
+MCP data and exact preview-copy regressions pass. No correction was needed.
+
 ## Expand workspace files into the shared preview
 
 The workspace file panel opens the same deferred preview as conversation files,
