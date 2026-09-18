@@ -18,7 +18,7 @@ const { chromium } = require('playwright'); const assert = require('node:assert/
   await page.evaluate(()=>{window.__delay=true;});
   const threadCount = state.threads.length;
   await page.getByRole('button',{name:'在工作树开始会话 D:/existing',exact:true}).click();
-  assert.ok(await page.getByRole('button',{name:'关闭 Git 面板',exact:true}).isDisabled());
+  await page.waitForFunction(() => document.querySelector('[aria-label="关闭 Git 面板"]')?.disabled === true);
   await page.evaluate(()=>window.__release());
   await page.locator('.git-panel').waitFor({ state: 'hidden' });
   assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.length),threadCount + 1);
