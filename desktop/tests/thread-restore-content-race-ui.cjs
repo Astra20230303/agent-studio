@@ -13,6 +13,10 @@ const assert = require('node:assert/strict');
       window.codex = {
         connect: async () => ({ ok: true }), notify: async () => ({ ok: true }),
         request: async (method, params) => {
+          if (method === 'thread/items/list') {
+            await new Promise(resolve => { window.__releaseHistory = resolve; });
+            return { ok: true, result: { data: [{ turnId: 't', item: { id: 'answer', type: 'agentMessage', text: 'Full history answer' } }] } };
+          }
           if (method === 'thread/resume') {
             await new Promise(resolve => { window.__release = resolve; });
             window.__release = undefined;
@@ -48,9 +52,26 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: 'Local B', exact: true }).click();
     await page.getByRole('button', { name: 'Thread A', exact: true }).click();
     await page.waitForFunction(() => !!window.__release);
-    await page.evaluate(() => window.__release());
+    await page.evaluate(() => {
+      window.__notify({ method: 'item/completed', params: { threadId: 'other-thread', turnId: 'other', item: { id: 'other-answer', type: 'agentMessage', text: 'Unrelated' } } });
+      window.__release();
+    });
     await page.getByText('Old answer', { exact: true }).waitFor();
     assert.equal(await page.getByText('Fresh answer', { exact: true }).count(), 0);
+    await page.getByRole('button', { name: '会话内查找', exact: true }).click();
+    await page.getByRole('button', { name: '加载完整历史', exact: true }).click();
+    await page.waitForFunction(() => !!window.__releaseHistory);
+    await page.evaluate(() => {
+      window.__notify({ method: 'item/completed', params: { threadId: 'a', turnId: 't', item: { id: 'answer', type: 'agentMessage', text: 'Newest answer' } } });
+      window.__releaseHistory(); window.__releaseHistory = undefined;
+    });
+    await page.getByText('加载失败：会话已有新活动，请重新加载历史', { exact: true }).waitFor({ timeout: 3000 });
+    await page.getByText('Newest answer', { exact: true }).waitFor();
+    assert.equal(await page.getByText('Full history answer', { exact: true }).count(), 0);
+    await page.getByRole('button', { name: '加载完整历史', exact: true }).click();
+    await page.waitForFunction(() => !!window.__releaseHistory);
+    await page.evaluate(() => window.__releaseHistory());
+    await page.getByText('Full history answer', { exact: true }).waitFor();
     console.log('PASS: content-only events survive an older pending resume; later uncontested snapshot applies');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

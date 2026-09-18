@@ -539,13 +539,14 @@ function App({ initialState }: { initialState: DesktopState }) {
     const thread = active;
     if (!thread?.remoteId || codexStatus !== 'connected' || pending || runningTurnId || sendingRef.current.has(thread.id)) throw new Error('请等待会话空闲且连接成功后重试');
     const revision = runtime.read(thread.remoteId)?.revision || 0;
+    const transcriptVersion = transcriptVersions.current.get(thread.remoteId) || 0;
     sendingRef.current.add(thread.id);
     setPendingThreads(previous => [...previous, thread.id]);
     try {
       const items = await threadStore.readHistory(thread.remoteId, options);
       options?.signal?.throwIfAborted();
       if (activeThreadRef.current !== thread.id) throw new Error('已切换会话，未应用旧请求');
-      if ((runtime.read(thread.remoteId)?.revision || 0) !== revision) throw new Error('会话已有新活动，请重新加载历史');
+      if ((runtime.read(thread.remoteId)?.revision || 0) !== revision || (transcriptVersions.current.get(thread.remoteId) || 0) !== transcriptVersion) throw new Error('会话已有新活动，请重新加载历史');
       update(next => { const target = next.threads.find(item => item.id === thread.id); if (target) target.messages = restoreMessages(items, target.messages); });
     } finally { sendingRef.current.delete(thread.id); setPendingThreads(previous => previous.filter(id => id !== thread.id)); }
   };
