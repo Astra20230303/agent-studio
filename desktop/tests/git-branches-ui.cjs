@@ -11,6 +11,7 @@ const assert = require('node:assert/strict');
         window.__calls.push(input);
         if (input.action === 'status') return { ok: true, result: { root: 'D:/repo', branch: window.__branch, files: [] } };
         if (input.action === 'branches') {
+          if (window.__unborn) return { ok: true, result: { branches: [], current: 'main', head: '' } };
           if (window.__badBranches === 'duplicate') return { ok: true, result: { branches: ['main', 'main'], current: 'main', head: 'a'.repeat(40) } };
           return { ok: true, result: { branches: ['main', 'feature'], current: window.__branch, head: 'a'.repeat(40) } };
         }
@@ -30,12 +31,25 @@ const assert = require('node:assert/strict');
     await page.getByRole('combobox', { name: '目标分支' }).selectOption('feature'); await submit.click();
     await page.getByRole('alert').getByText('local edits would be overwritten', { exact: true }).waitFor();
     await page.evaluate(() => { window.__fail = false; window.__hold = true; }); await submit.click();
-    await page.waitForFunction(() => Boolean(window.__release)); await page.evaluate(() => window.__release());
+    await page.waitForFunction(() => Boolean(window.__release));
+    assert.ok(await page.getByRole('button', { name: '正在切换…', exact: true }).isDisabled());
+    assert.ok(await page.getByRole('button', { name: '刷新分支列表', exact: true }).isDisabled());
+    await page.evaluate(() => window.__release());
     await page.getByText('已切换到 feature', { exact: true }).waitFor();
     assert.equal((await page.evaluate(() => window.__calls.find(c => c.action === 'switch-branch').expectedHead)).length, 40);
     await page.evaluate(() => { window.__badBranches = 'duplicate'; }); await page.getByRole('button', { name: '切换分支', exact: true }).click();
     await page.getByRole('alert').filter({ hasText: 'Git 分支数据无效' }).waitFor();
     await page.evaluate(() => { window.__badBranches = ''; }); await page.getByRole('button', { name: '刷新分支列表', exact: true }).click();
+    await page.getByText('当前：feature', { exact: true }).waitFor();
+    await page.evaluate(() => { window.__unborn = true; });
+    await page.getByRole('button', { name: '刷新分支列表', exact: true }).click();
+    await page.getByText('当前：main', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('alert').count(), 0);
+    assert.ok(await submit.isDisabled());
+    assert.ok(await page.getByRole('button', { name: '删除本地分支', exact: true }).isDisabled());
+    assert.equal(await page.getByRole('combobox', { name: '目标分支' }).locator('option').count(), 1);
+    await page.evaluate(() => { window.__unborn = false; });
+    await page.getByRole('button', { name: '刷新分支列表', exact: true }).click();
     await page.getByText('当前：feature', { exact: true }).waitFor();
     console.log('PASS: branch switch guards current branch, validates snapshots, reports failure and retries');
   } finally { await browser.close(); }
