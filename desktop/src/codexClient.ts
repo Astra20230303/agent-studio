@@ -2,6 +2,7 @@ import type { ThreadStartOptions } from './threadStart';
 import { parseBackgroundTerminalPage, parseTermination } from './backgroundTerminalResponse';
 import { collaborationMode } from './planning';
 import { userInput } from './attachments';
+import { readThreadGoalClearResponse, readThreadGoalResponse, validateThreadGoalInput } from './threadGoal';
 export type RpcMessage = { id?: number | string; method?: string; params?: any; result?: any; error?: any };
 type Bridge = { connect: () => Promise<any>; request: (method: string, params?: unknown) => Promise<any>; notify: (method: string, params?: unknown) => Promise<any>; respond: (id: number | string, result?: unknown, error?: unknown) => Promise<any>; onNotification: (listener: (message: RpcMessage) => void) => () => void; onServerRequest: (listener: (message: RpcMessage) => void) => () => void; onError: (listener: (message: any) => void) => () => void; onStderr: (listener: (message: any) => void) => () => void; onClosed: (listener: (message: any) => void) => () => void };
 const bridge = () => window.codex as Bridge;
@@ -55,6 +56,19 @@ export async function updateThreadPermission(threadId: string, permission: 'on-r
 export async function listThreadTurns(threadId: string, cursor?: string) { return unwrap<any>(bridge().request('thread/turns/list', { threadId, limit: 100, sortDirection: 'asc', itemsView: 'full', ...(cursor ? { cursor } : {}) })); }
 export async function listThreadItems(threadId: string, cursor?: string) { return unwrap<any>(bridge().request('thread/items/list', { threadId, limit: 200, sortDirection: 'asc', ...(cursor ? { cursor } : {}) })); }
 export async function setThreadName(threadId: string, name: string) { return unwrap<any>(bridge().request('thread/name/set', { threadId, name })); }
+export async function getThreadGoal(threadId: string) {
+  const result = await unwrap<any>(bridge().request('thread/goal/get', { threadId }));
+  return readThreadGoalResponse(result, threadId);
+}
+export async function setThreadGoal(threadId: string, input: { objective?: string; status?: string; tokenBudget?: number | null }) {
+  const params = validateThreadGoalInput(threadId, input);
+  const result = await unwrap<any>(bridge().request('thread/goal/set', params));
+  return readThreadGoalResponse(result, threadId);
+}
+export async function clearThreadGoal(threadId: string) {
+  const result = await unwrap<any>(bridge().request('thread/goal/clear', { threadId }));
+  return readThreadGoalClearResponse(result);
+}
 export async function archiveThread(threadId: string) { return unwrap<any>(bridge().request('thread/archive', { threadId })); }
 export async function unarchiveThread(threadId: string) { return unwrap<any>(bridge().request('thread/unarchive', { threadId })); }
 export async function listArchivedThreads(cursor?: string) { return unwrap<any>(bridge().request('thread/list', { modelProviders: [], archived: true, limit: 100, sortKey: 'recency_at', sortDirection: 'desc', ...(cursor ? { cursor } : {}) })); }
