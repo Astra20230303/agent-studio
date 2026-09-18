@@ -60,7 +60,7 @@ import { StrictMode, useContext, useEffect, useLayoutEffect, useMemo, useRef, us
 import type { ReactNode, ClipboardEvent } from 'react';
 import { createRoot } from 'react-dom/client';
 import { appendMessage, automaticThreadTitle, createThread, ensureThreadTitle } from './store';
-import { stateRepository } from './stateRepository';
+import { useDesktopState } from './useDesktopState';
 import { StorageGate } from './StorageGate';
 import type { DesktopState, Project } from './domain';
 import { failureMessage, recordTurnFailure } from './turnFailure';
@@ -95,11 +95,9 @@ function projectLabel(pathOrName?: string) {
 }
 
 function App({ initialState }: { initialState: DesktopState }) {
-  const [state, setState] = useState<DesktopState>(() => ({ ...initialState, model: modelId(initialState.model) }));
+  const { state, setState, update, saveFailed: stateSaveFailed, retrySave } = useDesktopState(() => ({ ...initialState, model: modelId(initialState.model) }));
   const audit = useAuditLog();
   const effectiveTheme = useTheme(state.theme);
-  const [stateSaveFailed, setStateSaveFailed] = useState(false);
-  const [stateSaveAttempt, setStateSaveAttempt] = useState(0);
   const [input, setInput, draftStorage] = useThreadDraft(state.activeThreadId);
   const [composerSkills, setComposerSkills, skillStorage] = useSkillDraft(state.activeThreadId);
   const [composerPlugins, setComposerPlugins, pluginStorage] = usePluginDraft(state.activeThreadId);
@@ -207,11 +205,6 @@ function App({ initialState }: { initialState: DesktopState }) {
     change(1); void done.finally(() => change(-1));
   };
   const threads = useMemo(() => state.threads.filter(thread => !thread.archived && (thread.title.toLowerCase().includes(search.trim().toLowerCase()) || thread.messages.some(message => message.content.toLowerCase().includes(search.trim().toLowerCase())) || !!thread.remoteId && threadList.matchingIds.includes(thread.remoteId))).slice().sort((a, b) => Number(b.pinned) - Number(a.pinned) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt)), [state.threads, search, threadList.matchingIds]);
-  useEffect(() => {
-    let disposed = false;
-    void stateRepository.save(state).then(() => { if (!disposed) setStateSaveFailed(false); }, () => { if (!disposed) setStateSaveFailed(true); });
-    return () => { disposed = true; };
-  }, [state, stateSaveAttempt]);
   const refreshProviders = () => window.desktop?.listProviders?.().then((items: any[]) => {
     const choices = Array.isArray(items) ? items : []; setProviderChoices(choices);
     const enabled = choices.find(item => item.enabled); if (!newThreadProviderId && enabled) setNewThreadProviderId(enabled.id);
@@ -338,7 +331,6 @@ function App({ initialState }: { initialState: DesktopState }) {
     return () => { disposed = true; recovery.stop(); cleanup(); reconnectRef.current = () => {}; stopRecoveryRef.current = () => {}; };
   }, []);
   const toast = (text: string) => { setNotice(text); window.setTimeout(() => setNotice(''), 1500); };
-  const update = (fn: (next: DesktopState) => void) => setState(previous => { const next = structuredClone(previous); fn(next); return next; });
   const enqueue = () => {
     if ((!input.trim() && !attachments.length && !composerSkills.length) || !active?.remoteId || !runningTurnId) return;
     if (!queue.change(items => [...items, { id: crypto.randomUUID(), localId: active.id, threadId: active.remoteId!, text: input.trim(), attachments: [...attachments], skills: [...composerSkills], model: modelId(activeModel), effort: activeEffort, cwd: workspaceFor(state, active), planningMode: active.planningMode || 'default', plugins: composerPlugins.map(({ id, name }) => ({ id, name })), waitingOn: runningTurnId, status: 'waiting' }], true)) return;
@@ -743,7 +735,7 @@ function App({ initialState }: { initialState: DesktopState }) {
     <ServerWarnings warnings={serverWarnings.warnings} dismiss={serverWarnings.dismiss} />
     {queue.saveFailed && <div role="alert" className="state-save-warning">排队消息未能保存，自动发送已暂停。关闭窗口可能丢失更改或恢复旧队列。<button onClick={queue.retry}>重试保存队列</button></div>}
     {attachmentStorage.readFailed && <div role="alert">附件读取失败，原始数据已保留；当前编辑暂未保存。<button onClick={attachmentStorage.retry}>重试读取附件</button></div>}{attachmentStorage.saveFailed && <div role="alert" className="state-save-warning">附件选择未保存到本机，刷新后可能丢失选择或恢复旧附件。当前仍可编辑和发送。<button onClick={attachmentStorage.retry}>重试保存附件</button></div>}
-    {stateSaveFailed && <div role="alert" className="state-save-warning">会话和设置未能保存到本机，刷新或关闭窗口可能丢失当前更改。<button onClick={() => setStateSaveAttempt(attempt => attempt + 1)}>重试保存会话和设置</button></div>}
+    {stateSaveFailed && <div role="alert" className="state-save-warning">会话和设置未能保存到本机，刷新或关闭窗口可能丢失当前更改。<button onClick={retrySave}>重试保存会话和设置</button></div>}
     {renameCandidate && <RenameThread key={renameCandidate.id} title={renameCandidate.title} onSave={renameThread} onClose={() => setRenameCandidate(undefined)} />}
     {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} commands={[
       { id: 'new', label: '新建会话', keywords: 'new chat', run: () => { newChat(); requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('textarea[aria-label="消息"]')?.focus()); } },
