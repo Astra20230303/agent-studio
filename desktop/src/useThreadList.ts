@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { DesktopState } from './domain';
-import { listThreads, searchThreads } from './codexClient';
-import { threadPage } from './threadPage';
+import { threadRepository } from './codexClient';
 
 export function useThreadList(connected: boolean, setState: Dispatch<SetStateAction<DesktopState>>, search = '') {
   const query = search.trim();
@@ -18,13 +17,11 @@ export function useThreadList(connected: boolean, setState: Dispatch<SetStateAct
     const generation = epoch.current;
     lock.current = true; setLoading(true); setError('');
     try {
-      const response = query ? await searchThreads(query, next) : await listThreads(next);
-      if (query && (!Array.isArray(response?.data) || response.data.some((item: any) => typeof item?.thread?.id !== 'string' || !item.thread.id || typeof item.snippet !== 'string'))) throw Error('服务端返回的会话搜索结果无效，请重试');
-      const result = threadPage(query ? { ...response, data: response.data?.map((item: any) => item.thread) } : response);
+      const result = await threadRepository.query({ search: query, cursor: next });
       if (generation !== epoch.current) return;
       const nextCursor = result.nextCursor || undefined;
       if (nextCursor && (nextCursor === next || seen.current.has(nextCursor))) throw Error('会话分页游标重复，请重新连接后重试。');
-      setMatches(previous => ({ query, snippets: { ...(next && previous.query === query ? previous.snippets : {}), ...Object.fromEntries((query ? response.data || [] : []).filter((item: any) => item.thread?.id && typeof item.snippet === 'string').map((item: any) => [item.thread.id, item.snippet])) }, ids: [...new Set([...(next && previous.query === query ? previous.ids : []), ...result.data.map(item => item.id)])] }));
+      setMatches(previous => ({ query, snippets: { ...(next && previous.query === query ? previous.snippets : {}), ...Object.fromEntries((query ? result.data : []).map(item => [item.id, item.snippet || ''])) }, ids: [...new Set([...(next && previous.query === query ? previous.ids : []), ...result.data.map(item => item.id)])] }));
       setState(previous => {
         if (generation !== epoch.current) return previous;
         const threads = [...previous.threads];

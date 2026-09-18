@@ -1,4 +1,5 @@
 import { createThreadHistory } from './threadHistory';
+import { createThreadRepository } from './threadRepository';
 import { collaborationMode } from './planning';
 import { userInput } from './attachments';
 export type RpcMessage = { id?: number | string; method?: string; params?: any; result?: any; error?: any };
@@ -67,6 +68,7 @@ export async function steerTurn(threadId: string, expectedTurnId: string, text: 
 }
 export async function listThreads(cursor?: string, searchTerm?: string) { return unwrap<any>(bridge().request('thread/list', { modelProviders: [], limit: 100, ...(searchTerm ? { searchTerm } : {}), sortKey: 'recency_at', sortDirection: 'desc', ...(cursor ? { cursor } : {}) })); }
 export async function searchThreads(searchTerm: string, cursor?: string, archived = false) { return unwrap<any>(bridge().request('thread/search', { searchTerm, archived, limit: 100, sortKey: 'recency_at', sortDirection: 'desc', ...(cursor ? { cursor } : {}) })); }
+export const threadRepository = createThreadRepository({ list: listThreads, archived: listArchivedThreads, search: searchThreads });
 export function subscribeCodex(handlers: { notification?: (message: RpcMessage) => void; serverRequest?: (message: RpcMessage) => void; error?: (message: any) => void; stderr?: (message: any) => void; closed?: (message: any) => void }) { const cleanups = [handlers.notification && bridge()?.onNotification(handlers.notification), handlers.serverRequest && bridge()?.onServerRequest(handlers.serverRequest), handlers.error && bridge()?.onError(handlers.error), handlers.stderr && bridge()?.onStderr(handlers.stderr), handlers.closed && bridge()?.onClosed(handlers.closed)].filter(Boolean) as Array<() => void>; return () => cleanups.forEach(cleanup => cleanup()); }
 export type BackgroundTerminal = { processId: string; command: string; cwd: string; osPid?: number | null; cpuPercent?: number | null; rssKb?: number | null };
 export async function listBackgroundTerminals(threadId: string, cursor?: string) {
