@@ -631,7 +631,13 @@ function App({ initialState }: { initialState: DesktopState }) {
     }
   };
   const deleteActive = async () => { const thread = state.threads.find(item => item.id === state.activeThreadId); if (thread) setDeleteCandidate(thread.id); };
-  const togglePinned = (threadId: string) => update(next => { const thread = next.threads.find(item => item.id === threadId); if (thread) thread.pinned = !thread.pinned; });
+  const togglePinned = (threadId: string) => {
+    const thread = state.threads.find(item => item.id === threadId);
+    if (!thread) return;
+    const pinned = !thread.pinned;
+    update(next => { const target = next.threads.find(item => item.id === threadId); if (target) target.pinned = pinned; });
+    audit.record(pinned ? '置顶会话' : '取消置顶会话');
+  };
   const deleteThreadFromSidebar = async (threadId: string) => { if (state.threads.some(item => item.id === threadId)) setDeleteCandidate(threadId); };
   const forkActive = async () => {
     const source = state.threads.find(item => item.id === state.activeThreadId);
