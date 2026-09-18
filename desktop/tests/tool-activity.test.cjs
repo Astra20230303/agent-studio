@@ -138,6 +138,22 @@ test('reasoning text deltas preserve content indexes and isolate malformed or te
   applyToolEvent(thread, 'item/reasoning/textDelta', { turnId: 'other', itemId: 'reason', contentIndex: 0, delta: 'bad' });
   assert.equal(thread.messages[1].tool.rawRecord.item.text[0], 'first');
 });
+test('terminal interaction records stdin for the matching process and rejects stale events', () => {
+  const thread = makeThread();
+  applyToolEvent(thread, 'item/started', { turnId: 't', item: { id: 'cmd', type: 'commandExecution', processId: 'proc', status: 'inProgress' } });
+  applyToolEvent(thread, 'item/commandExecution/terminalInteraction', { turnId: 't', itemId: 'cmd', processId: 'proc', stdin: 'yes\n' });
+  applyToolEvent(thread, 'item/commandExecution/terminalInteraction', { turnId: 't', itemId: 'cmd', processId: 'proc', stdin: 'password\n' });
+  applyToolEvent(thread, 'item/commandExecution/terminalInteraction', { turnId: 't', itemId: 'cmd', processId: 'other-process', stdin: 'wrong process' });
+  assert.deepEqual(thread.messages[1].tool.terminalInputs, ['yes\n', 'password\n']);
+  applyToolEvent(thread, 'item/completed', { turnId: 't', item: { id: 'cmd', type: 'commandExecution', status: 'completed', aggregatedOutput: 'done' } });
+  for (const params of [
+    { turnId: 't', itemId: 'cmd', processId: 'proc', stdin: 'late' },
+    { turnId: 'other', itemId: 'cmd', processId: 'proc', stdin: 'wrong turn' },
+    { turnId: 't', itemId: 'cmd', processId: '', stdin: 'bad process' },
+    { turnId: 't', itemId: 'cmd', processId: 'proc', stdin: 42 },
+  ]) applyToolEvent(thread, 'item/commandExecution/terminalInteraction', params);
+  assert.deepEqual(thread.messages[1].tool.terminalInputs, ['yes\n', 'password\n']);
+});
 
 test('malformed history entries are ignored without hiding valid records', () => {
   const previous = [{ id: 'old', role: 'assistant', content: 'old' }];

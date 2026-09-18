@@ -21,9 +21,11 @@ export function upsertTool(thread: Thread, item: any, turnId?: string, completed
     status: item.status || (completed ? 'completed' : previous?.status || 'inProgress'),
     turnId: turnId ?? previous?.turnId,
     command: item.command ?? previous?.command,
+    processId: item.processId ?? previous?.processId,
     cwd: item.cwd ?? previous?.cwd,
     output: item.aggregatedOutput ?? previous?.output ?? '',
     progress: Array.isArray(item.progress) ? item.progress : previous?.progress,
+    terminalInputs: Array.isArray(item.terminalInputs) ? item.terminalInputs : previous?.terminalInputs,
     exitCode: item.exitCode ?? previous?.exitCode,
     durationMs: item.durationMs ?? previous?.durationMs,
     changes: item.changes ?? previous?.changes
@@ -42,11 +44,13 @@ export function applyToolEvent(thread: Thread, method: string, params: any) {
   const kind = lifecycle ? params.item?.type : method.startsWith('item/commandExecution/') ? 'commandExecution' : method.startsWith('item/fileChange/') ? 'fileChange' : method.startsWith('item/reasoning/') ? 'reasoning' : method === 'item/mcpToolCall/progress' ? 'mcpToolCall' : undefined;
   if (!toolIdentity(kind)) return;
   if (existing && ((existing.rawRecord?.type || existing.kind) !== kind || existing.turnId && params.turnId && existing.turnId !== params.turnId)) return;
+  if (method === 'item/commandExecution/terminalInteraction' && existing?.processId && existing.processId !== params.processId) return;
   // A completed item owns its final output. Only an authoritative completion
   // may update it; starts, patches and deltas cannot reopen or append to it.
   if (existing && existing.status !== 'inProgress' && method !== 'item/completed') return;
   if (method.endsWith('outputDelta') && typeof params.delta !== 'string') return;
   if (method === 'item/mcpToolCall/progress' && typeof params.message !== 'string') return;
+  if (method === 'item/commandExecution/terminalInteraction' && (!toolIdentity(params.processId) || typeof params.stdin !== 'string')) return;
   if (method === 'item/fileChange/patchUpdated' && (!Array.isArray(params.changes) || params.changes.some((change: any) => !change || typeof change.path !== 'string' || typeof change.diff !== 'string' || !change.kind || !['add', 'delete', 'update'].includes(change.kind.type)))) return;
 
   if (method === 'item/reasoning/textDelta' || method === 'item/reasoning/summaryTextDelta' || method === 'item/reasoning/summaryPartAdded') {
@@ -74,6 +78,12 @@ export function applyToolEvent(thread: Thread, method: string, params: any) {
       message = thread.messages.find(message => message.id === `tool-${params.itemId}`);
     }
     if (message?.tool) message.tool.progress = [...(message.tool.progress || []), params.message].slice(-100);
+  } else if (method === 'item/commandExecution/terminalInteraction') {
+    if (!message) {
+      upsertTool(thread, { id: params.itemId, type: 'commandExecution' }, params.turnId);
+      message = thread.messages.find(message => message.id === `tool-${params.itemId}`);
+    }
+    if (message?.tool) message.tool.terminalInputs = [...(message.tool.terminalInputs || []), params.stdin].slice(-100);
   } else if (method === 'item/commandExecution/outputDelta' || method === 'item/fileChange/outputDelta') {
     let message = thread.messages.find(message => message.id === `tool-${params.itemId}`);
     if (!message) {

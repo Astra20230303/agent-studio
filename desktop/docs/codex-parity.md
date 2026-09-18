@@ -3588,3 +3588,8 @@ Codex Rust 传递依赖和原生二进制传递依赖仍需进一步许可审计
 
 - 已交付：接入上游 `item/mcpToolCall/progress`，校验 thread/turn/item 入口后将进度消息保留在 MCP 调用记录中，最多保留最近 100 条并在调用详情展示。即使进度先于 `item/started` 到达也会创建记录；完成、跨回合或坏消息不会追加。
 - 验收修正：初版先到进度事件因局部条目引用未初始化而失败，已改为共享条目引用。22 项 invocation/tool/thread 测试及生产构建通过。
+
+### 终端交互事件（2026-09-19）
+
+- 已交付：接入上游 `item/commandExecution/terminalInteraction`，记录并展示每个命令最近 100 次服务端 stdin。事件必须包含有效 processId，且与命令条目已有进程身份一致；先到事件可创建记录，完成后、跨回合、跨进程和坏输入全部拒绝。
+- 验证：23 项 tool/invocation/thread 测试通过，包含进程身份隔离；生产 TypeScript/Vite 构建通过。

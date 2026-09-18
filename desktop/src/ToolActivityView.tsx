@@ -35,6 +35,7 @@ function ToolRow({ tool, onOpenAgent }: { tool: ToolActivity; onOpenAgent?: (id:
     </summary>
     <div className="tool-detail">
       <div className="tool-copy-actions">{tool.command && <CopyText source={tool.command} label="复制命令" />}{tool.output && <CopyText source={tool.output} label="复制输出" />}</div>
+      {tool.terminalInputs?.length ? <details><summary>终端交互（{tool.terminalInputs.length} 次）</summary><pre className="tool-output">{tool.terminalInputs.join('')}</pre></details> : null}
       {tool.kind === 'commandExecution' && <pre className="tool-command">{tool.command}</pre>}
       <div className="tool-meta">{tool.cwd && <span>{tool.cwd}</span>}{tool.exitCode != null && <span>退出码 {tool.exitCode}</span>}{tool.durationMs != null && <span>用时 {(tool.durationMs / 1000).toFixed(1)} 秒</span>}</div>
       {tool.output ? <pre className="tool-output">{tool.output}</pre> : tool.kind === 'commandExecution' && <p>{tool.status === 'inProgress' ? '等待输出…' : '无输出'}</p>}

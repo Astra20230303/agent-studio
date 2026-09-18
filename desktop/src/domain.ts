@@ -25,8 +25,10 @@ export interface ToolActivity {
   collaboration?: { tool: string; prompt?: string; model?: string; receiverThreadIds: string[]; agentsStates: Record<string, { status: string; message?: string }> };
   status: string;
   command?: string;
+  processId?: string;
   cwd?: string;
   output?: string;
+  terminalInputs?: string[];
   progress?: string[];
   exitCode?: number | null;
   durationMs?: number | null;
