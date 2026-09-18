@@ -61,14 +61,18 @@ export function FileEditor({ root, path, initial, lineNumber, column, matchLengt
     setBaseline(diskVersion); setError(''); onSaved(diskVersion);
     editor.current?.focus();
   };
-  const save = async () => {
+  const save = async (keepOpen = false) => {
     if (operation.current || !dirty) return; operation.current = true; setBusy(true); setError('');
     try {
       const submitted = useCRLF ? text.replace(/\n/g, '\r\n') : text;
       const response = await window.desktop?.workspaceFile?.({ root, path, action: 'write', edit: { text: submitted, revision: baseline.revision } });
       if (response?.ok !== true) throw Error(response?.error || '保存未获确认，当前编辑内容已保留');
       if (!isEditablePreview(response.result) || !response.result.revision.trim() || response.result.text !== submitted) throw Error('保存结果不完整或与提交内容不一致，当前编辑内容已保留；请核对磁盘文件');
-      onSaved(response.result); onClose();
+      onSaved(response.result);
+      if (keepOpen) {
+        setBaseline(response.result); setDiskVersion(undefined);
+        requestAnimationFrame(() => editor.current?.focus());
+      } else onClose();
     } catch (error) { setError(error instanceof Error ? error.message : String(error)); }
     finally { operation.current = false; setBusy(false); }
   };
@@ -88,5 +92,5 @@ export function FileEditor({ root, path, initial, lineNumber, column, matchLengt
   }} spellCheck={false} value={text} disabled={busy} onCompositionStart={() => { composition.current = history; }} onCompositionEnd={event => {
     const before = composition.current; composition.current = null;
     if (before) setHistory(editHistory(before, event.currentTarget.value));
-  }} onChange={event => { const value = event.target.value; if (composition.current) setHistory(current => ({ ...current, text: value })); else setText(value); }} /><span role="status">{tabNavigation ? 'Tab 焦点导航已开启' : 'Tab 缩进已开启'}</span>{error && <p role="alert">{error}</p>}{diskVersion && <section className="editor-disk-version" aria-label="磁盘版本对照"><header><h3>磁盘版本对照</h3><button disabled={busy} onClick={() => setDiskVersion(undefined)}>关闭版本对照</button></header><p>{diskVersion.revision === baseline.revision ? '磁盘版本与编辑起点一致。' : '磁盘文件已改变，保存仍会检查编辑起点版本。'}</p><p>以下为读取时的快照。上方草稿可继续编辑；查看不会写入文件或改变保存基准。</p><button disabled={busy || diskVersion.revision === baseline.revision} onClick={adoptDiskVersion}>保留草稿，采用此磁盘版本作为基准</button><div className="editor-version-columns"><section><h4>编辑起点</h4><pre aria-label="编辑起点内容">{baseline.text || '（空文件）'}</pre></section><section><h4>磁盘快照</h4><CopyText source={diskVersion.text} label="复制磁盘版本" /><pre aria-label="磁盘快照内容">{diskVersion.text || '（空文件）'}</pre></section></div></section>}<div><CopyText source={text} label="复制编辑内容" /><button disabled={busy} onClick={() => void reload(true)}>查看磁盘版本</button><button disabled={busy} onClick={() => void reload()}>重新读取磁盘文件</button><button disabled={busy} onClick={close}>取消编辑</button><button disabled={busy || !dirty} onClick={() => void save()}>{busy ? '正在处理…' : '保存文件'}</button></div></dialog>;
+  }} onChange={event => { const value = event.target.value; if (composition.current) setHistory(current => ({ ...current, text: value })); else setText(value); }} /><span role="status">{tabNavigation ? 'Tab 焦点导航已开启' : 'Tab 缩进已开启'}</span>{error && <p role="alert">{error}</p>}{diskVersion && <section className="editor-disk-version" aria-label="磁盘版本对照"><header><h3>磁盘版本对照</h3><button disabled={busy} onClick={() => setDiskVersion(undefined)}>关闭版本对照</button></header><p>{diskVersion.revision === baseline.revision ? '磁盘版本与编辑起点一致。' : '磁盘文件已改变，保存仍会检查编辑起点版本。'}</p><p>以下为读取时的快照。上方草稿可继续编辑；查看不会写入文件或改变保存基准。</p><button disabled={busy || diskVersion.revision === baseline.revision} onClick={adoptDiskVersion}>保留草稿，采用此磁盘版本作为基准</button><div className="editor-version-columns"><section><h4>编辑起点</h4><pre aria-label="编辑起点内容">{baseline.text || '（空文件）'}</pre></section><section><h4>磁盘快照</h4><CopyText source={diskVersion.text} label="复制磁盘版本" /><pre aria-label="磁盘快照内容">{diskVersion.text || '（空文件）'}</pre></section></div></section>}<div><CopyText source={text} label="复制编辑内容" /><button disabled={busy} onClick={() => void reload(true)}>查看磁盘版本</button><button disabled={busy} onClick={() => void reload()}>重新读取磁盘文件</button><button disabled={busy} onClick={close}>取消编辑</button><button disabled={busy || !dirty} onClick={() => void save(true)}>保存并继续编辑</button><button disabled={busy || !dirty} onClick={() => void save()}>{busy ? '正在处理…' : '保存文件'}</button></div></dialog>;
 }
