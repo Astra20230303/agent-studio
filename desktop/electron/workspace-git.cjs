@@ -209,6 +209,17 @@ async function workspaceGit(input, { assertWorktreeIdle } = {}) {
     const merging = await git(root, ['rev-parse', '--verify', 'MERGE_HEAD']).then(() => true, () => false);
     return { root, branch, branches, head, merging, detached: !symbolic, remotes, stashAvailable, ...await tracking(root), files: parseStatus(await git(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all'])) };
   }
+  if (input.action === 'stage-all' || input.action === 'unstage-all') {
+    const symbolic = (await git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).catch(() => '')).trim();
+    const head = (await git(root, ['rev-parse', '--verify', 'HEAD']).catch(() => '')).trim();
+    const branch = symbolic || (await git(root, ['rev-parse', '--short', 'HEAD'])).trim();
+    if (input.expectedBranch !== branch || input.expectedHead !== head) throw Error('当前分支或提交已变化，请刷新 Git 变更');
+    if ((await git(root, ['diff', '--name-only', '--diff-filter=U', '-z'])).length) throw Error('请逐个解决冲突后再批量操作');
+    if (input.action === 'stage-all') await git(root, ['add', '--all', '--', '.']);
+    else if (head) await git(root, ['reset', head, '--', '.']);
+    else await git(root, ['read-tree', '--empty']);
+    return {};
+  }
   if (input.action === 'commit') {
     if ((await git(root, ['diff', '--name-only', '--diff-filter=U', '-z'])).length) throw Error('请先解决并暂存所有冲突文件');
     if (typeof input.message !== 'string' || !input.message.trim() || input.message.length > 10000 || input.message.includes('\0')) throw Error('请填写有效提交说明');
