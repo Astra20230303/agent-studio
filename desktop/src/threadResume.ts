@@ -23,7 +23,7 @@ export function readThreadResume(value: any, threadId: string) {
       if (running) throw Error('服务端返回多个运行中回合，请重试恢复会话。');
       running = turn;
     }
-    for (const item of turn.items) items.push({ item, turnId: turn.id });
+    for (const item of turn.items) items.push({ item, turnId: turn.id, ...(turn.status ? { turnStatus: turn.status } : {}) });
   }
   validateRestorableHistory(items);
   const reasoningEffort: Thread['reasoningEffort'] = value.reasoningEffort === null ? 'default'

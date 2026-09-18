@@ -97,7 +97,10 @@ export function restoreMessages(items: any[], previous: Message[]): Message[] {
       const id = item.type === 'plan' ? `plan-${item.id}` : item.type === 'agentMessage' ? `live-${item.id}` : item.id;
       const existing = thread.messages.find(message => message.id === id);
       const parts = Array.isArray(item.content) ? item.content.filter((part: any) => part && typeof part === 'object' && !Array.isArray(part)) : undefined;
+      const saved = previous.find(message => message.id === id);
+      const completed = item.type === 'agentMessage' && (['completed', 'failed', 'interrupted'].includes(entry.turnStatus) || existing?.streamCompleted || saved?.streamCompleted && (!entry.turnId || !saved.turnId || entry.turnId === saved.turnId));
       const message = { id,
+        ...(completed ? { streamCompleted: true } : {}),
         turnId: entry.turnId || previous.find(message => message.id === `live-${item.id}`)?.turnId,
         role: item.type === 'userMessage' ? 'user' : 'assistant',
         attachments: item.type === 'userMessage' ? parts?.filter((part: any) => part.type === 'localImage' && typeof part.path === 'string').map((part: any) => part.path) : undefined,
