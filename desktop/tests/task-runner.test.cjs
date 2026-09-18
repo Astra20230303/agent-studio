@@ -10,6 +10,7 @@ const { TaskScheduler } = require('../electron/task-scheduler.cjs');
 const { spawn } = require('node:child_process');
 const { CodexRpc } = require('../electron/codex-rpc.cjs');
 const { findCommand } = require('../electron/codex-server.cjs');
+const { startMiniMaxAdapter } = require('../electron/minimax-adapter.cjs');
 const root = path.resolve(__dirname, '../..');
 const task = { name: 'Runner integration', model: 'MiniMax-M2.1', prompt: 'Print FELIX_SCHEDULE_OK using a read-only shell command and report the result.', permission: 'read-only' };
 
@@ -34,10 +35,14 @@ test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local
         const command = "Write-Output 'FELIX_SCHEDULE_OK'";
         const args = props.cmd ? { cmd: command, max_output_tokens: 100 } : { command: props.command.type === 'array' ? ['powershell.exe', '-NoProfile', '-Command', command] : command };
         res.write('data: ' + JSON.stringify({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'scheduled-call', type: 'function', function: { name: tool.function.name, arguments: JSON.stringify(args) } }] }, finish_reason: 'tool_calls' }] }) + '\n\n');
-      } else {
+      } else if (requests === 2) {
         const result = body.messages.find(message => message.role === 'tool' && message.tool_call_id === 'scheduled-call');
         assert.ok(result); assert.match(result.content, /FELIX_SCHEDULE_OK/);
         res.write('data: ' + JSON.stringify({ choices: [{ delta: { content: 'Verified FELIX_SCHEDULE_OK from the scheduled run.' }, finish_reason: 'stop' }] }) + '\n\n');
+      } else {
+        assert.ok(body.messages.some(message => message.role === 'assistant' && JSON.stringify(message.content).includes('Verified FELIX_SCHEDULE_OK')));
+        assert.ok(body.messages.some(message => message.role === 'user' && JSON.stringify(message.content).includes('Continue the scheduled task conversation')));
+        res.write('data: ' + JSON.stringify({choices:[{delta:{content:'Continued with retained task context.'},finish_reason:'stop'}]}) + '\n\n');
       }
       res.end('data: [DONE]\n\n');
     } catch (error) { upstreamError = error; res.end('data: [DONE]\n\n'); }
@@ -63,14 +68,24 @@ test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local
     assert.equal(restarted.detail(saved.id).runs[0].output, result.output);
     assert.equal(restarted.detail(saved.id).cwd, workspace);
     assert.ok(result.threadId);
-    const child = spawn(findCommand(root).command, ['-c', 'model_providers.minimax.name="MiniMax"', '-c', 'model_providers.minimax.wire_api="responses"', '-c', 'model_providers.minimax.base_url="http://127.0.0.1:1/v1"', 'app-server', '--stdio'], {cwd:root,windowsHide:true,stdio:['pipe','pipe','pipe'],env:{...process.env,CODEX_HOME:path.join(dataRoot,'codex-home')}});
-    const rpc = new CodexRpc(child);const timer=setTimeout(()=>rpc.close(),10000);
+    const adapter=startMiniMaxAdapter({port:0,apiKey,upstream:`http://127.0.0.1:${server.address().port}`});await once(adapter,'listening');
+    const child = spawn(findCommand(root).command, ['-c', 'web_search="disabled"', '-c', 'model_providers.minimax.name="MiniMax"', '-c', 'model_providers.minimax.wire_api="responses"', '-c', `model_providers.minimax.base_url="http://127.0.0.1:${adapter.address().port}/v1"`, 'app-server', '--stdio'], {cwd:root,windowsHide:true,stdio:['pipe','pipe','pipe'],env:{...process.env,CODEX_HOME:path.join(dataRoot,'codex-home')}});
+    const rpc = new CodexRpc(child);const timer=setTimeout(()=>rpc.close(),20000);
     try {
       await rpc.request('initialize',{clientInfo:{name:'task_resume_acceptance',version:'1'}});rpc.notify('initialized',{});
       const restored=await rpc.request('thread/resume',{threadId:result.threadId});
       assert.equal(restored.thread.id,result.threadId);
       assert.ok(restored.thread.turns.some(turn=>turn.items.some(item=>item.type==='agentMessage' && item.text.includes('FELIX_SCHEDULE_OK'))));
-    } finally {clearTimeout(timer);const exited=child.exitCode===null?once(child,'exit').catch(()=>{}):Promise.resolve();rpc.close();await exited;}
+      const completed=new Promise((resolve,reject)=>{
+        rpc.once('closed',reject);
+        rpc.on('notification',message=>{if(message.method==='turn/completed' && message.params.threadId===result.threadId){rpc.off('closed',reject);resolve(message.params.turn);}});
+      });completed.catch(()=>{});
+      const next=await rpc.request('turn/start',{threadId:result.threadId,input:[{type:'text',text:'Continue the scheduled task conversation.'}]});
+      const finished=await completed;assert.equal(finished.id,next.turn.id);assert.equal(finished.status,'completed',JSON.stringify(finished.error));
+      if(upstreamError)throw upstreamError;assert.equal(requests,3);
+      const latest=await rpc.request('thread/resume',{threadId:result.threadId});
+      assert.ok(latest.thread.turns.some(turn=>turn.items.some(item=>item.type==='agentMessage'&&item.text==='Continued with retained task context.')));
+    } finally {clearTimeout(timer);const exited=child.exitCode===null?once(child,'exit').catch(()=>{}):Promise.resolve();rpc.close();await exited;adapter.closeAllConnections();await new Promise(resolve=>adapter.close(resolve));}
     assert.equal(restarted.detail(saved.id).status, 'completed'); await restarted.stop();
   } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
 });
