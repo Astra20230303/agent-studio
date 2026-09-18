@@ -1,6 +1,12 @@
 export type RemoteProject = { id: string; name: string; roots: string[]; metadata: Record<string, string>; position: number; createdAt: number; updatedAt: number; recencyAt?: number | null };
 export type RemoteProjectPage = { data: RemoteProject[]; nextCursor?: string };
+export type RemoteProjectChange = { projectId: string; changeType: 'created' | 'updated' | 'deleted' };
 const identity = (value: unknown): value is string => typeof value === 'string' && !!value.trim() && value === value.trim() && !/[\0\r\n]/.test(value);
+export function readRemoteProjectChange(value: unknown): RemoteProjectChange | undefined {
+  const input = value as any;
+  if (!identity(input?.projectId) || !['created', 'updated', 'deleted'].includes(input.changeType)) return;
+  return { projectId: input.projectId, changeType: input.changeType };
+}
 function projectRoots(roots: string[]) { if (!Array.isArray(roots) || roots.some(root => typeof root !== 'string' || !root.trim() || /[\0\r\n]/.test(root))) throw new Error('远端项目根目录无效'); return roots.map(path => ({ path: path.trim() })); }
 function projectMetadata(metadata: Record<string, string>) { if (!metadata || Array.isArray(metadata) || Object.entries(metadata).some(([key, value]) => !/^\S+$/.test(key) || typeof value !== 'string' || /[\0\r\n]/.test(value))) throw new Error('远端项目 metadata 无效'); return { ...metadata }; }
 export function createRemoteProjectParams(name: string, roots: string[], metadata: Record<string, string>, idempotencyKey: string) {

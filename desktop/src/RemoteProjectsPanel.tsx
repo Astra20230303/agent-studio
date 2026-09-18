@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { createRemoteProject, deleteRemoteProject, listRemoteProjects, updateRemoteProject } from './codexClient';
-import type { RemoteProject } from './remoteProjects';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { createRemoteProject, deleteRemoteProject, listRemoteProjects, subscribeCodex, updateRemoteProject } from './codexClient';
+import { readRemoteProjectChange, type RemoteProject } from './remoteProjects';
 
 type Draft = { name: string; roots: string; metadata: string };
 const emptyDraft = (): Draft => ({ name: '', roots: '', metadata: '' });
@@ -23,15 +23,17 @@ export function RemoteProjectsPanel({ connected, busy }: { connected: boolean; b
   const [projects, setProjects] = useState<RemoteProject[]>([]);
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
+  const loadingRef = useRef(false);
   const [editing, setEditing] = useState<string | 'new'>();
   const [draft, setDraft] = useState<Draft>(emptyDraft);
-  const refresh = async () => {
-    if (!connected || busy || loading) return;
-    setLoading(true); setStatus('');
+  const refresh = useCallback(async (fromNotification = false) => {
+    if (!connected || busy || loadingRef.current) return;
+    loadingRef.current = true; setLoading(true); if (!fromNotification) setStatus('');
     try { const result = await listRemoteProjects(); setProjects(result); setStatus(`已读取 ${result.length} 个远端项目`); }
     catch (error) { setStatus(`读取远端项目失败：${error instanceof Error ? error.message : String(error)}`); }
-    finally { setLoading(false); }
-  };
+    finally { loadingRef.current = false; setLoading(false); }
+  }, [connected, busy]);
+  useEffect(() => connected ? subscribeCodex({ notification: message => { if (message.method === 'project/changed' && readRemoteProjectChange(message.params)) void refresh(true); } }) : undefined, [connected, refresh]);
   const save = async (project?: RemoteProject) => {
     if (loading) return;
     setLoading(true); setStatus('');
