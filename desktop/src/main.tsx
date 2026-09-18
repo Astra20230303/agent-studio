@@ -121,6 +121,7 @@ function App() {
   const [showProjects, setShowProjects] = useState(false);
   const [attachments, setAttachments, attachmentStorage] = useAttachmentDraft(state.activeThreadId);
   const [notice, setNotice] = useState('');
+  const [serverWarning, setServerWarning] = useState('');
   const [codexStatus, setCodexStatus] = useState<'connecting' | 'connected' | 'offline' | 'error'>('connecting');
   const threadList = useThreadList(codexStatus === 'connected', setState, search);
   const reconnectRef = useRef<() => void>(() => {});
@@ -202,6 +203,19 @@ function App() {
     const cleanup = subscribeCodex({
       notification: message => {
         const params = message.params || {};
+        if (message.method === 'warning' && typeof params.message === 'string' && params.message.trim()) {
+          if (typeof params.threadId === 'string' && params.threadId) {
+            const warningId = crypto.randomUUID();
+            update(next => {
+              let thread = next.threads.find(item => item.remoteId === params.threadId);
+              if (!thread) {
+                thread = { id: crypto.randomUUID(), remoteId: params.threadId, title: '会话警告', status: 'idle', pinned: false, archived: false, messages: [], updatedAt: new Date().toISOString() };
+                next.threads.push(thread);
+              }
+              thread.messages.push({ id: warningId, role: 'system', content: `警告：${params.message}`, createdAt: new Date().toISOString() });
+            });
+          } else setServerWarning(params.message);
+        }
         if (message.method === 'thread/settings/updated') {
           update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) thread.effectivePermissions = readThreadPermissions(params.threadSettings); });
         }
@@ -577,6 +591,7 @@ function App() {
   };
   const serviceControl = <section className="settings-card" aria-label="工作区服务连接"><h2>工作区服务</h2><p role="status">服务连接：{codexStatus === 'connected' ? '已连接' : codexStatus === 'connecting' ? '连接中' : '未连接'}</p><p>配置变更后可重启服务并重新连接。{serviceInUse ? '请先等待运行中会话、审批和沙箱设置结束。' : '草稿保留，排队消息会暂停。'}</p><button disabled={serviceInUse || restarting || codexStatus === 'connecting'} onClick={() => void restartService()}>重启并重新连接服务</button></section>;
   return <div className={`desktop-app ${effectiveTheme} ${page === 'settings' ? 'settings-mode' : ''} ${terminalOpen ? 'terminal-visible' : ''}`}>
+    {serverWarning && <div role="alert" className="state-save-warning"><span>{serverWarning}</span><button aria-label="关闭服务警告" title="关闭服务警告" onClick={() => setServerWarning('')}><X size={16} /></button></div>}
     {queue.saveFailed && <div role="alert" className="state-save-warning">排队消息未能保存，自动发送已暂停。关闭窗口可能丢失更改或恢复旧队列。<button onClick={queue.retry}>重试保存队列</button></div>}
     {attachmentStorage.saveFailed && <div role="alert" className="state-save-warning">附件选择未保存到本机，刷新后可能丢失选择或恢复旧附件。当前仍可编辑和发送。<button onClick={attachmentStorage.retry}>重试保存附件</button></div>}
     {stateSaveFailed && <div role="alert" className="state-save-warning">会话和设置未能保存到本机，刷新或关闭窗口可能丢失当前更改。<button onClick={() => setStateSaveAttempt(attempt => attempt + 1)}>重试保存会话和设置</button></div>}
