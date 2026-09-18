@@ -87,6 +87,7 @@ async function main() {
     assert.match(await page.evaluate(() => window.__copied), /每日工作区检查[\s\S]*已完成[\s\S]*真实持久化结果/);
     await dialog.getByRole('button', { name: '导出运行结果', exact: true }).click();
     assert.equal(await page.evaluate(() => window.__exported.content), await page.evaluate(() => window.__copied));
+    assert.match(await page.evaluate(() => window.__exported.content), /运行时任务配置[\s\S]*模型：MiniMax-Test[\s\S]*任务内容：\n检查今天的待办事项/);
     assert.match(await page.evaluate(() => window.__exported.filename), /^task-.*\.txt$/);
     await page.evaluate(() => { window.__exportFail = true; });
     await dialog.getByRole('button', { name: '导出运行结果', exact: true }).click();
