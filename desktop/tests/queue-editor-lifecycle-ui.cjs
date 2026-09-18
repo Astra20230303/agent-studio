@@ -46,7 +46,7 @@ const assert = require('node:assert/strict');
     await page.evaluate(() => window.__renderQueue([{ ...window.__b, error: 'Refreshed queue status' }]));
     assert.equal(await editor.getByRole('textbox').inputValue(), 'keep typing through refresh');
     await editor.getByRole('button', { name: '保存排队消息', exact: true }).click();
-    assert.deepEqual(await page.evaluate(() => window.__saved), [['b', 'keep typing through refresh', [], { model: 'test', effort: 'low', planningMode: 'default' }]]);
+    assert.deepEqual(await page.evaluate(() => window.__saved), [['b', 'keep typing through refresh', [], { model: 'test', effort: 'low', planningMode: 'default', skills: [], plugins: [] }]]);
     await page.getByRole('button', { name: '编辑排队消息：B', exact: true }).click();
     await page.evaluate(() => window.__renderQueue([]));
     await editor.waitFor({ state: 'detached' });
@@ -55,7 +55,7 @@ const assert = require('node:assert/strict');
     await resume.waitFor();
     assert.equal(await resume.isDisabled(), false);
     assert.equal(await editor.count(), 0);
-    assert.deepEqual(await page.evaluate(() => window.__saved), [['b', 'keep typing through refresh', [], { model: 'test', effort: 'low', planningMode: 'default' }]]);
+    assert.deepEqual(await page.evaluate(() => window.__saved), [['b', 'keep typing through refresh', [], { model: 'test', effort: 'low', planningMode: 'default', skills: [], plugins: [] }]]);
     console.log('PASS: queue scope changes and sending transitions discard stale editors without saving or blocking another queue');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
