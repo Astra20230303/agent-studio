@@ -29,7 +29,23 @@ export function upsertTool(thread: Thread, item: any, turnId?: string, completed
   };
 }
 
+const toolIdentity = (value: unknown): value is string => typeof value === 'string' && !!value.trim() && value === value.trim() && !/[\0\r\n]/.test(value);
+
 export function applyToolEvent(thread: Thread, method: string, params: any) {
+  if (!params || typeof params !== 'object' || Array.isArray(params)) return;
+  const lifecycle = method === 'item/started' || method === 'item/completed';
+  const itemId = lifecycle ? params.item?.id : params.itemId;
+  if (!toolIdentity(itemId) || params.turnId != null && !toolIdentity(params.turnId)) return;
+  const existing = thread.messages.find(message => message.id === `tool-${itemId}`)?.tool;
+  const kind = lifecycle ? params.item?.type : method.startsWith('item/commandExecution/') ? 'commandExecution' : method.startsWith('item/fileChange/') ? 'fileChange' : method.startsWith('item/reasoning/') ? 'reasoning' : undefined;
+  if (!toolIdentity(kind)) return;
+  if (existing && ((existing.rawRecord?.type || existing.kind) !== kind || existing.turnId && params.turnId && existing.turnId !== params.turnId)) return;
+  // A completed item owns its final output. Only an authoritative completion
+  // may update it; starts, patches and deltas cannot reopen or append to it.
+  if (existing && existing.status !== 'inProgress' && method !== 'item/completed') return;
+  if (method.endsWith('outputDelta') && typeof params.delta !== 'string') return;
+  if (method === 'item/fileChange/patchUpdated' && (!Array.isArray(params.changes) || params.changes.some((change: any) => !change || typeof change.path !== 'string' || typeof change.diff !== 'string' || !change.kind || !['add', 'delete', 'update'].includes(change.kind.type)))) return;
+
   if (method === 'item/reasoning/summaryTextDelta' || method === 'item/reasoning/summaryPartAdded') {
     const index = params.summaryIndex;
     if (typeof params.itemId !== 'string' || !Number.isSafeInteger(index) || index < 0 || index > 1024) return;
@@ -51,7 +67,7 @@ export function applyToolEvent(thread: Thread, method: string, params: any) {
     let message = thread.messages.find(message => message.id === `tool-${params.itemId}`);
     if (!message) {
       upsertTool(thread, { id: params.itemId, type: method.includes('commandExecution') ? 'commandExecution' : 'fileChange' }, params.turnId);
-      message = thread.messages.at(-1);
+      message = thread.messages.find(message => message.id === `tool-${params.itemId}`);
     }
     if (message?.tool && typeof params.delta === 'string') message.tool.output = (message.tool.output || '') + params.delta;
   } else if (method === 'item/fileChange/patchUpdated') {
