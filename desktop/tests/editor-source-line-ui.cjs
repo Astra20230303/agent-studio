@@ -10,7 +10,7 @@ const { chromium } = require('playwright'); const assert = require('node:assert/
    const { FileEditor } = await import('/src/FileEditor.tsx');
    const host = document.createElement('div'); document.body.appendChild(host); const root = ReactDOM.createRoot(host);
    window.desktop = { workspaceFile: async () => ({ ok: true, result: { text: 'first\r\n中文🙂\r\n', revision: 'disk' } }) };
-   window.__preview = (line, revision) => root.render(React.createElement(ArtifactPreview, { key: String(line) + revision, target: { root: 'D:/P', path: 'f.txt', line, revision }, onClose: () => {}, onEdit: session => {
+   window.__preview = (line, revision, column, matchLength) => root.render(React.createElement(ArtifactPreview, { key: String(line) + revision, target: { root: 'D:/P', path: 'f.txt', line, revision, column, matchLength }, onClose: () => {}, onEdit: session => {
     window.__editLine = session.lineNumber ?? null;
     root.render(React.createElement(FileEditor, { ...session, onClose: () => root.render(null), onSaved: () => {} }));
    } }));
@@ -61,6 +61,13 @@ const { chromium } = require('playwright'); const assert = require('node:assert/
    if (!refresh) assert.equal(await editor.evaluate(node => node.selectionStart), 'first\n中文🙂\n'.length);
    await editor.press('Escape'); await editor.waitFor({ state: 'detached' });
   }
-  console.log('PASS: current preview position transfers to editing, search close restores manual line and refresh discards old position');
+  for (const [column, length, revision, expected] of [[3,2,'disk','🙂'],[99,2,'disk','中文🙂'],[1,999,'disk','中文🙂'],[3,2,'old','']]) {
+   await page.evaluate(args => window.__preview(2, ...args), [revision, column, length]);
+   await page.getByRole('button', { name: '编辑此文件', exact: true }).click();
+   const editor = page.getByRole('textbox', { name: '文件内容', exact: true }); await editor.waitFor();
+   assert.equal(await editor.evaluate(node => node.value.slice(node.selectionStart, node.selectionEnd)), expected);
+   await editor.press('Escape'); await editor.waitFor({ state: 'detached' });
+  }
+  console.log('PASS: precise UTF-16 search selection, stale range exclusion, invalid range line fallback and current preview navigation');
  } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
