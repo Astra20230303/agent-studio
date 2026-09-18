@@ -126,7 +126,7 @@ export function ScheduledPage({ providers, cwd, openRequest, onOpenHandled, onOp
     catch (caught) { setError(caught instanceof Error ? caught.message : '操作失败。'); }
     finally { mutationLock.current = false; setBusy(false); }
   };
-  const visible = tasks.filter(task => `${task.name} ${task.prompt}`.toLowerCase().includes(query.toLowerCase()) && (filter === 'all' || task.status === filter));
+  const visible = tasks.filter(task => `${task.name} ${task.prompt}`.toLowerCase().includes(query.toLowerCase()) && (filter === 'all' || (filter === 'failed' ? task.runs[0]?.status === 'failed' : task.status === filter)));
   const anyRunning = tasks.some(task => task.runs[0]?.status === 'running');
   return <div className="scheduled-page">
     <div className="scheduled-topbar"><div className="task-create-menu" ref={createRoot} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setCreateMenu(false); }} onKeyDown={event => {
@@ -139,7 +139,7 @@ export function ScheduledPage({ providers, cwd, openRequest, onOpenHandled, onOp
         if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
         event.preventDefault(); const tabs = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')); const index = tabs.indexOf(document.activeElement as HTMLButtonElement);
         const target = tabs[event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length]; target?.focus(); target?.click();
-      }}>{[['all', '全部'], ['active', '已开启'], ['paused', '已暂停'], ['completed', '已完成']].map(([id, label]) => <button role="tab" id={`task-tab-${id}`} aria-controls="task-list" tabIndex={filter === id ? 0 : -1} aria-selected={filter === id} key={id} onClick={() => setFilter(id)}>{label}</button>)}</div>
+      }}>{[['all', '全部'], ['active', '已开启'], ['paused', '已暂停'], ['completed', '已完成'], ['failed', '最近失败']].map(([id, label]) => <button role="tab" id={`task-tab-${id}`} aria-controls="task-list" tabIndex={filter === id ? 0 : -1} aria-selected={filter === id} key={id} onClick={() => setFilter(id)}>{label}</button>)}</div>
       {loadError && <div className="task-error" role="alert"><span>{loadError}</span><button onClick={() => void reload()}>重试</button></div>}
       {error && !selectedId && <div className="task-error" role="alert"><span>{error}</span><button aria-label="关闭错误" onClick={() => setError('')}><X size={16} /></button></div>}
       {loading ? <div className="task-empty" role="status">正在读取任务…</div> : <div id="task-list" className="task-list" role="tabpanel" aria-labelledby={`task-tab-${filter}`}>{visible.map(task => {
