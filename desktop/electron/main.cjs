@@ -37,6 +37,7 @@ ipcMain.handle('desktop:remote-action', async (_event, action) => {
   catch (error) { return { isError: true, content: [{ type: 'text', text: error.message }] }; }
 });
 const codex = new CodexServer(projectRoot, { dataRoot, runtimeRoot });
+const threadProviders = new (require('./thread-provider-router.cjs').ThreadProviderRouter)(path.join(dataRoot, 'thread-providers.json'), readProvider, () => `http://127.0.0.1:${codex.adapter.address().port}`);
 const scheduler = new TaskScheduler({
   directory: path.join(dataRoot, 'scheduled-tasks'),
   runner: createTaskRunner(projectRoot, { dataRoot, runtimeRoot, provider: readProvider }),
@@ -221,10 +222,7 @@ ipcMain.handle('codex:connect', async () => {
 });
 
 ipcMain.handle('codex:request', async (_event, { method, params }) => {
-  if (method === 'turn/start' && !readProvider().apiKey?.trim() && !require('./provider-url.cjs').isLocalProvider(readProvider().baseUrl)) {
-    return { ok: false, error: { message: 'Missing environment variable: MINIMAX_API_KEY', code: 'missing_api_key' } };
-  }
-  try { return { ok: true, result: await (await getRpc()).request(method, params || {}) }; }
+  try { return { ok: true, result: await threadProviders.request(await getRpc(), method, params || {}) }; }
   catch (error) { return { ok: false, error: { message: error?.message || String(error), code: error?.code, data: error?.data } }; }
 });
 
