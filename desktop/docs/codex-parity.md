@@ -2614,4 +2614,5 @@ Provider 配置审计：保存、启用和删除成功后记录不含密钥、�
 项目选择器现在由 App 层统一处理：成功打开文件夹或切换已有项目后创建对应工作区线程，并写入 `切换项目` 本机审计事件。事件详情只保存稳定项目 ID，不保存项目名称、绝对路径或其他工作区内容；取消选择和选择器失败不记录成功事件。
 
 实现提交：`d993da0`。
-验收：`workspace-ui.cjs`、`project-audit-ui.cjs`、`audit-log-ui.cjs` 和生产构建通过。验收记录见 `desktop/tests/project-audit-verification.md`。
+修正提交：`c95f01b`，补齐从 Git 面板创建工作树后的项目切换审计。
+验收：`workspace-ui.cjs`、`project-audit-ui.cjs`、`worktree-ui.cjs`、`audit-log-ui.cjs` 和生产构建通过。验收记录见 `desktop/tests/project-audit-verification.md`。

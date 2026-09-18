@@ -2,6 +2,7 @@ const { chromium } = require('playwright'); const assert = require('node:assert/
 (async () => { const browser = await chromium.launch({ channel: 'msedge', headless: true }); try {
   const page = await browser.newPage(); await page.addInitScript(() => {
     localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeProjectId: 'p', projects: [{ id: 'p', name: 'repo', path: 'D:/repo', git: {} }], threads: [] }));
+    localStorage.setItem('felix-audit-log-v1', '[]');
     window.__requests = [];
     window.desktop = { workspaceGit: async input => { window.__requests.push(input); return { ok: true, result: input.action === 'status' ? { root: 'D:/repo', branch: 'main', files: [] } : { id: 'wt', path: 'D:/worktree', name: 'Worktree', environment: 'worktree', git: { isRepository: true, branch: input.branch } } }; }, listModels: async () => ({ ok: true, models: ['test'] }) };
     window.codex = { connect: async () => ({ ok: true }), request: async () => ({ ok: true, result: { data: [] } }), notify: async () => {}, onNotification: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {}, onServerRequest: () => () => {} };
@@ -11,5 +12,8 @@ const { chromium } = require('playwright'); const assert = require('node:assert/
   await page.locator('.git-panel').waitFor({ state: 'hidden' });
   const state = await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')));
   assert.equal(state.threads.find(item => item.id === state.activeThreadId).cwd, 'D:/worktree'); assert.equal(state.projects.find(item => item.id === 'wt').environment, 'worktree');
+  const audit = await page.evaluate(() => JSON.parse(localStorage.getItem('felix-audit-log-v1')));
+  assert.equal(audit.filter(item => item.action === '切换项目').length, 1);
+  assert.equal(audit.find(item => item.action === '切换项目').detail, 'wt');
   console.log('PASS: create worktree and bind new conversation');
 } finally { await browser.close(); } })().catch(error => { console.error(error); process.exitCode = 1; });
