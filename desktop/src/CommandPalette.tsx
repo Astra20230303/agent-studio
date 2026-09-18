@@ -26,7 +26,7 @@ export function CommandPalette({ commands, onClose }: { commands: AppCommand[]; 
   };
   return <dialog ref={dialog} className="command-palette" aria-label="命令面板" onCancel={event => { event.preventDefault(); onClose(); }}>
     <header><h2>命令面板</h2><button aria-label="关闭命令面板" onClick={onClose}>×</button></header>
-    <input ref={search} role="combobox" aria-label="搜索命令" aria-expanded="true" aria-controls="app-command-results" aria-activedescendant={activeId ? `app-command-${activeId}` : undefined} placeholder="搜索操作或已加载会话…" value={query} onChange={event => { setQuery(event.target.value); setSelectedId(undefined); }} onKeyDown={event => {
+    <input ref={search} role="combobox" aria-label="搜索命令" aria-expanded="true" aria-controls="app-command-results" aria-activedescendant={activeId ? `app-command-${activeId}` : undefined} placeholder="搜索操作、项目或已加载会话…" value={query} onChange={event => { setQuery(event.target.value); setSelectedId(undefined); }} onKeyDown={event => {
       if (event.nativeEvent.isComposing || event.keyCode === 229) return;
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setSelectedId(results.length ? results[(selected + (event.key === 'ArrowDown' ? 1 : -1) + results.length) % results.length].id : undefined); }
       if (event.key === 'Home' || event.key === 'End') { event.preventDefault(); setSelectedId(results[event.key === 'Home' ? 0 : results.length - 1]?.id); }

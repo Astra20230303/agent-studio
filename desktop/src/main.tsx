@@ -703,6 +703,11 @@ function App() {
       { id: 'pin', label: active?.pinned ? '取消置顶当前会话' : '置顶当前会话', keywords: 'pin conversation', disabled: !active, run: () => { if (active) togglePinned(active.id); } },
       { id: 'fork', label: '分叉当前会话', keywords: 'fork branch conversation', disabled: !active?.remoteId || codexStatus !== 'connected' || forking || pending || Boolean(runningTurnId) || active.status === 'running', run: () => void forkActive() },
       { id: 'stop', label: '停止当前回合', keywords: 'stop interrupt turn', disabled: !active?.remoteId || !runningTurnId || codexStatus !== 'connected', run: cancel },
+      ...state.projects.map(project => ({
+        id: `project-${project.id}`, label: `在项目中新建会话：${projectLabel(project.name)}`,
+        description: `${project.environment === 'worktree' ? '工作树' : '本地'} · ${project.path || '未指定工作区'}`, keywords: 'project workspace new chat',
+        run: () => { changeProject(project); requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('textarea[aria-label="消息"]')?.focus()); },
+      })),
       ...state.threads.filter(thread => !thread.archived).slice().sort((a, b) => Number(b.pinned) - Number(a.pinned) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt)).map(thread => ({
         id: `thread-${thread.id}`, label: `打开会话：${thread.title}`, description: `${thread.id === state.activeThreadId ? '当前会话 · ' : ''}${workspaceFor(state, thread) || '未指定工作区'}`, keywords: 'conversation thread',
         run: () => { void selectThread(thread); requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('textarea[aria-label="消息"]')?.focus()); },
