@@ -1,5 +1,15 @@
 # Felix capability roadmap
 
+## Paste JPEG, WebP and GIF images
+
+Clipboard image saving now detects PNG/JPEG/WebP/GIF from bytes, reuses attachment
+decoders in the background worker and preserves original bytes with the correct
+extension. Unsupported, truncated and oversized content is rejected before disk
+writes. Animated WebP/GIF retain all encoded frames; validation covers the first
+frame. Renderer acceptance covers each supported MIME type, unsupported SVG,
+pending-save send blocking, source-draft ownership and save errors. Thirteen
+image validation/storage/worker tests and the production build pass.
+
 ## Copy structured tool results
 
 Tool results provide a copy action using the same complete text serialization as

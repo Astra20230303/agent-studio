@@ -9,8 +9,8 @@ export function pasteImage(event: ClipboardEvent, onFiles: (paths: string[]) => 
     try {
       if (!save) throw Error('粘贴图片需要桌面应用');
       for (const file of images) {
-        if (file.type !== 'image/png') throw Error('剪贴板图片需为 PNG，请使用添加附件选择其他格式。');
-        if (file.size > 16 * 1024 * 1024) throw Error('PNG 超过 16 MB，请缩小图片');
+        if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type)) throw Error('剪贴板图片仅支持 PNG、JPEG、WebP、GIF。');
+        if (file.size > 16 * 1024 * 1024) throw Error('图片超过 16 MB，请缩小图片');
         const result = await save(new Uint8Array(await file.arrayBuffer()));
         if (!result.ok || !result.path) throw Error(result.error || '图片保存失败');
         onFiles([result.path]);

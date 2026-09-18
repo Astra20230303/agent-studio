@@ -62,4 +62,4 @@ async function validateImageInputs(method, params) {
   }
 }
 
-module.exports = { validateImageInputs, validatePng, validateJpeg };
+module.exports = { validateImageInputs, validatePng, validateJpeg, validateWebImage };
