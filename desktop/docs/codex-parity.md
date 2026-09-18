@@ -1845,3 +1845,5 @@ remains low. The expanded browser flow passes without further product changes.
 提交后验收：当前启用渠道 B 被删除时，已绑定 A 的会话仍能完成真实回合；A 删除后才明确失败。线程路由回归通过，生产构建通过（仅保留既有主包体积警告）。无额外产品修正。
 
 提交后验收：浏览器模拟两个已配置渠道，新会话切换到 Beta 后 thread/start 携带 providerId=Beta；远端线程创建后会话渠道选择器锁定。生产构建与浏览器验收通过，无额外产品修正。历史线程显示绑定渠道但本轮未提供迁移入口。
+
+提交后验收：浏览器以无 providerId 的本地历史线程重载，threadProvider IPC 返回 Beta 后会话渠道选择器更新为 Beta 并保持禁用；生产构建和此前新线程选择回归通过。无额外产品修正。
