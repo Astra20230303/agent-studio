@@ -131,6 +131,8 @@ async function main() {
     assert.ok(await dialog.locator('.task-run').first().getByRole('button', {name:'复制运行结果',exact:true}).isDisabled());
     await dialog.getByRole('button', { name: '停止运行', exact: true }).click(); await changed();
     await dialog.getByText('已中断', { exact: true }).waitFor();
+    await dialog.locator('pre').getByText('LIVE_TASK_PROGRESS',{exact:true}).waitFor();
+    assert.equal(scheduler.detail(sample.id).runs[0].output,'LIVE_TASK_PROGRESS');
     await dialog.getByRole('button', { name: '关闭对话框' }).click();
     await page.getByText('没有匹配的任务', { exact: true }).waitFor();
     await page.getByRole('tab', { name: '全部', exact: true }).click();
@@ -159,6 +161,7 @@ async function main() {
     await page.reload(); await page.getByRole('button', { name: '已安排', exact: true }).click();
     await page.getByRole('button', { name: '查看任务 每日工作区检查' }).waitFor();
     assert.equal(scheduler.detail(sample.id).runs.length, 3, 'Results survive service restart');
+    assert.equal(scheduler.detail(sample.id).runs[0].output,'LIVE_TASK_PROGRESS');
     assert.deepEqual(scheduler.detail(sample.id).schedule, {kind:'interval',minutes:15});
     await page.getByText('每隔 15 分钟', {exact:false}).waitFor();
     assert.equal(scheduler.detail(sample.id).timeoutMinutes,25);
