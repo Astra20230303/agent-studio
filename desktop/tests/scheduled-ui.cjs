@@ -157,6 +157,11 @@ async function main() {
     await page.getByText('每隔 15 分钟', {exact:false}).waitFor();
     assert.equal(scheduler.detail(sample.id).reasoningEffort, 'high', 'Reasoning effort survives service restart');
     assert.equal(scheduler.detail(sample.id).notificationPolicy, 'failed_runs_only', 'Notification policy survives service restart');
+    await page.getByRole('button', { name: '查看任务 每日工作区检查' }).click();
+    await dialog.locator('.task-metadata').getByText('高', { exact: true }).waitFor();
+    await dialog.locator('.task-metadata').getByText('仅失败时通知', { exact: true }).waitFor();
+    await dialog.locator('.task-metadata').getByText('跟随当前启用渠道', { exact: true }).waitFor();
+    await dialog.getByRole('button', { name: '关闭对话框' }).click();
     failList = true; await changed(); await page.getByRole('alert').getByText('TEST_LIST_FAILURE').waitFor();
     failList = false; await page.getByRole('button', { name: '重试', exact: true }).click(); await page.getByRole('alert').waitFor({ state: 'detached' });
     badList = true; await changed();
