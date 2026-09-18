@@ -185,6 +185,11 @@ async function main() {
     await page.screenshot({ path: path.join(artifacts, 'scheduled-dark-editor.png') });
     await page.keyboard.press('Escape'); assert.equal(await page.getByRole('dialog').count(), 0);
     assert.deepEqual(errors, []);
+    const audit = await page.evaluate(() => JSON.parse(localStorage.getItem('felix-audit-log-v1') || '[]'));
+    for (const action of ['创建任务','编辑任务','暂停任务','恢复任务','请求运行任务','请求停止任务','删除任务']) {
+      assert.ok(audit.some(entry => entry.action === action), `Missing audit action: ${action}`);
+      assert.ok(audit.filter(entry => entry.action === action).every(entry => entry.detail === undefined));
+    }
     console.log('PASS: real scheduler-backed UI CRUD, suggestions, filtering, run/cancel/failure/output, timed reminder, timezone, restart, retry, responsive/dark screenshots.');
   } finally { await scheduler.stop(); if (browser) await browser.close(); await new Promise(resolve => server.close(resolve)); }
 }
