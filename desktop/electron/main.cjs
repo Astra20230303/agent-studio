@@ -224,6 +224,8 @@ ipcMain.handle('codex:connect', async () => {
 });
 
 ipcMain.handle('codex:request', async (_event, { method, params }) => {
+  try { await require('./attachment-validation.cjs').validateImageInputs(method, params); }
+  catch (error) { return { ok: false, error: { message: error.message } }; }
   try { return { ok: true, result: await threadProviders.request(await getRpc(), method, params || {}) }; }
   catch (error) { return { ok: false, error: { message: error?.message || String(error), code: error?.code, data: error?.data } }; }
 });
