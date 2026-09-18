@@ -8,6 +8,17 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  const modal=page.getByRole('dialog',{name:'消息文件预览'});await modal.getByText('工作区：D:/One',{exact:true}).waitFor();
  await modal.locator('pre').waitFor();assert.equal(await modal.locator('pre span').nth(1).evaluate(el=>el.style.background),'rgb(255, 224, 138)');
  assert.deepEqual(await page.evaluate(()=>window.__reads[0]),{root:'D:/One',path:'notes.txt',action:'read'});
+ await modal.press('Control+g');
+ const lineInput=modal.getByRole('textbox',{name:'预览行号',exact:true});
+ assert.ok(await lineInput.evaluate(el=>el===document.activeElement));
+ await lineInput.fill('3');await lineInput.press('Enter');
+ assert.equal(await modal.locator('pre [aria-current="location"]').getAttribute('data-line'),'3');
+ assert.ok(await modal.getByLabel('文件预览文本',{exact:true}).evaluate(el=>el===document.activeElement));
+ await modal.press('Control+g');await lineInput.fill('4');await lineInput.press('Enter');
+ await modal.getByRole('alert').getByText('请输入 1 至 3 的行号。',{exact:true}).waitFor();
+ assert.equal(await modal.locator('pre [aria-current="location"]').getAttribute('data-line'),'3');
+ await lineInput.fill('1');await lineInput.press('Enter');
+ assert.equal(await modal.locator('pre [aria-current="location"]').getAttribute('data-line'),'1');
  await page.evaluate(()=>window.__result={ok:false,error:'file removed'});await modal.getByRole('button',{name:'刷新预览'}).click();await modal.getByRole('alert').getByText('file removed').waitFor();assert.equal(await modal.getByRole('button',{name:'编辑此文件'}).count(),0);
  await page.evaluate(()=>window.__result={ok:true,result:{text:'short',revision:'short'}});await modal.getByRole('button',{name:'刷新预览'}).click();await modal.getByRole('status').getByText('第 2 行不在当前预览范围内。').waitFor();
  await page.evaluate(()=>window.__result=undefined);await modal.getByRole('button',{name:'刷新预览'}).click();await modal.locator('pre').getByText('second',{exact:true}).waitFor();

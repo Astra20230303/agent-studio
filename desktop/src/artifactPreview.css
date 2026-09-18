@@ -6,3 +6,5 @@
 .preview-text section>input{min-width:0;max-width:100%;box-sizing:border-box}
 .preview-text section>label{display:inline-flex;align-items:center;gap:4px}
 .file-preview>div:last-child{flex-wrap:wrap}
+.preview-line-navigation{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:8px 0}
+.preview-line-navigation input{width:6em;max-width:100%;box-sizing:border-box}

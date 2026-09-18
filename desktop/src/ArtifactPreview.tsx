@@ -32,8 +32,9 @@ export function ArtifactPreview({ target, onClose, onEdit }: { target: ArtifactT
     return () => { disposed = true; };
   }, [target, revision]);
   return <dialog ref={dialog} className="file-editor file-preview" aria-label="消息文件预览" onKeyDown={event => {
-    if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'f' && !event.nativeEvent.isComposing && textPreview.current) {
-      event.preventDefault(); event.stopPropagation(); textPreview.current.find();
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && ['f', 'g'].includes(event.key.toLowerCase()) && !event.nativeEvent.isComposing && textPreview.current) {
+      event.preventDefault(); event.stopPropagation();
+      if (event.key.toLowerCase() === 'g') textPreview.current.goToLine(); else textPreview.current.find();
     }
   }} onCancel={event => { event.preventDefault(); onClose(); }}>
     <h2>{target.path}{target.line ? `:${target.line}` : ''}</h2><p>工作区：{target.root}</p>

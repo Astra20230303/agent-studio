@@ -1,5 +1,14 @@
 # Felix capability roadmap
 
+## Go to a line in file previews
+
+Preview text has a line-number control and Ctrl/Command+G. Range validation,
+displayed line count, active highlight and scrolling all use the rendered line
+array. Valid jumps close text search and focus the selected text; invalid or
+out-of-range input preserves the previous location with an error. Truncated
+previews label their limited range. Browser keyboard/navigation, existing editor
+workflow, narrow-layout acceptance and production build pass.
+
 ## Download original preview images
 
 Decoded image previews expose a download link using their loaded source bytes and
