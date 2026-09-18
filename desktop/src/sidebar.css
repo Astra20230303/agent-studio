@@ -150,6 +150,9 @@
 
 .sidebar .recent .thread-title-viewport { flex: 1; min-width: 0; overflow: hidden; }
 .sidebar .recent .thread-title-text { display: inline-block; width: max-content; max-width: none; overflow: visible; vertical-align: top; }
+.sidebar .recent .thread-labels { display: flex; flex-direction: column; flex: 1; min-width: 0; text-align: left; }
+.sidebar .recent:has(.thread-workspace) { height: 44px; }
+.sidebar .recent .thread-workspace { display: block; font-size: 11px; line-height: 16px; color: var(--sidebar-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .global-thread-toolbar { gap: 12px; }
 .global-thread-toolbar > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .global-thread-toolbar > div { flex-shrink: 0; }
