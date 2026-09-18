@@ -1,0 +1,9 @@
+import { useState } from 'react';
+import type { FormEvent } from 'react';
+export type ReviewTarget = { type: 'uncommittedChanges' } | { type: 'baseBranch'; branch: string } | { type: 'commit'; sha: string; title?: string } | { type: 'custom'; instructions: string };
+export function ReviewDialog({ onClose, onSubmit, busy }: { onClose: () => void; onSubmit: (target: ReviewTarget) => Promise<void>; busy?: boolean }) {
+  const [kind, setKind] = useState('uncommittedChanges'); const [value, setValue] = useState('');
+  const submit = async (event: FormEvent) => { event.preventDefault(); const text = value.trim(); if (kind !== 'uncommittedChanges' && !text) return; const target = kind === 'uncommittedChanges' ? { type: 'uncommittedChanges' as const } : kind === 'baseBranch' ? { type: 'baseBranch' as const, branch: text } : kind === 'commit' ? { type: 'commit' as const, sha: text } : { type: 'custom' as const, instructions: text }; await onSubmit(target); };
+  return <dialog open className="approval-dialog" aria-label="代码审查"><form onSubmit={submit}><h2>审查代码</h2><label>审查范围 <select value={kind} onChange={event => setKind(event.target.value)} disabled={busy}><option value="uncommittedChanges">未提交变更</option><option value="baseBranch">相对基准分支</option><option value="commit">指定提交</option><option value="custom">自定义指令</option></select></label>{kind !== 'uncommittedChanges' && <input autoFocus value={value} onChange={event => setValue(event.target.value)} placeholder={kind === 'baseBranch' ? '例如 main' : kind === 'commit' ? '提交 SHA' : '请描述审查重点'} disabled={busy} />}<div className="approval-actions"><button type="button" onClick={onClose} disabled={busy}>取消</button><button className="primary" type="submit" disabled={busy || kind !== 'uncommittedChanges' && !value.trim()}>开始审查</button></div></form></dialog>;
+}
+

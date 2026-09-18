@@ -3,7 +3,7 @@ import { parseBackgroundTerminalPage, parseTermination } from './backgroundTermi
 import { collaborationMode } from './planning';
 import { userInput } from './attachments';
 import { readThreadGoalClearResponse, readThreadGoalResponse, validateThreadGoalInput } from './threadGoal';
-import { readReviewStartResponse } from './review';
+import { readReviewStartResponse, readReviewTarget } from './review';
 import { readThreadRevertResponse } from './threadRevert';
 export type RpcMessage = { id?: number | string; method?: string; params?: any; result?: any; error?: any };
 type Bridge = { connect: () => Promise<any>; request: (method: string, params?: unknown) => Promise<any>; notify: (method: string, params?: unknown) => Promise<any>; respond: (id: number | string, result?: unknown, error?: unknown) => Promise<any>; onNotification: (listener: (message: RpcMessage) => void) => () => void; onServerRequest: (listener: (message: RpcMessage) => void) => () => void; onError: (listener: (message: any) => void) => () => void; onStderr: (listener: (message: any) => void) => () => void; onClosed: (listener: (message: any) => void) => () => void };
@@ -71,10 +71,11 @@ export async function clearThreadGoal(threadId: string) {
   const result = await unwrap<any>(bridge().request('thread/goal/clear', { threadId }));
   return readThreadGoalClearResponse(result);
 }
-export async function startUncommittedReview(threadId: string) {
-  const result = await unwrap<any>(bridge().request('review/start', { threadId, target: { type: 'uncommittedChanges' } }));
+export async function startReview(threadId: string, target: unknown) {
+  const result = await unwrap<any>(bridge().request('review/start', { threadId, target: readReviewTarget(target) }));
   return readReviewStartResponse(result, threadId);
 }
+export const startUncommittedReview = (threadId: string) => startReview(threadId, { type: 'uncommittedChanges' });
 export async function revertThread(threadId: string, beforeTurnId: string) {
   const result = await unwrap<any>(bridge().request('thread/revert', { threadId, beforeTurnId }));
   return readThreadRevertResponse(result, threadId);
