@@ -23,6 +23,12 @@ const path = require('node:path');
     assert.equal(await app.evaluate(({ app }) => app.getPath('userData')), path.join(dataRoot, 'electron-user-data'));
     await page.waitForFunction(() => window.desktop?.saveTask);
     await page.locator('.composer').waitFor();
+    const brokenJpeg = path.join(scratch, 'broken.jpg'); fs.writeFileSync(brokenJpeg, 'not a JPEG');
+    for (const method of ['turn/start', 'turn/steer']) {
+      const rejected = await page.evaluate(({ method, file }) => window.codex.request(method, { threadId: 'invalid-thread', input: [{ type: 'localImage', path: file }] }), { method, file: brokenJpeg });
+      assert.equal(rejected.ok, false);
+      assert.match(rejected.error.message, /图片附件无法读取或解码：broken.jpg/);
+    }
     const attachment = path.join(scratch, 'dropped file.txt'); fs.writeFileSync(attachment, 'real attachment');
     await page.evaluate(() => { const input = document.createElement('input'); input.type = 'file'; input.id = 'drop-fixture'; document.body.append(input); });
     await page.locator('#drop-fixture').setInputFiles(attachment);

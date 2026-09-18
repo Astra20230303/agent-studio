@@ -13,6 +13,12 @@ the actual validator retains text and attachment on rejection, then dispatches
 exactly once after repair. A real Codex process accepts preflighted PNG and JPEG
 and delivers both images to a local HTTP model with their decoded pixels intact.
 
+Post-commit acceptance exercises the production Electron preload and main-process
+IPC: corrupt JPEGs are rejected for both start and steer before app-server access.
+A crafted frame within the pixel limit hits the decoder's memory budget instead
+of allocating without a bound. PNG repair/send, clipboard storage and external
+profile restart regressions pass. No additional product correction was needed.
+
 ## Native conversation and draft storage
 
 Desktop conversations/settings, text/attachment/plugin/skill drafts and the turn

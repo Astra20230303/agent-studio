@@ -43,6 +43,9 @@ test('JPEG preflight decodes pixels and rejects truncation, corrupt data and exc
   huge.writeUInt16BE(65535, frame + 5); huge.writeUInt16BE(65535, frame + 7);
   await fs.writeFile(file, huge);
   await assert.rejects(validateImageInputs('turn/start', input), /maxResolutionInMP/);
+  huge.writeUInt16BE(4000, frame + 5); huge.writeUInt16BE(4000, frame + 7);
+  await fs.writeFile(file, huge);
+  await assert.rejects(validateImageInputs('turn/start', input), /maxMemoryUsageInMB/);
   const oversized = await fs.open(file, 'w'); await oversized.truncate(17 * 1024 * 1024); await oversized.close();
   await assert.rejects(validateImageInputs('turn/start', input), /16 MB/);
 });
