@@ -1,5 +1,22 @@
 # Felix capability roadmap
 
+## Image attachment preflight and draft retention
+
+Before turn/start or turn/steer reaches app-server, Felix checks local image
+readability and validates PNG pixels/CRC with pngjs. PNG input is bounded to
+16 MiB and 16 megapixels before decoding. Missing/corrupt images return a visible
+send error instead of reaching the engine as omitted-image text. The desktop
+bundle includes the decoder; other formats currently receive readability checks
+only. Files can still change after preflight; this is not a byte snapshot.
+
+Post-commit browser acceptance connected to the real validator exposed lost text
+on first-send thread creation. Text drafts now migrate with attachments and clear
+only in the originating thread after success. Corrupt PNG blocks dispatch and
+retains both text and attachment; repairing it permits exactly one dispatch.
+Attachment/steering/queue and storage-failure browser regressions, real PNG/JPEG
+transport, validator tests and build pass. Upstream image-preparation warning
+notifications remain separate unfinished work.
+
 ## App-server warning notifications
 
 The protocol's warning notification is now visible: global messages remain in

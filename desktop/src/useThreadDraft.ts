@@ -17,10 +17,10 @@ export function useThreadDraft(threadId?: string) {
     try { localStorage.setItem(key, JSON.stringify(drafts)); setSaveFailed(false); }
     catch { setSaveFailed(true); }
   }, [drafts, saveAttempt]);
-  const setDraft = (value: SetStateAction<string>) => setDrafts(previous => {
-    const next = typeof value === 'function' ? value(previous[id] || '') : value;
+  const setDraft = (value: SetStateAction<string>, targetId = id) => setDrafts(previous => {
+    const next = typeof value === 'function' ? value(previous[targetId] || '') : value;
     const result = { ...previous };
-    if (next) result[id] = next; else delete result[id];
+    if (next) result[targetId] = next; else delete result[targetId];
     return result;
   });
   return [drafts[id] || '', setDraft, { saveFailed, retry: () => setSaveAttempt(attempt => attempt + 1) }] as const;

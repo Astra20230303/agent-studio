@@ -343,7 +343,7 @@ function App() {
     sendingRef.current.add(lockId);
     let localId = existing?.id;
     const automaticTitle = automaticThreadTitle(existing, text);
-    if (!existing) { const draft = structuredClone(state); const created = createThread(draft); localId = created.id; setAttachments(attachments, localId); setAttachments([]); setComposerSkills(composerSkills, localId); setComposerSkills([]); setComposerPlugins(composerPlugins, localId); setComposerPlugins([]); update(next => { next.threads.push(created); next.activeThreadId = created.id; }); }
+    if (!existing) { const draft = structuredClone(state); const created = createThread(draft); localId = created.id; setInput(input, localId); setInput(''); setAttachments(attachments, localId); setAttachments([]); setComposerSkills(composerSkills, localId); setComposerSkills([]); setComposerPlugins(composerPlugins, localId); setComposerPlugins([]); update(next => { next.threads.push(created); next.activeThreadId = created.id; }); }
     setPendingThreads(previous => [...previous, localId!]);
     const messageId = crypto.randomUUID();
     try {
@@ -391,7 +391,7 @@ function App() {
         if (message) message.turnId = turn.turn?.id;
         thread.status = runtime.read(threadId!)?.turnId ? 'running' : 'completed';
       });
-      setInput(current => current === input ? '' : current);
+      setInput(current => current === input ? '' : current, localId);
       setAttachments(current => current.filter(path => !attachments.includes(path)), localId);
       setComposerSkills(current => current.filter(skill => !composerSkills.some(sent => sent.path === skill.path)), localId);
       setComposerPlugins(current => current.filter(plugin => !composerPlugins.some(sent => sent.id === plugin.id)), localId);
