@@ -30,8 +30,9 @@ export function ApprovalPrompt({ request, onDecision, fileChanges }: { fileChang
   };
   return <dialog ref={dialog} className="approval-dialog" aria-labelledby="approval-title" aria-busy={busy} tabIndex={-1} onKeyDown={event => {
     if (event.key !== 'Tab') return;
-    const buttons = [...(dialog.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') || [])];
-    const first = buttons[0], last = buttons.at(-1);
+    if (busy) { event.preventDefault(); dialog.current?.focus(); return; }
+    const controls = [...(dialog.current?.querySelectorAll<HTMLElement>('summary, button:not(:disabled)') || [])];
+    const first = controls[0], last = controls.at(-1);
     if (!first) { event.preventDefault(); dialog.current?.focus(); return; }
     if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) { event.preventDefault(); last?.focus(); }
     else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialog.current)) { event.preventDefault(); first.focus(); }
