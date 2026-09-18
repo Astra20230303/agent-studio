@@ -47,3 +47,25 @@ test('a crash on every handshake cannot reset the retry budget', async t => {
   assert.equal(calls, 3); assert.equal(states.at(-1), 'offline');
   recovery.stop();
 });
+
+test('network recovery starts one bounded retry cycle only after exhaustion', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let calls = 0, online = false, recovered = 0;
+  const states = [];
+  const recovery = createConnectionRecovery({ connect: async () => { calls++; if (!online) throw Error('offline'); }, status: state => states.push(state), connected: () => recovered++, delays: [10] });
+  recovery.online(); assert.equal(calls, 0);
+  recovery.start(); recovery.online(); await flush();
+  recovery.online(); assert.equal(calls, 1);
+  t.mock.timers.tick(10); await flush();
+  assert.equal(calls, 2); assert.equal(states.at(-1), 'offline');
+  recovery.online(); recovery.online(); await flush();
+  assert.equal(calls, 3);
+  t.mock.timers.tick(10); await flush();
+  assert.equal(calls, 4); assert.equal(states.at(-1), 'offline');
+  online = true; recovery.online(); await flush();
+  assert.equal(calls, 5); assert.equal(recovered, 1);
+  recovery.online(); assert.equal(calls, 5);
+  recovery.stop(); recovery.online(); recovery.disconnected();
+  t.mock.timers.tick(10000); await flush();
+  assert.equal(calls, 5);
+});

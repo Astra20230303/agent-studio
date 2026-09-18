@@ -299,8 +299,9 @@ function App({ initialState }: { initialState: DesktopState }) {
       },
       closed: () => { invalidateWindowsSandbox(); queue.pause(); serverResponses.reset(); setApprovals([]); runtime.clear(); if (!restartingRef.current) recovery.disconnected(); }
     });
+    window.addEventListener('online', recovery.online);
     recovery.start();
-    return () => { disposed = true; recovery.stop(); cleanup(); reconnectRef.current = () => {}; stopRecoveryRef.current = () => {}; };
+    return () => { disposed = true; window.removeEventListener('online', recovery.online); recovery.stop(); cleanup(); reconnectRef.current = () => {}; stopRecoveryRef.current = () => {}; };
   }, []);
   const toast = (text: string) => { setNotice(text); window.setTimeout(() => setNotice(''), 1500); };
   const enqueue = () => {
