@@ -103,6 +103,8 @@ async function main() {
     assert.equal(await page.getByRole('dialog', { name: '编辑任务', exact: true }).getByLabel('任务 Provider', { exact: true }).inputValue(), '');
     assert.equal(scheduler.detail(sample.id).providerId, undefined);
     const editor = page.getByRole('dialog', { name: '编辑任务', exact: true });
+    await editor.getByLabel('频率').selectOption('interval');
+    await editor.getByRole('spinbutton', { name: '任务间隔分钟数', exact: true }).fill('15');
     await editor.getByRole('combobox', { name: '任务推理强度', exact: true }).selectOption('high');
     await editor.getByRole('combobox', { name: '任务通知范围', exact: true }).selectOption('failed_runs_only');
     await editor.getByRole('textbox', { name: '任务内容', exact: true }).fill('FAIL');
@@ -145,6 +147,8 @@ async function main() {
     await page.reload(); await page.getByRole('button', { name: '已安排', exact: true }).click();
     await page.getByRole('button', { name: '查看任务 每日工作区检查' }).waitFor();
     assert.equal(scheduler.detail(sample.id).runs.length, 3, 'Results survive service restart');
+    assert.deepEqual(scheduler.detail(sample.id).schedule, {kind:'interval',minutes:15});
+    await page.getByText('每隔 15 分钟', {exact:false}).waitFor();
     assert.equal(scheduler.detail(sample.id).reasoningEffort, 'high', 'Reasoning effort survives service restart');
     assert.equal(scheduler.detail(sample.id).notificationPolicy, 'failed_runs_only', 'Notification policy survives service restart');
     failList = true; await changed(); await page.getByRole('alert').getByText('TEST_LIST_FAILURE').waitFor();
