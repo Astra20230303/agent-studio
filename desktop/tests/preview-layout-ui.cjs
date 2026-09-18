@@ -32,6 +32,20 @@ const assert = require('node:assert/strict');
       await search.getByRole('button', { name: '下一处', exact: true }).click();
     }
     await dialog.getByRole('button', { name: '关闭预览', exact: true }).click();
+    await page.evaluate(() => {
+      const canvas = document.createElement('canvas'); canvas.width = 1800; canvas.height = 1200;
+      window.desktop.workspaceFile = async () => ({ ok: true, result: { image: canvas.toDataURL() } });
+    });
+    await page.setViewportSize({ width: 390, height: 680 });
+    await page.getByRole('button', { name: /^预览附件：/ }).click();
+    await dialog.getByRole('button', { name: '原始尺寸', exact: true }).click();
+    await dialog.getByRole('status').getByText('1800 × 1200 · 100%', { exact: true }).waitFor();
+    assert.ok(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth + 1));
+    assert.ok(await dialog.getByLabel('图片滚动区域', { exact: true }).evaluate(element => element.scrollWidth > element.clientWidth));
+    await dialog.getByRole('button', { name: '放大图片', exact: true }).click();
+    await dialog.getByRole('button', { name: '适应窗口', exact: true }).click();
+    assert.ok(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth + 1));
+    await dialog.getByRole('button', { name: '关闭预览', exact: true }).click();
     console.log('PASS: preview controls stack above independently scrolling text and stay within narrow/short viewports');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

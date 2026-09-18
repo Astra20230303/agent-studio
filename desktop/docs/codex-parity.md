@@ -9,6 +9,11 @@ Browser geometry acceptance covers desktop, 390px width and short landscape
 windows, including actionable search/close buttons. Styles remain in the deferred
 preview CSS. Production build passes.
 
+Post-commit narrow-window image acceptance confirms original-size and zoomed
+images scroll within their viewport without widening the dialog; fit and close
+remain actionable. Production deferred-resource/loading/failure/cancellation
+regression passes. No further product correction was required.
+
 ## Preserve focus through file editing
 
 The file editor explicitly focuses its text area on opening and closes its native
