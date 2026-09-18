@@ -94,8 +94,8 @@ export async function resetMemory() { return unwrap<any>(bridge().request('memor
 export async function readAccountRateLimits() { return readRateLimits(await unwrap<any>(bridge().request('account/rateLimits/read', {}))); }
 export async function readAccountTokenUsage() { return readAccountUsage(await unwrap<any>(bridge().request('account/tokenUsage/read', {}))); }
 export async function readAccount() { return readAccountInfo(await unwrap<any>(bridge().request('account/read', { refreshToken: false }))); }
-export async function startAccountLogin(kind: 'chatgpt' | 'apiKey', apiKey?: string) {
-  const params = kind === 'apiKey' ? { type: 'apiKey', apiKey: apiKey || '' } : { type: 'chatgpt', codexStreamlinedLogin: true, useHostedLoginSuccessPage: false };
+export async function startAccountLogin(kind: 'chatgpt' | 'chatgptDeviceCode' | 'apiKey', apiKey?: string) {
+  const params = kind === 'apiKey' ? { type: 'apiKey', apiKey: apiKey || '' } : kind === 'chatgptDeviceCode' ? { type: 'chatgptDeviceCode' } : { type: 'chatgpt', codexStreamlinedLogin: true, useHostedLoginSuccessPage: false };
   if (kind === 'apiKey' && !apiKey?.trim()) throw new Error('API Key 不能为空');
   return readAccountLoginStart(await unwrap<any>(bridge().request('account/login/start', params)));
 }
