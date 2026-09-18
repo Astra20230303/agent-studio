@@ -2606,3 +2606,5 @@ Electron 附件选择现在复用发送阶段的 PNG、JPEG、WebP、GIF 校验�
 
 实现提交：`191cf73`。
 验收：`attachment-picker-preflight-ui.cjs`、`attachments-ui.cjs`、`attachment-preflight-ui.cjs`、`attachment-storage-ui.cjs` 和生产构建通过。实际图片字节校验仍由主进程完成，浏览器测试模拟 IPC 返回并覆盖 UI 保留规则。
+
+Provider 配置审计：保存、启用和删除成功后记录不含密钥、地址或模型正文的事件；失败和取消不记录成功动作。相关 UI、注册表和生产构建验收通过。

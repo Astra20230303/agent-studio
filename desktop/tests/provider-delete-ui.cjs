@@ -8,7 +8,7 @@ const assert = require('node:assert/strict');
       window.__providers = [
         { id: 'active', name: 'Active', baseUrl: 'https://example.com/v1', model: 'test', enabled: true, keyConfigured: true },
         { id: 'old', name: 'Old', baseUrl: 'https://old.example.com/v1', model: 'test', enabled: false, keyConfigured: true },
-      ]; window.__deletes = 0;
+      ]; window.__deletes = 0; localStorage.setItem('felix-audit-log-v1', '[]');
       window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }), listProviders: async () => window.__providers,
         deleteProvider: async id => { window.__deletes++; if (window.__fail) return { ok: false, error: 'Disk unavailable' }; window.__providers = window.__providers.filter(item => item.id !== id); return { ok: true }; } };
     });
@@ -31,6 +31,9 @@ const assert = require('node:assert/strict');
     await old.waitFor({ state: 'hidden' });
     assert.equal(await page.getByRole('textbox', { name: 'Provider 名称' }).inputValue(), '');
     assert.equal(await page.getByRole('button', { name: '删除渠道 Active' }).count(), 1);
+    const audit = await page.evaluate(() => JSON.parse(localStorage.getItem('felix-audit-log-v1')));
+    assert.ok(audit.some(item => item.action === '删除渠道' && item.detail === 'old'));
+    assert.equal(JSON.stringify(audit).includes('old.example.com'), false);
     console.log('PASS: active protection, delete cancellation, failure retry and edited Provider cleanup');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
