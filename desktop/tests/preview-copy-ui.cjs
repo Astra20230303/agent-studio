@@ -54,6 +54,14 @@ const assert = require('node:assert/strict');
     await wrap.focus(); await page.keyboard.press('Space');
     assert.equal(await wrap.getAttribute('aria-pressed'), 'false');
     assert.equal(await pre.evaluate(node => node.scrollWidth > node.clientWidth), true);
+    await wrap.click();
+    await page.evaluate(source => window.__render(source, true), longText);
+    await page.getByRole('button', { name: '复制已预览部分', exact: true }).click();
+    assert.equal(await wrap.getAttribute('aria-pressed'), 'true');
+    assert.equal(await pre.evaluate(node => node.scrollWidth <= node.clientWidth + 1), true);
+    await lineInput.fill('4'); await lineInput.press('Enter');
+    await page.getByText('请输入 1 至 3 的行号（仅限已预览部分）。', { exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => window.__writes.at(-1)), longText);
     for (const source of ['', 'ends with newline\n', '\ufeffBOM\r\n', '\n\n']) {
       await page.evaluate(source => window.__render(source), source);
       await copy.click();
