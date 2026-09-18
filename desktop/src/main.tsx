@@ -67,6 +67,7 @@ import { turnCommands } from './turnService';
 import type { UserAnswers } from './UserInputDialog';
 import { RemoteDesktopPanel } from './RemoteDesktopPanel';
 import { RemoteBrowser } from './RemoteBrowser';
+import { formatBytes, type ServerDiagnostics } from './serverDiagnostics';
 import { ServerWarnings, useServerWarnings } from './ServerWarnings';
 import { moveQueuedTurn } from './turnQueue';
 import { AttachmentPreviewButton, MessageAttachment } from './MessageAttachment';
@@ -85,7 +86,7 @@ import { restoreMessages } from './toolActivity';
 import { ToolActivityGroup, groupMessages } from './ToolActivityView';
 import { MessageActions } from './ReplyActions';
 import { branchSnapshot, fullBranchSnapshot, isFinalReply } from './messageActions';
-import { clearThreadGoal, connectCodex, createThreadSection, deleteThreadSection, getThreadGoal, listThreadSections, moveThreadSection, readAccount, readAccountRateLimits, readAccountTokenUsage, resetMemory, revertThread, setThreadGoal, setThreadMemoryMode, startReview, subscribeCodex, updateThreadSection } from './codexClient';
+import { clearThreadGoal, connectCodex, createThreadSection, deleteThreadSection, getThreadGoal, listThreadSections, moveThreadSection, readAccount, readAccountRateLimits, readAccountTokenUsage, readServerDiagnosticsInfo, resetMemory, revertThread, setThreadGoal, setThreadMemoryMode, startReview, subscribeCodex, updateThreadSection } from './codexClient';
 import { ReviewDialog, type ReviewTarget } from './ReviewDialog';
 import { ExtensionsPage, ExtensionIcon } from './ExtensionsPage';
 import { ThreadButton } from './ThreadButton';
@@ -198,6 +199,7 @@ function App({ initialState }: { initialState: DesktopState }) {
   const [providerStatus, setProviderStatus] = useState<any>();
   const [rateLimits, setRateLimits] = useState<import('./rateLimits').RateLimits>();
   const [accountUsage, setAccountUsage] = useState<import('./accountUsage').AccountUsage>();
+  const [serverDiagnostics, setServerDiagnostics] = useState<ServerDiagnostics>();
   const [accountInfo, setAccountInfo] = useState<import('./accountInfo').AccountInfo>();
   const [threadSections, setThreadSections] = useState<import('./threadSections').ThreadSection[]>([]);
   const [providerChoices, setProviderChoices] = useState<Array<{ id: string; name: string; enabled?: boolean; keyConfigured?: boolean; authRequired?: boolean }>>([]);
@@ -639,6 +641,10 @@ function App({ initialState }: { initialState: DesktopState }) {
     if (codexStatus !== 'connected') { toast('请先连接工作区服务'); return; }
     try { setAccountInfo(await readAccount()); toast('账户信息已刷新'); } catch (error) { toast(`读取账户信息失败：${error instanceof Error ? error.message : String(error)}`); }
   };
+  const refreshServerDiagnostics = async () => {
+    if (codexStatus !== 'connected') { toast('请先连接工作区服务'); return; }
+    try { setServerDiagnostics(await readServerDiagnosticsInfo()); toast('服务诊断已刷新'); } catch (error) { toast(`刷新服务诊断失败：${error instanceof Error ? error.message : String(error)}`); }
+  };
   const refreshThreadSections = async () => { if (codexStatus !== 'connected') { toast('请先连接工作区服务'); return; } try { setThreadSections(await listThreadSections()); toast('分组已刷新'); } catch (error) { toast(`读取分组失败：${error instanceof Error ? error.message : String(error)}`); } };
   useEffect(() => {
     if (codexStatus !== 'connected') { setThreadSections([]); return; }
@@ -803,7 +809,7 @@ function App({ initialState }: { initialState: DesktopState }) {
     });
     setPage('chat');
   };
-  const serviceControl = <><section className="settings-card" aria-label="工作区服务连接"><h2>工作区服务</h2><p role="status">服务连接：{codexStatus === 'connected' ? '已连接' : codexStatus === 'connecting' ? '连接中' : '未连接'}</p><p>配置变更后可重启服务并重新连接。{serviceInUse ? '请先等待运行中会话、审批和沙箱设置结束。' : '草稿保留，排队消息会暂停。'}</p><button disabled={serviceInUse || restarting || codexStatus === 'connecting'} onClick={() => { void restartService(); }}>重启并重新连接服务</button><button disabled={serviceInUse || codexStatus !== 'connected'} onClick={() => void resetAllMemory()}>清除 Codex 记忆</button><button disabled={codexStatus !== 'connected'} onClick={() => void refreshAccountInfo()}>刷新账户信息</button><button disabled={codexStatus !== 'connected'} onClick={() => void refreshRateLimits()}>刷新账户额度</button><button disabled={codexStatus !== 'connected'} onClick={() => void refreshAccountUsage()}>刷新账户用量</button>{accountInfo && <p role="status">账户：{accountInfo.kind === 'chatgpt' ? `ChatGPT${accountInfo.email ? ` · ${accountInfo.email}` : ''} · ${accountInfo.planType}` : accountInfo.kind === 'apiKey' ? 'API Key' : `Amazon Bedrock${accountInfo.managedCredentials ? ' · 托管凭据' : ''}`}{accountInfo.requiresOpenAiAuth ? ' · 需要 OpenAI 登录' : ''}</p>}{rateLimits && <p role="status">{rateLimits.limitName ? `${rateLimits.limitName}：` : ''}{rateLimits.primary ? `主窗口已用 ${rateLimits.primary.usedPercent}%` : ''}{rateLimits.secondary ? ` · 次窗口已用 ${rateLimits.secondary.usedPercent}%` : ''}</p>}{accountUsage && <p role="status">累计 Token：{accountUsage.summary.lifetimeTokens?.toLocaleString() || '未知'}{accountUsage.summary.currentStreakDays != null ? ` · 连续使用 ${accountUsage.summary.currentStreakDays} 天` : ''} · 最近 {accountUsage.daily.length} 天有记录</p>}</section><AccountAuthPanel connected={codexStatus === 'connected'} busy={serviceInUse} onChanged={() => void refreshAccountInfo()} /></>;
+  const serviceControl = <><section className="settings-card" aria-label="工作区服务连接"><h2>工作区服务</h2><p role="status">服务连接：{codexStatus === 'connected' ? '已连接' : codexStatus === 'connecting' ? '连接中' : '未连接'}</p><p>配置变更后可重启服务并重新连接。{serviceInUse ? '请先等待运行中会话、审批和沙箱设置结束。' : '草稿保留，排队消息会暂停。'}</p><button disabled={serviceInUse || restarting || codexStatus === 'connecting'} onClick={() => { void restartService(); }}>重启并重新连接服务</button><button disabled={serviceInUse || codexStatus !== 'connected'} onClick={() => void resetAllMemory()}>清除 Codex 记忆</button><button disabled={codexStatus !== 'connected'} onClick={() => void refreshAccountInfo()}>刷新账户信息</button><button disabled={codexStatus !== 'connected'} onClick={() => void refreshRateLimits()}>刷新账户额度</button><button disabled={codexStatus !== 'connected'} onClick={() => void refreshAccountUsage()}>刷新账户用量</button><button disabled={codexStatus !== 'connected'} onClick={() => void refreshServerDiagnostics()}>刷新服务诊断</button>{accountInfo && <p role="status">账户：{accountInfo.kind === 'chatgpt' ? `ChatGPT${accountInfo.email ? ` · ${accountInfo.email}` : ''} · ${accountInfo.planType}` : accountInfo.kind === 'apiKey' ? 'API Key' : `Amazon Bedrock${accountInfo.managedCredentials ? ' · 托管凭据' : ''}`}{accountInfo.requiresOpenAiAuth ? ' · 需要 OpenAI 登录' : ''}</p>}{rateLimits && <p role="status">{rateLimits.limitName ? `${rateLimits.limitName}：` : ''}{rateLimits.primary ? `主窗口已用 ${rateLimits.primary.usedPercent}%` : ''}{rateLimits.secondary ? ` · 次窗口已用 ${rateLimits.secondary.usedPercent}%` : ''}</p>}{accountUsage && <p role="status">累计 Token：{accountUsage.summary.lifetimeTokens?.toLocaleString() || '未知'}{accountUsage.summary.currentStreakDays != null ? ` · 连续使用 ${accountUsage.summary.currentStreakDays} 天` : ''} · 最近 {accountUsage.daily.length} 天有记录</p>}{serverDiagnostics && <div aria-label="服务诊断"><p role="status">服务 PID：{serverDiagnostics.process.id} · 常驻内存：{formatBytes(serverDiagnostics.process.residentMemoryBytes)} · 物理占用：{formatBytes(serverDiagnostics.process.physicalFootprintBytes)}</p>{serverDiagnostics.gauges.map(gauge => <p key={gauge.name}>{gauge.name}：{gauge.value.toLocaleString()}</p>)}</div>}</section><AccountAuthPanel connected={codexStatus === 'connected'} busy={serviceInUse} onChanged={() => void refreshAccountInfo()} /></>;
   return <div className={`desktop-app ${effectiveTheme} ${page === 'settings' ? 'settings-mode' : ''} ${terminalOpen ? 'terminal-visible' : ''}`}>
     <ServerWarnings warnings={serverWarnings.warnings} dismiss={serverWarnings.dismiss} />
     {queue.saveFailed && <div role="alert" className="state-save-warning">排队消息未能保存，自动发送已暂停。关闭窗口可能丢失更改或恢复旧队列。<button onClick={queue.retry}>重试保存队列</button></div>}

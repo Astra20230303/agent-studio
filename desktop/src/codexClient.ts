@@ -11,6 +11,7 @@ import { readAccountUsage } from './accountUsage';
 import { readAccountInfo } from './accountInfo';
 import { readThreadSection, readThreadSections, type ThreadSectionAppearance } from './threadSections';
 import { readAccountLoginStart } from './accountAuth';
+import { readServerDiagnostics } from './serverDiagnostics';
 export type RpcMessage = { id?: number | string; method?: string; params?: any; result?: any; error?: any };
 type Bridge = { connect: () => Promise<any>; request: (method: string, params?: unknown) => Promise<any>; notify: (method: string, params?: unknown) => Promise<any>; respond: (id: number | string, result?: unknown, error?: unknown) => Promise<any>; onNotification: (listener: (message: RpcMessage) => void) => () => void; onServerRequest: (listener: (message: RpcMessage) => void) => () => void; onError: (listener: (message: any) => void) => () => void; onStderr: (listener: (message: any) => void) => () => void; onClosed: (listener: (message: any) => void) => () => void };
 const bridge = () => window.codex as Bridge;
@@ -94,6 +95,7 @@ export async function resetMemory() { return unwrap<any>(bridge().request('memor
 export async function readAccountRateLimits() { return readRateLimits(await unwrap<any>(bridge().request('account/rateLimits/read', {}))); }
 export async function readAccountTokenUsage() { return readAccountUsage(await unwrap<any>(bridge().request('account/tokenUsage/read', {}))); }
 export async function readAccount() { return readAccountInfo(await unwrap<any>(bridge().request('account/read', { refreshToken: false }))); }
+export async function readServerDiagnosticsInfo() { return readServerDiagnostics(await unwrap<unknown>(bridge().request('server/diagnostics', {}))); }
 export async function startAccountLogin(kind: 'chatgpt' | 'chatgptDeviceCode' | 'apiKey', apiKey?: string) {
   const params = kind === 'apiKey' ? { type: 'apiKey', apiKey: apiKey || '' } : kind === 'chatgptDeviceCode' ? { type: 'chatgptDeviceCode' } : { type: 'chatgpt', codexStreamlinedLogin: true, useHostedLoginSuccessPage: false };
   if (kind === 'apiKey' && !apiKey?.trim()) throw new Error('API Key 不能为空');
