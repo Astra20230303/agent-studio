@@ -30,3 +30,12 @@ test('restored snapshot owns history and normalized configuration without raw tr
  result.items[0].item.text='mutated consumer';assert.equal(input.thread.turns[0].items[0].text,'mutated transport');
  assert.equal(readThreadResume({...valid(),reasoningEffort:'future'},'remote').reasoningEffort,undefined);
 });
+
+test('unknown effort and absent permission evidence remain unconfirmed rather than inventing defaults',()=>{
+ const snapshot=readThreadResume({...valid(),reasoningEffort:'future'},'remote');
+ assert.equal(snapshot.reasoningEffort,undefined);assert.equal(snapshot.permissions,undefined);
+ const active={...valid(),reasoningEffort:'high',thread:{...valid().thread,turns:[{...turn,status:'inProgress'}]},sandbox:{type:'workspaceWrite'},approvalPolicy:{reject:{sandboxApproval:true}},approvalsReviewer:'auto_review'};
+ const restored=readThreadResume(active,'remote');assert.equal(restored.running.id,'t');assert.equal(restored.reasoningEffort,'high');
+ assert.deepEqual(restored.permissions,{sandbox:'workspaceWrite',approvalPolicy:'custom',reviewer:'auto_review'});
+ active.thread.turns[0].items[0].text='changed';assert.equal(restored.running.items[0].text,'kept');
+});
