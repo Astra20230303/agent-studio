@@ -5,7 +5,8 @@ const assert = require('node:assert/strict');
   try {
     const page = await browser.newPage();
     await page.addInitScript(() => {
-      window.desktop = { savePastedImage: async () => new Promise(resolve => { window.__save = resolve; }), listModels: async () => ({ ok: true, models: ['test'] }) };
+      window.__saves = [];
+      window.desktop = { savePastedImage: async () => new Promise(resolve => { window.__save = resolve; window.__saves.push(resolve); }), listModels: async () => ({ ok: true, models: ['test'] }) };
       window.__turns = 0;
       window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async method => { if (method === 'turn/start') window.__turns++; return { ok: true, result: { data: [] } }; }, onNotification: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {}, onServerRequest: () => () => {} };
     });
@@ -37,6 +38,16 @@ const assert = require('node:assert/strict');
     await page.getByText('Disk full', { exact: true }).waitFor();
     await page.waitForFunction(() => !document.querySelector('button[aria-label="发送"]').disabled);
     assert.equal(await page.locator('.attachment-list button').count(), 0);
+    await page.evaluate(() => { window.__saves = []; });
+    await paste('image'); await paste('image');
+    await page.waitForFunction(() => window.__saves.length === 2);
+    await page.evaluate(() => window.__saves[0]({ ok: true, path: 'D:/first.png' }));
+    await page.getByRole('button', { name: '移除附件：D:/first.png', exact: true }).waitFor();
+    assert.ok(await page.getByRole('button', { name: '发送', exact: true }).isDisabled());
+    await page.evaluate(() => window.__saves[1]({ ok: true, path: 'D:/second.png' }));
+    await page.getByRole('button', { name: '移除附件：D:/second.png', exact: true }).waitFor();
+    await page.waitForFunction(() => !document.querySelector('button[aria-label="发送"]').disabled);
+    assert.equal(await page.evaluate(() => window.__turns), 0);
     console.log('PASS: text paste remains native, delayed image save retains source draft and failures add no attachment');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

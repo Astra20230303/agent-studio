@@ -16,6 +16,14 @@ Clipboard images currently require PNG; other formats use the attachment picker.
 Saved images are retained for history/draft references; automatic cleanup of
 unreferenced attachment files is not implemented.
 
+Pending clipboard saves block sending, steering and enqueueing in their source
+draft until all saves finish. A synchronous send guard also covers Enter before
+the disabled state renders; other conversations remain usable. Post-commit
+browser acceptance passes delayed saves, failure recovery and two overlapping
+saves: finishing the first keeps sending disabled, finishing the second releases
+it, and neither dispatches a turn automatically. Real Electron file storage and
+restart persistence regression also passes.
+
 ## Drag files into the composer
 
 The composer accepts dropped local files through Electron webUtils.getPathForFile,
