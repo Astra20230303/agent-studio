@@ -30,6 +30,18 @@ const { chromium } = require('playwright');
   assert.equal(await page.evaluate(()=>window.__writes[2].theme),'dark');
   await page.evaluate(()=>window.__settle[2].resolve());
   await page.locator('#state').filter({hasText:'dark:false'}).waitFor();
+  await page.evaluate(()=>window.__store.update(state=>{state.theme='light';}));
+  await page.waitForFunction(()=>window.__writes.length===4);
+  await page.evaluate(()=>{
+   window.__store.update(state=>{state.theme='dark';});
+   window.__store.update(state=>{state.model='latest-model';});
+  });
+  await page.waitForFunction(()=>window.__writes.length===5);
+  assert.equal(await page.evaluate(()=>window.__writes[4].theme),'dark');
+  assert.equal(await page.evaluate(()=>window.__writes[4].model),'latest-model');
+  await page.evaluate(()=>window.__settle[4].resolve());
+  await page.evaluate(()=>window.__settle[3].reject(Error('obsolete failure')));
+  assert.equal(await page.locator('#state').textContent(),'dark:false');
   console.log('PASS: state owner forwards snapshots immediately, isolates stale save outcomes and retries latest state');
  }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

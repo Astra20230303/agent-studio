@@ -2811,3 +2811,9 @@ user-message-copy-ui.cjs 覆盖原文保真、键盘操作、失败重试、空�
 实现 de370d5：仅服务端 terminated=true 时记录“终止后台命令”，不保存命令、目录或进程标识；失败和已经退出不伪造终止成功。记录确认结果先于界面连接代次判断，因此切换会话或重连后的真实成功仍保留记录，旧界面反馈仍被隔离。
 
 验收：background-terminals-ui 覆盖失败重试、重复点击、跨会话迟到成功、已退出不记录、刷新后操作记录搜索；background-terminals-refresh-ui 覆盖重连迟到成功只记录一次且界面重新读取，迟到失败不记录；audit-read-recovery-ui 通过。生产构建通过，保留已有体积提示。此轮扩充操作记录覆盖，不代表完整审计覆盖已完成。
+
+## 应用状态与保存生命周期抽离
+
+实现 21fa03e：useDesktopState 接管应用快照、不可变更新、保存失败与重试，主界面已迁移；可注入 StateRepository 验证异步行为。每次提交的状态立即交给原生存储，不增加渲染器保存队列，保留关闭窗口前原生 flush 的可见性。
+
+验收：desktop-state-ui 验证旧成功不清除新失败、旧失败不污染新成功、重试最新快照及连续函数式更新；state-storage-ui、state-load-recovery-ui、state-repository 单测和真实 Electron 迁移/重启/损坏存储保护通过。生产构建通过，保留体积提示。此次完成共享状态生命周期抽离，领域级 ThreadStore、ProjectStore 与 AutomationStore 仍待继续，不将此 hook 等同于完整领域接口。
