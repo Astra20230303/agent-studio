@@ -222,3 +222,13 @@ test('conversation checkpoint failure prevents model execution after provider bi
   assert.ok(bound);assert.equal(requests,0);
  }finally{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));fs.rmSync(dataRoot,{recursive:true,force:true});}
 });
+
+test('real oversized model output preserves the tail and reports truncation', {timeout:30000},async()=>{
+ const content='BEGIN'+ 'x'.repeat(200010)+'END';const server=http.createServer(async(req,res)=>{for await(const chunk of req){}res.writeHead(200,{'content-type':'text/event-stream'});res.end('data: '+JSON.stringify({choices:[{delta:{content},finish_reason:'stop'}]})+'\n\ndata: [DONE]\n\n');});server.listen(0,'127.0.0.1');await once(server,'listening');
+ const dataRoot=fs.mkdtempSync(path.join(require('node:os').tmpdir(),'felix-truncated-'));let latest;
+ try{
+  const runner=createTaskRunner(root,{dataRoot,apiKey:()=>'',upstream:`http://127.0.0.1:${server.address().port}`,timeoutMs:20000});
+  const result=await runner({...task,prompt:'Reply briefly.'},{signal:new AbortController().signal,runId:randomUUID(),onProgress:(output,metadata)=>{latest={output,...metadata};}});
+  assert.equal(result.outputTruncated,true);assert.equal(latest.outputTruncated,true);assert.equal(result.output.length,200000);assert.ok(result.output.endsWith('END'));assert.ok(!result.output.startsWith('BEGIN'));assert.equal(latest.output,result.output);
+ }finally{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));fs.rmSync(dataRoot,{recursive:true,force:true});}
+});
