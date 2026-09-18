@@ -486,7 +486,7 @@ function App() {
     search: () => { setSidebarVisible(true); setShowSearch(true); requestAnimationFrame(() => document.getElementById('sidebar-search')?.focus()); },
     composer: () => { setPage('chat'); requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('textarea[aria-label="消息"]')?.focus()); },
   });
-  const selectThread = async (thread: DesktopState['threads'][number]) => { update(next => { next.activeThreadId = thread.id; }); audit.record('切换会话', thread.title); setPage('chat'); };
+  const selectThread = async (thread: DesktopState['threads'][number]) => { update(next => { next.activeThreadId = thread.id; }); audit.record('切换会话', thread.id); setPage('chat'); };
   useEffect(() => {
     const threadId = active?.remoteId;
     if (!threadId || codexStatus !== 'connected' || pendingThreads.includes(active.id)) return;
@@ -566,7 +566,7 @@ function App() {
   const performDelete = async (threadId: string) => { const thread = state.threads.find(item => item.id === threadId); if (!thread) return; if (thread.remoteId && codexStatus === 'connected') { try { await deleteThread(thread.remoteId); } catch (error: any) { toast(`删除失败：${error.message}`); return; } } update(next => { next.threads = next.threads.filter(value => value.id !== threadId); if (next.activeThreadId === threadId) next.activeThreadId = undefined; }); audit.record('删除会话'); setRemoteThreadId(value => value === thread.remoteId ? undefined : value); };
   const deleteActive = async () => { const thread = state.threads.find(item => item.id === state.activeThreadId); if (thread) setDeleteCandidate(thread.id); };
   const togglePinned = (threadId: string) => update(next => { const thread = next.threads.find(item => item.id === threadId); if (thread) thread.pinned = !thread.pinned; });
-  const archiveThreadFromSidebar = async (threadId: string) => { const thread = state.threads.find(item => item.id === threadId); if (!thread) return; if (thread.remoteId && codexStatus === 'connected') { try { await archiveThread(thread.remoteId); } catch (error: any) { toast(`归档失败：${error.message}`); return; } } update(next => { const item = next.threads.find(value => value.id === threadId); if (item) { item.archived = true; item.status = 'completed'; if (next.activeThreadId === threadId) next.activeThreadId = undefined; } }); setRemoteThreadId(value => value === thread.remoteId ? undefined : value); };
+  const archiveThreadFromSidebar = async (threadId: string) => { const thread = state.threads.find(item => item.id === threadId); if (!thread) return; if (thread.remoteId && codexStatus === 'connected') { try { await archiveThread(thread.remoteId); } catch (error: any) { toast(`归档失败：${error.message}`); return; } } update(next => { const item = next.threads.find(value => value.id === threadId); if (item) { item.archived = true; item.status = 'completed'; if (next.activeThreadId === threadId) next.activeThreadId = undefined; } }); audit.record('归档会话', thread.id); setRemoteThreadId(value => value === thread.remoteId ? undefined : value); };
   const deleteThreadFromSidebar = async (threadId: string) => { if (state.threads.some(item => item.id === threadId)) setDeleteCandidate(threadId); };
   const forkActive = async () => {
     const source = state.threads.find(item => item.id === state.activeThreadId);
@@ -585,7 +585,7 @@ function App() {
       const stillOnSource = activeThreadRef.current === source.id;
       update(next => { next.threads.push(copy); if (stillOnSource) next.activeThreadId = copy.id; });
       if (stillOnSource) setRemoteThreadId(copy.remoteId);
-      audit.record('分叉会话');
+      audit.record('分叉会话', source.id);
       toast('已创建会话分支');
     } catch (error: any) { toast(`分叉失败：${error.message}`); }
     finally {
@@ -623,7 +623,9 @@ function App() {
       const stillOnSource = activeThreadRef.current === source.id;
       update(next => { next.threads.push(copy); if (stillOnSource) next.activeThreadId = copy.id; });
       if (stillOnSource) setRemoteThreadId(copy.remoteId);
+      audit.record('分叉会话', source.id);
     } finally {
+      // Release the shared fork lock even if loading historical turns failed.
       forkingRef.current = false; setForking(false);
       sendingRef.current.delete(source.id); setPendingThreads(previous => previous.filter(id => id !== source.id));
     }
