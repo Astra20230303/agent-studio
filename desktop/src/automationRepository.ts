@@ -21,7 +21,8 @@ function task(value: any): value is ScheduledTask {
     || [value.cwd, value.providerId].some(field => field != null && typeof field !== 'string')
     || value.nextRunAt != null && !date(value.nextRunAt) || !record(value.schedule) || !Array.isArray(value.runs)) return false;
   const schedule = value.schedule;
-  if (schedule.kind === 'once') { if (!date(schedule.at)) return false; }
+  if (schedule.kind === 'interval') { if (!Number.isInteger(schedule.minutes) || schedule.minutes < 1 || schedule.minutes > 10080) return false; }
+  else if (schedule.kind === 'once') { if (!date(schedule.at)) return false; }
   else {
     if (!['daily','weekdays','weekly'].includes(schedule.kind) || typeof schedule.time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(schedule.time) || typeof schedule.timezone !== 'string') return false;
     try { new Intl.DateTimeFormat('en', { timeZone: schedule.timezone }); } catch { return false; }

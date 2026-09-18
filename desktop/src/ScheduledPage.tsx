@@ -26,7 +26,7 @@ function TaskEditor({ draft, providers, onClose, onSaved }: { draft: TaskDraft; 
   const [writeConfirmed, setWriteConfirmed] = useState(draft.permission === 'workspace-write');
   useEffect(() => { if (!form.model && models.length) setForm(current => ({ ...current, model: models[0] })); }, [models, form.model]);
   const patch = (fields: Partial<TaskDraft>) => setForm(current => ({ ...current, ...fields }));
-  const patchSchedule = (fields: Partial<Exclude<TaskSchedule, { kind: 'once' }>>) => { if (form.schedule.kind !== 'once') patch({ schedule: { ...form.schedule, ...fields } }); };
+  const patchSchedule = (fields: Partial<Exclude<TaskSchedule, { kind: 'once' | 'interval' }>>) => { if (form.schedule.kind !== 'once' && form.schedule.kind !== 'interval') patch({ schedule: { ...form.schedule, ...fields } }); };
   const submit = async (event: FormEvent) => {
     event.preventDefault(); if (saveLock.current) return;
     saveLock.current = true;
@@ -46,9 +46,9 @@ function TaskEditor({ draft, providers, onClose, onSaved }: { draft: TaskDraft; 
       <div className="task-form-grid"><label>类型<select value={form.kind} onChange={event => patch({ kind: event.target.value as TaskDraft['kind'] })}><option value="agent">Agent 任务</option><option value="reminder">提醒</option></select></label>
         <label>频率<select value={form.schedule.kind} onChange={event => {
           const kind = event.target.value as TaskSchedule['kind'];
-          patch({ schedule: kind === 'once' ? { kind, at: new Date(Date.now() + 3600000).toISOString() } : { time: '09:00', timezone: localZone, ...(form.schedule.kind !== 'once' ? form.schedule : {}), kind, ...(kind === 'weekly' ? { day: form.schedule.kind === 'weekly' ? form.schedule.day : 1 } : {}) } });
-        }}><option value="daily">每天</option><option value="weekdays">工作日</option><option value="weekly">每周</option><option value="once">仅一次</option></select></label></div>
-      {form.schedule.kind === 'once' ? <label>运行时间（本地时区）<input required type="datetime-local" value={onceAt} onChange={event => setOnceAt(event.target.value)} /></label> : <>
+          patch({ schedule: kind === 'interval' ? { kind, minutes: 60 } : kind === 'once' ? { kind, at: new Date(Date.now() + 3600000).toISOString() } : { time: '09:00', timezone: localZone, ...(form.schedule.kind !== 'once' && form.schedule.kind !== 'interval' ? form.schedule : {}), kind, ...(kind === 'weekly' ? { day: form.schedule.kind === 'weekly' ? form.schedule.day : 1 } : {}) } });
+        }}><option value="interval">固定间隔</option><option value="daily">每天</option><option value="weekdays">工作日</option><option value="weekly">每周</option><option value="once">仅一次</option></select></label></div>
+      {form.schedule.kind === 'interval' ? <label>间隔分钟数<input aria-label="任务间隔分钟数" required type="number" min={1} max={10080} step={1} value={form.schedule.minutes} onChange={event => patch({ schedule: { kind: 'interval', minutes: Number(event.target.value) } })} /><small>从保存或恢复时开始计时；错过多次仅执行一次，再从实际开始时间计时。</small></label> : form.schedule.kind === 'once' ? <label>运行时间（本地时区）<input required type="datetime-local" value={onceAt} onChange={event => setOnceAt(event.target.value)} /></label> : <>
         <div className="task-form-grid"><label>运行时间<input required type="time" value={form.schedule.time} onChange={event => patchSchedule({ time: event.target.value })} /></label><label>时区<select value={form.schedule.timezone} onChange={event => patchSchedule({ timezone: event.target.value })}>{Array.from(new Set([localZone, form.schedule.timezone, 'Asia/Shanghai', 'Asia/Tokyo', 'UTC', 'America/New_York', 'America/Los_Angeles', 'Europe/London'])).map(zone => <option key={zone}>{zone}</option>)}</select></label></div>
         {form.schedule.kind === 'weekly' && <label>星期<select aria-label="星期" value={form.schedule.day ?? 1} onChange={event => patchSchedule({ day: Number(event.target.value) })}>{Array.from('日一二三四五六').map((day, index) => <option key={index} value={index}>星期{day}</option>)}</select></label>}
       </>}

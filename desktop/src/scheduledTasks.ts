@@ -1,4 +1,4 @@
-export type TaskSchedule = { kind: 'once'; at: string } | { kind: 'daily' | 'weekdays' | 'weekly'; time: string; timezone: string; day?: number };
+export type TaskSchedule = { kind: 'interval'; minutes: number } | { kind: 'once'; at: string } | { kind: 'daily' | 'weekdays' | 'weekly'; time: string; timezone: string; day?: number };
 export type TaskDraft = { reasoningEffort?: 'low' | 'medium' | 'high'; id?: string; providerId?: string; cwd?: string; name: string; prompt: string; kind: 'agent' | 'reminder'; model: string; permission: 'read-only' | 'workspace-write'; notify: boolean; notificationPolicy?: 'failed_runs_only' | null; schedule: TaskSchedule };
 export type TaskRun = { threadId?: string; id: string; status: 'running' | 'completed' | 'failed' | 'interrupted'; trigger: 'manual' | 'scheduled'; startedAt: string; finishedAt?: string; error?: string; output?: string };
 export type ScheduledTask = TaskDraft & { id: string; status: 'active' | 'paused' | 'completed'; nextRunAt: string | null; runs: TaskRun[] };
@@ -7,6 +7,7 @@ export const taskStatusLabels = { active: '已开启', paused: '已暂停', comp
 export const localZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
 export const formatTaskDate = (value?: string | null) => value ? new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '未安排';
 export function scheduleLabel(schedule: TaskSchedule) {
+  if (schedule.kind === 'interval') return `每隔 ${schedule.minutes} 分钟`;
   if (schedule.kind === 'once') return `仅一次 · ${formatTaskDate(schedule.at)}`;
   const frequency = schedule.kind === 'daily' ? '每天' : schedule.kind === 'weekdays' ? '工作日' : `星期${'日一二三四五六'[schedule.day ?? 1]}`;
   return `${frequency} ${schedule.time} · ${schedule.timezone}`;

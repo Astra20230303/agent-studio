@@ -5,6 +5,7 @@ const { randomUUID } = require('node:crypto');
 const { CronExpressionParser } = require('cron-parser');
 
 function scheduleNext(schedule, now = Date.now()) {
+  if (schedule.kind === 'interval') return new Date(now + schedule.minutes * 60000).toISOString();
   if (schedule.kind === 'once') return new Date(schedule.at).getTime() > now ? schedule.at : null;
   const [hour, minute] = schedule.time.split(':').map(Number);
   const days = schedule.kind === 'weekdays' ? '1-5' : schedule.kind === 'weekly' ? schedule.day : '*';
@@ -27,9 +28,12 @@ function validateTask(input, now) {
   if (cwd && !path.isAbsolute(cwd)) throw new Error('工作目录必须是绝对路径。');
   if (!['read-only', 'workspace-write'].includes(input.permission)) throw new Error('执行权限无效。');
   const raw = input.schedule;
-  if (!raw || !['once', 'daily', 'weekdays', 'weekly'].includes(raw.kind)) throw new Error('时间安排无效。');
+  if (!raw || !['once', 'daily', 'weekdays', 'weekly', 'interval'].includes(raw.kind)) throw new Error('时间安排无效。');
   let schedule;
-  if (raw.kind === 'once') {
+  if (raw.kind === 'interval') {
+    if (!Number.isInteger(raw.minutes) || raw.minutes < 1 || raw.minutes > 10080) throw new Error('间隔须为 1 至 10080 分钟的整数。');
+    schedule = { kind: 'interval', minutes: raw.minutes };
+  } else if (raw.kind === 'once') {
     if (typeof raw.at !== 'string' || !Number.isFinite(Date.parse(raw.at)) || Date.parse(raw.at) <= now) throw new Error('请选择未来的运行时间。');
     schedule = { kind: 'once', at: new Date(raw.at).toISOString() };
   } else {

@@ -9,6 +9,20 @@ const cache = path.resolve(__dirname, '../../.project-cache/tmp');
 fs.mkdirSync(cache, { recursive: true });
 const temp = () => fs.mkdtempSync(path.join(cache, 'felix-tasks-'));
 
+test('interval tasks persist, skip missed backlog and resume with a new interval',async()=>{
+ const directory=temp();let now=Date.parse('2026-09-18T00:00:00Z');let calls=0;
+ let scheduler=new TaskScheduler({directory,now:()=>now,runner:async()=>{calls++;return {output:'ok'};}});
+ const saved=scheduler.save(task({kind:'agent',model:'test',schedule:{kind:'interval',minutes:15}}));
+ assert.equal(saved.nextRunAt,'2026-09-18T00:15:00.000Z');await scheduler.tick();assert.equal(calls,0);
+ await scheduler.stop();now+=2*3600000;scheduler=new TaskScheduler({directory,now:()=>now,runner:async()=>{calls++;return {output:'ok'};}});
+ try{
+  await scheduler.tick();assert.equal(calls,1);assert.equal(scheduler.detail(saved.id).nextRunAt,'2026-09-18T02:15:00.000Z');
+  await scheduler.tick();assert.equal(calls,1);scheduler.setStatus(saved.id,'paused');now+=3600000;await scheduler.tick();assert.equal(calls,1);
+  scheduler.setStatus(saved.id,'active');assert.equal(scheduler.detail(saved.id).nextRunAt,'2026-09-18T03:15:00.000Z');
+  for(const minutes of [0,-1,1.5,10081,'15',null])assert.throws(()=>scheduler.save(task({schedule:{kind:'interval',minutes}})),/间隔/);
+ }finally{await scheduler.stop();}
+});
+
 test('reasoning effort is optional, validated and can return to model default',async()=>{
   const scheduler=new TaskScheduler({directory:temp(),runner:async()=>({})});
   try {
