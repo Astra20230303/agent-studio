@@ -1,5 +1,14 @@
 # Felix capability roadmap
 
+## Copy structured tool results
+
+Tool results provide a copy action using the same complete text serialization as
+the expanded structured view. Serialization remains on demand for collapsed
+results. Copy is locked while pending, errors are visible and retryable, and a
+completion for an older result cannot label an updated result as copied. Browser
+acceptance covers long nested output, exact view/copy equality, failure/retry and
+delayed completion after result replacement. Production build passes.
+
 ## Validate legacy migration before writes
 
 Legacy import validates all missing native records before writing any candidate.
