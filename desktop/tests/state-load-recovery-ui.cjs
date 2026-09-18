@@ -11,7 +11,13 @@ const { chromium } = require('playwright');
       const original = Storage.prototype.setItem;
       Storage.prototype.setItem = function(key, value) { window.__writes.push(key); return original.call(this, key, value); };
       const read = Storage.prototype.getItem;
-      Storage.prototype.getItem = function(key) { if (window.__failRead && key === 'codex-desktop-state-v1') throw Error('Read unavailable'); return read.call(this, key); };
+      Storage.prototype.getItem = function(key) {
+        if (key === 'codex-desktop-state-v1') {
+          window.__stateReads = (window.__stateReads || 0) + 1;
+          if (window.__failRead) throw Error('Read unavailable');
+        }
+        return read.call(this, key);
+      };
       window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }) };
       window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async () => ({ ok: true, result: { data: [] } }), onNotification: () => () => {}, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
     });
@@ -33,12 +39,14 @@ const { chromium } = require('playwright');
     assert.equal(await page.getByRole('textbox', { name: '消息', exact: true }).count(), 0);
     await page.evaluate(() => {
       window.__failRead = false;
+      window.__stateReads = 0;
       localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ theme: 'dark', model: 'test', activeThreadId: 'kept', threads: [{ id: 'kept', title: 'Recovered conversation', status: 'completed', updatedAt: '', messages: [{ id: 'm', role: 'user', content: 'Retained original message' }] }] }));
       window.__writes = [];
     });
     await retry.click();
     await page.getByText('Retained original message', { exact: true }).waitFor();
     await page.getByRole('textbox', { name: '消息', exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => window.__stateReads), 1, 'App uses the validated snapshot without reading storage again');
     await page.waitForFunction(() => window.__writes.includes('codex-desktop-state-v1'));
     const state = await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')));
     assert.equal(state.theme, 'dark'); assert.equal(state.threads[0].messages[0].content, 'Retained original message');
