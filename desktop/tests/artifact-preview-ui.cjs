@@ -39,6 +39,20 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
   assert.equal(await modal.locator('pre').count(),0);
   assert.equal(await modal.getByRole('button',{name:'编辑此文件'}).count(),0);
  }
+ await page.evaluate(()=>window.__result={ok:true,result:{text:'',revision:'empty',size:0}});
+ await modal.getByRole('button',{name:'刷新预览'}).click();
+ await modal.locator('pre').waitFor();
+ assert.equal(await modal.locator('pre').textContent(),'');
+ assert.equal(await modal.getByRole('button',{name:'编辑此文件'}).count(),1);
+ await page.evaluate(()=>window.__result={ok:true,result:{text:'partial',truncated:true,previewBytes:7,size:100}});
+ await modal.getByRole('button',{name:'刷新预览'}).click();
+ await modal.getByText('仅预览前 7 字节，文件共 100 字节。末尾不完整的字符已省略，不能编辑截断内容。',{exact:true}).waitFor();
+ assert.equal(await modal.locator('pre').textContent(),'partial');
+ assert.equal(await modal.getByRole('button',{name:'编辑此文件'}).count(),0);
+ await page.evaluate(()=>window.__result={ok:true,result:{binary:true,size:10}});
+ await modal.getByRole('button',{name:'刷新预览'}).click();
+ await modal.getByText('二进制文件无法预览文本。',{exact:true}).waitFor();
+ assert.equal(await modal.locator('pre').count(),0);
  await page.evaluate(()=>window.__result={ok:true,result:{text:'short',revision:'short'}});await modal.getByRole('button',{name:'刷新预览'}).click();await modal.getByRole('status').getByText('第 2 行不在当前预览范围内。').waitFor();
  await page.evaluate(()=>window.__result=undefined);await modal.getByRole('button',{name:'刷新预览'}).click();await modal.locator('pre').getByText('second',{exact:true}).waitFor();
  await modal.getByRole('button',{name:'编辑此文件'}).click();await page.locator('.file-editor textarea').waitFor();assert.equal(await page.locator('.file-editor textarea').inputValue(),'first\nsecond\nthird');

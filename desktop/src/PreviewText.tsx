@@ -58,7 +58,7 @@ export function PreviewText({ text, lineNumber, column, matchLength, truncated, 
       <span role="status">{matches.length ? `${current + 1} / ${matches.length} 处匹配` : query ? '没有匹配' : '输入查找内容'}{truncated ? '（仅查找已预览部分）' : ''}</span>
       <button disabled={!matches.length} onClick={() => move(-1)}>上一处</button><button disabled={!matches.length} onClick={() => move(1)}>下一处</button><button onClick={close}>关闭预览查找</button>
     </section>}
-    <pre ref={pre} tabIndex={0} aria-label="文件预览文本" style={{ overflow: 'auto', maxHeight: '55vh', whiteSpace: 'pre', margin: '12px 0' }}>{lines.map((value, index) => {
+    <pre ref={pre} tabIndex={0} aria-label="文件预览文本" style={{ overflow: 'auto', maxHeight: '55vh', minHeight: '1.5em', whiteSpace: 'pre', margin: '12px 0' }}>{lines.map((value, index) => {
       const start = offset; offset += value.length + 1;
       const highlighted = match && match.start < start + value.length && match.end > start;
       const from = highlighted ? Math.max(0, match.start - start) : 0;
