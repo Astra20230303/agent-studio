@@ -10,6 +10,10 @@ browser module failure caching makes a same-URL retry unreliable. Production HTT
 acceptance verifies no startup preview requests, deferred JS/CSS, failure closure,
 reload recovery and draft retention. Attachment workflow and build pass.
 
+Post-commit production acceptance cancels while the module request is held, then
+releases it and checks that no dialog reappears. Reopening succeeds using the
+loaded module, with draft and focus intact. No product correction was required.
+
 ## Inspect images at original size and zoom
 
 Image file previews provide fit-to-window, original size and incremental zoom

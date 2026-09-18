@@ -16,7 +16,8 @@ const { once } = require('node:events');
   server.listen(0, '127.0.0.1'); await once(server, 'listening');
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
-    for (const fail of [false, true]) {
+    for (const mode of ['success', 'failure', 'cancel']) {
+      const fail = mode === 'failure';
       const context = await browser.newContext(); const page = await context.newPage();
       const requests = [];
       page.on('request', request => requests.push(request.url()));
@@ -36,7 +37,17 @@ const { once } = require('node:events');
       const opener = page.getByRole('button', { name: '预览附件：D:/notes.txt', exact: true });
       await opener.click();
       await page.getByText('正在加载文件预览…', { exact: true }).waitFor();
+      if (mode === 'cancel') {
+        await page.getByRole('dialog', { name: '文件预览加载', exact: true }).press('Escape');
+        assert.ok(await opener.evaluate(element => element === document.activeElement));
+      }
       release();
+      if (mode === 'cancel') {
+        await page.waitForFunction(() => performance.getEntriesByType('resource').some(entry => /ArtifactPreview-.*\.js$/.test(entry.name) && entry.responseEnd > 0));
+        assert.equal(await page.getByRole('dialog').count(), 0);
+        assert.equal(await editor.inputValue(), 'Preserve draft across deferred page');
+        await opener.click();
+      }
       if (fail) {
         await page.getByText('无法加载文件预览，请重新打开应用后再试。', { exact: true }).waitFor();
         await page.getByRole('button', { name: '关闭预览', exact: true }).click();
