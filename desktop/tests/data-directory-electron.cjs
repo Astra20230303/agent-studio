@@ -29,6 +29,21 @@ const path = require('node:path');
       assert.equal(rejected.ok, false);
       assert.match(rejected.error.message, /图片附件无法读取或解码：broken.jpg/);
     }
+    const largeFrame = require('jpeg-js').encode({ width: 4, height: 4, data: Buffer.alloc(64, 255) }, 90).data;
+    const frame = largeFrame.indexOf(Buffer.from([0xff, 0xc0]));
+    assert.ok(frame > 0);
+    largeFrame.writeUInt16BE(4000, frame + 5); largeFrame.writeUInt16BE(4000, frame + 7);
+    fs.writeFileSync(brokenJpeg, largeFrame);
+    const concurrent = await page.evaluate(async file => {
+      let completed = 0;
+      const jobs = Array.from({ length: 2 }, () => window.codex.request('turn/start', { threadId: 'invalid-thread', input: [{ type: 'localImage', path: file }] }).then(result => { completed++; return result; }));
+      await new Promise(resolve => setTimeout(resolve, 20));
+      await window.desktop.windowState();
+      const completedAtWindowReply = completed;
+      return { completedAtWindowReply, results: await Promise.all(jobs) };
+    }, brokenJpeg);
+    assert.ok(concurrent.completedAtWindowReply < 2, 'window IPC must respond while image validation is pending');
+    assert.ok(concurrent.results.every(result => !result.ok && /maxMemoryUsageInMB/.test(result.error.message)));
     const attachment = path.join(scratch, 'dropped file.txt'); fs.writeFileSync(attachment, 'real attachment');
     await page.evaluate(() => { const input = document.createElement('input'); input.type = 'file'; input.id = 'drop-fixture'; document.body.append(input); });
     await page.locator('#drop-fixture').setInputFiles(attachment);

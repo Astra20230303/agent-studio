@@ -9,12 +9,14 @@ const { CodexRpc } = require('../electron/codex-rpc.cjs');
 const { findCommand, compatibilityCatalog } = require('../electron/codex-server.cjs');
 const { startMiniMaxAdapter } = require('../electron/minimax-adapter.cjs');
 const { userInput } = require('../src/attachments.ts');
-const { validateImageInputs } = require('../electron/attachment-validation.cjs');
+const { ImageProcessing } = require('../electron/image-processing.cjs');
 const { chromium } = require('playwright');
 test('real local image attachment reaches the Provider as image pixels', { timeout: 30000 }, async t => {
   const root = path.resolve(__dirname, '../..');
   const cache = path.join(root, '.project-cache/tmp'); fs.mkdirSync(cache, { recursive: true });
   const profile = fs.mkdtempSync(path.join(cache, 'image-live-'));
+  const imageProcessing = new ImageProcessing({ dataRoot: profile });
+  t.after(() => imageProcessing.close());
   const picture = path.join(profile, 'picture.png');
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   t.after(() => browser.close());
@@ -55,7 +57,7 @@ test('real local image attachment reaches the Provider as image pixels', { timeo
       done.catch(() => {}); await rpc.request(method, { threadId: thread.id, ...params }); await done;
     };
     const input = userInput('Inspect the attached image.', [], [picture, jpeg]);
-    await validateImageInputs('turn/start', { input });
+    await imageProcessing.validate('turn/start', { input });
     await run('turn/start', { input });
     assert.equal(requests.length, 1);
     assert.deepEqual(authorization, ['Bearer test']);

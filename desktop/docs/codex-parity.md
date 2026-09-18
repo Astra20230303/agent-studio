@@ -17,6 +17,12 @@ event loop remains responsive. Native clipboard acceptance waits for the actual
 attachment chip before checking its durable record. Forced termination during a
 clipboard write can leave an unreferenced file; attachment cleanup remains open.
 
+Post-commit production Electron acceptance submits two memory-heavy JPEG checks
+and confirms window-state IPC responds before both validations finish; both then
+report the expected decoder memory-limit error. The real Codex image transport
+test now uses the worker service and verifies PNG/JPEG pixels at the HTTP model.
+No additional product correction was needed in these acceptance checks.
+
 ## JPEG attachment decoding preflight
 
 JPEG/JPG attachments now receive strict jpeg-js pixel decoding before turn/start
