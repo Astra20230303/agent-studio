@@ -49,3 +49,18 @@ test('unhandled notifications remain with caller; malformed lifecycle has no dom
   assert.deepEqual(f.state, before); assert.equal(f.records.size, 0);
   assert.deepEqual(f.finishes, []); assert.deepEqual(f.audits, []);
 });
+
+test('older completion and stale plan cannot replace an active turn or its transcript', () => {
+  const f = fixture();
+  f.emit('turn/started', { threadId: 'a', turn: { id: 'current' } });
+  f.emit('turn/plan/updated', { threadId: 'a', turnId: 'current', plan: [{ step: 'Current work', status: 'inProgress' }] });
+  f.emit('turn/plan/updated', { threadId: 'a', turnId: 'old', plan: [{ step: 'Stale work', status: 'completed' }] });
+  f.emit('item/completed', { threadId: 'a', turnId: 'old', item: { id: 'plan', type: 'plan', text: 'Stale proposal' } });
+  f.emit('turn/completed', { threadId: 'a', turn: { id: 'old', status: 'failed', error: { message: 'Old failure' } } });
+  assert.equal(f.records.get('a').turnId, 'current');
+  assert.equal(f.state.threads[0].status, 'running');
+  assert.equal(f.state.threads[0].plan.steps[0].step, 'Current work');
+  assert.equal(f.state.threads[0].messages.length, 1);
+  assert.equal(f.state.threads[0].messages[0].content, 'Old failure');
+  assert.deepEqual(f.finishes, [['a', 'old', false]]);
+});
