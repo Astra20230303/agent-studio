@@ -41,6 +41,17 @@ const {chromium} = require('playwright');
   await page.evaluate(()=>window.__finish[4]({ok:true}));
   await page.getByRole('dialog').waitFor({state:'detached'});
   assert.deepEqual(await page.evaluate(()=>window.__responses.map(item=>item.id)),[1,2,3,4]);
+  await page.evaluate(()=>window.__ask({id:5,method:'item/commandExecution/requestApproval',params:{command:'retry confirmation',availableDecisions:['decline','accept']}}));
+  await page.getByText('retry confirmation',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'拒绝',exact:true}).click();
+  await page.waitForFunction(()=>window.__responses.length===5);
+  await page.evaluate(()=>window.__finish[5]({ok:'true'}));
+  await page.getByRole('alert').filter({hasText:'提交失败，请重试。'}).waitFor();
+  await page.getByText('retry confirmation',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'拒绝',exact:true}).click();
+  await page.waitForFunction(()=>window.__responses.length===6);
+  await page.evaluate(()=>window.__finish[5]({ok:true}));
+  await page.getByRole('dialog').waitFor({state:'detached'});
   assert.deepEqual(errors,[]);
   console.log('PASS: resolved approval advances queue, restores focus, isolates stale errors and prevents duplicate responses');
  }finally{await browser.close();}
