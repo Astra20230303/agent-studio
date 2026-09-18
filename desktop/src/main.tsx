@@ -1,3 +1,4 @@
+import { projectRepository } from './projectRepository';
 import { validateRestorableHistory } from './historyValidation';
 import { unarchiveThread } from './codexClient';
 import { createThreadMutations } from './threadMutations';
@@ -396,7 +397,7 @@ function App({ initialState }: { initialState: DesktopState }) {
       if (!provider?.keyConfigured && provider?.authRequired !== false) throw new Error(failureMessage('MINIMAX_API_KEY'));
       const model = modelId(activeModel); const modelProvider = 'minimax';
       update(next => { const thread = next.threads.find(item => item.id === localId); if (thread) { thread.model = model; thread.reasoningEffort = activeEffort; } });
-      const cwd = workspaceFor(state, existing) || (!existing?.remoteId ? await window.desktop?.getProjectRoot?.() : undefined);
+      const cwd = workspaceFor(state, existing) || (!existing?.remoteId ? await projectRepository.defaultRoot() : undefined);
       update(next => { const thread = next.threads.find(item => item.id === localId); if (thread && cwd) { thread.cwd = cwd; if (!thread.remoteId) thread.projectId = state.activeProjectId; } });
       let threadId = existing?.remoteId;
       const createRemoteThread = async () => {
@@ -863,7 +864,7 @@ function Chat({ compaction, stopping, savingImages, onPasteImages, onDropAttachm
 
   useEffect(() => {
     let disposed = false;
-    window.desktop?.getProjectRoot?.().then(root => {
+    projectRepository.defaultRoot().then(root => {
       if (!disposed) setWorkingDirectory(root);
     }).catch(() => undefined);
     return () => { disposed = true; };
@@ -919,7 +920,7 @@ function Chat({ compaction, stopping, savingImages, onPasteImages, onDropAttachm
         textarea.current?.focus();
       }} /><span className="work-environment" title={project?.environment === 'worktree' ? '工作树' : '本地'} aria-label={project?.environment === 'worktree' ? '工作树' : '本地'}><Laptop aria-hidden="true" /></span></> : <><span className="project-context"><Laptop aria-hidden="true" />{project?.environment === 'worktree' ? '工作树' : '本地'}</span>
       {project?.git?.branch && <span className="project-context project-branch" title={project.git.branch}><GitBranch aria-hidden="true" /><span>{project.git.branch}</span></span>}</>}
-      {showProjects && <div className="floating-menu project-menu"><button onClick={async () => { try { const project = await window.desktop?.pickProject?.(); if (!project) return; onProjectChange(project); setShowProjects(false); } catch (error: any) { toast(error.message); } }}>打开文件夹…</button>{(projects.length ? projects : [{ id: workingDirectory || 'my-agent-plantform', name: projectName || 'my-agent-plantform', git: { isRepository: false }, environment: 'local' as const }]).map(item => <button key={item.id} onClick={() => { onProjectChange(item); setShowProjects(false); }}>{projectLabel(item.name)}</button>)}</div>}
+      {showProjects && <div className="floating-menu project-menu"><button onClick={async () => { try { const project = await projectRepository.pick(); if (!project) return; onProjectChange(project); setShowProjects(false); } catch (error: any) { toast(error.message); } }}>打开文件夹…</button>{(projects.length ? projects : [{ id: workingDirectory || 'my-agent-plantform', name: projectName || 'my-agent-plantform', git: { isRepository: false }, environment: 'local' as const }]).map(item => <button key={item.id} onClick={() => { onProjectChange(item); setShowProjects(false); }}>{projectLabel(item.name)}</button>)}</div>}
     </div>
     <div className="composer" {...fileDrop} onPaste={onPasteImages}>
       {savingImages && <p role="status">正在保存图片…</p>}
