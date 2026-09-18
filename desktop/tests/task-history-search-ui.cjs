@@ -12,8 +12,9 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  await filter.selectOption('completed');await page.getByText('没有匹配的运行记录',{exact:true}).waitFor();
  await search.fill('success');assert.equal(await rows.count(),1);await rows.locator('summary').click();await rows.getByRole('button',{name:'导出运行结果'}).waitFor();
  await filter.selectOption('all');await search.fill('retained');assert.equal(await rows.count(),1);
- await page.evaluate(()=>{window.__task.runs.unshift({id:'four',status:'completed',output:'New retained content',trigger:'scheduled',startedAt:'2026-09-18T01:00:00Z'});window.__changed();});
+ await page.evaluate(()=>{window.__task.runs.unshift({id:'four',threadId:'remote-history',configuration:{name:'Old task',prompt:'Historical instructions',kind:'reminder',model:'',permission:'read-only'},status:'completed',output:'New retained content',trigger:'scheduled',startedAt:'2026-09-18T01:00:00Z'});window.__changed();});
  await page.getByText('显示 2 / 4 条运行记录',{exact:true}).waitFor();
+ await search.fill('historical instructions');assert.equal(await rows.count(),1);await search.fill('remote-history');assert.equal(await rows.count(),1);
  await page.getByRole('dialog').getByRole('button',{name:'关闭对话框'}).click();await open();await page.getByText('显示 4 / 4 条运行记录',{exact:true}).waitFor();assert.equal(await search.inputValue(),'');
  console.log('PASS: history search covers output/errors, combines status, refreshes and resets on reopen');
 }finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});

@@ -130,7 +130,7 @@ async function main() {
     await dialog.locator('pre').getByText('LIVE_TASK_PROGRESS', {exact:true}).waitFor();
     assert.ok(await dialog.locator('.task-run').first().getByRole('button', {name:'复制运行结果',exact:true}).isDisabled());
     await dialog.getByRole('button', { name: '停止运行', exact: true }).click(); await changed();
-    await dialog.getByText('已中断', { exact: true }).waitFor();
+    await dialog.locator('.task-run summary').getByText('已中断', { exact: true }).waitFor();
     await dialog.locator('pre').getByText('LIVE_TASK_PROGRESS',{exact:true}).waitFor();
     assert.equal(scheduler.detail(sample.id).runs[0].output,'LIVE_TASK_PROGRESS');
     await dialog.getByRole('button', { name: '关闭对话框' }).click();
