@@ -37,7 +37,7 @@ async function main() {
       window.codex = { connect: async () => ({ ok: true }), notify: async () => {},
         request: async (method, params) => {
           window.__requests.push({ method, params });
-          return { ok: true, result: method === 'thread/items/list' ? { data: history } : method === 'thread/turns/list' ? { data: [{ id: 'turn', items: history }] } : method === 'thread/fork' ? { thread: { id: 'branch' } } : { data: [] } };
+          return { ok: true, result: method === 'thread/resume' ? { thread: { id: params.threadId, turns: [{ id: 'turn', status: 'completed', items: history }] } } : method === 'thread/items/list' ? { data: history } : method === 'thread/turns/list' ? { data: [{ id: 'turn', items: history }] } : method === 'thread/fork' ? { thread: { id: 'branch' } } : { data: [] } };
         },
         onNotification: fn => { window.__notify = fn; return () => {}; },
         onServerRequest: () => () => {}, onError: () => () => {}, onStderr: () => () => {}, onClosed: () => () => {}
@@ -54,21 +54,35 @@ async function main() {
       notify('item/agentMessage/delta', { itemId: 'after', delta: window.__history[3].text });
       notify('turn/completed', { turn: { id: 'turn', status: 'completed' } });
     });
-    await page.locator('.tool-row').first().waitFor();
-    assert.equal(await page.locator('.tool-row').count(), 2);
+    await page.waitForFunction(() => document.querySelectorAll('.tool-activity [data-message-id]').length === 2);
+    assert.equal(await page.locator('.tool-activity [data-message-id]').count(), 2);
     await page.locator('.tool-row > summary').first().click();
     assert.match(await page.locator('.tool-output').innerText(), /检查完成/);
     assert.doesNotMatch(await page.locator('.tool-output').innerText(), /temporary/);
+    const completedTools = await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.find(thread => thread.remoteId === 'remote').messages.filter(message => message.tool));
+    await page.evaluate(async () => {
+      const notify = (method, params) => window.__notify({ method, params: { threadId: 'remote', turnId: 'turn', ...params } });
+      notify('item/commandExecution/outputDelta', { delta: 'Missing identity' });
+      notify('item/commandExecution/outputDelta', { itemId: 'new', delta: {} });
+      notify('item/started', { item: { ...window.__history[1], status: 'inProgress' } });
+      notify('item/commandExecution/outputDelta', { itemId: 'cmd', delta: 'late output' });
+      notify('item/fileChange/outputDelta', { itemId: 'cmd', delta: 'wrong type' });
+      notify('item/fileChange/patchUpdated', { itemId: 'patch', changes: [{ path: 'wrong.txt', kind: { type: 'update' }, diff: '+late' }] });
+      notify('item/fileChange/patchUpdated', { itemId: 'bad-patch', changes: {} });
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    });
+    assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.find(thread => thread.remoteId === 'remote').messages.filter(message => message.tool)), completedTools);
+    assert.equal(await page.locator('.tool-activity [data-message-id]').count(), 2);
+    assert.doesNotMatch(await page.locator('.tool-output').innerText(), /late output|Missing identity|wrong type/);
     await page.locator('.tool-row > summary').first().click();
     await page.reload();
-    await page.locator('.tool-row').first().waitFor();
-    assert.equal(await page.locator('.tool-row').count(), 2);
+    await page.waitForFunction(() => document.querySelectorAll('.tool-activity [data-message-id]').length === 2);
+    assert.equal(await page.locator('.tool-activity [data-message-id]').count(), 2);
     await page.getByRole('button', { name: '执行记录测试', exact: true }).click();
-    assert.equal(await page.locator('.tool-row').count(), 2);
+    assert.equal(await page.locator('.tool-activity [data-message-id]').count(), 2);
     await page.screenshot({ path: path.join(artifacts, 'tool-activity-desktop.png') });
-    await page.locator('.tool-row > summary').nth(1).click();
-    await page.locator('.tool-file > summary').click();
-    assert.match(await page.locator('.tool-file pre').innerText(), /\+new/);
+    await page.getByRole('button', { name: '审核', exact: true }).click();
+    assert.match(await page.locator('.artifact-review pre').innerText(), /\+new/);
     await page.setViewportSize({ width: 960, height: 640 });
     const layout = await page.evaluate(() => ({
       threadBottom: document.querySelector('.thread-view').getBoundingClientRect().bottom,
