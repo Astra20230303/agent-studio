@@ -35,6 +35,12 @@ const assert = require('node:assert/strict');
     assert.equal(await host.getByText('已复制工具结果', { exact: true }).count(), 0);
     await copy.click(); await host.getByText('已复制工具结果', { exact: true }).waitFor();
     assert.equal(await page.evaluate(() => window.__copied.at(-1)), 'Updated result');
+    for (const value of [null, false, 0, { content: [] }]) {
+      await page.evaluate(value => window.__renderResult(value), value);
+      await host.locator('details pre').filter({ hasText: JSON.stringify(value, null, 2) }).waitFor();
+      await copy.click(); await host.getByText('已复制工具结果', { exact: true }).waitFor();
+      assert.equal(await page.evaluate(() => window.__copied.at(-1)), JSON.stringify(value, null, 2));
+    }
     console.log('PASS: full structured tool copy matches view, failure retries and delayed completion cannot label newer result copied');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

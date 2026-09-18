@@ -9,6 +9,10 @@ completion for an older result cannot label an updated result as copied. Browser
 acceptance covers long nested output, exact view/copy equality, failure/retry and
 delayed completion after result replacement. Production build passes.
 
+Post-commit acceptance verifies null, false, zero and empty content objects retain
+their literal JSON representation when copied. Tool media/envelope regression
+tests pass without additional product correction.
+
 ## Validate legacy migration before writes
 
 Legacy import validates all missing native records before writing any candidate.
