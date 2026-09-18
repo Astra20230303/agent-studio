@@ -10,6 +10,11 @@ smaller). New image payloads reset dimensions, errors and scale. Browser tests
 cover rendered dimensions, scrolling, mode changes and payload reset; real-file
 attachment/error recovery regression and production build pass.
 
+Post-commit acceptance checks actual fitted-size zoom, both scale boundaries and
+a narrow viewport fitting below ten percent. The latter prompted a correction:
+entering explicit zoom now clamps to the documented minimum. Expanded browser
+acceptance and production build pass.
+
 ## Find text in read-only file previews
 
 File previews support Ctrl/Command+F, literal search, case sensitivity, match

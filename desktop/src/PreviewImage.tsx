@@ -27,7 +27,7 @@ function ImageCanvas({ source, name }: { source: string; name: string }) {
       <button disabled={!ready} aria-pressed={scale === null} onClick={() => setScale(null)}>适应窗口</button>
       <button disabled={!ready} aria-pressed={scale === 1} onClick={() => setScale(1)}>原始尺寸</button>
       <button aria-label="缩小图片" disabled={!ready || displayedScale <= 0.1} onClick={() => setScale(Math.max(0.1, displayedScale / 1.25))}>−</button>
-      <button aria-label="放大图片" disabled={!ready || displayedScale >= 8} onClick={() => setScale(Math.min(8, displayedScale * 1.25))}>+</button>
+      <button aria-label="放大图片" disabled={!ready || displayedScale >= 8} onClick={() => setScale(Math.max(0.1, Math.min(8, displayedScale * 1.25)))}>+</button>
       {ready && <span role="status">{dimensions.width} × {dimensions.height} · {scale === null ? '适应窗口' : `${Math.round(scale * 100)}%`}</span>}
     </div>
     {failed && <p role="alert">图片无法解码，文件可能已损坏。请修复文件后刷新预览。</p>}
