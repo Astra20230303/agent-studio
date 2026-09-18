@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { listBackgroundTerminals, terminateBackgroundTerminal, type BackgroundTerminal } from './codexClient';
 import { backgroundTerminalMetrics } from './backgroundTerminalMetrics';
 
-export function BackgroundTerminals({ threadId, connected }: { threadId: string; connected: boolean }) {
+export function BackgroundTerminals({ threadId, connected, onTerminated }: { threadId: string; connected: boolean; onTerminated: () => void }) {
   const [items, setItems] = useState<BackgroundTerminal[]>([]);
   const [cursor, setCursor] = useState<string>();
   const [loaded, setLoaded] = useState(false);
@@ -35,6 +35,7 @@ export function BackgroundTerminals({ threadId, connected }: { threadId: string;
     const version = generation.current;
     try {
       const terminated = await terminateBackgroundTerminal(threadId, item.processId);
+      if (terminated) onTerminated();
       if (version !== generation.current) return;
       setItems(previous => previous.filter(value => value.processId !== item.processId));
       setStatus(terminated ? '后台命令已终止' : '后台命令已退出');
