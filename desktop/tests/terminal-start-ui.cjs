@@ -45,6 +45,35 @@ const assert = require('node:assert/strict');
     await page.evaluate(() => window.__creates[3].resolve({ ok: true, id: 'replacement' }));
     await status.filter({ hasText: '运行中' }).waitFor();
     assert.equal(await page.evaluate(() => window.__closes.includes('replacement')), false);
-    console.log('PASS: pending start deduplication, failure/retry, exit/restart and late disposed creation cleanup');
+    await page.evaluate(() => {
+      window.__emit({ id: 'replacement', type: 'exit', code: 0 });
+      window.__originalCreate = window.desktop.terminal.create;
+      window.desktop.terminal.create = () => { throw Error('synchronous spawn failure'); };
+    });
+    await restart.click();
+    await status.filter({ hasText: '启动失败' }).waitFor();
+    await page.getByRole('alert').filter({ hasText: 'synchronous spawn failure' }).waitFor();
+    assert.equal(await restart.isEnabled(), true);
+    await page.evaluate(() => { window.desktop.terminal.create = window.__originalCreate; });
+    for (const result of [{ ok: true }, { ok: true, id: '  ' }, { ok: 'yes', id: 'invalid' }]) {
+      const count = await page.evaluate(() => window.__creates.length);
+      await restart.click();
+      await page.waitForFunction(count => window.__creates.length === count + 1, count);
+      await page.evaluate(result => window.__creates.at(-1).resolve(result), result);
+      await status.filter({ hasText: '启动失败' }).waitFor();
+      assert.equal(await restart.isEnabled(), true);
+    }
+    const count = await page.evaluate(() => window.__creates.length);
+    await restart.click();
+    await page.waitForFunction(count => window.__creates.length === count + 1, count);
+    // Exit can arrive before create acknowledgement; it must not leave running enabled.
+    await page.evaluate(() => {
+      window.__emit({ id: 'already-exited', type: 'exit', code: 7 });
+      window.__creates.at(-1).resolve({ ok: true, id: 'already-exited' });
+    });
+    await status.filter({ hasText: '已退出 (7)' }).waitFor();
+    assert.equal(await restart.isEnabled(), true);
+    assert.equal(await page.getByRole('button', { name: '终止终端', exact: true }).isDisabled(), true);
+    console.log('PASS: startup lock, sync/async failures, malformed confirmation, retry, early exit and late cleanup');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
