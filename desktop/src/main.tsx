@@ -83,7 +83,7 @@ import { restoreMessages } from './toolActivity';
 import { ToolActivityGroup, groupMessages } from './ToolActivityView';
 import { MessageActions } from './ReplyActions';
 import { branchSnapshot, fullBranchSnapshot, isFinalReply } from './messageActions';
-import { clearThreadGoal, connectCodex, getThreadGoal, resetMemory, revertThread, setThreadGoal, setThreadMemoryMode, startReview, subscribeCodex } from './codexClient';
+import { clearThreadGoal, connectCodex, getThreadGoal, readAccountRateLimits, resetMemory, revertThread, setThreadGoal, setThreadMemoryMode, startReview, subscribeCodex } from './codexClient';
 import { ReviewDialog, type ReviewTarget } from './ReviewDialog';
 import { ExtensionsPage, ExtensionIcon } from './ExtensionsPage';
 import { ThreadButton } from './ThreadButton';
@@ -194,6 +194,7 @@ function App({ initialState }: { initialState: DesktopState }) {
   const archiveLocks = useRef(new Set<string>());
   const [forking, setForking] = useState(false);
   const [providerStatus, setProviderStatus] = useState<any>();
+  const [rateLimits, setRateLimits] = useState<import('./rateLimits').RateLimits>();
   const [providerChoices, setProviderChoices] = useState<Array<{ id: string; name: string; enabled?: boolean; keyConfigured?: boolean; authRequired?: boolean }>>([]);
   const [newThreadProviderId, setNewThreadProviderId] = useState<string>();
   const selectedProviderId = state.threads.find(thread => thread.id === state.activeThreadId)?.providerId || newThreadProviderId;
@@ -611,6 +612,10 @@ function App({ initialState }: { initialState: DesktopState }) {
     if (!window.confirm('清除 Codex 记忆？这会影响所有会话，且无法撤销。')) return;
     try { await resetMemory(); toast('Codex 记忆已清除'); } catch (error) { toast(`清除记忆失败：${error instanceof Error ? error.message : String(error)}`); }
   };
+  const refreshRateLimits = async () => {
+    if (codexStatus !== 'connected') { toast('请先连接工作区服务'); return; }
+    try { setRateLimits(await readAccountRateLimits()); toast('额度已刷新'); } catch (error) { toast(`读取额度失败：${error instanceof Error ? error.message : String(error)}`); }
+  };
   const revertFromMessage = async (messageId: string) => {
     const thread = active;
     if (!thread?.remoteId || codexStatus !== 'connected') throw Error('请先连接远端会话');
@@ -766,7 +771,7 @@ function App({ initialState }: { initialState: DesktopState }) {
     });
     setPage('chat');
   };
-  const serviceControl = <section className="settings-card" aria-label="工作区服务连接"><h2>工作区服务</h2><p role="status">服务连接：{codexStatus === 'connected' ? '已连接' : codexStatus === 'connecting' ? '连接中' : '未连接'}</p><p>配置变更后可重启服务并重新连接。{serviceInUse ? '请先等待运行中会话、审批和沙箱设置结束。' : '草稿保留，排队消息会暂停。'}</p><button disabled={serviceInUse || restarting || codexStatus === 'connecting'} onClick={() => { void restartService(); }}>重启并重新连接服务</button><button disabled={serviceInUse || codexStatus !== 'connected'} onClick={() => void resetAllMemory()}>清除 Codex 记忆</button></section>;
+  const serviceControl = <section className="settings-card" aria-label="工作区服务连接"><h2>工作区服务</h2><p role="status">服务连接：{codexStatus === 'connected' ? '已连接' : codexStatus === 'connecting' ? '连接中' : '未连接'}</p><p>配置变更后可重启服务并重新连接。{serviceInUse ? '请先等待运行中会话、审批和沙箱设置结束。' : '草稿保留，排队消息会暂停。'}</p><button disabled={serviceInUse || restarting || codexStatus === 'connecting'} onClick={() => { void restartService(); }}>重启并重新连接服务</button><button disabled={serviceInUse || codexStatus !== 'connected'} onClick={() => void resetAllMemory()}>清除 Codex 记忆</button><button disabled={codexStatus !== 'connected'} onClick={() => void refreshRateLimits()}>刷新账户额度</button>{rateLimits && <p role="status">{rateLimits.limitName ? `${rateLimits.limitName}：` : ''}{rateLimits.primary ? `主窗口已用 ${rateLimits.primary.usedPercent}%` : ''}{rateLimits.secondary ? ` · 次窗口已用 ${rateLimits.secondary.usedPercent}%` : ''}</p>}</section>;
   return <div className={`desktop-app ${effectiveTheme} ${page === 'settings' ? 'settings-mode' : ''} ${terminalOpen ? 'terminal-visible' : ''}`}>
     <ServerWarnings warnings={serverWarnings.warnings} dismiss={serverWarnings.dismiss} />
     {queue.saveFailed && <div role="alert" className="state-save-warning">排队消息未能保存，自动发送已暂停。关闭窗口可能丢失更改或恢复旧队列。<button onClick={queue.retry}>重试保存队列</button></div>}
@@ -1104,6 +1109,7 @@ function ProviderSettings({ audit, state, update, toast }: { audit: ReturnType<t
 
   declare global { interface Window { desktop?: WindowFrameBridge & { storage?: import('./persistentStorage').StorageBridge; platform?: string; savePastedImage?: (bytes: Uint8Array) => Promise<{ ok: boolean; path?: string; error?: string }>; droppedFilePaths?: (files: File[]) => string[]; saveTaskOutput?: (input: { filename: string; content: string }) => Promise<{ ok: boolean; canceled?: boolean; error?: string }>; saveTerminal?: (input: { filename: string; content: string }) => Promise<{ ok: boolean; canceled?: boolean; error?: string }>; saveConversation?: (input: { filename: string; content: string }) => Promise<{ ok: boolean; canceled?: boolean; error?: string }>;  openExternal?: (url: string) => Promise<void>; terminal?: import('./TerminalPanel').TerminalBridge; artifact?: (input: any) => Promise<any>; toggleMaximize: () => Promise<{ maximized?: boolean }>; minimize?: () => Promise<void>; close?: () => Promise<void>; providerStatus?: (providerId?: string) => Promise<any>; saveProvider?: (input: { id?: string; activate?: boolean; manualModel?: boolean; name: string; baseUrl: string; apiKey: string; model: string }) => Promise<{ ok: boolean; id?: string; error?: string }>; listProviders?: () => Promise<any[]>; threadProvider?: (threadId: string) => Promise<string | undefined>; deleteProvider?: (id: string) => Promise<{ ok: boolean; error?: string }>; activateProvider?: (id: string) => Promise<{ ok: boolean; model?: string; error?: string }>; listModels?: (input?: { providerId: string } | { id?: string; baseUrl: string; apiKey: string }) => Promise<any>; workspaceGit?: (input: any) => Promise<any>; workspaceFile?: (input: { root: string; path: string; action: string; query?: string; searchOptions?: { caseSensitive?: boolean; wholeWord?: boolean }; edit?: { text: string; revision: string } }) => Promise<any>; pickProject?: () => Promise<import('./domain').Project | null>; getProjectRoot?: () => Promise<string>; pickFiles?: () => Promise<string[]>; readExtensionFile?: (path: string, kind: 'image' | 'skill') => Promise<any>; listTasks?: () => Promise<any>; saveTask?: (input: any) => Promise<any>; setTaskStatus?: (id: string, status: string) => Promise<any>; runTask?: (id: string) => Promise<any>; cancelTask?: (id: string) => Promise<any>; deleteTask?: (id: string) => Promise<any>; taskDetail?: (id: string) => Promise<any>; validateAttachment?: (path: string) => Promise<{ ok: boolean; error?: string }>; onOpenTask?: (listener: (taskId: string) => void) => () => void; onTasksChanged?: (listener: (message?: { error?: string }) => void) => () => void }; codex?: any } }
 createRoot(document.getElementById('root')!).render(<StrictMode><WindowFrame><StorageGate>{state => <App initialState={state} />}</StorageGate></WindowFrame></StrictMode>);
+
 
 
 
