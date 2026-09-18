@@ -1,3 +1,5 @@
+import { orderTasks } from './taskOrdering';
+import type { TaskOrder } from './taskOrdering';
 import { duplicateTask } from './duplicateTask';
 import { projectRepository } from './projectRepository';
 import { createAutomationRepository } from './automationRepository';
@@ -82,6 +84,7 @@ function TaskEditor({ draft, providers, onClose, onSaved }: { draft: TaskDraft; 
 
 export function ScheduledPage({ providers, cwd, openRequest, onOpenHandled, onOpenConversation, onRecord }: { onRecord?: (action: string) => void; onOpenConversation?: (threadId: string, title: string) => void; onOpenHandled?: (request: { id: string }) => void; openRequest?: { id: string }; providers: { id: string; name: string; enabled?: boolean }[]; cwd?: string }) {
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
+  const [order, setOrder] = useState<TaskOrder>('original');
   const [query, setQuery] = useState(''); const [filter, setFilter] = useState('all');
   const [draft, setDraft] = useState<TaskDraft>(); const [selectedId, setSelectedId] = useState<string>();
   const [detail, setDetail] = useState<ScheduledTask>(); const [deleting, setDeleting] = useState<ScheduledTask>();
@@ -137,7 +140,7 @@ export function ScheduledPage({ providers, cwd, openRequest, onOpenHandled, onOp
     catch (caught) { setError(caught instanceof Error ? caught.message : '操作失败。'); }
     finally { mutationLock.current = false; setBusy(false); }
   };
-  const visible = tasks.filter(task => `${task.name} ${task.prompt}`.toLowerCase().includes(query.toLowerCase()) && (filter === 'all' || (filter === 'failed' ? task.runs[0]?.status === 'failed' : task.status === filter)));
+  const visible = orderTasks(tasks.filter(task => `${task.name} ${task.prompt}`.toLowerCase().includes(query.toLowerCase()) && (filter === 'all' || (filter === 'failed' ? task.runs[0]?.status === 'failed' : task.status === filter))), order);
   const anyRunning = tasks.some(task => task.runs[0]?.status === 'running');
   return <div className="scheduled-page">
     <div className="scheduled-topbar"><div className="task-create-menu" ref={createRoot} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setCreateMenu(false); }} onKeyDown={event => {
@@ -151,6 +154,7 @@ export function ScheduledPage({ providers, cwd, openRequest, onOpenHandled, onOp
         event.preventDefault(); const tabs = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')); const index = tabs.indexOf(document.activeElement as HTMLButtonElement);
         const target = tabs[event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length]; target?.focus(); target?.click();
       }}>{[['all', '全部'], ['active', '已开启'], ['paused', '已暂停'], ['completed', '已完成'], ['failed', '最近失败']].map(([id, label]) => <button role="tab" id={`task-tab-${id}`} aria-controls="task-list" tabIndex={filter === id ? 0 : -1} aria-selected={filter === id} key={id} onClick={() => setFilter(id)}>{label}</button>)}</div>
+      <label className="task-sort">排序<select aria-label="任务排序" value={order} onChange={event => setOrder(event.target.value as TaskOrder)}><option value="original">默认顺序</option><option value="next">下次运行：最早优先</option><option value="recent">最近运行：最新优先</option><option value="name">任务名称</option></select></label>
       {loadError && <div className="task-error" role="alert"><span>{loadError}</span><button onClick={() => void reload()}>重试</button></div>}
       {error && !selectedId && <div className="task-error" role="alert"><span>{error}</span><button aria-label="关闭错误" onClick={() => setError('')}><X size={16} /></button></div>}
       {loading ? <div className="task-empty" role="status">正在读取任务…</div> : <div id="task-list" className="task-list" role="tabpanel" aria-labelledby={`task-tab-${filter}`}>{visible.map(task => {

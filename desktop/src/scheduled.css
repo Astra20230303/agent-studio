@@ -71,3 +71,6 @@
 @media (prefers-reduced-motion:reduce) { .task-spin { animation:none; } }
 @media(max-width:760px){.desktop-titlebar nav[aria-label="应用菜单"]{display:none}}
 .task-metadata dd{min-width:0;overflow-wrap:anywhere}
+
+.task-sort { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin:0 8px 12px; color:var(--task-muted); font-size:13px; }
+.task-sort select { max-width:100%; padding:6px 8px; border:1px solid var(--task-line); border-radius:8px; background:var(--task-bg); color:var(--task-text); }
