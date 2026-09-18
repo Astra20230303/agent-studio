@@ -37,6 +37,7 @@ export interface ToolActivity {
 }
 
 export interface Thread {
+  sectionId?: string;
   providerId?: string;
   model?: string;
   reasoningEffort?: ReasoningEffort;

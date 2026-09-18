@@ -19,3 +19,8 @@ test('legacy threads envelope and terminal page remain supported', () => {
   assert.equal(threadPage({ threads: [{ id: 'legacy' }], nextCursor: null }).data[0].id, 'legacy');
   assert.equal(threadPage({ data: [], nextCursor: '' }).nextCursor, undefined);
 });
+test('preserves valid thread sections and rejects malformed section identities', () => {
+  const page = threadPage({ data: [{ id: 'grouped', section: { id: 'sec-1', name: '工作' } }] });
+  assert.deepEqual(page.data[0].section, { id: 'sec-1', name: '工作' });
+  assert.throws(() => threadPage({ data: [{ id: 'bad', section: { id: 'sec-1' } }] }), /分组信息无效/);
+});

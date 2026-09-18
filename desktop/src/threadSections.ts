@@ -9,3 +9,9 @@ export function readThreadSection(value: any): ThreadSection {
   if (!id(value?.section?.id) || !id(value.section.name)) throw new Error('分组响应无效');
   return { id: value.section.id, name: value.section.name };
 }
+
+export function readOptionalThreadSection(value: any): ThreadSection | undefined {
+  if (value == null) return undefined;
+  if (!id(value?.id) || !id(value?.name)) throw new Error('会话分组信息无效');
+  return { id: value.id, name: value.name };
+}

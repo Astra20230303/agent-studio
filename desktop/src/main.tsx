@@ -245,6 +245,14 @@ function App({ initialState }: { initialState: DesktopState }) {
     change(1); void done.finally(() => change(-1));
   };
   const threads = useMemo(() => state.threads.filter(thread => !thread.archived && (thread.title.toLowerCase().includes(search.trim().toLowerCase()) || thread.messages.some(message => message.content.toLowerCase().includes(search.trim().toLowerCase())) || !!thread.remoteId && threadList.matchingIds.includes(thread.remoteId))).slice().sort((a, b) => Number(b.pinned) - Number(a.pinned) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt)), [state.threads, search, threadList.matchingIds]);
+  const threadsBySection = useMemo(() => {
+    const grouped = new Map<string, typeof threads>();
+    for (const thread of threads) {
+      const key = thread.sectionId && threadSections.some(section => section.id === thread.sectionId) ? thread.sectionId : '';
+      grouped.set(key, [...(grouped.get(key) || []), thread]);
+    }
+    return grouped;
+  }, [threads, threadSections]);
   const refreshProviders = () => window.desktop?.listProviders?.().then((items: any[]) => {
     const choices = Array.isArray(items) ? items : []; setProviderChoices(choices);
     const enabled = choices.find(item => item.enabled); if (!newThreadProviderId && enabled) setNewThreadProviderId(enabled.id);
@@ -629,9 +637,13 @@ function App({ initialState }: { initialState: DesktopState }) {
     try { setAccountInfo(await readAccount()); toast('账户信息已刷新'); } catch (error) { toast(`读取账户信息失败：${error instanceof Error ? error.message : String(error)}`); }
   };
   const refreshThreadSections = async () => { if (codexStatus !== 'connected') { toast('请先连接工作区服务'); return; } try { setThreadSections(await listThreadSections()); toast('分组已刷新'); } catch (error) { toast(`读取分组失败：${error instanceof Error ? error.message : String(error)}`); } };
+  useEffect(() => {
+    if (codexStatus !== 'connected') { setThreadSections([]); return; }
+    void listThreadSections().then(setThreadSections).catch(() => { /* 设置页提供显式重试 */ });
+  }, [codexStatus]);
   const createSection = async (name: string) => { try { const section = await createThreadSection(name); setThreadSections(current => [...current, section]); toast('分组已创建'); } catch (error) { toast(`创建分组失败：${error instanceof Error ? error.message : String(error)}`); } };
-  const deleteSection = async (id: string) => { try { await deleteThreadSection(id); setThreadSections(current => current.filter(section => section.id !== id)); toast('分组已删除'); } catch (error) { toast(`删除分组失败：${error instanceof Error ? error.message : String(error)}`); } };
-  const moveActiveSection = async (sectionId: string | null) => { if (!active?.remoteId) return; try { await moveThreadSection(active.remoteId, sectionId); toast('会话分组已更新'); } catch (error) { toast(`移动会话失败：${error instanceof Error ? error.message : String(error)}`); } };
+  const deleteSection = async (id: string) => { try { await deleteThreadSection(id); setThreadSections(current => current.filter(section => section.id !== id)); update(next => next.threads.forEach(thread => { if (thread.sectionId === id) delete thread.sectionId; })); toast('分组已删除'); } catch (error) { toast(`删除分组失败：${error instanceof Error ? error.message : String(error)}`); } };
+  const moveActiveSection = async (sectionId: string | null) => { if (!active?.remoteId) return; try { await moveThreadSection(active.remoteId, sectionId); update(next => { const thread = next.threads.find(item => item.id === active.id); if (thread) { if (sectionId) thread.sectionId = sectionId; else delete thread.sectionId; } }); toast('会话分组已更新'); } catch (error) { toast(`移动会话失败：${error instanceof Error ? error.message : String(error)}`); } };
   const revertFromMessage = async (messageId: string) => {
     const thread = active;
     if (!thread?.remoteId || codexStatus !== 'connected') throw Error('请先连接远端会话');
@@ -862,7 +874,12 @@ function App({ initialState }: { initialState: DesktopState }) {
           {state.activeProjectId ? <div className="sidebar-project" title={projectLabel(state.projects.find(project => project.id === state.activeProjectId)?.name ?? state.activeProjectId)}><FolderOpen aria-hidden="true" /><span>{projectLabel(state.projects.find(project => project.id === state.activeProjectId)?.name ?? state.activeProjectId)}</span></div> : <div className="empty">没有项目</div>}
         </section>
         <section aria-labelledby="sidebar-recent"><h2 id="sidebar-recent" className="section">最近</h2>
-          {threads.map(thread => <div key={thread.id}><ThreadButton thread={thread} selected={page === 'chat' && state.activeThreadId === thread.id} onSelect={() => { void selectThread(thread); closeNarrowSidebar(); }} onTogglePin={() => togglePinned(thread.id)} onArchive={() => { void archiveConversation(thread.id); }} onDelete={() => { void deleteThreadFromSidebar(thread.id); }} />{search.trim() && thread.remoteId && threadList.snippets[thread.remoteId] && <p className="thread-search-snippet">{threadList.snippets[thread.remoteId].slice(0, 300)}</p>}</div>)}
+          {threadSections.map(section => {
+            const sectionThreads = threadsBySection.get(section.id) || [];
+            if (!sectionThreads.length) return null;
+            return <div key={section.id} className="thread-section"><h3 className="section thread-section-heading">{section.name}</h3>{sectionThreads.map(thread => <div key={thread.id}><ThreadButton thread={thread} selected={page === 'chat' && state.activeThreadId === thread.id} onSelect={() => { void selectThread(thread); closeNarrowSidebar(); }} onTogglePin={() => togglePinned(thread.id)} onArchive={() => { void archiveConversation(thread.id); }} onDelete={() => { void deleteThreadFromSidebar(thread.id); }} />{search.trim() && thread.remoteId && threadList.snippets[thread.remoteId] && <p className="thread-search-snippet">{threadList.snippets[thread.remoteId].slice(0, 300)}</p>}</div>)}</div>;
+          })}
+          {(threadsBySection.get('') || []).map(thread => <div key={thread.id}><ThreadButton thread={thread} selected={page === 'chat' && state.activeThreadId === thread.id} onSelect={() => { void selectThread(thread); closeNarrowSidebar(); }} onTogglePin={() => togglePinned(thread.id)} onArchive={() => { void archiveConversation(thread.id); }} onDelete={() => { void deleteThreadFromSidebar(thread.id); }} />{search.trim() && thread.remoteId && threadList.snippets[thread.remoteId] && <p className="thread-search-snippet">{threadList.snippets[thread.remoteId].slice(0, 300)}</p>}</div>)}
           {threads.length === 0 && !threadList.loading && !threadList.error && <div className="empty">{search ? '没有匹配的会话' : '暂无会话'}</div>}
           {threadList.error && <p role="alert">{threadList.error}</p>}
           {(threadList.hasMore || threadList.error || threadList.loading) && <button disabled={threadList.loading || codexStatus !== 'connected'} onClick={() => void threadList.loadMore()}>{threadList.loading ? '正在加载会话…' : threadList.error ? '重试加载会话' : '加载更多会话'}</button>}

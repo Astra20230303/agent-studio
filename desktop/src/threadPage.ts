@@ -1,3 +1,5 @@
+import { readOptionalThreadSection } from './threadSections.ts';
+
 // Keep malformed server fields out of rendering and persisted workspace state.
 export function threadPage(value: any) {
   const data = value?.data ?? value?.threads;
@@ -12,6 +14,7 @@ export function threadPage(value: any) {
       snippet: typeof item.snippet === 'string' ? item.snippet : undefined,
       updatedAt: typeof item.updatedAt === 'number' || typeof item.updatedAt === 'string' ? item.updatedAt : 0,
       status: { type: typeof item.status?.type === 'string' ? item.status.type : undefined },
+      ...(item.section == null ? {} : { section: readOptionalThreadSection(item.section) }),
     })),
   };
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { DesktopState } from './domain';
 import type { ThreadRepository } from './threadRepository';
+import { readOptionalThreadSection } from './threadSections';
 
 export function useThreadList(repository: ThreadRepository, connected: boolean, setState: Dispatch<SetStateAction<DesktopState>>, search = '') {
   const query = search.trim();
@@ -27,12 +28,20 @@ export function useThreadList(repository: ThreadRepository, connected: boolean, 
         const threads = [...previous.threads];
         const ids = new Set(threads.map(thread => thread.remoteId));
         for (const item of result.data) {
-          if (typeof item?.id !== 'string' || !item.id || ids.has(item.id)) continue;
+          if (typeof item?.id !== 'string' || !item.id) continue;
+          const section = readOptionalThreadSection(item.section);
+          if (ids.has(item.id)) {
+            const existing = threads.find(thread => thread.remoteId === item.id);
+            if (existing && Object.prototype.hasOwnProperty.call(item, 'section')) {
+              if (section) existing.sectionId = section.id; else delete existing.sectionId;
+            }
+            continue;
+          }
           ids.add(item.id);
           const timestamp = Number(item.updatedAt) * 1000;
           const updatedAt = new Date(Number.isFinite(timestamp) && Math.abs(timestamp) <= 8640000000000000 ? timestamp : 0).toISOString();
           const title = [item.name, item.preview].find(value => typeof value === 'string' && value.trim()) || 'Felix 对话';
-          threads.push({ id: `remote-${item.id}`, remoteId: item.id, title, cwd: item.cwd, status: item.status?.type === 'active' ? 'running' : 'completed', pinned: false, archived: false, messages: [], updatedAt });
+          threads.push({ id: `remote-${item.id}`, remoteId: item.id, sectionId: section?.id, title, cwd: item.cwd, status: item.status?.type === 'active' ? 'running' : 'completed', pinned: false, archived: false, messages: [], updatedAt });
         }
         return { ...previous, threads };
       });
