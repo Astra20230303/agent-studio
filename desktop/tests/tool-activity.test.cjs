@@ -126,6 +126,18 @@ test('turn termination updates unfinished tools without deleting them or other t
   assert.equal(thread.messages[1].tool.status, 'failed');
   assert.equal(thread.messages[2].tool.status, 'inProgress');
 });
+test('reasoning text deltas preserve content indexes and isolate malformed or terminal updates', () => {
+  const thread = makeThread();
+  assert.equal(applyToolEvent(thread, 'item/reasoning/textDelta', { turnId: 't', itemId: 'reason', contentIndex: 1, delta: 'second' }), undefined);
+  assert.equal(applyToolEvent(thread, 'item/reasoning/textDelta', { turnId: 't', itemId: 'reason', contentIndex: 0, delta: 'first' }), undefined);
+  assert.deepEqual(thread.messages[1].tool.rawRecord.item.text, ['first', 'second']);
+  applyToolEvent(thread, 'item/completed', { turnId: 't', item: { id: 'reason', type: 'reasoning', status: 'completed' } });
+  applyToolEvent(thread, 'item/reasoning/textDelta', { turnId: 't', itemId: 'reason', contentIndex: 0, delta: ' late' });
+  assert.equal(thread.messages[1].tool.rawRecord.item.text[0], 'first');
+  applyToolEvent(thread, 'item/reasoning/textDelta', { turnId: 't', itemId: 'reason', contentIndex: -1, delta: 'bad' });
+  applyToolEvent(thread, 'item/reasoning/textDelta', { turnId: 'other', itemId: 'reason', contentIndex: 0, delta: 'bad' });
+  assert.equal(thread.messages[1].tool.rawRecord.item.text[0], 'first');
+});
 
 test('malformed history entries are ignored without hiding valid records', () => {
   const previous = [{ id: 'old', role: 'assistant', content: 'old' }];

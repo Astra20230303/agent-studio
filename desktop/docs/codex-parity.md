@@ -3578,3 +3578,8 @@ Codex Rust 传递依赖和原生二进制传递依赖仍需进一步许可审计
 
 - 验收发现恢复路径会丢失已应用的 `eventId`/`deltaId`。修正 `restoreMessages`：仅当回复项和回合身份兼容时恢复经过校验的最近 256 个身份，跨回合不继承，避免恢复后重放重复追加。
 - 12 项 assistant/thread/recovery 测试及 TypeScript/Vite 构建回归通过。
+
+### 原始推理文本增量（2026-09-19）
+
+- 已交付：接入上游 `item/reasoning/textDelta`，按 `contentIndex` 校验并保留稀疏内容片段，与摘要片段一起显示在推理卡片；坏索引、坏文本、跨回合和完成后的迟到事件不会污染结果。未知推理条目继续使用原始记录兼容路径。
+- 验证：18 项 tool-activity/thread-events 测试通过，覆盖乱序索引、重复/终态保护、坏输入和事件入口；生产 TypeScript/Vite 构建通过。

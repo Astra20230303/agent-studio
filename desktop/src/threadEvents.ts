@@ -6,7 +6,7 @@ import { applyToolEvent, finishTools } from './toolActivity.ts';
 import type { DesktopState } from './domain';
 import type { TurnEvent, TurnRuntime } from './turnRuntime';
 
-const methods = new Set(['turn/plan/updated', 'turn/started', 'turn/completed', 'error', 'item/agentMessage/delta', 'item/started', 'item/completed', 'item/commandExecution/outputDelta', 'item/fileChange/outputDelta', 'item/fileChange/patchUpdated', 'item/reasoning/summaryTextDelta', 'item/reasoning/summaryPartAdded']);
+const methods = new Set(['turn/plan/updated', 'turn/started', 'turn/completed', 'error', 'item/agentMessage/delta', 'item/started', 'item/completed', 'item/commandExecution/outputDelta', 'item/fileChange/outputDelta', 'item/fileChange/patchUpdated', 'item/reasoning/textDelta', 'item/reasoning/summaryTextDelta', 'item/reasoning/summaryPartAdded']);
 
 export function createThreadEvents({ update, runtime, queue, audit }: {
   update: (mutate: (state: DesktopState) => void) => void;
@@ -49,7 +49,7 @@ export function createThreadEvents({ update, runtime, queue, audit }: {
         if (thread) applyAssistantMessage(thread, message.method!, message.eventId && !params.eventId ? { ...params, eventId: message.eventId } : params);
       });
     }
-    if (message.method && ['item/started', 'item/completed', 'item/commandExecution/outputDelta', 'item/fileChange/outputDelta', 'item/fileChange/patchUpdated', 'item/reasoning/summaryTextDelta', 'item/reasoning/summaryPartAdded'].includes(message.method)) {
+    if (message.method && ['item/started', 'item/completed', 'item/commandExecution/outputDelta', 'item/fileChange/outputDelta', 'item/fileChange/patchUpdated', 'item/reasoning/textDelta', 'item/reasoning/summaryTextDelta', 'item/reasoning/summaryPartAdded'].includes(message.method)) {
       update(next => {
         const thread = next.threads.find(item => item.remoteId === params.threadId);
         if (thread) applyToolEvent(thread, message.method!, params);
