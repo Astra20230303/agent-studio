@@ -2,3 +2,8 @@ const {test}=require('node:test');const assert=require('node:assert/strict');con
 test('validates and clones conflict stages',()=>{const input={stages:[{stage:1,text:'base'},{stage:2,unavailable:'binary'}]};const result=parseConflictStages(input);result[0].text='changed';assert.equal(input.stages[0].text,'base');});
 test('rejects duplicate or malformed conflict stages',()=>{for(const value of [null,{}, {stages:{}},{stages:[null]},{stages:[{stage:0,text:'x'}]},{stages:[{stage:1,text:2}]},{stages:[{stage:1,text:'x',unavailable:'y'}]},{stages:[{stage:1},{stage:1}]}])assert.throws(()=>parseConflictStages(value),/冲突版本数据/);});
 test('supports missing stages and empty-file markers',()=>{assert.deepEqual(parseConflictStages({stages:[]}),[]);assert.equal(parseConflictStages({stages:[{stage:3,text:''}]})[0].text,'');});
+
+test('missing content is not an empty file and unavailable reason must be meaningful',()=>{
+ for(const stage of [{stage:1},{stage:1,text:null},{stage:2,unavailable:''},{stage:3,unavailable:' '},{stage:1,text:null,unavailable:null}]) assert.throws(()=>parseConflictStages({stages:[stage]}),/冲突版本数据/);
+ assert.deepEqual(parseConflictStages({stages:[{stage:2,text:''},{stage:3,unavailable:'二进制内容无法预览'}]}),[{stage:2,text:''},{stage:3,unavailable:'二进制内容无法预览'}]);
+});
