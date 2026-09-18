@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { initializeStorage } from './persistentStorage';
+import { loadState } from './store';
 
 export function StorageGate({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
@@ -9,7 +10,12 @@ export function StorageGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     let disposed = false;
     setError('');
-    void initializeStorage().then(keys => { if (!disposed) { setRecovered(keys.length > 0); setReady(true); } }, error => { if (!disposed) setError(error.message); });
+    void initializeStorage().then(keys => {
+      if (disposed) return;
+      // Validate before mounting App, whose effects start saving immediately.
+      loadState();
+      setRecovered(keys.length > 0); setReady(true);
+    }).catch(error => { if (!disposed) setError(error.message); });
     return () => { disposed = true; };
   }, [attempt]);
   if (!ready) return <div role={error ? 'alert' : 'status'} className="state-save-warning">{error ? `本机数据加载失败：${error}` : '正在读取本机数据…'}{error && <button onClick={() => setAttempt(value => value + 1)}>重试读取</button>}</div>;

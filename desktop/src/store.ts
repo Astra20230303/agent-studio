@@ -20,7 +20,11 @@ export const defaultState = (): DesktopState => ({
 
 export function loadState(): DesktopState {
   try {
-    const state: DesktopState = { ...defaultState(), ...JSON.parse(persistentStorage.getItem(KEY) ?? '{}') };
+    const parsed = JSON.parse(persistentStorage.getItem(KEY) ?? '{}');
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw Error('会话数据格式无效');
+    const state: DesktopState = { ...defaultState(), ...parsed };
+    if (!Array.isArray(state.threads) || !state.threads.every(thread => thread && typeof thread.id === 'string' && typeof thread.title === 'string' && Array.isArray(thread.messages) && thread.messages.every(message => message && typeof message.content === 'string'))
+      || !Array.isArray(state.projects) || !Array.isArray(state.automations)) throw Error('会话数据格式无效');
     state.reasoningEffort = ['low', 'medium', 'high'].includes(state.reasoningEffort) ? state.reasoningEffort : 'low';
     state.mode = state.mode === 'work' ? 'work' : 'code';
     state.theme = ['light', 'dark', 'system'].includes(state.theme) ? state.theme : 'light';
@@ -30,7 +34,7 @@ export function loadState(): DesktopState {
     state.threads.forEach(ensureThreadTitle);
     return state;
   }
-  catch { return defaultState(); }
+  catch { throw Error('会话和设置读取失败，原始数据已保留。请修复数据后重试读取。'); }
 }
 
 export async function saveState(state: DesktopState): Promise<boolean> {
