@@ -32,7 +32,7 @@ export interface ToolActivity {
 export interface Thread {
   providerId?: string;
   model?: string;
-  reasoningEffort?: 'low' | 'medium' | 'high';
+  reasoningEffort?: 'default' | 'low' | 'medium' | 'high';
   effectivePermissions?: import('./threadPermissions').ThreadPermissions;
   requestedPermission?: DesktopState['permission'];
   contextTokens?: import('./ContextUsage').ContextTokens;
@@ -79,7 +79,7 @@ export interface LlmProvider {
 }
 
 export interface DesktopState {
-  reasoningEffort: 'low' | 'medium' | 'high';
+  reasoningEffort: 'default' | 'low' | 'medium' | 'high';
   mode: 'code' | 'work';
   activeThreadId?: string;
   activeProjectId?: string;

@@ -21,7 +21,7 @@ export function decodeState(raw: string | null): DesktopState {
     const state: DesktopState = { ...defaultState(), ...parsed };
     if (!Array.isArray(state.threads) || !state.threads.every(thread => thread && typeof thread.id === 'string' && typeof thread.title === 'string' && Array.isArray(thread.messages) && thread.messages.every(message => message && typeof message.content === 'string'))
       || !Array.isArray(state.projects) || !Array.isArray(state.automations)) throw Error('会话数据格式无效');
-    state.reasoningEffort = ['low', 'medium', 'high'].includes(state.reasoningEffort) ? state.reasoningEffort : 'low';
+    state.reasoningEffort = ['default', 'low', 'medium', 'high'].includes(state.reasoningEffort) ? state.reasoningEffort : 'low';
     state.mode = state.mode === 'work' ? 'work' : 'code';
     state.theme = ['light', 'dark', 'system'].includes(state.theme) ? state.theme : 'light';
     state.sendShortcut = state.sendShortcut === 'mod-enter' ? 'mod-enter' : 'enter';

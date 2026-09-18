@@ -4,6 +4,7 @@ import type { DesktopState } from './domain';
 import './effortPicker.css';
 
 const levels = [
+  { value: 'default', label: '模型默认', description: '由模型和运行配置决定推理强度' },
   { value: 'low', label: '低', description: '响应更快，适合简单操作' },
   { value: 'medium', label: '中', description: '平衡响应速度与推理深度' },
   { value: 'high', label: '高', description: '深入推理，可能需要更长时间' },
@@ -24,9 +25,9 @@ export function EffortPicker({ model, value, onChange }: { model: string; value:
   return <div className="effort-picker" ref={root}>
     <button className="effort-button" aria-label={`推理强度：${levels[index].label}`} aria-expanded={open} onClick={() => setOpen(!open)}>{levels[index].label}<ChevronDown size={13} /></button>
     {open && <div className="effort-popover" role="dialog" aria-label="推理强度">
-      <div className="effort-heading"><strong>{levels[index].label}</strong><button aria-label="恢复默认强度" title="恢复默认：低" onClick={() => onChange('low')}><RotateCcw size={16} /></button></div>
+      <div className="effort-heading"><strong>{levels[index].label}</strong><button aria-label="恢复默认强度" title="恢复模型默认" onClick={() => onChange('default')}><RotateCcw size={16} /></button></div>
       <div className="effort-model" title={model}>{model || '选择模型'}</div>
-      <input type="range" min={0} max={2} step={1} value={index} aria-label="推理强度" aria-valuetext={levels[index].label} onChange={event => onChange(levels[Number(event.target.value)].value)} />
+      <input type="range" min={0} max={levels.length - 1} step={1} value={index} aria-label="推理强度" aria-valuetext={levels[index].label} onChange={event => onChange(levels[Number(event.target.value)].value)} />
       <div className="effort-labels">{levels.map(level => <button key={level.value} aria-pressed={value === level.value} onClick={() => onChange(level.value)}>{level.label}</button>)}</div>
       <p>{levels[index].description}</p>
       <small>实际支持情况取决于模型和渠道；下次发送生效。</small>

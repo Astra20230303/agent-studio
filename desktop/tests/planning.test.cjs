@@ -10,3 +10,7 @@ test('plan progress validates statuses and history preserves proposed plan', () 
   const messages = restoreMessages([{ turnId: 't', item: { id: 'p', type: 'plan', text: 'Proposed plan' } }], []);
   assert.equal(messages[0].role, 'assistant'); assert.equal(messages[0].content, 'Proposed plan'); assert.equal(messages[0].turnId, 't');
 });
+
+test('model default explicitly clears collaboration effort in both modes', () => {
+  for (const mode of ['default', 'plan']) assert.equal(collaborationMode(mode, 'test', 'default').settings.reasoning_effort, null);
+});
