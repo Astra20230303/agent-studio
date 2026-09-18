@@ -1,0 +1,45 @@
+const assert = require('node:assert/strict');
+const { chromium } = require('playwright');
+(async () => {
+ const browser = await chromium.launch({ channel: 'msedge', headless: true });
+ try {
+  const page = await browser.newPage();
+  await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
+  await page.evaluate(async () => {
+   const {default: React} = await import('/node_modules/.vite/deps/react.js');
+   const {default: ReactDOM} = await import('/node_modules/.vite/deps/react-dom_client.js');
+   const {BackgroundTerminals} = await import('/src/BackgroundTerminals.tsx');
+   window.__calls = []; window.__resolve = [];
+   window.codex = { request: (method, params) => { window.__calls.push({method,params}); return new Promise(resolve => window.__resolve.push(resolve)); } };
+   const host = document.createElement('div'); document.body.replaceChildren(host);
+   const root = ReactDOM.createRoot(host);
+   window.__render = connected => root.render(React.createElement(BackgroundTerminals, { threadId: 'test', connected }));
+   window.__render(true);
+  });
+  await page.getByText('后台命令', {exact:true}).waitFor();
+  assert.equal(await page.evaluate(() => window.__calls.length), 0);
+  await page.getByText('后台命令', {exact:true}).click();
+  await page.waitForFunction(() => window.__calls.length === 1);
+  await page.evaluate(() => window.__render(false));
+  await page.getByText(/列表可能已过期/).waitFor();
+  await page.evaluate(() => window.__render(true));
+  await page.getByText(/列表可能已过期/).waitFor({state:'detached'});
+  assert.equal(await page.evaluate(() => window.__calls.length), 1);
+  await page.evaluate(() => window.__resolve[0]({ok:true,result:{data:[{processId:'old',command:'stale command',cwd:'old'}]}}));
+  await page.waitForFunction(() => window.__calls.length === 2);
+  assert.equal(await page.getByText('stale command', {exact:true}).count(), 0);
+  await page.evaluate(() => window.__resolve[1]({ok:true,result:{data:[{processId:'new',command:'fresh command',cwd:'new'}]}}));
+  await page.getByText('fresh command',{exact:true}).waitFor();
+  await page.getByText('后台命令',{exact:true}).click();
+  await page.evaluate(() => window.__render(false));
+  await page.evaluate(() => window.__render(true));
+  assert.equal(await page.evaluate(() => window.__calls.length), 2);
+  await page.getByText('后台命令',{exact:true}).click();
+  await page.waitForFunction(() => window.__calls.length === 3);
+  await page.evaluate(() => window.__resolve[2]({ok:false,error:'refresh rejected'}));
+  await page.getByRole('alert').filter({hasText:'refresh rejected'}).waitFor();
+  assert.equal(await page.getByText('fresh command',{exact:true}).count(), 1);
+  assert.equal(await page.evaluate(() => window.__calls.length), 3);
+  console.log('PASS: lazy opening, reconnect invalidation, deferred refresh, collapsed silence and failed refresh preserve snapshot');
+ } finally {await browser.close();}
+})().catch(error => {console.error(error);process.exitCode=1;});
