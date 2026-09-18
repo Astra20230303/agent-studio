@@ -11,7 +11,9 @@
     "bundle:desktop": "node scripts/bundle-desktop.cjs",
     "verify:runtime": "node scripts/verify-runtime.cjs",
     "desktop": "electron .",
-    "desktop:dev": "concurrently \"vite\" \"wait-on http://127.0.0.1:${VITE_PORT:-5317} && electron . --dev\""
+    "desktop:dev": "concurrently \"vite\" \"wait-on http://127.0.0.1:${VITE_PORT:-5317} && electron . --dev\"",
+    "verify:desktop": "node scripts/verify-desktop.cjs",
+    "release:portable": "node scripts/bundle-portable.cjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",

@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createRequire } = require('node:module');
 const { verifyRuntime } = require('./verify-runtime.cjs');
+const { writeDesktopManifest } = require('./verify-desktop.cjs');
 
 function bundleDesktop({ output, runtime, desktop = path.resolve(__dirname, '..') }) {
   if (process.platform !== 'win32') throw new Error('Desktop directory packaging currently supports Windows');
@@ -45,6 +46,7 @@ function bundleDesktop({ output, runtime, desktop = path.resolve(__dirname, '..'
     fs.cpSync(runtime, path.join(output, 'resources/felix-runtime'), { recursive: true, dereference: true });
     verifyRuntime(path.join(output, 'resources/felix-runtime'));
     fs.writeFileSync(path.join(output, 'desktop-manifest.json'), JSON.stringify({ version: sourcePackage.version, platform: process.platform, arch: process.arch, dependencies: Object.fromEntries(copied) }, null, 2));
+    writeDesktopManifest(output);
     return path.join(output, 'Felix.exe');
   } catch (error) { fs.rmSync(output, { recursive: true, force: true }); throw error; }
 }
