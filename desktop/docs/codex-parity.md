@@ -11,6 +11,11 @@ and path checks (image preview limit 10 MB; text preview 256 KB). Browser tests
 use real temporary files for external text, clipboard PNG, missing-file retry
 and history reload. Production build passes.
 
+Post-commit correction adds a visible decoding error to image file previews.
+Real-file acceptance corrupts then repairs the PNG and verifies refresh removes
+the error and restores decoded pixels. Attachment send/steer/queue regression and
+the production build pass.
+
 ## Reorder paused messages
 
 Paused queue messages offer move-up/move-down actions. Shared neighbor resolution
