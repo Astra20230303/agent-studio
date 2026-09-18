@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
+import { createTerminalStartupBuffer } from './terminalStartupBuffer';
 import { readTerminalEvent } from './terminalEvents';
 import type { ValidTerminalEvent } from './terminalEvents';
 import { terminalText } from './terminalExport';
@@ -98,7 +99,7 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
     const parsed = term.onWriteParsed(() => refreshSearch.current());
     let disposed = false;
     let ownedId: string | undefined;
-    const pending: ValidTerminalEvent[] = [];
+    const pending = createTerminalStartupBuffer();
     let exited = false;
     const report = (failure: unknown) => { if (!disposed) setError(String(failure)); };
     const receive = (event: ValidTerminalEvent) => {
@@ -110,7 +111,7 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
       if (disposed) return;
       const event = readTerminalEvent(value);
       if (!event) return;
-      if (!ownedId) { if (pending.length < 1000) pending.push(event); } else receive(event);
+      if (!ownedId) pending.push(event); else receive(event);
     });
     const input = term.onData(data => { if (session.current) void bridge.write(session.current, data).catch(report); });
     const resize = () => { if (!host.current?.clientWidth) return; addon.fit(); if (session.current) void bridge.resize(session.current, term.cols, term.rows).catch(report); };
@@ -123,7 +124,9 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
       if (disposed) { void bridge.close(ownedId).catch(() => {}); return; }
       startLock.current = false; setStarting(false);
       session.current = ownedId; setRunning(true); setStatus('运行中');
-      pending.forEach(receive); pending.length = 0; resize(); if (visible.current) term.focus();
+      const buffered = pending.drain(ownedId);
+      if (buffered.truncated) setError('终端启动期间输出过多，部分输出未保留；日志可能不完整。');
+      buffered.events.forEach(receive); resize(); if (visible.current) term.focus();
     }).catch(failure => {
       if (disposed) return;
       startLock.current = false; setStarting(false); setStatus('启动失败'); report(failure);

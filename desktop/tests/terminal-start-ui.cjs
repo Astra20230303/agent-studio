@@ -92,6 +92,20 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: '导出终端日志', exact: true }).click();
     await page.getByText('已导出当前终端缓冲区', { exact: true }).waitFor();
     assert.equal(await page.evaluate(() => window.__exported), '');
-    console.log('PASS: terminal event validation, pre-ack invalid flood, retained exit code, late-output exclusion and lifecycle retry');
+    const overflowCount = await page.evaluate(() => window.__creates.length);
+    await restart.click();
+    await page.waitForFunction(count => window.__creates.length === count + 1, overflowCount);
+    await page.evaluate(() => {
+      window.__emit({ id: 'overflow', type: 'data', data: 'x'.repeat(1024 * 1024 + 1) });
+      window.__emit({ id: 'overflow', type: 'exit', code: 42 });
+      window.__creates.at(-1).resolve({ ok: true, id: 'overflow' });
+    });
+    await status.filter({ hasText: '已退出 (42)' }).waitFor();
+    await page.getByRole('alert').filter({ hasText: '日志可能不完整' }).waitFor();
+    assert.equal(await restart.isEnabled(), true);
+    await page.getByRole('button', { name: '导出终端日志', exact: true }).click();
+    await page.getByText('已导出当前终端缓冲区', { exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => window.__exported), '');
+    console.log('PASS: bounded startup output reports truncation and preserves exit status, event validation and retry');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
