@@ -11,6 +11,11 @@ pass. This validates a copied production app with local dependencies, not a
 signed installer or clean-machine deployment. Clipboard writes are not exercised
 by this native acceptance.
 
+Post-commit Electron acceptance reopens the persisted clipboard attachment after
+restart, confirms fit mode, removes its fixture file and verifies the missing-file
+error with no stale download link. Restoring the file and refreshing recovers the
+image and download action. The native regression passes without product changes.
+
 ## Go to a line in file previews
 
 Preview text has a line-number control and Ctrl/Command+G. Range validation,
