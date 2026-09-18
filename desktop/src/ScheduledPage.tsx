@@ -14,7 +14,7 @@ const automationRepository = createAutomationRepository(taskRequest);
 function TaskModal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => { const element = dialog.current!; element.showModal(); return () => element.close(); }, []);
-  return <dialog className="task-modal" ref={dialog} aria-label={title} onCancel={event => { event.preventDefault(); onClose(); }}><header><h2>{title}</h2><button type="button" className="task-icon-button" aria-label="关闭对话框" title="关闭" onClick={onClose}><X /></button></header>{children}</dialog>;
+  return <dialog className="task-modal" ref={dialog} aria-label={title} onKeyDown={event => { if (event.key === 'Escape' && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); onClose(); } }} onCancel={event => { event.preventDefault(); onClose(); }}><header><h2>{title}</h2><button type="button" className="task-icon-button" aria-label="关闭对话框" title="关闭" onClick={onClose}><X /></button></header>{children}</dialog>;
 }
 
 function TaskEditor({ draft, providers, onClose, onSaved }: { draft: TaskDraft; providers: { id: string; name: string; enabled?: boolean }[]; onClose: () => void; onSaved: () => void }) {
@@ -25,13 +25,23 @@ function TaskEditor({ draft, providers, onClose, onSaved }: { draft: TaskDraft; 
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const saveLock = useRef(false);
+  const edited = useRef(false);
+  const [discarding, setDiscarding] = useState(false);
+  const continueButton = useRef<HTMLButtonElement>(null);
+  const formElement = useRef<HTMLFormElement>(null);
+  useEffect(() => { if (discarding) continueButton.current?.focus(); else formElement.current?.querySelector<HTMLInputElement>('input')?.focus(); }, [discarding]);
+  const requestClose = () => {
+    if (saveLock.current) return;
+    if (discarding) { setDiscarding(false); return; }
+    if (edited.current) setDiscarding(true); else onClose();
+  };
   const [writeConfirmed, setWriteConfirmed] = useState(Boolean(draft.id) && draft.permission === 'workspace-write');
   useEffect(() => { if (!form.model && models.length) setForm(current => ({ ...current, model: models[0] })); }, [models, form.model]);
-  const patch = (fields: Partial<TaskDraft>) => setForm(current => ({ ...current, ...fields }));
+  const patch = (fields: Partial<TaskDraft>) => { edited.current = true; setDiscarding(false); setForm(current => ({ ...current, ...fields })); };
   const patchSchedule = (fields: Partial<Exclude<TaskSchedule, { kind: 'once' | 'interval' }>>) => { if (form.schedule.kind !== 'once' && form.schedule.kind !== 'interval') patch({ schedule: { ...form.schedule, ...fields } }); };
   const submit = async (event: FormEvent) => {
     event.preventDefault(); if (saveLock.current) return;
-    saveLock.current = true;
+    saveLock.current = true; setDiscarding(false);
     setError(''); setSaving(true);
     try {
       if (form.kind === 'agent' && (loadingModels || !models.includes(form.model))) throw new Error(catalog.error || '请从渠道模型列表中选择可用模型。');
@@ -41,7 +51,7 @@ function TaskEditor({ draft, providers, onClose, onSaved }: { draft: TaskDraft; 
     } catch (caught) { setError(caught instanceof Error ? caught.message : '保存失败。'); }
     finally { saveLock.current = false; setSaving(false); }
   };
-  return <TaskModal title={draft.id ? '编辑任务' : '创建任务'} onClose={() => { if (!saveLock.current) onClose(); }}><form onSubmit={submit}>
+  return <TaskModal title={draft.id ? '编辑任务' : '创建任务'} onClose={requestClose}><form ref={formElement} onSubmit={submit}>
     <fieldset disabled={saving}>
       <label>任务名称<input required maxLength={120} autoFocus value={form.name} onChange={event => patch({ name: event.target.value })} /></label>
       <label>任务内容<textarea required maxLength={20000} rows={4} value={form.prompt} onChange={event => patch({ prompt: event.target.value })} /></label>
@@ -50,7 +60,7 @@ function TaskEditor({ draft, providers, onClose, onSaved }: { draft: TaskDraft; 
           const kind = event.target.value as TaskSchedule['kind'];
           patch({ schedule: kind === 'interval' ? { kind, minutes: 60 } : kind === 'once' ? { kind, at: new Date(Date.now() + 3600000).toISOString() } : { time: '09:00', timezone: localZone, ...(form.schedule.kind !== 'once' && form.schedule.kind !== 'interval' ? form.schedule : {}), kind, ...(kind === 'weekly' ? { day: form.schedule.kind === 'weekly' ? form.schedule.day : 1 } : {}) } });
         }}><option value="interval">固定间隔</option><option value="daily">每天</option><option value="weekdays">工作日</option><option value="weekly">每周</option><option value="once">仅一次</option></select></label></div>
-      {form.schedule.kind === 'interval' ? <label>间隔分钟数<input aria-label="任务间隔分钟数" required type="number" min={1} max={10080} step={1} value={form.schedule.minutes} onChange={event => patch({ schedule: { kind: 'interval', minutes: Number(event.target.value) } })} /><small>从保存或恢复时开始计时；错过多次仅执行一次，再从实际开始时间计时。</small></label> : form.schedule.kind === 'once' ? <label>运行时间（本地时区）<input required type="datetime-local" value={onceAt} onChange={event => setOnceAt(event.target.value)} /></label> : <>
+      {form.schedule.kind === 'interval' ? <label>间隔分钟数<input aria-label="任务间隔分钟数" required type="number" min={1} max={10080} step={1} value={form.schedule.minutes} onChange={event => patch({ schedule: { kind: 'interval', minutes: Number(event.target.value) } })} /><small>从保存或恢复时开始计时；错过多次仅执行一次，再从实际开始时间计时。</small></label> : form.schedule.kind === 'once' ? <label>运行时间（本地时区）<input required type="datetime-local" value={onceAt} onChange={event => { edited.current = true; setDiscarding(false); setOnceAt(event.target.value); }} /></label> : <>
         <div className="task-form-grid"><label>运行时间<input required type="time" value={form.schedule.time} onChange={event => patchSchedule({ time: event.target.value })} /></label><label>时区<select value={form.schedule.timezone} onChange={event => patchSchedule({ timezone: event.target.value })}>{Array.from(new Set([localZone, form.schedule.timezone, 'Asia/Shanghai', 'Asia/Tokyo', 'UTC', 'America/New_York', 'America/Los_Angeles', 'Europe/London'])).map(zone => <option key={zone}>{zone}</option>)}</select></label></div>
         {form.schedule.kind === 'weekly' && <label>星期<select aria-label="星期" value={form.schedule.day ?? 1} onChange={event => patchSchedule({ day: Number(event.target.value) })}>{Array.from('日一二三四五六').map((day, index) => <option key={index} value={index}>星期{day}</option>)}</select></label>}
       </>}
@@ -58,14 +68,15 @@ function TaskEditor({ draft, providers, onClose, onSaved }: { draft: TaskDraft; 
         <label>推理强度<select aria-label="任务推理强度" value={form.reasoningEffort || ''} onChange={event => patch({ reasoningEffort: event.target.value ? event.target.value as TaskDraft['reasoningEffort'] : undefined })}><option value="">模型默认</option><option value="low">低</option><option value="medium">中</option><option value="high">高</option></select></label>
         <label>工作目录<input aria-label="任务工作目录" value={form.cwd || ''} placeholder="留空使用 Felix 项目目录" onChange={event => { patch({ cwd: event.target.value }); setWriteConfirmed(false); }} /></label><button type="button" onClick={() => { void projectRepository.pick().then(project => { if (project?.path) { patch({ cwd: project.path }); setWriteConfirmed(false); } }).catch(error => setError(String(error))); }}>选择任务目录</button>
         <label>执行权限<select value={form.permission} onChange={event => { patch({ permission: event.target.value as TaskDraft['permission'] }); setWriteConfirmed(false); }}><option value="read-only">只读</option><option value="workspace-write">允许修改工作区</option></select></label>
-        {form.permission === 'workspace-write' && <label className="task-check"><input type="checkbox" checked={writeConfirmed} onChange={event => setWriteConfirmed(event.target.checked)} />允许此任务无人值守修改上述任务工作目录</label>}
+        {form.permission === 'workspace-write' && <label className="task-check"><input type="checkbox" checked={writeConfirmed} onChange={event => { edited.current = true; setDiscarding(false); setWriteConfirmed(event.target.checked); }} />允许此任务无人值守修改上述任务工作目录</label>}
       </>}
       <label className="task-check"><input type="checkbox" checked={form.notify} onChange={event => patch({ notify: event.target.checked })} />启用任务通知</label>
       {form.notify && <label>通知范围<select aria-label="任务通知范围" value={form.notificationPolicy || "all"} onChange={event => patch({ notificationPolicy: event.target.value === "failed_runs_only" ? "failed_runs_only" : null })}><option value="all">完成、失败或中断</option><option value="failed_runs_only">仅失败时通知</option></select></label>}
     </fieldset>
     {error && <div className="task-error" role="alert">{error}</div>}
     {form.kind === 'agent' && catalog.error && <div className="task-error" role="alert">{catalog.error}</div>}
-    <footer><button type="button" disabled={saving} onClick={onClose}>取消</button><button className="task-primary" disabled={saving || form.kind === 'agent' && (loadingModels || !models.includes(form.model))}>{saving ? '保存中…' : '保存任务'}</button></footer>
+    {discarding && <section role="alert" aria-label="放弃任务修改"><p>任务修改尚未保存，是否放弃？</p><button ref={continueButton} type="button" onClick={() => setDiscarding(false)}>继续编辑</button><button type="button" onClick={() => { if (!saveLock.current) onClose(); }}>放弃修改</button></section>}
+    <footer><button type="button" disabled={saving} onClick={requestClose}>取消</button><button className="task-primary" disabled={saving || form.kind === 'agent' && (loadingModels || !models.includes(form.model))}>{saving ? '保存中…' : '保存任务'}</button></footer>
   </form></TaskModal>;
 }
 
