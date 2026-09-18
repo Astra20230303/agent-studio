@@ -10,6 +10,7 @@ export function ArtifactPreview({ target, onClose, onEdit }: { target: ArtifactT
   const [preview, setPreview] = useState<any>();
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
+  const staleLine = Boolean(target.line && target.revision && preview && target.revision !== preview.revision);
   useEffect(() => {
     const previous = document.activeElement;
     const opened = dialog.current;
@@ -40,10 +41,11 @@ export function ArtifactPreview({ target, onClose, onEdit }: { target: ArtifactT
     <h2>{target.path}{target.line ? `:${target.line}` : ''}</h2><p>工作区：{target.root}</p>
     {error && <p role="alert">{error}</p>}{!preview && !error && <p>正在读取…</p>}
     {preview?.binary && <p>二进制文件无法预览文本。</p>}{preview?.image && <PreviewImage source={preview.image} name={target.path} />}
-    {typeof preview?.text === 'string' && <PreviewText ref={textPreview} text={preview.text} lineNumber={target.line} truncated={preview.truncated} />}
+    {staleLine && <p role="status">文件在搜索后已变化，未定位旧搜索行；请重新搜索或手动跳转。</p>}
+    {typeof preview?.text === 'string' && <PreviewText ref={textPreview} text={preview.text} lineNumber={staleLine ? undefined : target.line} truncated={preview.truncated} />}
     {preview?.truncated && <p role="status">仅预览前 {preview.previewBytes ?? 256 * 1024} 字节，文件共 {preview.size} 字节。末尾不完整的字符已省略，不能编辑截断内容。</p>}
     {preview?.encodingInvalid && <p role="status">文件包含无法按 UTF-8 解码的字符，预览使用替代字符，不能编辑。</p>}
-    {target.line && typeof preview?.text === 'string' && target.line > preview.text.split('\n').length && <p role="status">第 {target.line} 行不在当前预览范围内。</p>}
+    {!staleLine && target.line && typeof preview?.text === 'string' && target.line > preview.text.split('\n').length && <p role="status">第 {target.line} 行不在当前预览范围内。</p>}
     <div><button onClick={() => setRevision(value => value + 1)}>刷新预览</button>{preview?.revision && <button onClick={() => onEdit({ root: target.root, path: target.path, initial: { text: preview.text, revision: preview.revision } })}>编辑此文件</button>}<button onClick={onClose}>关闭预览</button></div>
   </dialog>;
 }

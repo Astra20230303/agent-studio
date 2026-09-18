@@ -1,5 +1,14 @@
 # Felix capability roadmap
 
+## Expand workspace files into the shared preview
+
+The workspace file panel opens the same deferred preview as conversation files,
+making search, copying, line navigation and image controls available there.
+Content search forwards its line and revision; the preview compares the revision
+of its own read before locating that line. Already-stale results omit the line.
+Closing restores the panel action without changing attachment selection. Browser
+workspace navigation/search/attachment regression and production build pass.
+
 ## Native desktop preview acceptance
 
 The copied production app now has real Electron acceptance for deferred preview

@@ -3,7 +3,7 @@ import type { ToolActivity } from './domain';
 import './artifacts.css';
 import { messageLinkKind } from './messageLink';
 export const ArtifactWorkspaceContext = createContext<string | undefined>(undefined);
-export type ArtifactTarget = { root: string; path: string; line?: number };
+export type ArtifactTarget = { root: string; path: string; line?: number; revision?: string };
 export const ArtifactOpenContext = createContext<((target: ArtifactTarget) => void) | undefined>(undefined);
 
 export function ArtifactLink({ path, label, preview = false, children }: { path: string; label: string; preview?: boolean; children?: ReactNode }) {
