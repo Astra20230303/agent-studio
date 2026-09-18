@@ -35,7 +35,7 @@ function QueueEditor({ item, onClose, onSave, catalog }: { catalog?: QueueCatalo
   const initial = useRef(JSON.stringify([item.text, item.model, item.effort, item.planningMode || 'default', item.attachments || [], item.skills || [], item.plugins]));
   const dirty = JSON.stringify([text, model, effort, planningMode, attachments, skills, plugins]) !== initial.current;
   const requestClose = () => {
-    if (discarding) { setDiscarding(false); return; }
+    if (discarding) { setDiscarding(false); dialog.current?.querySelector('textarea')?.focus(); return; }
     if (dirty) setDiscarding(true); else onClose();
   };
   useEffect(() => {

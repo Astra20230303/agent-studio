@@ -17,7 +17,7 @@ const assert = require('node:assert/strict');
       window.__renderQueue = items => root.render(React.createElement(TurnQueue, {
         items, disabled: false, onRemove: () => {}, onPause: () => {}, onMove: () => {},
         onResume: () => window.__resumed++, onBeginEdit: () => true,
-        onEdit: (...args) => { window.__saved.push(args); return true; },
+        onEdit: (...args) => { window.__saved.push(args); return !window.__failSave; },
       }));
       window.__renderQueue([window.__a]);
     });
@@ -39,12 +39,20 @@ const assert = require('node:assert/strict');
       await open.click();await editor.getByRole('combobox',{name:label,exact:true}).selectOption(value);
       await editor.getByRole('button',{name:'取消编辑',exact:true}).click();await warning.waitFor();
       await page.keyboard.press('Escape');await warning.waitFor({state:'detached'});
+      assert.equal(await editor.getByRole('textbox').evaluate(node=>node===document.activeElement),true);
       assert.equal(await editor.getByRole('combobox',{name:label,exact:true}).inputValue(),value);
       await editor.getByRole('button',{name:'取消编辑',exact:true}).click();
       await warning.getByRole('button',{name:'放弃排队修改',exact:true}).click();await editor.waitFor({state:'detached'});
     }
     assert.deepEqual(await page.evaluate(()=>window.__saved),[]);
     await open.click();await editor.getByRole('textbox').fill('saved text');
+    await page.evaluate(()=>{window.__failSave=true;});
+    await editor.getByRole('button',{name:'保存排队消息',exact:true}).click();
+    await editor.getByRole('alert').waitFor();
+    await page.keyboard.press('Escape');await warning.waitFor();
+    await warning.getByRole('button',{name:'继续编辑',exact:true}).click();
+    assert.equal(await editor.getByRole('textbox').inputValue(),'saved text');
+    await page.evaluate(()=>{window.__failSave=false;});
     await editor.getByRole('button',{name:'保存排队消息',exact:true}).click();await editor.waitFor({state:'detached'});
     assert.equal(await warning.count(),0);
     assert.equal(await page.evaluate(()=>window.__saved[0][1]),'saved text');
