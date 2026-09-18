@@ -54,9 +54,12 @@ test('real threads retain their provider through global switches, resume and for
     await router.request(rpc, 'thread/resume', { threadId: a }); await turn(a);
     const fork = await router.request(rpc, 'thread/fork', { threadId: a }); await turn(fork.thread.id);
     assert.deepEqual(received.slice(2).map(r => r.id), ['a', 'a']);
+    delete providers.b;
+    await turn(a);
+    assert.equal(received.at(-1).id, 'a', 'A bound thread remains usable when the active B provider is unavailable');
     delete providers.a;
     await assert.rejects(turn(a), /Provider missing/);
-    assert.equal(received.length, 4);
+    assert.equal(received.length, 5);
   } finally {
     rpc?.close();
     for (const server of [adapter, ...servers].filter(Boolean)) { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
