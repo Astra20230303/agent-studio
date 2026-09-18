@@ -7,6 +7,10 @@ the file basename. Zoom only changes display dimensions; no canvas re-encoding
 or second disk read alters the downloaded image. Browser acceptance downloads a
 zoomed PNG and compares every byte with its original data URL. Build passes.
 
+Post-commit real-file attachment acceptance verifies basename-only download names,
+no download link after decode failure, and byte-for-byte restored downloads after
+repair/refresh. Narrow-window preview regression passes. No correction was needed.
+
 ## Copy file preview text exactly
 
 Read-only previews offer copy using the loaded text, with an explicit partial-copy
