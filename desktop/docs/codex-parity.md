@@ -3619,3 +3619,8 @@ Codex Rust 传递依赖和原生二进制传递依赖仍需进一步许可审计
 
 - 已交付：接入 `thread/name/updated`，校验 threadId 和可选非空单行名称；远端名称只更新自动标题，会话手动重命名优先，空名称/坏载荷/未知会话不会覆盖本地标题。侧栏、当前会话和导出读取同一标题字段。
 - 验证：thread-name/status 3 项解析测试通过，生产 TypeScript/Vite 构建通过；名称字段中的换行和控制字符被拒绝。
+
+### 会话目标实时同步（2026-09-19）
+
+- 已交付：接入 `thread/goal/updated` 与 `thread/goal/cleared`，校验目标 threadId、objective、状态（active/paused/blocked/usageLimited/budgetLimited/complete）、token budget、tokens used 和 time used；聊天计划区新增可展开目标面板。清除只影响对应会话，坏目标和未知会话不写入。
+- 验证：4 项 thread-goal/name/status 测试通过，覆盖目标身份、非法状态、预算/用量边界和多字段解析；生产 TypeScript/Vite 构建通过。
