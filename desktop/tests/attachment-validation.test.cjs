@@ -4,6 +4,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
 const { PNG } = require('pngjs');
+const jpeg = require('jpeg-js');
 const { validateImageInputs } = require('../electron/attachment-validation.cjs');
 
 test('PNG preflight rejects corrupt and missing images before dispatch, accepts repaired file', async t => {
@@ -20,4 +21,28 @@ test('PNG preflight rejects corrupt and missing images before dispatch, accepts 
   await validateImageInputs('turn/start', input);
   await validateImageInputs('turn/steer', input);
   await validateImageInputs('thread/start', { input: [{ type: 'localImage', path: '../missing' }] });
+});
+
+test('JPEG preflight decodes pixels and rejects truncation, corrupt data and excessive dimensions', async t => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'felix-jpeg-check-'));
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, 'attachment.JPEG');
+  const input = { input: [{ type: 'localImage', path: file }] };
+  const valid = jpeg.encode({ width: 4, height: 4, data: Buffer.alloc(4 * 4 * 4, 255) }, 90).data;
+  for (const method of ['turn/start', 'turn/steer']) {
+    await fs.writeFile(file, 'not a JPEG');
+    await assert.rejects(validateImageInputs(method, input), /attachment.JPEG.*解码|解码.*attachment.JPEG/);
+    await fs.writeFile(file, valid.subarray(0, valid.length - 20));
+    await assert.rejects(validateImageInputs(method, input), /解码/);
+    await fs.writeFile(file, valid);
+    await validateImageInputs(method, input);
+  }
+  const huge = Buffer.from(valid);
+  const frame = huge.indexOf(Buffer.from([0xff, 0xc0]));
+  assert.ok(frame > 0);
+  huge.writeUInt16BE(65535, frame + 5); huge.writeUInt16BE(65535, frame + 7);
+  await fs.writeFile(file, huge);
+  await assert.rejects(validateImageInputs('turn/start', input), /maxResolutionInMP/);
+  const oversized = await fs.open(file, 'w'); await oversized.truncate(17 * 1024 * 1024); await oversized.close();
+  await assert.rejects(validateImageInputs('turn/start', input), /16 MB/);
 });

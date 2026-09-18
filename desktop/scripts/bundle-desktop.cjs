@@ -39,7 +39,7 @@ function bundleDesktop({ output, runtime, desktop = path.resolve(__dirname, '..'
       const childRequire = createRequire(path.join(directory, 'package.json'));
       for (const dependency of Object.keys(pkg.dependencies || {})) copyDependency(dependency, childRequire);
     }
-    for (const dependency of ['node-pty', 'cron-parser', 'playwright', 'pngjs']) copyDependency(dependency, resolve);
+    for (const dependency of ['node-pty', 'cron-parser', 'playwright', 'pngjs', 'jpeg-js']) copyDependency(dependency, resolve);
     fs.cpSync(runtime, path.join(output, 'resources/felix-runtime'), { recursive: true, dereference: true });
     verifyRuntime(path.join(output, 'resources/felix-runtime'));
     fs.writeFileSync(path.join(output, 'desktop-manifest.json'), JSON.stringify({ version: sourcePackage.version, platform: process.platform, arch: process.arch, dependencies: Object.fromEntries(copied) }, null, 2));

@@ -9,6 +9,7 @@ const { CodexRpc } = require('../electron/codex-rpc.cjs');
 const { findCommand, compatibilityCatalog } = require('../electron/codex-server.cjs');
 const { startMiniMaxAdapter } = require('../electron/minimax-adapter.cjs');
 const { userInput } = require('../src/attachments.ts');
+const { validateImageInputs } = require('../electron/attachment-validation.cjs');
 const { chromium } = require('playwright');
 test('real local image attachment reaches the Provider as image pixels', { timeout: 30000 }, async t => {
   const root = path.resolve(__dirname, '../..');
@@ -53,7 +54,9 @@ test('real local image attachment reaches the Provider as image pixels', { timeo
       });
       done.catch(() => {}); await rpc.request(method, { threadId: thread.id, ...params }); await done;
     };
-    await run('turn/start', { input: userInput('Inspect the attached image.', [], [picture, jpeg]) });
+    const input = userInput('Inspect the attached image.', [], [picture, jpeg]);
+    await validateImageInputs('turn/start', { input });
+    await run('turn/start', { input });
     assert.equal(requests.length, 1);
     assert.deepEqual(authorization, ['Bearer test']);
     const parts = requests[0].messages.flatMap(message => Array.isArray(message.content) ? message.content : []);

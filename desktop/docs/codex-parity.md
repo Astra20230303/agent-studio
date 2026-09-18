@@ -1,5 +1,18 @@
 # Felix capability roadmap
 
+## JPEG attachment decoding preflight
+
+JPEG/JPG attachments now receive strict jpeg-js pixel decoding before turn/start
+or turn/steer, with a 16 MiB file limit, 16 megapixel limit and 128 MiB decoder
+memory budget. The packaged desktop includes the pure-JavaScript decoder. PNG
+validation remains in place; WebP/GIF still only receive readability checks.
+
+Build and file tests pass valid uppercase JPEG extensions, truncated/corrupt
+content, excessive dimensions and oversized files. Browser acceptance wired to
+the actual validator retains text and attachment on rejection, then dispatches
+exactly once after repair. A real Codex process accepts preflighted PNG and JPEG
+and delivers both images to a local HTTP model with their decoded pixels intact.
+
 ## Native conversation and draft storage
 
 Desktop conversations/settings, text/attachment/plugin/skill drafts and the turn

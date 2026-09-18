@@ -32,6 +32,9 @@ importers:
       electron:
         specifier: latest
         version: 44.3.0(supports-color@10.2.2)
+      jpeg-js:
+        specifier: 0.4.4
+        version: 0.4.4
       lucide-react:
         specifier: latest
         version: 1.46.0(react@19.3.0)
@@ -552,6 +555,9 @@ packages:
   joi@18.2.8:
     resolution: {integrity: sha512-G2TX62h58ZHuwqetJgP2F4ualakqAmZtBYe3jWen7gxQRw5xApX6crnFtuB91WC0c3ESBnva+kGSnb3+6pIQDQ==}
     engines: {node: '>= 20'}
+
+  jpeg-js@0.4.4:
+    resolution: {integrity: sha512-WZzeDOEtTOBK4Mdsar0IqEU5sMr3vSV2RqkAIzUEV2BHnUfKGyswWFPFwK5EeDo93K3FohSHbLAjj0s1Wzd+dg==}
 
   json-schema-traverse@1.0.0:
     resolution: {integrity: sha512-NM8/P9n3XjXhIZn1lLhkFaACTOURQXjWhV4BA/RnOv8xvgqtqpAX9IO4mRQxSx1Rlo4tqzeqb0sOlruaOy3dug==}
@@ -1203,6 +1209,8 @@ snapshots:
       '@hapi/tlds': 1.1.7
       '@hapi/topo': 6.0.2
       '@standard-schema/spec': 1.1.0
+
+  jpeg-js@0.4.4: {}
 
   json-schema-traverse@1.0.0: {}
 

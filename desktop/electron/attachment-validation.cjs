@@ -1,6 +1,13 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { PNG } = require('pngjs');
+const jpeg = require('jpeg-js');
+
+function validateJpeg(data) {
+  if (data.length > 16 * 1024 * 1024) throw Error('JPEG 超过 16 MB，请缩小图片');
+  const decoded = jpeg.decode(data, { useTArray: true, formatAsRGBA: false, tolerantDecoding: false, maxResolutionInMP: 16, maxMemoryUsageInMB: 128 });
+  if (!decoded.width || !decoded.height) throw Error('JPEG 格式无效');
+}
 
 function validatePng(data) {
   if (data.length > 16 * 1024 * 1024) throw Error('PNG 超过 16 MB，请缩小图片');
@@ -20,18 +27,19 @@ async function validateImageInputs(method, params) {
       handle = await fs.open(filename, 'r');
       const stat = await handle.stat();
       if (!stat.isFile()) throw Error('不是文件');
-      if (!/\.png$/i.test(filename)) continue;
+      const isPng = /\.png$/i.test(filename);
+      if (!isPng && !/\.jpe?g$/i.test(filename)) continue;
       const limit = 16 * 1024 * 1024;
-      if (stat.size > limit) throw Error('PNG 超过 16 MB，请缩小图片');
+      if (stat.size > limit) throw Error('图片超过 16 MB，请缩小图片');
       const buffer = Buffer.alloc(Math.min(stat.size + 1, limit + 1));
       const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
       if (bytesRead > stat.size) throw Error('图片已变化，请重新选择');
       const data = buffer.subarray(0, bytesRead);
-      validatePng(data);
+      if (isPng) validatePng(data); else validateJpeg(data);
     } catch (error) {
       throw Error(`图片附件无法读取或解码：${path.basename(filename)}。${error.message}`);
     } finally { await handle?.close(); }
   }
 }
 
-module.exports = { validateImageInputs, validatePng };
+module.exports = { validateImageInputs, validatePng, validateJpeg };

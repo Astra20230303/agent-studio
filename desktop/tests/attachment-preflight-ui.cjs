@@ -4,10 +4,12 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const { PNG } = require('pngjs');
+const jpeg = require('jpeg-js');
 const { validateImageInputs } = require('../electron/attachment-validation.cjs');
 (async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'felix-image-ui-'));
-  const file = path.join(directory, 'broken.png'); await fs.writeFile(file, 'not a PNG');
+  const format = process.env.FELIX_TEST_IMAGE_FORMAT === 'jpeg' ? 'jpeg' : 'png';
+  const file = path.join(directory, `broken.${format}`); await fs.writeFile(file, 'not an image');
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   let dispatches = 0;
   try {
@@ -32,10 +34,11 @@ const { validateImageInputs } = require('../electron/attachment-validation.cjs')
     assert.equal(dispatches, 0);
     assert.equal(await page.getByRole('textbox', { name: '消息', exact: true }).inputValue(), 'Inspect image');
     assert.equal(await page.getByRole('button', { name: `移除附件：${file}`, exact: true }).count(), 1);
-    const png = new PNG({ width: 2, height: 2 }); png.data.fill(255); await fs.writeFile(file, PNG.sync.write(png));
+    const png = new PNG({ width: 2, height: 2 }); png.data.fill(255);
+    await fs.writeFile(file, format === 'png' ? PNG.sync.write(png) : jpeg.encode(png, 90).data);
     await page.getByRole('button', { name: '发送', exact: true }).click();
     await page.getByRole('button', { name: '停止生成', exact: true }).waitFor();
     assert.equal(dispatches, 1);
-    console.log('PASS: real PNG preflight retains draft/attachment on error and dispatches once after repair');
+    console.log(`PASS: real ${format} preflight retains draft/attachment on error and dispatches once after repair`);
   } finally { await browser.close(); await fs.rm(directory, { recursive: true, force: true }); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
