@@ -184,3 +184,14 @@ test('subsequent runs pick up the newly selected provider', { timeout: 60000 }, 
     for (const server of servers) { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
   }
 });
+
+test('resolved environment persistence failure prevents process startup',async()=>{
+ const directory=fs.mkdtempSync(path.join(require('node:os').tmpdir(),'felix-env-write-'));
+ try {
+  const runner=createTaskRunner(root,{dataRoot:directory,provider:()=>({id:'captured',baseUrl:'http://127.0.0.1:1'})});
+  await assert.rejects(runner(task,{signal:new AbortController().signal,runId:randomUUID(),onResolved:environment=>{
+   assert.deepEqual(environment,{cwd:root,providerId:'captured'});throw Error('Environment disk failure');
+  }}),/Environment disk failure/);
+  assert.equal(fs.existsSync(path.join(directory,'codex-home')),false);
+ } finally {fs.rmSync(directory,{recursive:true,force:true});}
+});

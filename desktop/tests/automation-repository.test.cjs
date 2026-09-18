@@ -38,3 +38,10 @@ test('run configuration accepts legacy records and rejects malformed snapshots b
  }
  value.runs=[run];await repo.detail('a');
 });
+
+test('resolved environment is optional for old records and validated when present',async()=>{
+ const run={id:'r',status:'failed',startedAt:'2026-09-18T00:00:00Z'};
+ let value={...task,runs:[run]};const repo=createAutomationRepository(async()=>({task:value}));
+ for(const environment of [{cwd:'D:/work',providerId:'p'},{cwd:'D:/work'}]) {value.runs=[{...run,environment}];await repo.detail('a');}
+ for(const environment of [{cwd:{}},{cwd:''},{cwd:'D:/work',providerId:2},[]]){value.runs=[{...run,environment}];await assert.rejects(repo.detail('a'),/任务详情格式无效/);}
+});
