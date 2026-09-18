@@ -3583,3 +3583,8 @@ Codex Rust 传递依赖和原生二进制传递依赖仍需进一步许可审计
 
 - 已交付：接入上游 `item/reasoning/textDelta`，按 `contentIndex` 校验并保留稀疏内容片段，与摘要片段一起显示在推理卡片；坏索引、坏文本、跨回合和完成后的迟到事件不会污染结果。未知推理条目继续使用原始记录兼容路径。
 - 验证：18 项 tool-activity/thread-events 测试通过，覆盖乱序索引、重复/终态保护、坏输入和事件入口；生产 TypeScript/Vite 构建通过。
+
+### MCP 工具进度（2026-09-19）
+
+- 已交付：接入上游 `item/mcpToolCall/progress`，校验 thread/turn/item 入口后将进度消息保留在 MCP 调用记录中，最多保留最近 100 条并在调用详情展示。即使进度先于 `item/started` 到达也会创建记录；完成、跨回合或坏消息不会追加。
+- 验收修正：初版先到进度事件因局部条目引用未初始化而失败，已改为共享条目引用。22 项 invocation/tool/thread 测试及生产构建通过。

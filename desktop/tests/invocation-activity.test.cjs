@@ -21,3 +21,15 @@ test('explicit null clears old error/result and preserves null arguments', () =>
   const call = thread.messages[0].tool.invocation;
   assert.equal(call.error, null); assert.equal(call.result, null); assert.equal(call.arguments, null);
 });
+test('MCP progress creates or updates one invocation and stops after completion', () => {
+  const thread = { messages: [] };
+  applyToolEvent(thread, 'item/mcpToolCall/progress', { turnId: 't', itemId: 'm', message: 'Connecting' });
+  applyToolEvent(thread, 'item/mcpToolCall/progress', { turnId: 't', itemId: 'm', message: 'Waiting for server' });
+  assert.deepEqual(thread.messages[0].tool.progress, ['Connecting', 'Waiting for server']);
+  applyToolEvent(thread, 'item/completed', { turnId: 't', item: { id: 'm', type: 'mcpToolCall', status: 'completed', result: { content: [] } } });
+  applyToolEvent(thread, 'item/mcpToolCall/progress', { turnId: 't', itemId: 'm', message: 'late' });
+  assert.deepEqual(thread.messages[0].tool.progress, ['Connecting', 'Waiting for server']);
+  applyToolEvent(thread, 'item/mcpToolCall/progress', { turnId: 'other', itemId: 'm', message: 'wrong turn' });
+  applyToolEvent(thread, 'item/mcpToolCall/progress', { turnId: 't', itemId: 'm', message: 42 });
+  assert.deepEqual(thread.messages[0].tool.progress, ['Connecting', 'Waiting for server']);
+});

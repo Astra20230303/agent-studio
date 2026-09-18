@@ -23,6 +23,7 @@ export function upsertTool(thread: Thread, item: any, turnId?: string, completed
     command: item.command ?? previous?.command,
     cwd: item.cwd ?? previous?.cwd,
     output: item.aggregatedOutput ?? previous?.output ?? '',
+    progress: Array.isArray(item.progress) ? item.progress : previous?.progress,
     exitCode: item.exitCode ?? previous?.exitCode,
     durationMs: item.durationMs ?? previous?.durationMs,
     changes: item.changes ?? previous?.changes
@@ -37,13 +38,15 @@ export function applyToolEvent(thread: Thread, method: string, params: any) {
   const itemId = lifecycle ? params.item?.id : params.itemId;
   if (!toolIdentity(itemId) || params.turnId != null && !toolIdentity(params.turnId)) return;
   const existing = thread.messages.find(message => message.id === `tool-${itemId}`)?.tool;
-  const kind = lifecycle ? params.item?.type : method.startsWith('item/commandExecution/') ? 'commandExecution' : method.startsWith('item/fileChange/') ? 'fileChange' : method.startsWith('item/reasoning/') ? 'reasoning' : undefined;
+  let message = thread.messages.find(message => message.id === `tool-${itemId}`);
+  const kind = lifecycle ? params.item?.type : method.startsWith('item/commandExecution/') ? 'commandExecution' : method.startsWith('item/fileChange/') ? 'fileChange' : method.startsWith('item/reasoning/') ? 'reasoning' : method === 'item/mcpToolCall/progress' ? 'mcpToolCall' : undefined;
   if (!toolIdentity(kind)) return;
   if (existing && ((existing.rawRecord?.type || existing.kind) !== kind || existing.turnId && params.turnId && existing.turnId !== params.turnId)) return;
   // A completed item owns its final output. Only an authoritative completion
   // may update it; starts, patches and deltas cannot reopen or append to it.
   if (existing && existing.status !== 'inProgress' && method !== 'item/completed') return;
   if (method.endsWith('outputDelta') && typeof params.delta !== 'string') return;
+  if (method === 'item/mcpToolCall/progress' && typeof params.message !== 'string') return;
   if (method === 'item/fileChange/patchUpdated' && (!Array.isArray(params.changes) || params.changes.some((change: any) => !change || typeof change.path !== 'string' || typeof change.diff !== 'string' || !change.kind || !['add', 'delete', 'update'].includes(change.kind.type)))) return;
 
   if (method === 'item/reasoning/textDelta' || method === 'item/reasoning/summaryTextDelta' || method === 'item/reasoning/summaryPartAdded') {
@@ -51,7 +54,7 @@ export function applyToolEvent(thread: Thread, method: string, params: any) {
     const index = textDelta ? params.contentIndex : params.summaryIndex;
     if (typeof params.itemId !== 'string' || !Number.isSafeInteger(index) || index < 0 || index > 1024) return;
     if ((method.endsWith('summaryTextDelta') || textDelta) && typeof params.delta !== 'string') return;
-    let message = thread.messages.find(message => message.id === `tool-${params.itemId}`);
+    message = thread.messages.find(message => message.id === `tool-${params.itemId}`);
     if (message?.tool && (message.tool.rawRecord?.type !== 'reasoning' || message.tool.status !== 'inProgress')) return;
     if (!message) {
       upsertTool(thread, { id: params.itemId, type: 'reasoning', summary: [] }, params.turnId);
@@ -65,6 +68,12 @@ export function applyToolEvent(thread: Thread, method: string, params: any) {
     item[key] = parts;
   } else if (method === 'item/started' || method === 'item/completed') {
     upsertTool(thread, params.item, params.turnId, method === 'item/completed');
+  } else if (method === 'item/mcpToolCall/progress') {
+    if (!message) {
+      upsertTool(thread, { id: params.itemId, type: 'mcpToolCall' }, params.turnId);
+      message = thread.messages.find(message => message.id === `tool-${params.itemId}`);
+    }
+    if (message?.tool) message.tool.progress = [...(message.tool.progress || []), params.message].slice(-100);
   } else if (method === 'item/commandExecution/outputDelta' || method === 'item/fileChange/outputDelta') {
     let message = thread.messages.find(message => message.id === `tool-${params.itemId}`);
     if (!message) {

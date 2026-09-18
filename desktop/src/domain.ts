@@ -27,6 +27,7 @@ export interface ToolActivity {
   command?: string;
   cwd?: string;
   output?: string;
+  progress?: string[];
   exitCode?: number | null;
   durationMs?: number | null;
   turnId?: string;

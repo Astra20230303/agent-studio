@@ -13,6 +13,7 @@ export function InvocationActivity({ tool }: { tool: ToolActivity }) {
     <summary style={{ overflowWrap: 'anywhere' }}>{call.server ? `${call.server} · ` : ''}{call.name} · {status}</summary>
     <div className="tool-detail">{tool.durationMs != null && <small>用时 {(tool.durationMs / 1000).toFixed(1)} 秒</small>}
       <div className="tool-copy-actions"><CopyText source={display(call.arguments === undefined ? {} : call.arguments)!} label="复制参数" />{call.result != null && <CopyText source={display(call.result)!} label="复制结果" />}{call.error != null && <CopyText source={display(call.error)!} label="复制错误" />}</div>
+      {tool.progress?.length ? <div className="tool-progress" aria-label="工具进度"><h4>进度</h4>{tool.progress.map((message, index) => <p key={index}>{message}</p>)}</div> : null}
       <h4>参数</h4><pre className="tool-output">{display(call.arguments === undefined ? {} : call.arguments)}</pre>
       {call.error != null && <pre className="tool-output" role="alert">{display(call.error)}</pre>}
       {call.result != null && <><h4>结果</h4><ToolResult result={call.result} /></>}
