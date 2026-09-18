@@ -103,6 +103,7 @@ async function main() {
     assert.equal(await page.getByRole('dialog', { name: '编辑任务', exact: true }).getByLabel('任务 Provider', { exact: true }).inputValue(), '');
     assert.equal(scheduler.detail(sample.id).providerId, undefined);
     const editor = page.getByRole('dialog', { name: '编辑任务', exact: true });
+    await editor.getByRole('combobox', { name: '任务通知范围', exact: true }).selectOption('failed_runs_only');
     await editor.getByRole('textbox', { name: '任务内容', exact: true }).fill('FAIL');
     await editor.getByRole('button', { name: '保存任务' }).click(); await editor.waitFor({ state: 'detached' });
     await dialog.getByRole('button', { name: '立即运行', exact: true }).click(); await changed();
@@ -143,6 +144,7 @@ async function main() {
     await page.reload(); await page.getByRole('button', { name: '已安排', exact: true }).click();
     await page.getByRole('button', { name: '查看任务 每日工作区检查' }).waitFor();
     assert.equal(scheduler.detail(sample.id).runs.length, 3, 'Results survive service restart');
+    assert.equal(scheduler.detail(sample.id).notificationPolicy, 'failed_runs_only', 'Notification policy survives service restart');
     failList = true; await changed(); await page.getByRole('alert').getByText('TEST_LIST_FAILURE').waitFor();
     failList = false; await page.getByRole('button', { name: '重试', exact: true }).click(); await page.getByRole('alert').waitFor({ state: 'detached' });
     badList = true; await changed();
