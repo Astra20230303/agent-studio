@@ -2,11 +2,11 @@ import { applyAssistantMessage } from './assistantMessages.ts';
 import { acceptTurnNotification } from './turnNotifications.ts';
 import { readPlan, readPlanDelta, readPlanMessage } from './planning.ts';
 import { recordTurnFailure } from './turnFailure.ts';
-import { applyToolEvent, finishTools } from './toolActivity.ts';
+import { applyToolEvent, finishTools, upsertTool } from './toolActivity.ts';
 import type { DesktopState } from './domain';
 import type { TurnEvent, TurnRuntime } from './turnRuntime';
 
-const methods = new Set(['turn/plan/updated', 'turn/diff/updated', 'turn/started', 'turn/completed', 'error', 'item/agentMessage/delta', 'item/started', 'item/completed', 'item/plan/delta', 'item/commandExecution/outputDelta', 'item/commandExecution/terminalInteraction', 'item/fileChange/outputDelta', 'item/fileChange/patchUpdated', 'item/mcpToolCall/progress', 'item/reasoning/textDelta', 'item/reasoning/summaryTextDelta', 'item/reasoning/summaryPartAdded']);
+const methods = new Set(['turn/plan/updated', 'turn/diff/updated', 'turn/started', 'turn/completed', 'error', 'item/agentMessage/delta', 'item/started', 'item/completed', 'item/autoApprovalReview/started', 'item/autoApprovalReview/completed', 'item/plan/delta', 'item/commandExecution/outputDelta', 'item/commandExecution/terminalInteraction', 'item/fileChange/outputDelta', 'item/fileChange/patchUpdated', 'item/mcpToolCall/progress', 'item/reasoning/textDelta', 'item/reasoning/summaryTextDelta', 'item/reasoning/summaryPartAdded']);
 
 export function createThreadEvents({ update, runtime, queue, audit }: {
   update: (mutate: (state: DesktopState) => void) => void;
@@ -42,6 +42,23 @@ export function createThreadEvents({ update, runtime, queue, audit }: {
         if (!thread) return;
         if (thread.planDelta && (thread.planDelta.turnId !== delta.turnId || thread.planDelta.itemId !== delta.itemId)) return;
         thread.planDelta = { turnId: delta.turnId, itemId: delta.itemId, content: (thread.planDelta?.content || '') + delta.delta };
+      });
+    }
+    if (message.method === 'item/autoApprovalReview/started' || message.method === 'item/autoApprovalReview/completed') {
+      const valid = typeof params.threadId === 'string' && params.threadId.trim() === params.threadId && params.threadId.length > 0
+        && typeof params.turnId === 'string' && params.turnId.trim() === params.turnId && params.turnId.length > 0
+        && typeof params.reviewId === 'string' && params.reviewId.trim() === params.reviewId && params.reviewId.length > 0
+        && params.review && typeof params.review === 'object' && typeof params.action === 'object';
+      if (valid) update(next => {
+        const thread = next.threads.find(item => item.remoteId === params.threadId);
+        if (!thread) return;
+        const id = `tool-auto-review-${params.reviewId}`;
+        const current = thread.messages.find(item => item.id === id)?.tool;
+        if (current && (current.turnId !== params.turnId || current.status !== 'inProgress') && message.method !== 'item/autoApprovalReview/completed') return;
+        const item: any = { id: `auto-review-${params.reviewId}`, type: 'autoApprovalReview', reviewId: params.reviewId, targetItemId: params.targetItemId, review: params.review, action: params.action, decisionSource: params.decisionSource };
+        if (message.method === 'item/autoApprovalReview/completed') item.status = 'completed';
+        else item.status = 'inProgress';
+        upsertTool(thread, item, params.turnId, message.method === 'item/autoApprovalReview/completed');
       });
     }
     if (message.method === 'item/completed' && params.item?.type === 'plan') {

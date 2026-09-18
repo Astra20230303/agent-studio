@@ -3609,3 +3609,8 @@ Codex Rust 传递依赖和原生二进制传递依赖仍需进一步许可审计
 
 - 已交付：接入上游 `thread/status/changed`。`active` 无 flags 映射 running，包含 waitingOnApproval 或 waitingOnUserInput 映射 needs_input，idle 保持 idle，systemError 映射 failed，notLoaded 映射 idle；更新仅作用于对应远端会话。
 - 验证：9 项 thread-status/thread-events 测试通过，覆盖多种等待 flags、终态、坏状态和多会话事件隔离；生产 TypeScript/Vite 构建通过。未知状态或非法 flags 不覆盖已有状态。
+
+### 自动审批审查事件（2026-09-19）
+
+- 已交付：接入 `item/autoApprovalReview/started` 与 `item/autoApprovalReview/completed`，将 reviewId、目标条目、review（状态/风险/授权/理由）、decisionSource 与 action 保留为执行记录并提供原始 JSON 查看。开始/完成严格校验 thread/turn/review 身份，完成后不允许重新打开；坏载荷和跨回合事件不写入。
+- 验证：8 项 thread-events 测试覆盖开始/完成、重复完成、跨回合和坏身份；TypeScript/Vite 生产构建通过。该上游协议标记为 unstable，Felix 保留未知 action 字段以兼容变化。

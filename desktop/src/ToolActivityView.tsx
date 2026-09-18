@@ -15,6 +15,7 @@ function ToolRow({ tool, onOpenAgent }: { tool: ToolActivity; onOpenAgent?: (id:
   if (tool.rawRecord?.type === 'reasoning') return <ReasoningActivity tool={tool} />;
   if (tool.rawRecord?.type === 'webSearch') return <WebSearchActivity tool={tool} />;
   if (tool.rawRecord?.type === 'imageView') return <ImageViewActivity tool={tool} />;
+  if (tool.rawRecord?.type === 'autoApprovalReview') return <details className="tool-row"><summary>自动审批审查 · {tool.status === 'inProgress' ? '进行中' : '已完成'}</summary><div className="tool-detail"><p>审查 ID：{String(tool.rawRecord.item.reviewId || '')}</p><p>目标条目：{String(tool.rawRecord.item.targetItemId || '无')}</p><pre className="tool-output">{JSON.stringify({ review: tool.rawRecord.item.review, decisionSource: tool.rawRecord.item.decisionSource, action: tool.rawRecord.item.action }, null, 2)}</pre></div></details>;
   if (tool.kind === 'rawRecord') {
     const source = JSON.stringify(tool.rawRecord?.item || {}, null, 2);
     return <details className="tool-row"><summary>会话记录 · {tool.rawRecord?.type} · {tool.status}</summary><div className="tool-detail"><p>此记录尚无专用视图，以下保留服务端原始内容。</p><CopyText source={source} label="复制记录" /><pre className="tool-output">{source}</pre></div></details>;

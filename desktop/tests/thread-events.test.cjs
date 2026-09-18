@@ -104,3 +104,16 @@ test('turn diff updates replace the active aggregate and reject stale or malform
   f.emit('turn/started', { threadId: 'a', turn: { id: 'turn-b' } });
   assert.equal(f.state.threads[0].turnDiff, undefined);
 });
+test('auto approval review lifecycle is recorded and stale or malformed events are ignored', () => {
+  const f = fixture();
+  f.emit('turn/started', { threadId: 'a', turn: { id: 'turn-a' } });
+  const base = { threadId: 'a', turnId: 'turn-a', reviewId: 'review', targetItemId: 'cmd', review: { status: 'inProgress', riskLevel: 'low', rationale: 'safe' }, action: { type: 'command' } };
+  f.emit('item/autoApprovalReview/started', base);
+  assert.equal(f.state.threads[0].messages.at(-1).tool.status, 'inProgress');
+  f.emit('item/autoApprovalReview/completed', { ...base, decisionSource: 'auto', review: { ...base.review, status: 'approved' } });
+  assert.equal(f.state.threads[0].messages.at(-1).tool.status, 'completed');
+  f.emit('item/autoApprovalReview/completed', { ...base, decisionSource: 'late' });
+  f.emit('item/autoApprovalReview/started', { ...base, turnId: 'other' });
+  f.emit('item/autoApprovalReview/started', { ...base, reviewId: '' });
+  assert.equal(f.state.threads[0].messages.at(-1).tool.status, 'completed');
+});

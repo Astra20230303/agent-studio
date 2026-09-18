@@ -531,3 +531,7 @@
 ### 会话状态变更通知（2026-09-19）
 
 - 当前增量计划：接入上游 `thread/status/changed`，校验 thread/status 枚举和 active flags，将 waitingOnApproval/waitingOnUserInput 映射为 needs_input、普通 active 映射为 running、systemError 映射为 failed；未知/损坏状态不覆盖本地状态。验证多会话隔离、坏 flags 和状态恢复。
+
+### 自动审批审查事件（2026-09-19）
+
+- 当前增量计划：接入上游 `item/autoApprovalReview/started` 与 `item/autoApprovalReview/completed`，保留审查身份、目标条目、风险级别、授权级别、决定来源、理由和动作摘要；按 review/turn/thread 校验，完成后拒绝迟到更新。验证开始/完成、重复完成、跨回合和坏身份。
