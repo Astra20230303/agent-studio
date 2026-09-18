@@ -2646,3 +2646,9 @@ Provider 配置审计：保存、启用和删除成功后记录不含密钥、�
 
 archive-restore-lock-ui.cjs 用延迟 IPC 验证断线重连、关闭保护、失败重试和一次成功回调；archived-threads-ui.cjs 验证搜索、分页及历史保留，生产构建通过。模拟桥接验证不代表所有实际网络故障已覆盖。
 提交后验收：app-shortcuts-ui.cjs 与 offline-thread-mutations-ui.cjs 回归通过，弹窗快捷键隔离和离线会话保护保持有效，无额外产品修正。
+
+## 会话列表响应校验
+
+实现 465b766：普通列表与归档列表共用 threadPage 校验；拒绝非数组列表和非字符串分页游标，过滤无效 ID，清理非字符串标题、预览、工作区和片段。无效页面不覆盖已有列表，保留重试入口；兼容旧 threads 数组响应。
+
+验收：3 项 thread-page.test.cjs、thread-list-ui.cjs、archived-threads-ui.cjs 和生产构建通过。提交后归档测试加入空条目、对象标题/路径、无效游标、失败保留条目和刷新恢复，全部通过。没有新增产品修正；测试覆盖模拟协议数据，不代表所有服务端异常组合。
