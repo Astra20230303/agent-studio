@@ -2757,3 +2757,9 @@ user-message-copy-ui.cjs 覆盖原文保真、键盘操作、失败重试、空�
 最初真实测试证明 turn/interrupt 后 PowerShell 进程仍存活；上游 unified_exec 明确保留后台进程，因此新增独立管理入口。command-interrupt-live 在隔离 profile 中让真实 app-server 执行写 PID 后等待的 PowerShell 命令，验证回合 interrupted、后台列表可发现进程、专门终止接口后 PID 不再存活且未写入结束标记、同会话下一回合完成及历史恢复。
 
 验收：background-terminals-ui 覆盖读取失败重试、分页、重复终止、终止失败重试、会话隔离及已退出反馈；生产构建通过。提交后 live 测试改用 Felix listBackgroundTerminals/terminateBackgroundTerminal 封装，并确认终止后列表不再包含该进程，全部通过。测试覆盖 Windows 直接命令进程和本地模型替身，不证明全部平台、孙进程树或云端环境终止语义。
+
+## 后台命令资源快照
+
+实现 13bf95f：后台命令展示系统 PID、CPU 百分比和 RSS 内存（MiB），说明数据来自最近一次刷新。保留零 CPU/内存，多核 CPU 不限制为 100%；缺失、负值、非数值和非有限数显示未知，避免错误解释为零资源占用。
+
+验收：2 项指标格式单测、background-terminals-ui 的有值/缺失/刷新变化及终止回归、生产构建通过。提交后真实 command-interrupt-live 检查服务端 PID/资源字段可选契约与实际格式化输出，并继续验证进程退出和会话恢复，通过。指标可用性取决于平台和服务端采样，本轮不保证所有系统都有 CPU/RSS 数据。

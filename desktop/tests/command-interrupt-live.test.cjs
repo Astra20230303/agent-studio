@@ -83,6 +83,10 @@ test('real app-server terminates a retained background command after interruptio
     const terminals = await client.listBackgroundTerminals(thread.id);
     const terminal = terminals.data.find(item => item.osPid === commandPid || item.command.includes('command.pid'));
     assert.ok(terminal, 'Interrupted command remains manageable as a background terminal');
+    assert.ok(terminal.osPid == null || Number.isSafeInteger(terminal.osPid) && terminal.osPid > 0);
+    for (const metric of [terminal.cpuPercent, terminal.rssKb]) assert.ok(metric == null || typeof metric === 'number' && Number.isFinite(metric) && metric >= 0);
+    const { backgroundTerminalMetrics } = require('../src/backgroundTerminalMetrics.ts');
+    assert.match(backgroundTerminalMetrics(terminal), /^PID (\d+|未知) · CPU (\d+\.\d%|未知) · 内存 (\d+\.\d MiB|未知)$/);
     const terminated = await client.terminateBackgroundTerminal(thread.id, terminal.processId);
     assert.equal(terminated, true);
     await waitUntil(() => !alive(commandPid));
