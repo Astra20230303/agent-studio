@@ -54,7 +54,8 @@ const assert = require('node:assert/strict');
     await page.evaluate(() => { window.__writeFail = false; window.__queue.retry(); });
     await page.waitForFunction(() => !window.__queue.saveFailed);
     assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('felix-turn-queue-v1')).map(item => item.id)), ['waiting']);
-    for (const raw of ['{broken', '{}', '[null]']) {
+    const mixed = await page.evaluate(() => JSON.stringify([window.__item, { ...window.__item, id: 'bad', attachments: [null] }]));
+    for (const raw of ['{broken', '{}', '[null]', mixed]) {
       await page.evaluate(raw => { localStorage.setItem('felix-turn-queue-v1', raw); window.__mount(); }, raw);
       await page.waitForFunction(() => window.__queue.saveFailed && window.__queue.items.length === 0);
       assert.equal(await page.evaluate(() => window.__queue.change(() => [], true)), false);
