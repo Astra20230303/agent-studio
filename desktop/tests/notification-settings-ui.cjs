@@ -8,6 +8,7 @@ const assert = require('node:assert/strict');
       window.__readFail = true; window.__writes = []; window.__settings = { completed: false, failed: false, input: false, backgroundOnly: true };
       window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }), conversationNotifications: async input => {
         if (!input && window.__readFail) return { ok: false, error: 'Read unavailable' };
+        if (!input && window.__malformed) return { ok: true, settings: { completed: 'invalid' }, supported: true };
         if (input) window.__writes.push(input);
         if (input && window.__hold) await new Promise(resolve => window.__release = resolve);
         if (input && window.__fail) return { ok: false, error: 'Disk unavailable' };
@@ -39,6 +40,15 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(() => window.__settings.failed);
     assert.equal(await page.evaluate(() => window.__settings.failed), true);
     assert.deepEqual(await page.evaluate(() => window.__writes.at(-1)), await page.evaluate(() => window.__writes.at(-2)));
+    await page.getByRole('button', { name: '常规', exact: true }).click();
+    await page.evaluate(() => { window.__malformed = true; });
+    await page.getByRole('button', { name: '通知', exact: true }).click();
+    await page.getByRole('alert').filter({ hasText: '通知设置格式无效' }).waitFor();
+    assert.equal(await completion.count(), 0);
+    await page.evaluate(() => { window.__malformed = false; });
+    await page.getByRole('button', { name: '重试加载通知设置' }).click();
+    await completion.waitFor();
+    assert.ok(await completion.isChecked());
     console.log('PASS: notification settings read/save/remount, rejected save and retry');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
