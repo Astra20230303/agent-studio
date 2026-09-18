@@ -14,6 +14,8 @@ const assert=require('node:assert/strict');const {chromium}=require('playwright'
  await page.getByText('Restored task conversation',{exact:true}).waitFor();assert.deepEqual(await page.evaluate(()=>window.__resumes),['remote-task']);
  await page.getByRole('button',{name:'推理强度：模型默认',exact:true}).waitFor();
  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.find(t=>t.remoteId==='remote-task').reasoningEffort),'default');
+ await page.getByRole('button',{name:'推理强度：模型默认',exact:true}).click();
+ await page.getByRole('button',{name:'中',exact:true}).click();
  await page.getByRole('button',{name:'Original chat',exact:true}).click();await page.getByRole('button',{name:'推理强度：高',exact:true}).waitFor();assert.equal(await page.getByRole('textbox',{name:'消息',exact:true}).inputValue(),'Original draft');
  await page.evaluate(()=>{window.__failResume=true;});
  await page.getByRole('button',{name:'已安排',exact:true}).click();await page.getByRole('button',{name:'查看任务 Generated task',exact:true}).click();
@@ -22,5 +24,6 @@ const assert=require('node:assert/strict');const {chromium}=require('playwright'
  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.filter(t=>t.remoteId==='remote-task').length),1);
  await page.evaluate(()=>{window.__failResume=false;});await error.getByRole('button',{name:'重试恢复会话',exact:true}).click();await error.waitFor({state:'detached'});
  await page.getByText('Restored task conversation',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'推理强度：中',exact:true}).waitFor();
  console.log('PASS: task run opens and restores exact remote conversation while original draft is retained');
 }finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});

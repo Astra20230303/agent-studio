@@ -2937,3 +2937,9 @@ user-message-copy-ui.cjs 覆盖原文保真、键盘操作、失败重试、空�
 实现 8a995f1：聊天选择器新增模型默认，恢复默认按钮不再固定设为低。显式 default 状态随会话/全局偏好及队列保存，避免与未设置的继承状态混淆；请求不发送 default 字符串，通过 collaborationMode 的 null reasoning_effort 清除前一回合显式强度。旧低/中/高状态及新会话原有低强度初始化保持兼容。
 
 验收：thread-model-ui 验证高强度切回默认、刷新保持、全局与会话隔离，以及队列实际发送 null；planning 单测和界面回归通过。task-runner 的真实 app-server 先执行 high 任务，再恢复并以默认续聊，带密钥和本机免密两种路径均确认不再发送 high，全部 7 项通过。验收连接补齐应用已启用的 experimentalApi 声明。生产构建通过。模型默认由运行配置和模型决定，不意味着关闭推理；未声称所有云端模型兼容。
+
+## 远端会话默认强度恢复
+
+实现 2d6e037：首次恢复远端会话时，将协议 reasoningEffort 的显式 null 转成模型默认，避免错误继承全局低/中/高；字段缺失维持旧兼容路径，已有本地选择不被恢复响应覆盖。
+
+验收：task-run-conversation-ui 在全局 high 下打开默认任务会话，确认默认及持久化，原聊天仍 high；任务聊天选择 medium 后失败重试恢复仍保留 medium。thread-model-ui 回归通过。task-runner 两种认证路径的真实 app-server 断言恢复默认返回 null，全部 7 项通过；生产构建通过。更广的模型强度能力发现尚未完成。

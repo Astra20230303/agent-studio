@@ -97,6 +97,7 @@ test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local
       const finished=await completed;assert.equal(finished.id,next.turn.id);assert.equal(finished.status,'completed',JSON.stringify(finished.error));
       if(upstreamError)throw upstreamError;assert.equal(requests,3);
       const latest=await rpc.request('thread/resume',{threadId:result.threadId});
+      assert.equal(latest.reasoningEffort,null,'Restored default is represented by explicit null');
       assert.equal(latest.thread.turns.length,2);
       assert.equal(latest.thread.turns[0].id,restored.thread.turns[0].id);
       assert.equal(latest.thread.turns[1].id,next.turn.id);
