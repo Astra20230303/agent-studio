@@ -25,6 +25,8 @@ test('real app-server archives, paginates and restores isolated conversations', 
   const timer = setTimeout(() => rpc.close(), 25000);
   try {
     await rpc.request('initialize', { clientInfo: { name: 'felix_archive_acceptance', version: '1' }, capabilities: { experimentalApi: true } }); rpc.notify('initialized', {});
+    const { createTurnCommands } = require('../src/turnCommands.ts');
+    const turnCommands = createTurnCommands({ start: ({threadId,text}) => rpc.request('turn/start', {threadId,input:[{type:'text',text}]}), steer: (threadId,expectedTurnId,text) => rpc.request('turn/steer', {threadId,expectedTurnId,input:[{type:'text',text}]}) });
     const ids = [];
     for (let index = 0; index < 2; index++) {
       const result = await rpc.request('thread/start', { cwd: root, ephemeral: false, model: 'MiniMax-M2.1', modelProvider: 'minimax', approvalPolicy: 'never', sandbox: 'read-only' });
@@ -36,7 +38,8 @@ test('real app-server archives, paginates and restores isolated conversations', 
         rpc.on('notification', listener);
       });
       complete.catch(() => {});
-      await rpc.request('turn/start', { threadId: result.thread.id, input: [{ type: 'text', text: 'Return a brief test reply.' }] });
+      const acknowledgement = await turnCommands.start({threadId:result.thread.id,text:'Return a brief test reply.'});
+      assert.equal(typeof acknowledgement.turn.id,'string');
       await complete;
       await rpc.request('thread/name/set', { threadId: result.thread.id, name: `Archive acceptance ${index}` });
       await rpc.request('thread/archive', { threadId: result.thread.id });

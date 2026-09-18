@@ -56,7 +56,7 @@ import { McpUrl } from './McpUrl';
 import { readPlan } from './planning';
 import { createConnectionRecovery } from './connectionRecovery';
 import './connection.css';
-import { steerTurn } from './codexClient';
+import { turnCommands } from './turnService';
 import type { UserAnswers } from './UserInputDialog';
 import { RemoteDesktopPanel } from './RemoteDesktopPanel';
 import { RemoteBrowser } from './RemoteBrowser';
@@ -78,7 +78,7 @@ import { applyToolEvent, finishTools, restoreMessages } from './toolActivity';
 import { ToolActivityGroup, groupMessages } from './ToolActivityView';
 import { MessageActions } from './ReplyActions';
 import { branchSnapshot, fullBranchSnapshot, isFinalReply } from './messageActions';
-import { listAllThreadItems, switchThreadProvider, updateThreadPermission, connectCodex, forkThread, listThreadItems, listThreadTurns, startTurn, subscribeCodex } from './codexClient';
+import { listAllThreadItems, switchThreadProvider, updateThreadPermission, connectCodex, forkThread, listThreadItems, listThreadTurns, subscribeCodex } from './codexClient';
 import { ExtensionsPage, ExtensionIcon } from './ExtensionsPage';
 import { ThreadButton } from './ThreadButton';
 import { ModePicker } from './ModePicker';
@@ -364,7 +364,7 @@ function App({ initialState }: { initialState: DesktopState }) {
       update(next => { const target = next.threads.find(thread => thread.id === item.localId); if (target) target.messages.push({ id: item.id, role: 'user', content: item.text, attachments: item.attachments, skills: item.skills, plugins: item.plugins, createdAt: new Date().toISOString() }); });
       void (async () => {
         try {
-          const result = await startTurn({ threadId: item.threadId, text: item.text, attachments: item.attachments, skills: item.skills, model: item.model, effort: item.effort, plugins: item.plugins, planningMode: item.planningMode || 'default', cwd: item.cwd });
+          const result = await turnCommands.start({ threadId: item.threadId, text: item.text, attachments: item.attachments, skills: item.skills, model: item.model, effort: item.effort, plugins: item.plugins, planningMode: item.planningMode || 'default', cwd: item.cwd });
           const turn = result.turn;
           if (!turn?.id) throw new Error('服务未返回回合编号，请检查会话记录。');
           runtime.apply(item.threadId, { type: 'start', turnId: turn.id });
@@ -425,10 +425,10 @@ function App({ initialState }: { initialState: DesktopState }) {
       let turn;
       const plugins = composerPlugins.map(plugin => ({ id: plugin.id, name: plugin.name }));
       if (runningTurnId) {
-        const result = await steerTurn(threadId, runningTurnId, text, plugins, attachments, composerSkills);
+        const result = await turnCommands.steer(threadId, runningTurnId, text, plugins, attachments, composerSkills);
         turn = { turn: { id: result.turnId } };
       } else {
-        turn = await startTurn({ threadId, text, attachments, skills: composerSkills, plugins, model, modelProvider, effort: activeEffort, cwd, planningMode: existing?.planningMode || 'default' });
+        turn = await turnCommands.start({ threadId, text, attachments, skills: composerSkills, plugins, model, modelProvider, effort: activeEffort, cwd, planningMode: existing?.planningMode || 'default' });
       }
       if (turn.turn?.id) {
         runtime.apply(threadId, { type: 'start', turnId: turn.turn.id });
