@@ -116,6 +116,8 @@ async function main() {
     await dialog.locator('.task-run summary').filter({ hasText: '失败' }).click();
     await dialog.getByText('TEST_MODEL_FAILURE', { exact: true }).waitFor();
     const failedRun = dialog.locator('.task-run').filter({ has: page.locator('summary', { hasText: '失败' }) });
+    await failedRun.getByRole('button', { name: '运行时任务配置', exact: true }).click();
+    await failedRun.getByText('极高', { exact: true }).waitFor();
     await failedRun.getByRole('button', { name: '复制运行结果', exact: true }).click();
     assert.match(await page.evaluate(() => window.__copied), /失败[\s\S]*TEST_MODEL_FAILURE/);
     await dialog.getByRole('button', { name: '关闭对话框' }).click();

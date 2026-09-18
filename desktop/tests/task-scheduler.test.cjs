@@ -178,3 +178,31 @@ test('task time limits validate, persist and reset to default',async()=>{
   assert.equal(scheduler.save(task({timeoutMinutes:5})).timeoutMinutes,undefined);
  }finally{await scheduler.stop();}
 });
+
+test('extended effort run snapshots survive restart and model-default edits', async () => {
+  const { createAutomationRepository } = require('../src/automationRepository.ts');
+  const directory = temp();
+  const received = [];
+  let scheduler = new TaskScheduler({ directory, runner: async value => { received.push(value.reasoningEffort); return { output: 'ok' }; } });
+  const ids = [];
+  try {
+    for (const effort of ['none','minimal','low','medium','high','xhigh','max','ultra','persistent']) {
+      const saved = scheduler.save(task({ kind: 'agent', model: 'test', reasoningEffort: effort }));
+      ids.push([saved.id, effort]);
+      await scheduler.run(saved.id);
+      assert.equal(received.at(-1), effort);
+      scheduler.save({ ...saved, reasoningEffort: undefined });
+    }
+    await scheduler.stop();
+    scheduler = new TaskScheduler({ directory, runner: async () => ({}) });
+    const repo = createAutomationRepository(async (_operation, id) => ({ task: scheduler.detail(id) }));
+    for (const [id, effort] of ids) {
+      const restored = await repo.detail(id);
+      assert.equal(restored.reasoningEffort, undefined);
+      assert.equal(restored.runs[0].configuration.reasoningEffort, effort);
+    }
+    for (const invalid of ['default', 'unknown', '', 0, {}, []]) {
+      assert.throws(() => scheduler.save(task({ kind: 'agent', model: 'test', reasoningEffort: invalid })), /推理强度无效/);
+    }
+  } finally { await scheduler.stop(); fs.rmSync(directory, { recursive: true, force: true }); }
+});

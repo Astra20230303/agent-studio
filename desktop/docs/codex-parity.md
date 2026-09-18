@@ -3499,4 +3499,11 @@ Codex Rust 传递依赖和原生二进制传递依赖仍需进一步许可审计
 - 会话选择器增加 none、minimal、xhigh、max、ultra、persistent；共享选项定义用于 UI、全局状态解码和会话恢复。none 显式发送，模型默认仍省略 effort 并采用默认协作配置。窄窗口选项换行。
 - 依据：官方配置文档 https://developers.openai.com/codex/config-reference/ 列出 minimal/low/medium/high/xhigh；本仓库 codex-upstream/codex-rs/protocol/src/openai_models.rs 的 ReasoningEffort 还定义 none/max/ultra/persistent。已知协议值不等于每个模型都支持，界面保留相应说明；未添加上游 Custom(String) 任意值输入。
 - 验证：reasoning-effort.test.cjs 和 thread-resume.test.cjs 共 5 项通过；reasoning-effort-ui.cjs 验证恢复、隔离、刷新、xhigh/none 的 turn/start 与协作参数、新增选项、Home/End 和 390px 布局；thread-model-ui.cjs 默认值和排队发送回归通过；构建通过。使用模拟桥接，未验证具体模型的实际推理执行。
-- 后续：定时任务仍使用其独立的 low/medium/high 配置；服务端模型能力动态筛选尚未贯通。
+- 后续：定时任务强度已在下一增量对齐；服务端模型能力动态筛选尚未贯通。
+
+### 定时任务扩展推理强度（2026-09-19）
+
+- 定时任务选择、保存校验、任务/运行快照解析、详情和历史配置展示补齐 none/minimal/xhigh/max/ultra/persistent。默认仍用缺省值，none 保持显式字符串。任务编辑不会改写已发生运行的强度快照。
+- 验证：24 项 scheduler/repository 测试覆盖全部已知值运行传递、重启恢复、改回默认保留旧快照及非法值拒绝；scheduled-ui.cjs 在构建产物上通过真实 scheduler 桥接验证 xhigh 保存/运行历史/重启和响应式界面。修正测试中旧版手动折叠侧栏步骤，等待实际自动折叠完成。
+- FELIX_TEST_EFFORT=xhigh 的 task-runner.test.cjs 共 11 项通过，包括真实本地 Codex 进程、适配器、本地模拟模型端点和 shell 工具执行；认证及无密钥本地两条路径均确认 reasoning_effort=xhigh 到达端点，并验证之后默认会话不继承该显式值。没有调用付费模型，不能据此证明所有模型支持每种强度。
+- 构建通过，仍有已有的大分块提示。后续保留模型能力动态筛选工作。
