@@ -1,3 +1,5 @@
+import { readThreadPermissions } from './threadPermissions.ts';
+import type { Thread } from './domain';
 import { validateRestorableHistory } from './historyValidation.ts';
 
 // A successful transport response alone does not confirm the selected thread.
@@ -24,5 +26,12 @@ export function readThreadResume(value: any, threadId: string) {
     for (const item of turn.items) items.push({ item, turnId: turn.id });
   }
   validateRestorableHistory(items);
-  return { items, running };
+  const reasoningEffort: Thread['reasoningEffort'] = value.reasoningEffort === null ? 'default'
+    : ['low', 'medium', 'high'].includes(value.reasoningEffort) ? value.reasoningEffort : undefined;
+  return structuredClone({ items, running,
+    providerId: (value.providerId || undefined) as string | undefined,
+    model: (value.model || undefined) as string | undefined,
+    cwd: (thread.cwd || undefined) as string | undefined,
+    reasoningEffort, permissions: readThreadPermissions(value),
+  });
 }

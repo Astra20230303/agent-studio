@@ -50,7 +50,7 @@ test('real app-server archives, paginates and restores isolated conversations', 
     const archived = await rpc.request('thread/list', { modelProviders: [], archived: true, limit: 100 });
     assert.deepEqual(archived.data.map(thread => thread.id), [ids[1]]);
     const source = fs.readFileSync(path.resolve(__dirname, '../src/codexClient.ts'), 'utf8');
-    const compiled = require('node:module').stripTypeScriptTypes(source).replace(/^import .*;\r?\n/gm, '').replace(/\bexport /g, '') + '\nObject.assign(exports, { listThreads, searchThreads, listArchivedThreads, unarchiveThread, archiveThread, deleteThread, setThreadName, listThreadTurns, listThreadItems, forkThread });';
+    const compiled = require('node:module').stripTypeScriptTypes(source).replace(/^import .*;\r?\n/gm, '').replace(/\bexport /g, '') + '\nObject.assign(exports, { listThreads, searchThreads, listArchivedThreads, unarchiveThread, archiveThread, deleteThread, setThreadName, resumeThread, listThreadTurns, listThreadItems, forkThread });';
     const client = {};
     require('node:vm').runInNewContext(compiled, { exports: client, require: () => ({}), window: { codex: { request: async (method, params) => ({ ok: true, result: await rpc.request(method, params) }) } } });
     assert.deepEqual((await client.listArchivedThreads()).data.map(thread => thread.id), [ids[1]]);
@@ -62,7 +62,7 @@ test('real app-server archives, paginates and restores isolated conversations', 
     assert.match(searched.data[0].snippet, /Archive test completed/);
     const { createThreadStore } = require('../src/threadStore.ts');
     const localState = { threads: [], activeThreadId: 'current-selection' };
-    const repository = createThreadStore({ list: client.listThreads, archived: client.listArchivedThreads, search: client.searchThreads, rename: client.setThreadName, archive: client.archiveThread, remove: client.deleteThread, restore: client.unarchiveThread }, mutate => mutate(localState));
+    const repository = createThreadStore({ list: client.listThreads, archived: client.listArchivedThreads, search: client.searchThreads, resume: client.resumeThread, rename: client.setThreadName, archive: client.archiveThread, remove: client.deleteThread, restore: client.unarchiveThread }, mutate => mutate(localState));
     assert.deepEqual((await repository.query({ archived: true })).data.map(thread => thread.id), [ids[1]]);
     assert.ok((await repository.query()).data.some(thread => thread.id === ids[0]));
     for (const archivedScope of [false, true]) {
@@ -81,8 +81,9 @@ test('real app-server archives, paginates and restores isolated conversations', 
     assert.ok(active.data.some(thread => thread.id === ids[0]));
     const resumed = await rpc.request('thread/resume', { threadId: ids[0] });
     assert.equal(resumed.thread.id, ids[0]);
-    const { readThreadResume } = require('../src/threadResume.ts');
-    const snapshot = readThreadResume(resumed, ids[0]);
+    const snapshot = await repository.resume(ids[0]);
+    assert.equal(snapshot.cwd, root);
+    assert.equal(snapshot.permissions.sandbox, 'readOnly');
     assert.equal(snapshot.running, undefined);
     assert.ok(snapshot.items.some(entry => entry.item.type === 'agentMessage' && entry.item.text.includes('Archive test completed.')));
     const turns = await client.listThreadTurns(ids[0]);

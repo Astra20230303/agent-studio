@@ -20,3 +20,13 @@ test('malformed and ambiguous turns cannot unlock a restored session',()=>{
  const running={...turn,status:'inProgress',items:[{id:'future',type:'futureTool',data:{unknown:true}}]};
  assert.equal(readThreadResume({thread:{id:'remote',turns:[running]}},'remote').running.id,'t');
 });
+
+test('restored snapshot owns history and normalized configuration without raw transport fields',()=>{
+ const input={...valid(),sandboxPolicy:{type:'readOnly'},approvalPolicy:'on-request',approvalsReviewer:'user',apiKey:'private'};
+ const result=readThreadResume(input,'remote');
+ assert.equal(result.cwd,'D:/confirmed');assert.equal(result.providerId,'p');assert.equal(result.model,'m');assert.equal(result.reasoningEffort,'default');
+ assert.deepEqual(result.permissions,{sandbox:'readOnly',approvalPolicy:'on-request',reviewer:'user'});assert.equal(result.apiKey,undefined);assert.equal(result.thread,undefined);
+ input.thread.turns[0].items[0].text='mutated transport';assert.equal(result.items[0].item.text,'kept');
+ result.items[0].item.text='mutated consumer';assert.equal(input.thread.turns[0].items[0].text,'mutated transport');
+ assert.equal(readThreadResume({...valid(),reasoningEffort:'future'},'remote').reasoningEffort,undefined);
+});

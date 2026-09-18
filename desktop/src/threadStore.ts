@@ -1,11 +1,13 @@
+import { readThreadResume } from './threadResume.ts';
 import type { DesktopState, Thread } from './domain';
 import { createThreadRepository, type ThreadRepository, type ThreadSource } from './threadRepository.ts';
 import { createThreadMutations, type ThreadMutations, type ThreadRemoteMutations } from './threadMutations.ts';
 
 export interface ThreadStore extends ThreadRepository, ThreadMutations {
+  resume(threadId: string): Promise<ReturnType<typeof readThreadResume>>;
   syncInitialTitle(thread: Pick<Thread, 'id'> & { remoteId: string }, title: string): Promise<void>;
 }
-export type ThreadBackend = ThreadSource & ThreadRemoteMutations;
+export type ThreadBackend = ThreadSource & ThreadRemoteMutations & { resume(threadId: string): Promise<unknown> };
 
 // One instance per application state. View lifetimes and queue persistence remain
 // with callers; mutation exclusion spans all views and survives reconnects.
@@ -26,6 +28,7 @@ export function createThreadStore(backend: ThreadBackend, update: (mutate: (stat
   }
   return {
     query: repository.query,
+    async resume(threadId) { return readThreadResume(await backend.resume(threadId), threadId); },
     rename: (thread, name) => {
       const identity = { id: thread.id, remoteId: thread.remoteId };
       return exclusive(identity, async () => {

@@ -2,7 +2,6 @@ import { modelCatalogIds } from './modelCatalog';
 import { removeRecentProject } from './recentProjects';
 import { projectRepository } from './projectRepository';
 import { validateRestorableHistory } from './historyValidation';
-import { readThreadResume } from './threadResume';
 import { findMessageTurn } from './messageTurn';
 import type { HistoryReadOptions } from './threadHistory';
 import { threadBackend } from './threadBackend';
@@ -79,7 +78,7 @@ import { applyToolEvent, finishTools, restoreMessages } from './toolActivity';
 import { ToolActivityGroup, groupMessages } from './ToolActivityView';
 import { MessageActions } from './ReplyActions';
 import { branchSnapshot, fullBranchSnapshot, isFinalReply } from './messageActions';
-import { listAllThreadItems, switchThreadProvider, updateThreadPermission, connectCodex, forkThread, listThreadItems, listThreadTurns, resumeThread, startThread, startTurn, subscribeCodex } from './codexClient';
+import { listAllThreadItems, switchThreadProvider, updateThreadPermission, connectCodex, forkThread, listThreadItems, listThreadTurns, startThread, startTurn, subscribeCodex } from './codexClient';
 import { ExtensionsPage, ExtensionIcon } from './ExtensionsPage';
 import { ThreadButton } from './ThreadButton';
 import { ModePicker } from './ModePicker';
@@ -531,9 +530,9 @@ function App({ initialState }: { initialState: DesktopState }) {
     update(next => { const thread = next.threads.find(item => item.remoteId === threadId); if (thread) thread.effectivePermissions = undefined; });
     void (async () => {
       try {
-        const loaded = await resumeThread(threadId);
+        const loaded = await threadStore.resume(threadId);
         if (disposed) return;
-        const { items, running } = readThreadResume(loaded, threadId);
+        const { items, running } = loaded;
         setRestoreErrors(previous => { const next = { ...previous }; delete next[threadId]; return next; });
         if (loaded.providerId) update(next => { const thread = next.threads.find(item => item.remoteId === threadId); if (thread) thread.providerId = loaded.providerId; });
         // Only use a snapshot that predates no live turn events.
@@ -542,13 +541,12 @@ function App({ initialState }: { initialState: DesktopState }) {
         update(next => {
           const thread = next.threads.find(item => item.remoteId === threadId);
           if (!thread) return;
-          thread.effectivePermissions = readThreadPermissions(loaded);
+          thread.effectivePermissions = loaded.permissions;
           if (!thread.model && typeof loaded.model === 'string' && loaded.model) thread.model = loaded.model;
           if (!thread.reasoningEffort) {
-            if (loaded.reasoningEffort === null) thread.reasoningEffort = 'default';
-            else if (['low', 'medium', 'high'].includes(loaded.reasoningEffort)) thread.reasoningEffort = loaded.reasoningEffort;
+            if (loaded.reasoningEffort) thread.reasoningEffort = loaded.reasoningEffort;
           }
-          if (loaded.thread?.cwd) thread.cwd = loaded.thread.cwd;
+          if (loaded.cwd) thread.cwd = loaded.cwd;
           if (items.length) thread.messages = restoreMessages(items, thread.messages);
           thread.status = running ? 'running' : 'completed';
           ensureThreadTitle(thread);

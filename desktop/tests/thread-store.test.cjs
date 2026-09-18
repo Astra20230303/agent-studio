@@ -78,3 +78,12 @@ test('newest manual name wins when local and remote alias histories differ',asyn
  await f.store.syncInitialTitle(thread,'Auto');
  assert.deepEqual(f.calls.at(-1),['rename','remote-a','Latest remote name']);
 });
+
+test('resume validates identity, isolates concurrent results and leaves application state untouched',async()=>{
+ const pending=new Map();const f=setup({resume:id=>{const item=deferred();pending.set(id,item);return item.promise}});
+ const state=structuredClone(f.state);const a=f.store.resume('a');const b=f.store.resume('b');
+ pending.get('b').resolve({thread:{id:'b',cwd:'D:/b',turns:[]},model:'b-model'});assert.equal((await b).cwd,'D:/b');
+ const rejected=assert.rejects(a,/恢复数据无效/);pending.get('a').resolve({thread:{id:'wrong',turns:[]}});await rejected;
+ const retry=f.store.resume('a');pending.get('a').resolve({thread:{id:'a',turns:[]},reasoningEffort:null});assert.equal((await retry).reasoningEffort,'default');
+ assert.deepEqual(f.state,state);
+});
