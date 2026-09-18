@@ -5,7 +5,7 @@ export function pasteImage(event: ClipboardEvent, onFiles: (paths: string[]) => 
   if (!images.length) return;
   event.preventDefault();
   const save = window.desktop?.savePastedImage;
-  void (async () => {
+  return (async () => {
     try {
       if (!save) throw Error('粘贴图片需要桌面应用');
       for (const file of images) {
