@@ -2600,3 +2600,9 @@ remains low. The expanded browser flow passes without further product changes.
 修正验收：补齐侧栏归档和消息级分叉记录；会话切换详情改用本机 ID，避免自动标题或消息内容进入审计日志。生命周期、审批失败重试、存储校验和生产构建回归通过。
 
 会话变更一致性修正：归档恢复纳入审计；断线时远端归档/删除不再伪造本地成功，纯本机会话仍可离线归档。浏览器与构建验收通过。
+## 附件选择阶段图片预检
+
+Electron 附件选择现在复用发送阶段的 PNG、JPEG、WebP、GIF 校验器，在损坏、超限或像素过多的图片进入草稿前给出解码错误。非图片文件不经过图片解码，继续作为普通附件保留；多选时只移除失败图片，不影响同批其他文件。
+
+实现提交：`191cf73`。
+验收：`attachment-picker-preflight-ui.cjs`、`attachments-ui.cjs`、`attachment-preflight-ui.cjs`、`attachment-storage-ui.cjs` 和生产构建通过。实际图片字节校验仍由主进程完成，浏览器测试模拟 IPC 返回并覆盖 UI 保留规则。
