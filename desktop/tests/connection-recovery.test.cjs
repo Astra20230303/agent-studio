@@ -69,3 +69,18 @@ test('network recovery starts one bounded retry cycle only after exhaustion', as
   t.mock.timers.tick(10000); await flush();
   assert.equal(calls, 5);
 });
+
+test('stop after exhaustion ignores online and closed until explicit restart', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let calls = 0;
+  const states = [];
+  const recovery = createConnectionRecovery({ connect: async () => { calls++; throw Error('offline'); }, status: state => states.push(state), connected: () => assert.fail('unexpected success'), delays: [] });
+  recovery.start(); await flush();
+  assert.equal(states.at(-1), 'offline');
+  recovery.stop(); recovery.online(); recovery.disconnected();
+  t.mock.timers.tick(10000); await flush();
+  assert.equal(calls, 1);
+  recovery.start(); await flush();
+  assert.equal(calls, 2);
+  recovery.stop();
+});

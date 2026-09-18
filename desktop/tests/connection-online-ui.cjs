@@ -38,6 +38,16 @@ const assert = require('node:assert/strict');
     assert.equal(await page.evaluate(() => window.__requests.includes('turn/start')), false);
     await page.evaluate(() => window.dispatchEvent(new Event('online')));
     assert.equal(await page.evaluate(() => window.__attempts), 5);
+    // A later transport loss exhausts its own budget, then recovers again.
+    await page.evaluate(() => { window.__available = false; window.__close(); });
+    await page.waitForFunction(() => window.__attempts === 9);
+    await page.waitForFunction(() => [...document.querySelectorAll('button')].some(button => button.textContent === '重新连接' && !button.disabled));
+    await page.evaluate(() => { window.__available = true; window.dispatchEvent(new Event('online')); });
+    await reconnect.waitFor({ state: 'detached' });
+    await page.waitForFunction(() => window.__requests.filter(method => method === 'thread/resume').length === 2);
+    assert.equal(await page.evaluate(() => window.__attempts), 10);
+    assert.equal(await input.inputValue(), 'Keep my unsent draft');
+    assert.equal(await page.evaluate(() => window.__requests.includes('turn/start')), false);
     assert.deepEqual(errors, []);
     console.log('PASS: online event reconnects exhausted transport and restores conversation without sending draft');
   } finally { await browser.close(); }
