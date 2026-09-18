@@ -48,6 +48,16 @@ const assert = require('node:assert/strict');
     assert.equal(await editor.getByRole('textbox').inputValue(),'Queued tools');
     await editor.getByRole('button',{name:'移除排队技能：D:/remove/SKILL.md',exact:true}).click();
     await editor.getByRole('button',{name:'移除排队插件：remove',exact:true}).click();
+    await page.evaluate(()=>{
+      const original=Storage.prototype.setItem;window.__failQueueSave=true;
+      Storage.prototype.setItem=function(key,value){if(key==='felix-turn-queue-v1'&&window.__failQueueSave)throw Error('quota');return original.call(this,key,value);};
+    });
+    await save.click();await editor.getByRole('alert').waitFor();
+    assert.equal(await editor.getByRole('button',{name:'移除排队技能：D:/remove/SKILL.md',exact:true}).count(),0);
+    assert.equal(await editor.getByRole('button',{name:'移除排队插件：remove',exact:true}).count(),0);
+    const unchanged=await page.evaluate(()=>JSON.parse(localStorage.getItem('felix-turn-queue-v1'))[0]);
+    assert.equal(unchanged.skills.length,2);assert.equal(unchanged.plugins.length,2);
+    await page.evaluate(()=>{window.__failQueueSave=false;});
     await save.click();await editor.waitFor({state:'detached'});
     const snapshot=await page.evaluate(()=>JSON.parse(localStorage.getItem('felix-turn-queue-v1'))[0]);
     assert.deepEqual(snapshot.skills,[{name:'Keep skill',path:'D:/keep/SKILL.md'}]);

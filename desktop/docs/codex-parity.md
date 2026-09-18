@@ -3547,3 +3547,9 @@ Codex Rust 传递依赖和原生二进制传递依赖仍需进一步许可审计
 - 暂停消息编辑器增加先规划/直接执行，保存到该消息的 planningMode 快照。队列行显示模型、推理强度及模式，旧记录没有模式时显示直接执行。模式修改不依赖模型目录，也不改当前会话默认配置。
 - queue-configuration-ui.cjs 验证取消不保存、成功后保持暂停、最终 turn/start 的 collaborationMode.mode=plan、保存配额失败保留编辑且磁盘仍为 default、目录离线下改回 default 再改 plan、列表配置展示及会话默认隔离。
 - queue-editor-lifecycle-ui.cjs、turn-queue-ui.cjs、5 项 turn-queue 单元测试和构建通过。浏览器通过模拟桥接验证请求参数，本次未实际运行模型规划回合。
+
+### 移除排队消息技能与插件（2026-09-19）
+
+- 暂停队列编辑器显示已选技能/插件并可逐项移除，技能按路径、插件按 ID 区分，保存到该消息的独立快照；取消保留原列表。队列行新增插件展示，空消息检查使用编辑后的技能数量。
+- queue-references-ui.cjs 验证取消恢复原列表、仅剩技能时仍可保存、移除最后技能且无正文/附件时禁止保存、保存后 turn/start 只含保留 skill/mention。补验本机存储失败保留编辑状态且磁盘原列表不变，重试成功。
+- queue-configuration-ui.cjs、queue-editor-lifecycle-ui.cjs、turn-queue-ui.cjs 回归及构建通过；测试检查模拟桥接的请求负载，未运行实际技能/插件。当前入口支持移除既有引用，添加新引用仍从消息输入区选择后入队。
