@@ -2,6 +2,7 @@ import { modelCatalogIds } from './modelCatalog';
 import { removeRecentProject } from './recentProjects';
 import { projectRepository } from './projectRepository';
 import { validateRestorableHistory } from './historyValidation';
+import { readThreadResume } from './threadResume';
 import { unarchiveThread } from './codexClient';
 import { createThreadMutations } from './threadMutations';
 import { approvalFileChanges } from './approvalFileChanges';
@@ -530,12 +531,9 @@ function App({ initialState }: { initialState: DesktopState }) {
       try {
         const loaded = await resumeThread(threadId);
         if (disposed) return;
+        const { items, running } = readThreadResume(loaded, threadId);
         setRestoreErrors(previous => { const next = { ...previous }; delete next[threadId]; return next; });
         if (loaded.providerId) update(next => { const thread = next.threads.find(item => item.remoteId === threadId); if (thread) thread.providerId = loaded.providerId; });
-        const turns = loaded?.thread?.turns || [];
-        const items = turns.flatMap((turn: any) => (turn.items || []).map((item: any) => ({ item, turnId: turn.id })));
-        validateRestorableHistory(items);
-        const running = turns.find((turn: any) => turn.status === 'inProgress');
         // Only use a snapshot that predates no live turn events.
         if ((runtime.read(threadId)?.revision || 0) !== revision) return;
         runtime.apply(threadId, { type: 'restore', turnId: running?.id, revision });
