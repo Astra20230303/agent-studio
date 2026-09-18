@@ -3,6 +3,7 @@ import './workspaceFiles.css';
 import type { ArtifactTarget } from './Artifacts';
 import { SearchMatchText } from './SearchMatchText';
 import { isEditablePreview } from './editablePreview';
+import { parseWorkspaceResult } from './workspaceResponse';
 export type FileEditSession = { root: string; path: string; initial: { text: string; revision: string } };
 export type FilePreviewUpdate = { root: string; path: string; preview: any };
 type Entry = { revision?: string; line?: number; column?: number; matchLength?: number; snippet?: string; name: string; path: string; directory: boolean; symlink: boolean };
@@ -58,7 +59,8 @@ export function WorkspaceFiles({ root, onAttach, onClose, onEdit, onPreview, pre
       const response = await window.desktop?.workspaceFile?.({ root, path: selected?.path || (search ? searchDirectory : directory), action: selected ? 'read' : search ? contentSearch ? 'search-content' : 'search' : 'list', query: search, ...(search && contentSearch && !selected ? { searchOptions: { caseSensitive, wholeWord } } : {}) });
       if (disposed || version !== requestVersion.current) return;
       if (!response?.ok) throw Error(response?.error || '文件浏览不可用');
-      if (selected) setPreview(response.result); else setListing(response.result);
+      const result = parseWorkspaceResult(response.result, selected ? 'read' : search ? contentSearch ? 'search-content' : 'search' : 'list');
+      if (selected) setPreview(result); else setListing(result);
     };
     void read().catch(error => { if (!disposed && version === requestVersion.current) setError(error.message); });
     return () => { disposed = true; };
