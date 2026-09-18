@@ -14,7 +14,8 @@ export function createThreadStore(backend: ThreadBackend, update: (mutate: (stat
   const mutations = createThreadMutations(backend, update);
   const pending = new Set<string>();
   // A manual rename can finish locally while thread/start is still pending.
-  const manualNames = new Map<string, string>();
+  const manualNames = new Map<string, { name: string; revision: number }>();
+  let titleRevision = 0;
   const identityKeys = (thread: Pick<Thread, 'id' | 'remoteId'>) => [`local:${thread.id}`, ...(thread.remoteId ? [`remote:${thread.remoteId}`] : [])];
   async function exclusive(thread: Pick<Thread, 'id' | 'remoteId'>, operation: () => Promise<void>) {
     const keys = identityKeys(thread);
@@ -29,14 +30,15 @@ export function createThreadStore(backend: ThreadBackend, update: (mutate: (stat
       const identity = { id: thread.id, remoteId: thread.remoteId };
       return exclusive(identity, async () => {
         await mutations.rename(identity, name);
-        identityKeys(identity).forEach(key => manualNames.set(key, name));
+        const confirmed = { name, revision: ++titleRevision };
+        identityKeys(identity).forEach(key => manualNames.set(key, confirmed));
       });
     },
     syncInitialTitle: (thread, title) => {
       const identity = { ...thread };
       return exclusive(identity, async () => {
-        const manual = identityKeys(identity).map(key => manualNames.get(key)).find(name => name !== undefined);
-        await backend.rename(identity.remoteId, manual ?? title);
+        const manual = identityKeys(identity).map(key => manualNames.get(key)).reduce<{ name: string; revision: number } | undefined>((latest, entry) => entry && (!latest || entry.revision > latest.revision) ? entry : latest, undefined);
+        await backend.rename(identity.remoteId, manual?.name ?? title);
       });
     },
     archive: thread => exclusive(thread, () => mutations.archive(thread)),

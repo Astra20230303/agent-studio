@@ -113,6 +113,7 @@ test('real app-server archives, paginates and restores isolated conversations', 
     const restoredLocal = localState.threads[0];
     await repository.rename(restoredLocal, 'Store acceptance');
     assert.equal(localState.threads[0].title, 'Store acceptance');
+    await repository.syncInitialTitle(restoredLocal, 'Stale automatic title');
     assert.equal((await repository.query()).data.find(thread => thread.id === ids[1]).name, 'Store acceptance');
     await repository.archive(restoredLocal);
     assert.equal(localState.threads[0].archived, true);

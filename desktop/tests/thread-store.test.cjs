@@ -70,3 +70,11 @@ test('failed initial sync releases the lock and late auto sync preserves a manua
  await f.store.syncInitialTitle({...thread,id:'alias'},'Stale auto');
  assert.deepEqual(names,['Auto','Manual','Manual']);assert.equal(thread.title,'Manual');
 });
+
+test('newest manual name wins when local and remote alias histories differ',async()=>{
+ const f=setup();const thread=f.state.threads[0];
+ await f.store.rename(thread,'Earlier local name');
+ await f.store.rename({...thread,id:'alias'},'Latest remote name');
+ await f.store.syncInitialTitle(thread,'Auto');
+ assert.deepEqual(f.calls.at(-1),['rename','remote-a','Latest remote name']);
+});
