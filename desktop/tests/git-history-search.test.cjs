@@ -1,0 +1,23 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');
+const fs=require('node:fs/promises');const os=require('node:os');const path=require('node:path');const{execFileSync}=require('node:child_process');
+const{workspaceGit}=require('../electron/workspace-git.cjs');
+test('literal commit-message search paginates complete anchored history and preserves repository',async t=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'felix-history-search-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
+ const git=(...args)=>execFileSync('git',args,{cwd:root,encoding:'utf8',windowsHide:true,stdio:'pipe'}).trim();
+ const read=input=>workspaceGit({root,action:'history',...input});git('init','-b','main');git('config','user.name','Test');git('config','user.email','test@example.invalid');
+ assert.deepEqual((await read({query:'needle'})).commits,[]);
+ git('commit','--allow-empty','-m','unrelated','-m','body-only Needle [x].* --all');git('branch','old');
+ for(let i=0;i<32;i++)git('commit','--allow-empty','-m',`Needle ${i}`);
+ git('commit','--allow-empty','-m','Other latest');
+ const first=await read({query:'needle'});assert.equal(first.commits.length,30);assert.equal(first.hasMore,true);assert.equal(first.commits[0].subject,'Needle 31');
+ git('commit','--allow-empty','-m','Needle newer');
+ const second=await read({query:'needle',anchor:first.anchor,offset:30});assert.equal(second.commits.length,3);assert.equal(second.hasMore,false);assert.equal(second.commits[2].subject,'unrelated');
+ assert.equal(new Set([...first.commits,...second.commits].map(c=>c.id)).size,33);
+ assert.equal((await read({query:'needle'})).commits[0].subject,'Needle newer');
+ for(const query of ['[x].*','--all','body-only'])assert.equal((await read({query})).commits[0].subject,'unrelated');
+ assert.equal((await read({query:'needle',ref:'refs/heads/old'})).commits.length,1);
+ assert.deepEqual((await read({query:'no match'})).commits,[]);
+ const head=git('rev-parse','HEAD');
+ for(const query of [42,'x'.repeat(501),'a\nb','a\0b'])await assert.rejects(read({query}),/搜索词/);
+ assert.equal(git('rev-parse','HEAD'),head);assert.equal(git('status','--porcelain'),'');
+});

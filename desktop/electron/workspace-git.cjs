@@ -128,12 +128,14 @@ async function workspaceGit(input, { assertWorktreeIdle } = {}) {
     const refs = (await git(root, ['for-each-ref', '--format=%(refname)', 'refs/heads/', 'refs/remotes/'])).trim().split('\n').filter(Boolean);
     const ref = input.ref ?? 'HEAD';
     if (typeof ref !== 'string' || (ref !== 'HEAD' && !refs.includes(ref))) throw Error('分支不存在，请刷新历史');
+    if (input.query !== undefined && (typeof input.query !== 'string' || input.query.length > 500 || /[\0\r\n]/.test(input.query))) throw Error('请输入不超过 500 字的单行提交搜索词');
+    const query = (input.query || '').trim();
     const offset = input.offset ?? 0;
     if (!Number.isSafeInteger(offset) || offset < 0 || offset > 100000) throw Error('无效历史页码');
     if (input.anchor !== undefined && !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(input.anchor)) throw Error('无效提交标识');
     const anchor = input.anchor || (await git(root, ['rev-parse', '--verify', `${ref}^{commit}`]).catch(error => { if (ref === 'HEAD') return ''; throw error; })).trim();
     if (!anchor) return { refs, commits: [], hasMore: false };
-    const output = await git(root, ['log', '--no-show-signature', '--format=%H%x00%an%x00%aI%x00%s', '-z', '--max-count=31', `--skip=${offset}`, anchor, '--']);
+    const output = await git(root, ['log', '--no-show-signature', '--format=%H%x00%an%x00%aI%x00%s', '-z', '--max-count=31', `--skip=${offset}`, ...(query ? ['--fixed-strings', '--regexp-ignore-case', `--grep=${query}`] : []), anchor, '--']);
     const fields = output.split('\0');
     const commits = [];
     for (let i = 0; i + 3 < fields.length; i += 4) commits.push({ id: fields[i], author: fields[i + 1], date: fields[i + 2], subject: fields[i + 3] });
