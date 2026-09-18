@@ -13,6 +13,7 @@ import { readThreadSection, readThreadSections, type ThreadSectionAppearance } f
 import { readAccountLoginStart } from './accountAuth';
 import { readServerDiagnostics } from './serverDiagnostics';
 import { readFeedbackUpload, validateFeedbackInput, type FeedbackInput } from './feedback';
+import { readThreadSearchOccurrences, type ThreadSearchOccurrence } from './threadSearchOccurrences';
 export type RpcMessage = { id?: number | string; method?: string; params?: any; result?: any; error?: any };
 type Bridge = { connect: () => Promise<any>; request: (method: string, params?: unknown) => Promise<any>; notify: (method: string, params?: unknown) => Promise<any>; respond: (id: number | string, result?: unknown, error?: unknown) => Promise<any>; onNotification: (listener: (message: RpcMessage) => void) => () => void; onServerRequest: (listener: (message: RpcMessage) => void) => () => void; onError: (listener: (message: any) => void) => () => void; onStderr: (listener: (message: any) => void) => () => void; onClosed: (listener: (message: any) => void) => () => void };
 const bridge = () => window.codex as Bridge;
@@ -98,6 +99,19 @@ export async function readAccountTokenUsage() { return readAccountUsage(await un
 export async function readAccount() { return readAccountInfo(await unwrap<any>(bridge().request('account/read', { refreshToken: false }))); }
 export async function readServerDiagnosticsInfo() { return readServerDiagnostics(await unwrap<unknown>(bridge().request('server/diagnostics', {}))); }
 export async function uploadFeedback(input: FeedbackInput) { const params = validateFeedbackInput(input); return readFeedbackUpload(await unwrap<unknown>(bridge().request('feedback/upload', params))); }
+export async function searchThreadOccurrences(threadId: string, searchTerm: string, signal?: AbortSignal): Promise<ThreadSearchOccurrence[]> {
+  if (!/^\S+$/.test(threadId) || !searchTerm.trim()) throw new Error('会话搜索参数无效');
+  const data: ThreadSearchOccurrence[] = []; const seen = new Set<string>(); let cursor: string | undefined;
+  for (let page = 0; page < 100; page++) {
+    signal?.throwIfAborted();
+    const result = readThreadSearchOccurrences(await unwrap<unknown>(bridge().request('thread/searchOccurrences', { threadId, searchTerm: searchTerm.trim(), limit: 100, ...(cursor ? { cursor } : {}) })));
+    signal?.throwIfAborted();
+    data.push(...result.data); if (!result.nextCursor) return data;
+    if (seen.has(result.nextCursor)) throw new Error('会话完整搜索分页重复，请重试');
+    seen.add(result.nextCursor); cursor = result.nextCursor;
+  }
+  throw new Error('会话完整搜索页数过多，请缩小搜索范围');
+}
 export async function startAccountLogin(kind: 'chatgpt' | 'chatgptDeviceCode' | 'apiKey', apiKey?: string) {
   const params = kind === 'apiKey' ? { type: 'apiKey', apiKey: apiKey || '' } : kind === 'chatgptDeviceCode' ? { type: 'chatgptDeviceCode' } : { type: 'chatgpt', codexStreamlinedLogin: true, useHostedLoginSuccessPage: false };
   if (kind === 'apiKey' && !apiKey?.trim()) throw new Error('API Key 不能为空');
