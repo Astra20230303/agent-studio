@@ -1,3 +1,4 @@
+import type { ThreadStartOptions } from './threadStart';
 import { createThreadHistory } from './threadHistory';
 import type { HistoryReadOptions } from './threadHistory';
 import { parseBackgroundTerminalPage, parseTermination } from './backgroundTerminalResponse';
@@ -27,7 +28,7 @@ export function connectCodex() {
   void attempt.finally(() => { if (connecting === attempt) connecting = undefined; }).catch(() => {});
   return attempt;
 }
-export async function startThread(params: { cwd?: string; model?: string; modelProvider?: string; providerId?: string; effort?: string; permission?: 'on-request' | 'workspace-write' | 'danger-full-access' }) { const { permission, providerId, effort, ...rest } = params; const autoReview = permission === 'workspace-write'; return unwrap<any>(bridge().request('thread/start', { ...rest, ...(effort && effort !== 'default' ? { effort } : {}), ...(providerId ? { providerId } : {}), modelProvider: 'minimax', approvalPolicy: permission === 'danger-full-access' ? 'never' : 'on-request', ...(permission === 'danger-full-access' ? { sandbox: 'danger-full-access' } : { sandbox: permission === 'workspace-write' ? 'workspace-write' : 'read-only' }), ...(autoReview ? { approvalsReviewer: 'auto_review' } : {}), personality: 'friendly' })); }
+export async function startThread(params: ThreadStartOptions) { const { permission, providerId, effort, ...rest } = params; const autoReview = permission === 'workspace-write'; return unwrap<any>(bridge().request('thread/start', { ...rest, ...(effort && effort !== 'default' ? { effort } : {}), ...(providerId ? { providerId } : {}), modelProvider: 'minimax', approvalPolicy: permission === 'danger-full-access' ? 'never' : 'on-request', ...(permission === 'danger-full-access' ? { sandbox: 'danger-full-access' } : { sandbox: permission === 'workspace-write' ? 'workspace-write' : 'read-only' }), ...(autoReview ? { approvalsReviewer: 'auto_review' } : {}), personality: 'friendly' })); }
 export async function resumeThread(threadId: string) { return unwrap<any>(bridge().request('thread/resume', { threadId, excludeTurns: false })); }
 export async function switchThreadProvider(threadId: string, providerId: string, model: string) { return unwrap<any>(bridge().request('felix/thread/provider', { threadId, providerId, model })); }
 export async function updateThreadPermission(threadId: string, permission: 'on-request' | 'workspace-write' | 'danger-full-access') {

@@ -1,13 +1,15 @@
+import { readThreadStart, type ThreadStartOptions } from './threadStart.ts';
 import { readThreadResume } from './threadResume.ts';
 import type { DesktopState, Thread } from './domain';
 import { createThreadRepository, type ThreadRepository, type ThreadSource } from './threadRepository.ts';
 import { createThreadMutations, type ThreadMutations, type ThreadRemoteMutations } from './threadMutations.ts';
 
 export interface ThreadStore extends ThreadRepository, ThreadMutations {
+  start(localId: string, options: ThreadStartOptions): Promise<ReturnType<typeof readThreadStart>>;
   resume(threadId: string): Promise<ReturnType<typeof readThreadResume>>;
   syncInitialTitle(thread: Pick<Thread, 'id'> & { remoteId: string }, title: string): Promise<void>;
 }
-export type ThreadBackend = ThreadSource & ThreadRemoteMutations & { resume(threadId: string): Promise<unknown> };
+export type ThreadBackend = ThreadSource & ThreadRemoteMutations & { resume(threadId: string): Promise<unknown>; start(options: ThreadStartOptions): Promise<unknown> };
 
 // One instance per application state. View lifetimes and queue persistence remain
 // with callers; mutation exclusion spans all views and survives reconnects.
@@ -28,6 +30,13 @@ export function createThreadStore(backend: ThreadBackend, update: (mutate: (stat
   }
   return {
     query: repository.query,
+    async start(localId, options) {
+      const key = `start:${localId}`;
+      if (pending.has(key)) throw Error('此会话正在创建，请等待完成。');
+      pending.add(key);
+      try { return readThreadStart(await backend.start(structuredClone(options))); }
+      finally { pending.delete(key); }
+    },
     async resume(threadId) { return readThreadResume(await backend.resume(threadId), threadId); },
     rename: (thread, name) => {
       const identity = { id: thread.id, remoteId: thread.remoteId };
