@@ -48,6 +48,7 @@ import { TurnQueue } from './TurnQueuePanel';
 import { PlanPanel } from './PlanPanel';
 import { TurnDiffPanel } from './TurnDiffPanel';
 import { readThreadStatus } from './threadStatus';
+import { readThreadName } from './threadName';
 import { workspaceFor } from './workspace';
 import { useAttachmentDraft } from './useAttachmentDraft';
 import { WorkspaceFiles, type FileEditSession, type FilePreviewUpdate } from './WorkspaceFiles';
@@ -298,6 +299,10 @@ function App({ initialState }: { initialState: DesktopState }) {
         if (message.method === 'thread/status/changed') {
           const status = readThreadStatus(params);
           if (status) update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) thread.status = status.status; });
+        }
+        if (message.method === 'thread/name/updated') {
+          const name = readThreadName(params);
+          if (name?.name) update(next => { const thread = next.threads.find(item => item.remoteId === name.threadId); if (thread && thread.titleSource !== 'manual') { thread.title = name.name!; thread.titleSource = 'auto'; } });
         }
         if (message.method === 'serverRequest/resolved') {
           serverResponses.invalidate(params.requestId);

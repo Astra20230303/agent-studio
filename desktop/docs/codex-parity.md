@@ -3614,3 +3614,8 @@ Codex Rust 传递依赖和原生二进制传递依赖仍需进一步许可审计
 
 - 已交付：接入 `item/autoApprovalReview/started` 与 `item/autoApprovalReview/completed`，将 reviewId、目标条目、review（状态/风险/授权/理由）、decisionSource 与 action 保留为执行记录并提供原始 JSON 查看。开始/完成严格校验 thread/turn/review 身份，完成后不允许重新打开；坏载荷和跨回合事件不写入。
 - 验证：8 项 thread-events 测试覆盖开始/完成、重复完成、跨回合和坏身份；TypeScript/Vite 生产构建通过。该上游协议标记为 unstable，Felix 保留未知 action 字段以兼容变化。
+
+### 远端会话名称通知（2026-09-19）
+
+- 已交付：接入 `thread/name/updated`，校验 threadId 和可选非空单行名称；远端名称只更新自动标题，会话手动重命名优先，空名称/坏载荷/未知会话不会覆盖本地标题。侧栏、当前会话和导出读取同一标题字段。
+- 验证：thread-name/status 3 项解析测试通过，生产 TypeScript/Vite 构建通过；名称字段中的换行和控制字符被拒绝。
