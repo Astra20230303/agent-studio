@@ -35,6 +35,11 @@ const { chromium } = require('playwright');
   assert.deepEqual(await page.evaluate(() => window.__calls), [{ threadId: 'a', turnId: 'turn-a' }, { threadId: 'b', turnId: 'turn-b' }, { threadId: 'a', turnId: 'turn-a' }]);
   await page.evaluate(() => window.__notify({ method: 'turn/completed', params: { threadId: 'a', turn: { id: 'turn-a', status: 'interrupted' } } }));
   await stop.waitFor({ state: 'detached' });
+  await page.evaluate(() => window.__notify({ method: 'turn/started', params: { threadId: 'a', turn: { id: 'next-a', status: 'inProgress' } } }));
+  await stop.click();
+  await page.waitForFunction(() => window.__calls.length === 4);
+  assert.deepEqual(await page.evaluate(() => window.__calls[3]), { threadId: 'a', turnId: 'next-a' });
+  await page.evaluate(() => window.__finish.a({ ok: true, result: {} }));
   console.log('PASS: interrupt locks are per turn, late errors stay with source conversation and retry waits for completion');
  } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
