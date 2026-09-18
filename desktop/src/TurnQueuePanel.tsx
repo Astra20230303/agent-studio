@@ -18,7 +18,7 @@ function QueueEditor({ item, onClose, onSave }: { item: QueuedTurn; onClose: () 
   return <dialog ref={dialog} className="file-editor" aria-label="编辑排队消息" onCancel={event => { event.preventDefault(); onClose(); }}>
     <h2>编辑排队消息</h2><p>此消息已暂停，保存或取消后可继续队列。</p>
     <textarea autoFocus aria-label="排队消息正文" value={text} onChange={event => setText(event.target.value)} />
-    {!!attachments.length && <ul aria-label="排队消息附件">{attachments.map(path => <li key={path}><span title={path}>{path.replace(/^.*[\\\\/]/, '')}</span><button aria-label={`移除排队附件：${path}`} onClick={() => setAttachments(current => current.filter(value => value !== path))}>移除</button></li>)}</ul>}
+    {!!attachments.length && <ul aria-label="排队消息附件">{attachments.map(path => <li key={path}><span title={path}>{path.replace(/^.*[\\/]/, '')}</span><button aria-label={`移除排队附件：${path}`} onClick={() => setAttachments(current => current.filter(value => value !== path))}>移除</button></li>)}</ul>}
     {error && <p role="alert">{error}</p>}
     <button onClick={onClose}>取消编辑</button><button disabled={!text.trim() && !attachments.length && !item.skills?.length} onClick={() => { if (onSave(text.trim(), attachments)) onClose(); else setError('消息未保存，请检查队列状态后重试。'); }}>保存排队消息</button>
   </dialog>;

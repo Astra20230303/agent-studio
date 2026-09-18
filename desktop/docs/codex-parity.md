@@ -9,6 +9,11 @@ selection. Empty text requires a remaining attachment or skill. Browser acceptan
 verifies failed-save retention, retry persistence and the actual turn/start input
 excluding the removed image while retaining the other image. Build passes.
 
+Post-commit acceptance removes every attachment from an empty-text draft and
+verifies saving is disabled. Cancel/reopen restores the original text and files.
+Expanded browser acceptance and three queue lifecycle tests pass. Static review
+also normalizes the filename separator expression to match the existing list.
+
 ## Preserve consecutive service warnings
 
 Global service warnings now queue in arrival order instead of replacing an unread
