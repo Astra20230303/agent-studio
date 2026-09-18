@@ -7,9 +7,9 @@ import { GitConflictVersions } from './GitConflictVersions';
 import { GitReview } from './GitReview';
 import { GitHistory } from './GitHistory';
 import { GitWorktrees } from './GitWorktrees';
-type ChangedFile = { path: string; original?: string; index: string; working: string; untracked: boolean };
+import { parseGitSnapshot, parseGitDiff, type GitSnapshot } from './gitSnapshot';
 export function GitPanel({ root, protectedPaths = [], onClose, onWorktree, onReview }: { root?: string; protectedPaths?: string[]; onClose: () => void; onWorktree: (project: import('./domain').Project) => void; onReview: (text: string) => void }) {
-  const [snapshot, setSnapshot] = useState<{ branch: string; branches?: string[]; head?: string; merging?: boolean; root: string; detached?: boolean; stashAvailable?: boolean; remotes?: string[]; upstream?: string; remote?: string; ahead?: number; behind?: number; files: ChangedFile[] }>();
+  const [snapshot, setSnapshot] = useState<GitSnapshot>();
   const [selected, setSelected] = useState<{ path: string; staged: boolean }>();
   const [worktrees, setWorktrees] = useState(false);
   const [history, setHistory] = useState(false);
@@ -51,8 +51,8 @@ export function GitPanel({ root, protectedPaths = [], onClose, onWorktree, onRev
     void window.desktop?.workspaceGit?.({ root, action: selected ? 'diff' : 'status', ...selected }).then(result => {
       if (disposed) return;
       if (!result?.ok) throw Error(result?.error || '无法读取 Git');
-      if (selected) setDiff((result.result.diff || '此区域没有差异。') + (result.result.truncated ? '\n…内容已截断' : ''));
-      else { setSnapshot(result.result); setPublishRemote(current => result.result.remotes?.includes(current) ? current : result.result.remotes?.[0] || ''); }
+      if (selected) setDiff(parseGitDiff(result.result));
+      else { const next = parseGitSnapshot(result.result); setSnapshot(next); setPublishRemote(current => next.remotes?.includes(current) ? current : next.remotes?.[0] || ''); }
     }).catch(error => { if (!disposed) setReadError(error.message); }).finally(() => { if (!disposed) setLoading(false); });
     return () => { disposed = true; };
   }, [root, selected, revision]);

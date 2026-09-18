@@ -1,0 +1,6 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');
+const {parseGitSnapshot,parseGitDiff}=require('../src/gitSnapshot.ts');
+const snapshot={root:'D:/repo',branch:'main',files:[{path:'a.txt',index:' ',working:'M',untracked:false}]};
+test('validated snapshots are independent and preserve unborn/detached states',()=>{const result=parseGitSnapshot(snapshot);result.files[0].path='changed';assert.equal(snapshot.files[0].path,'a.txt');assert.equal(parseGitSnapshot({...snapshot,branch:'',head:'',detached:true,files:[]}).branch,'');});
+test('reject malformed status before exposing file actions',()=>{for(const input of [null,{}, {...snapshot,files:{}},{...snapshot,files:[null]},{...snapshot,files:[...snapshot.files,...snapshot.files]},{...snapshot,branch:{}},{...snapshot,remotes:[{}]},{...snapshot,branches:'main'},{...snapshot,ahead:-1},{...snapshot,merging:'yes'},{...snapshot,files:[{...snapshot.files[0],working:{}}]}])assert.throws(()=>parseGitSnapshot(input),/Git 状态数据无效/);});
+test('diff parsing refuses corrupt text and preserves empty/truncated feedback',()=>{assert.equal(parseGitDiff({diff:''}),'此区域没有差异。');assert.match(parseGitDiff({diff:'+hello',truncated:true}),/内容已截断/);for(const input of [null,{}, {diff:{}},{diff:'x',truncated:3}])assert.throws(()=>parseGitDiff(input),/Git 差异数据无效/);});
