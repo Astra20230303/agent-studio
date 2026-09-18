@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { RotateCcw, X } from 'lucide-react';
-import { listArchivedThreads, searchThreads, unarchiveThread } from './codexClient';
+import { listArchivedThreads, searchThreads } from './codexClient';
 import type { Thread } from './domain';
 import { threadPage } from './threadPage';
 
-export function ArchivedThreads({ threads, connected, onRestore, onClose }: { threads: Thread[]; connected: boolean; onRestore: (thread: Thread) => void; onClose: () => void }) {
+export function ArchivedThreads({ threads, connected, onRestore, onClose }: { threads: Thread[]; connected: boolean; onRestore: (thread: Thread) => Promise<void>; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [remote, setRemote] = useState<(Thread & { snippet?: string })[]>([]);
   const [query, setQuery] = useState('');
@@ -41,9 +41,8 @@ export function ArchivedThreads({ threads, connected, onRestore, onClose }: { th
     if (lock.current || restoreLock.current || (thread.remoteId && !connected)) return;
     restoreLock.current = true; setRestoring(thread.id); setError('');
     try {
-      if (thread.remoteId) await unarchiveThread(thread.remoteId);
+      await onRestore(thread);
       setRemote(current => current.filter(item => item.remoteId !== thread.remoteId));
-      onRestore(thread);
     } catch (error) { setError(String(error)); }
     finally { restoreLock.current = false; setRestoring(''); }
   };

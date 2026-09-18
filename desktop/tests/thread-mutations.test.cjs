@@ -33,3 +33,14 @@ test('late rename cannot resurrect a removed conversation',async()=>{
  const pending=service.rename(state.threads[0],'Late name');state.threads=[];resolve();await pending;
  assert.deepEqual(state.threads,[]);
 });
+test('restore waits for acknowledgement and preserves newer local history and selection',async()=>{
+ const state={...defaultState(),activeThreadId:'b',threads:[{id:'local-a',remoteId:'remote-a',title:'Latest title',archived:true,messages:[{content:'Retained message'}]}]};
+ let resolve,reject;const calls=[];
+ const service=createThreadMutations({restore:id=>{calls.push(id);return new Promise((yes,no)=>{resolve=yes;reject=no;});}},fn=>fn(state));
+ const remoteThread={id:'remote-remote-a',remoteId:'remote-a',title:'Stale title',messages:[],archived:true};
+ const failed=assert.rejects(service.restore(remoteThread),/unavailable/);reject(Error('unavailable'));await failed;
+ assert.equal(state.threads[0].archived,true);
+ const pending=service.restore(remoteThread);assert.equal(state.threads[0].archived,true);resolve();await pending;
+ assert.equal(state.threads.length,1);assert.equal(state.threads[0].title,'Latest title');assert.equal(state.threads[0].messages[0].content,'Retained message');
+ assert.equal(state.threads[0].archived,false);assert.equal(state.activeThreadId,'b');assert.deepEqual(calls,['remote-a','remote-a']);
+});

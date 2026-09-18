@@ -1,3 +1,4 @@
+import { unarchiveThread } from './codexClient';
 import { createThreadMutations } from './threadMutations';
 import { approvalFileChanges } from './approvalFileChanges';
 import { BackgroundTerminals } from './BackgroundTerminals';
@@ -97,7 +98,7 @@ function projectLabel(pathOrName?: string) {
 
 function App({ initialState }: { initialState: DesktopState }) {
   const { state, setState, update, saveFailed: stateSaveFailed, retrySave } = useDesktopState(() => ({ ...initialState, model: modelId(initialState.model) }));
-  const threadMutations = useMemo(() => createThreadMutations({ rename: setThreadName, archive: archiveThread, remove: deleteThread }, update), [update]);
+  const threadMutations = useMemo(() => createThreadMutations({ rename: setThreadName, archive: archiveThread, remove: deleteThread, restore: unarchiveThread }, update), [update]);
   const audit = useAuditLog();
   const effectiveTheme = useTheme(state.theme);
   const [input, setInput, draftStorage] = useThreadDraft(state.activeThreadId);
@@ -816,7 +817,7 @@ function App({ initialState }: { initialState: DesktopState }) {
     </div>{notice && <div className="toast">{notice}</div>}{approval && <ApprovalDialog fileChanges={approvalFileChanges(approval, state.threads)} request={approval} onDecision={respondApproval} />}{deleteCandidate && <DeleteThread title={state.threads.find(item => item.id === deleteCandidate)?.title || '会话'} onCancel={() => setDeleteCandidate(undefined)} onConfirm={() => performDelete(deleteCandidate)} />}
     {artifactTarget && <ArtifactPreview target={artifactTarget} onClose={() => setArtifactTarget(undefined)} onEdit={session => { setArtifactTarget(undefined); setFileEdit(session); }} />}
     {fileEdit && <FileEditor root={fileEdit.root} path={fileEdit.path} initial={fileEdit.initial} onClose={() => setFileEdit(undefined)} onSaved={preview => setFilePreviewUpdate({ root: fileEdit.root, path: fileEdit.path, preview })} />}
-    {archivesOpen && <ArchivedThreads threads={state.threads} connected={codexStatus === 'connected'} onClose={() => setArchivesOpen(false)} onRestore={thread => { audit.record('恢复归档会话', thread.id); update(next => { const existing = next.threads.find(item => item.id === thread.id || !!thread.remoteId && item.remoteId === thread.remoteId); if (existing) existing.archived = false; else next.threads.push({ ...thread, archived: false }); }); }} />}
+    {archivesOpen && <ArchivedThreads threads={state.threads} connected={codexStatus === 'connected'} onClose={() => setArchivesOpen(false)} onRestore={async thread => { await threadMutations.restore(thread); audit.record('恢复归档会话', thread.id); }} />}
   </div>;
 }
 

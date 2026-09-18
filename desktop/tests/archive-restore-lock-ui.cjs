@@ -8,6 +8,8 @@ const assert = require('node:assert/strict');
     await page.evaluate(async () => {
       const React = (await import('/node_modules/.vite/deps/react.js')).default;
       const ReactDOM = (await import('/node_modules/.vite/deps/react-dom_client.js')).default;
+      const { createThreadMutations } = await import('/src/threadMutations.ts');
+      const { unarchiveThread } = await import('/src/codexClient.ts');
       const { ArchivedThreads } = await import('/src/ArchivedThreads.tsx');
       window.__calls = []; window.__restored = []; window.__closed = 0;
       window.codex = { request: async (method, params) => {
@@ -19,7 +21,7 @@ const assert = require('node:assert/strict');
       const root = ReactDOM.createRoot(host);
       window.__renderArchive = connected => root.render(React.createElement(ArchivedThreads, {
         connected, threads: [{ id: 'a', remoteId: 'a', title: 'A', archived: true, messages: [] }],
-        onRestore: thread => window.__restored.push(thread.id), onClose: () => window.__closed++,
+        onRestore: async thread => { await createThreadMutations({restore:unarchiveThread}, mutate => { const state={threads:[]}; mutate(state); window.__restored.push(state.threads[0].id); }).restore(thread); }, onClose: () => window.__closed++,
       }));
       window.__renderArchive(true);
     });
