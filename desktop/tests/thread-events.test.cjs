@@ -86,3 +86,21 @@ test('plan deltas accumulate for one item, isolate item switches, and clear on c
   f.emit('item/plan/delta', { threadId: 'a', turnId: 'old', itemId: 'plan-a', delta: 'late' });
   assert.equal(f.state.threads[0].planDelta, undefined);
 });
+test('turn diff updates replace the active aggregate and reject stale or malformed snapshots', () => {
+  const f = fixture();
+  f.emit('turn/started', { threadId: 'a', turn: { id: 'turn-a' } });
+  f.emit('turn/diff/updated', { threadId: 'a', turnId: 'turn-a', diff: 'diff one' });
+  f.emit('turn/diff/updated', { threadId: 'a', turnId: 'turn-a', diff: 'diff two\n+line' });
+  assert.deepEqual(f.state.threads[0].turnDiff, { turnId: 'turn-a', diff: 'diff two\n+line' });
+  for (const params of [
+    { threadId: 'a', turnId: 'other', diff: 'stale' },
+    { threadId: 'a', turnId: 'turn-a', diff: 42 },
+    { threadId: 'a\nidentity', turnId: 'turn-a', diff: 'bad' },
+  ]) f.emit('turn/diff/updated', params);
+  assert.equal(f.state.threads[0].turnDiff.diff, 'diff two\n+line');
+  f.emit('turn/completed', { threadId: 'a', turn: { id: 'turn-a', status: 'completed' } });
+  f.emit('turn/diff/updated', { threadId: 'a', turnId: 'turn-a', diff: 'late' });
+  assert.equal(f.state.threads[0].turnDiff.diff, 'diff two\n+line');
+  f.emit('turn/started', { threadId: 'a', turn: { id: 'turn-b' } });
+  assert.equal(f.state.threads[0].turnDiff, undefined);
+});

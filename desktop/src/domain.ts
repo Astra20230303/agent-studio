@@ -47,6 +47,7 @@ export interface Thread {
   planningMode?: 'default' | 'plan';
   plan?: import('./planning').PlanProgress;
   planDelta?: { turnId: string; itemId: string; content: string };
+  turnDiff?: { turnId: string; diff: string };
   id: string;
   remoteId?: string;
   title: string;

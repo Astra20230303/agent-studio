@@ -6,7 +6,7 @@ import { applyToolEvent, finishTools } from './toolActivity.ts';
 import type { DesktopState } from './domain';
 import type { TurnEvent, TurnRuntime } from './turnRuntime';
 
-const methods = new Set(['turn/plan/updated', 'turn/started', 'turn/completed', 'error', 'item/agentMessage/delta', 'item/started', 'item/completed', 'item/plan/delta', 'item/commandExecution/outputDelta', 'item/commandExecution/terminalInteraction', 'item/fileChange/outputDelta', 'item/fileChange/patchUpdated', 'item/mcpToolCall/progress', 'item/reasoning/textDelta', 'item/reasoning/summaryTextDelta', 'item/reasoning/summaryPartAdded']);
+const methods = new Set(['turn/plan/updated', 'turn/diff/updated', 'turn/started', 'turn/completed', 'error', 'item/agentMessage/delta', 'item/started', 'item/completed', 'item/plan/delta', 'item/commandExecution/outputDelta', 'item/commandExecution/terminalInteraction', 'item/fileChange/outputDelta', 'item/fileChange/patchUpdated', 'item/mcpToolCall/progress', 'item/reasoning/textDelta', 'item/reasoning/summaryTextDelta', 'item/reasoning/summaryPartAdded']);
 
 export function createThreadEvents({ update, runtime, queue, audit }: {
   update: (mutate: (state: DesktopState) => void) => void;
@@ -24,6 +24,14 @@ export function createThreadEvents({ update, runtime, queue, audit }: {
       const current = runtime.read(params.threadId);
       if (current?.turnId && current.turnId !== params.turnId || current?.completed.includes(params.turnId)) return true;
       if (plan) update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) thread.plan = plan; });
+    }
+    if (message.method === 'turn/diff/updated') {
+      const valid = typeof params.threadId === 'string' && params.threadId.trim() === params.threadId && params.threadId.length > 0 && !/[\0\r\n]/.test(params.threadId)
+        && typeof params.turnId === 'string' && params.turnId.trim() === params.turnId && params.turnId.length > 0 && !/[\0\r\n]/.test(params.turnId)
+        && typeof params.diff === 'string' && params.diff.length <= 2 * 1024 * 1024;
+      const current = runtime.read(params.threadId);
+      if (!valid || current?.turnId && current.turnId !== params.turnId || current?.completed.includes(params.turnId)) return true;
+      update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) thread.turnDiff = { turnId: params.turnId, diff: params.diff }; });
     }
     if (message.method === 'item/plan/delta') {
       const delta = readPlanDelta(params);
@@ -52,7 +60,7 @@ export function createThreadEvents({ update, runtime, queue, audit }: {
     if (message.method === 'turn/started' && params.threadId && params.turn?.id) {
       audit.record('回合开始', params.threadId);
       runtime.apply(params.threadId, { type: 'start', turnId: params.turn.id });
-      update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) { thread.status = 'running'; if (thread.plan?.turnId !== params.turn.id) thread.plan = undefined; if (thread.planDelta?.turnId !== params.turn.id) thread.planDelta = undefined; } });
+      update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) { thread.status = 'running'; if (thread.plan?.turnId !== params.turn.id) thread.plan = undefined; if (thread.planDelta?.turnId !== params.turn.id) thread.planDelta = undefined; if (thread.turnDiff?.turnId !== params.turn.id) thread.turnDiff = undefined; } });
     }
     if (message.method === 'item/agentMessage/delta' || message.method === 'item/completed' && params.item?.type === 'agentMessage') {
       if (message.method === 'item/agentMessage/delta') runtime.apply(params.threadId, { type: 'activity', turnId: params.turnId });
