@@ -1,3 +1,4 @@
+import { modelCatalogIds } from './modelCatalog';
 import { removeRecentProject } from './recentProjects';
 import { projectRepository } from './projectRepository';
 import { validateRestorableHistory } from './historyValidation';
@@ -485,8 +486,7 @@ function App({ initialState }: { initialState: DesktopState }) {
     sendingRef.current.add(thread.id); setPendingThreads(previous => [...previous, thread.id]);
     try {
       const targetCatalog = await window.desktop?.listModels?.({ providerId });
-      const models = Array.isArray(targetCatalog?.models) ? targetCatalog.models.filter((model: unknown): model is string => typeof model === 'string' && !!model.trim()) : [];
-      if (!targetCatalog?.ok || !models.length) throw Error(targetCatalog?.error || '无法获取目标渠道的模型列表');
+      const models = modelCatalogIds(targetCatalog);
       const model = models.includes(activeModel) ? activeModel : models[0];
       const result = await switchThreadProvider(thread.remoteId, providerId, model);
       update(next => { const target = next.threads.find(item => item.id === thread.id); if (target) { target.providerId = result.providerId; target.model = result.model || model; target.effectivePermissions = readThreadPermissions(result); } });
@@ -994,9 +994,9 @@ function ProviderSettings({ audit, state, update, toast }: { audit: ReturnType<t
     setConnectionError('');
     try {
       const result = await window.desktop?.listModels?.({ id: draft.id, baseUrl: draft.baseUrl, apiKey: draft.apiKey });
-      if (!result?.ok || !result.models?.length) throw new Error(result?.error || '请在桌面应用中连接模型服务');
-      setModels(result.models);
-      setDraft(current => ({ ...current, model: current.manualModel || result.models.includes(current.model) ? current.model : '' }));
+      const available = modelCatalogIds(result);
+      setModels(available);
+      setDraft(current => ({ ...current, model: current.manualModel || available.includes(current.model) ? current.model : '' }));
     } catch (error) { setConnectionError(error instanceof Error ? error.message : '连接失败'); }
     finally { setConnecting(false); }
   };

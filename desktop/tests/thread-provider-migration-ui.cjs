@@ -9,10 +9,10 @@ const assert = require('node:assert/strict');
       localStorage.setItem('codex-desktop-state-v1', JSON.stringify({
         model: 'alpha-model', activeThreadId: 'local-a', threads: [{ id: 'local-a', remoteId: 'remote-a', providerId: 'a', model: 'alpha-model', title: 'Existing conversation', messages: [{ id: 'm', role: 'user', content: 'Keep this history', createdAt: new Date().toISOString() }], status: 'completed', pinned: false, archived: false, updatedAt: new Date().toISOString() }], projects: [], automations: [],
       }));
-      window.__calls = []; window.__provider = 'a'; window.__model = 'alpha-model';
+      window.__badCatalog = true; window.__calls = []; window.__provider = 'a'; window.__model = 'alpha-model';
       window.desktop = {
         listProviders: async () => [{ id: 'a', name: 'Alpha', enabled: true }, { id: 'b', name: 'Beta' }],
-        listModels: async input => ({ ok: true, models: [input?.providerId === 'b' ? 'beta-model' : 'alpha-model'] }),
+        listModels: async input => ({ ok: true, models: input?.providerId === 'b' && window.__badCatalog ? ['beta-model', null] : [input?.providerId === 'b' ? 'beta-model' : 'alpha-model'] }),
         providerStatus: async () => ({ keyConfigured: true }),
       };
       window.codex = {
@@ -32,6 +32,12 @@ const assert = require('node:assert/strict');
     const editor = page.getByRole('textbox', { name: '消息', exact: true });
     await page.waitForFunction(() => document.querySelector('[aria-label="会话渠道"]') && !document.querySelector('[aria-label="会话渠道"]').disabled);
     await editor.fill('Retain my draft');
+    await select.selectOption('b');
+    await page.getByText('切换会话渠道失败：模型列表格式无效，请刷新重试。', { exact: true }).waitFor();
+    assert.equal(await select.inputValue(), 'a');
+    assert.equal(await editor.inputValue(), 'Retain my draft');
+    assert.equal(await page.evaluate(() => window.__calls.filter(call => call.method === 'felix/thread/provider').length), 0);
+    await page.evaluate(() => { window.__badCatalog = false; });
     await select.selectOption('b');
     await page.waitForFunction(() => !!window.__migration);
     assert.equal(await select.inputValue(), 'a');
