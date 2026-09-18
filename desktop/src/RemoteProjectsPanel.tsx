@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { createRemoteProject, deleteRemoteProject, listRemoteProjects, moveRemoteProject, subscribeCodex, updateRemoteProject } from './codexClient';
+import { createRemoteProject, deleteRemoteProject, listRemoteProjects, moveRemoteProject, subscribeCodex, updateRemoteProject, updateThreadProject } from './codexClient';
 import { readRemoteProjectChange, type RemoteProject } from './remoteProjects';
 
 type Draft = { name: string; roots: string; metadata: string };
@@ -19,7 +19,7 @@ function parseDraft(draft: Draft) {
   return { name: draft.name, roots, metadata };
 }
 
-export function RemoteProjectsPanel({ connected, busy }: { connected: boolean; busy?: boolean }) {
+export function RemoteProjectsPanel({ connected, busy, threadId }: { connected: boolean; busy?: boolean; threadId?: string }) {
   const [projects, setProjects] = useState<RemoteProject[]>([]);
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
@@ -60,11 +60,18 @@ export function RemoteProjectsPanel({ connected, busy }: { connected: boolean; b
     catch (error) { setStatus(`调整远端项目顺序失败：${error instanceof Error ? error.message : String(error)}`); }
     finally { setLoading(false); }
   };
+  const linkThread = async (projectId: string | null) => {
+    if (!threadId || loading) return;
+    setLoading(true); setStatus('');
+    try { await updateThreadProject(threadId, projectId); setStatus(projectId ? '当前会话已关联远端项目' : '当前会话已移出远端项目'); }
+    catch (error) { setStatus(`更新会话项目关联失败：${error instanceof Error ? error.message : String(error)}`); }
+    finally { setLoading(false); }
+  };
   const form = editing && <form onSubmit={event => { event.preventDefault(); void save(editing === 'new' ? undefined : projects.find(project => project.id === editing)); }}>
     <label>名称<input value={draft.name} onChange={event => setDraft({ ...draft, name: event.target.value })} required /></label>
     <label>根目录（每行一个）<textarea value={draft.roots} onChange={event => setDraft({ ...draft, roots: event.target.value })} rows={3} /></label>
     <label>metadata（每行 key=value）<textarea value={draft.metadata} onChange={event => setDraft({ ...draft, metadata: event.target.value })} rows={3} /></label>
     <button type="submit" disabled={loading}>{loading ? '保存中…' : '保存'}</button><button type="button" disabled={loading} onClick={() => { setEditing(undefined); setDraft(emptyDraft()); }}>取消</button>
   </form>;
-  return <section className="settings-card" aria-label="Codex 远端项目"><h2>Codex 远端项目</h2><p>查看并管理 app-server 保存的项目及其根目录。</p><button disabled={!connected || busy || loading} onClick={() => void refresh()}>{loading ? '正在处理…' : '刷新远端项目'}</button><button disabled={!connected || busy || loading} onClick={() => { setEditing('new'); setDraft(emptyDraft()); }}>新建项目</button>{status && <p role="status">{status}</p>}{form}{projects.length > 0 && <ol>{projects.map((project, index) => <li key={project.id}><strong>{project.name}</strong><span> · {project.roots.join('、') || '无根目录'}</span>{project.recencyAt != null && <small> · 最近活跃 {new Date(project.recencyAt * 1000).toLocaleString()}</small>}{Object.keys(project.metadata).length > 0 && <small> · {Object.entries(project.metadata).map(([key, value]) => `${key}=${value}`).join(', ')}</small>}<button disabled={loading || !connected || busy || index === 0} onClick={() => void move(index, projects[index - 1].id)} aria-label={`上移 ${project.name}`}>↑</button><button disabled={loading || !connected || busy || index === projects.length - 1} onClick={() => void move(index, index + 2 < projects.length ? projects[index + 2].id : undefined)} aria-label={`下移 ${project.name}`}>↓</button><button disabled={loading || !connected || busy} onClick={() => { setEditing(project.id); setDraft(draftFor(project)); }}>编辑</button><button disabled={loading || !connected || busy} onClick={() => void remove(project)}>删除</button></li>)}</ol>}</section>;
+  return <section className="settings-card" aria-label="Codex 远端项目"><h2>Codex 远端项目</h2><p>查看并管理 app-server 保存的项目及其根目录。</p><button disabled={!connected || busy || loading} onClick={() => void refresh()}>{loading ? '正在处理…' : '刷新远端项目'}</button><button disabled={!connected || busy || loading} onClick={() => { setEditing('new'); setDraft(emptyDraft()); }}>新建项目</button>{threadId && <button disabled={!connected || busy || loading} onClick={() => void linkThread(null)}>当前会话移出项目</button>}{status && <p role="status">{status}</p>}{form}{projects.length > 0 && <ol>{projects.map((project, index) => <li key={project.id}><strong>{project.name}</strong><span> · {project.roots.join('、') || '无根目录'}</span>{project.recencyAt != null && <small> · 最近活跃 {new Date(project.recencyAt * 1000).toLocaleString()}</small>}{Object.keys(project.metadata).length > 0 && <small> · {Object.entries(project.metadata).map(([key, value]) => `${key}=${value}`).join(', ')}</small>}<button disabled={loading || !connected || busy || !threadId} onClick={() => void linkThread(project.id)}>关联当前会话</button><button disabled={loading || !connected || busy || index === 0} onClick={() => void move(index, projects[index - 1].id)} aria-label={`上移 ${project.name}`}>↑</button><button disabled={loading || !connected || busy || index === projects.length - 1} onClick={() => void move(index, index + 2 < projects.length ? projects[index + 2].id : undefined)} aria-label={`下移 ${project.name}`}>↓</button><button disabled={loading || !connected || busy} onClick={() => { setEditing(project.id); setDraft(draftFor(project)); }}>编辑</button><button disabled={loading || !connected || busy} onClick={() => void remove(project)}>删除</button></li>)}</ol>}</section>;
 }

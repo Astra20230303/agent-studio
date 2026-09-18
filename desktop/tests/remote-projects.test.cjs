@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { readRemoteProjectPage, createRemoteProjectParams, updateRemoteProjectParams, deleteRemoteProjectParams, moveRemoteProjectParams, readRemoteProjectChange } = require('../src/remoteProjects.ts');
+const { updateThreadProjectParams } = require('../src/threadMetadata.ts');
 
 test('remote project pages validate roots, metadata, timestamps and cursors', () => {
   const wireProject = { id: 'p', name: 'Felix', roots: [{ path: 'D:/repo' }], metadata: { team: 'core', empty: '' }, position: 0, createdAt: 1, updatedAt: 2, recencyAt: 3 };
@@ -23,4 +24,11 @@ test('remote project change notifications validate identity and change type', ()
   assert.equal(readRemoteProjectChange({ projectId: ' ', changeType: 'updated' }), undefined);
   assert.equal(readRemoteProjectChange({ projectId: 'p', changeType: 'moved' }), undefined);
   assert.equal(readRemoteProjectChange(null), undefined);
+});
+
+test('thread project association uses empty project id to clear metadata', () => {
+  assert.deepEqual(updateThreadProjectParams('thread', 'project'), { threadId: 'thread', projectId: 'project' });
+  assert.deepEqual(updateThreadProjectParams('thread', null), { threadId: 'thread', projectId: '' });
+  assert.throws(() => updateThreadProjectParams('', 'project'), /会话项目/);
+  assert.throws(() => updateThreadProjectParams('thread', ' '), /会话项目/);
 });
