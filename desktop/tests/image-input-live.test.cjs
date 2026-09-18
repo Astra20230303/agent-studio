@@ -20,10 +20,13 @@ test('real local image attachment reaches the Provider as image pixels', { timeo
   const page = await browser.newPage({ viewport: { width: 128, height: 128 } });
   await page.setContent('<body style="margin:0;background:#ff0000"><div style="width:64px;height:128px;background:#00ff00"></div></body>');
   await page.screenshot({ path: picture });
-  const requests = [], events = [];
+  const jpeg = path.join(profile, 'second image.jpg');
+  await page.screenshot({ path: jpeg, type: 'jpeg', quality: 95 });
+  const requests = [], events = [], authorization = [];
   const model = http.createServer(async (req, res) => {
     let raw = ''; for await (const chunk of req) raw += chunk;
     requests.push(JSON.parse(raw));
+    authorization.push(req.headers.authorization);
     const content = 'Image request received.';
     res.writeHead(200, { 'content-type': 'text/event-stream' });
     res.end('data: ' + JSON.stringify({ choices: [{ delta: { content }, finish_reason: 'stop' }] }) + '\n\ndata: [DONE]\n\n');
@@ -50,24 +53,27 @@ test('real local image attachment reaches the Provider as image pixels', { timeo
       });
       done.catch(() => {}); await rpc.request(method, { threadId: thread.id, ...params }); await done;
     };
-    await run('turn/start', { input: userInput('Inspect the attached image.', [], [picture]) });
+    await run('turn/start', { input: userInput('Inspect the attached image.', [], [picture, jpeg]) });
     assert.equal(requests.length, 1);
+    assert.deepEqual(authorization, ['Bearer test']);
     const parts = requests[0].messages.flatMap(message => Array.isArray(message.content) ? message.content : []);
     assert.ok(JSON.stringify(requests[0].messages).includes('Inspect the attached image.'));
     const images = parts.filter(part => part.type === 'image_url');
-    assert.equal(images.length, 1);
-    assert.match(images[0].image_url.url, /^data:image\/(png|jpeg|webp);base64,/);
-    const pixels = Buffer.from(images[0].image_url.url.split(',')[1], 'base64');
+    assert.equal(images.length, 2);
+    for (const image of images) {
+    assert.match(image.image_url.url, /^data:image\/(png|jpeg|webp);base64,/);
+    const pixels = Buffer.from(image.image_url.url.split(',')[1], 'base64');
     assert.ok(pixels.length > 30);
     const decoded = await page.evaluate(async url => {
       const image = new Image(); image.src = url; await image.decode();
       const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
       const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
       return { width: image.width, height: image.height, left: [...context.getImageData(10, 10, 1, 1).data], right: [...context.getImageData(100, 10, 1, 1).data] };
-    }, images[0].image_url.url);
+    }, image.image_url.url);
     assert.equal(decoded.width, 128); assert.equal(decoded.height, 128);
     assert.ok(decoded.left[1] > 240 && decoded.left[0] < 15);
     assert.ok(decoded.right[0] > 240 && decoded.right[1] < 15);
+    }
     assert.ok(events.some(event => event.method === 'item/completed' && event.params.item.type === 'agentMessage' && event.params.item.text.includes('Image request received')));
   } finally {
     clearTimeout(timer); rpc.close(); await exited;

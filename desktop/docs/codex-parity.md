@@ -1,5 +1,21 @@
 # Felix capability roadmap
 
+## Real multimodal attachment transport
+
+Acceptance now exercises the production userInput serializer, a real Codex
+app-server process, the Responses-to-Chat adapter and a controlled local model
+endpoint. Browser-generated PNG and JPEG files (including a spaced filename)
+reach one request as two image_url data payloads alongside the original prompt.
+Both payloads decode to 128x128 images with the expected green/red pixel regions;
+the endpoint receives the expected Authorization and the completed reply returns.
+The process is stopped and awaited, and HTTP/browser resources are closed.
+
+Initial acceptance exposed an invalid legacy test PNG: Codex replaced that image
+with an explicit processing-error text. Valid browser-generated assets pass;
+this was a fixture defect and required no product change. Three attachment/live
+tests pass. This proves image transport, not hosted vision quality, generation,
+audio input or video support. Corrupt-image feedback in the UI remains a gap.
+
 ## Scheduled run result export
 
 Finished task runs offer copy and UTF-8 text export with task name, start time,
