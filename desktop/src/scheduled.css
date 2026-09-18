@@ -62,14 +62,9 @@
 .dark .scheduled-page,.dark .task-modal { color-scheme:dark; --task-bg:#303234; --task-text:#e7e9eb; --task-muted:#a1a7ac; --task-line:#484d51; --task-hover:#3b3f42; }.dark .task-run pre { background:#25282a; }.dark .task-error { background:#452c29; color:#f6b4ab; }.dark .task-icon-button:hover:not(:disabled) { background:#494e52; color:#eee; }
 @container (max-width:640px) { .scheduled-content { width:calc(100% - 32px); margin-top:24px; }.scheduled-header h1 { font-size:24px; }.task-tabs { margin-inline:0; gap:0; }.task-tabs button { padding:6px 9px; }.task-row { padding-inline:0; }.task-suggestion em { display:block; margin:4px 0 0; } }
 @media (max-width:480px) { .task-form-grid { grid-template-columns:minmax(0,1fr); gap:0; } }
-@media (max-width:480px) {
-  .desktop-app:has(.scheduled-page) .desktop-titlebar { gap:4px; padding-left:8px; padding-right:0; }
-  .desktop-app:has(.scheduled-page) .desktop-titlebar nav { gap:4px; }
-  .desktop-app:has(.scheduled-page) .desktop-titlebar .window-controls button { width:36px; min-width:36px; }
-  .desktop-app:has(.scheduled-page) .desktop-titlebar nav button { padding-inline:4px; white-space:nowrap; }
-}
+
 @media (prefers-reduced-motion:reduce) { .task-spin { animation:none; } }
-@media(max-width:760px){.desktop-titlebar nav[aria-label="应用菜单"]{display:none}}
+
 .task-metadata dd{min-width:0;overflow-wrap:anywhere}
 
 .task-sort { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin:0 8px 12px; color:var(--task-muted); font-size:13px; }

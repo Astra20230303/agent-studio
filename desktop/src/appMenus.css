@@ -4,3 +4,15 @@
 .desktop-titlebar nav .app-menu-popup button:disabled{opacity:.45;cursor:default}
 .dark .app-menu-popup{background:#303234;color:#eee;border-color:#54585a}
 .dark .desktop-titlebar nav .app-menu-popup button:focus{background:#414946}
+
+.app-menus-wide{display:flex;gap:24px}
+.app-menus-compact{display:none}
+.app-menu-popup{box-sizing:border-box;max-height:calc(100dvh - 60px);overflow-y:auto}
+@media(max-width:760px){
+  .desktop-app .desktop-titlebar > button{width:26px;min-width:26px;padding-inline:0}
+  .app-menus-wide{display:none}
+  .app-menus-compact{display:contents}
+  .desktop-app .desktop-titlebar{gap:2px;padding-left:4px;padding-right:0}
+  .desktop-titlebar nav[aria-label="应用菜单"]{display:flex;gap:0}
+  .desktop-app .desktop-titlebar .window-controls button{width:32px;min-width:32px}
+}

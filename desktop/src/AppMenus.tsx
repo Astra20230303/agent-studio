@@ -1,15 +1,16 @@
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import './appMenus.css';
 
 type MenuAction = { label: string; run: () => void; disabled?: boolean };
 export function AppMenus({ groups }: { groups: { label: string; actions: MenuAction[] }[] }) {
-  return <nav aria-label="应用菜单">{groups.map(group => <AppMenu key={group.label} {...group} />)}</nav>;
+  return <nav aria-label="应用菜单"><span className="app-menus-wide">{groups.map(group => <AppMenu key={group.label} {...group} />)}</span><span className="app-menus-compact"><AppMenu label="菜单" actions={groups.flatMap(group => group.actions.map(action => ({ ...action, label: `${group.label} · ${action.label}` })))} /></span></nav>;
 }
 function AppMenu({ label, actions }: { label: string; actions: MenuAction[] }) {
   const id = useId();
   const trigger = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  useEffect(() => { const resize = () => menu.current?.hidePopover(); window.addEventListener('resize', resize); return () => window.removeEventListener('resize', resize); }, []);
   const items = () => Array.from(menu.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') || []);
   const show = (last = false) => {
     const element = menu.current;

@@ -3,13 +3,13 @@ const assert = require('node:assert/strict');
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
-    const page = await browser.newPage({ viewport: { width: 390, height: 700 } });
+    const page = await browser.newPage({ viewport: { width: 1280, height: 700 } });
     await page.addInitScript(() => {
       localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeThreadId: 'a', model: 'test', threads: [{ id: 'a', title: 'Current', status: 'completed', messages: [], updatedAt: new Date().toISOString() }] }));
       window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }), providerStatus: async () => ({ keyConfigured: true }) };
       window.codex = { connect: async () => ({ ok: true }), request: async () => ({ ok: true, result: { data: [] } }), notify: async () => ({}), onNotification: () => () => {}, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
     });
-    await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5329');
+    await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
     const editor = page.getByRole('textbox', { name: '消息', exact: true });
     await editor.fill('preserve menu draft');
     const file = page.getByRole('button', { name: '文件', exact: true });
@@ -20,7 +20,7 @@ const assert = require('node:assert/strict');
     await page.keyboard.press('ArrowDown');
     assert.equal(await menu.getByRole('menuitem', { name: '浏览工作区文件', exact: true }).evaluate(node => node === document.activeElement), true);
     const bounds = await menu.boundingBox();
-    assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= 390);
+    assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= 1280);
     await page.keyboard.press('Control+Shift+O');
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.length), 1);
     await page.keyboard.press('End');
