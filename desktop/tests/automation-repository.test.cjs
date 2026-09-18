@@ -45,3 +45,35 @@ test('resolved environment is optional for old records and validated when presen
  for(const environment of [{cwd:'D:/work',providerId:'p'},{cwd:'D:/work'}]) {value.runs=[{...run,environment}];await repo.detail('a');}
  for(const environment of [{cwd:{}},{cwd:''},{cwd:'D:/work',providerId:2},[]]){value.runs=[{...run,environment}];await assert.rejects(repo.detail('a'),/任务详情格式无效/);}
 });
+
+const deferred=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no});return{promise,resolve,reject}};
+test('all writes share task identity exclusion while independent tasks and reads proceed',async()=>{
+ const actions=[repo=>repo.save(task),repo=>repo.run('a'),repo=>repo.cancel('a'),repo=>repo.remove('a'),repo=>repo.setStatus('a','paused')];
+ for(const first of actions){
+  const hold=deferred();const calls=[];
+  const repo=createAutomationRepository(async(operation,arg)=>{
+   calls.push(operation);
+   if(operation==='listTasks')return{tasks:[task]};if(operation==='taskDetail')return{task};
+   if(arg==='a'||arg?.id==='a')return hold.promise;
+  });
+  const pending=first(repo);
+  for(const attempt of actions)await assert.rejects(attempt(repo),/操作尚未完成/);
+  assert.equal(calls.length,1);
+  await repo.setStatus('b','paused');assert.equal((await repo.list()).length,1);await repo.detail('a');
+  hold.resolve();await pending;await repo.setStatus('a','active');
+ }
+});
+test('creation excludes duplicate requests, captures input, and failure releases the lock',async()=>{
+ const hold=deferred();const calls=[];let first=true;
+ const repo=createAutomationRepository((...args)=>{calls.push(args);if(first){first=false;return hold.promise;}return Promise.resolve();});
+ const draft={...task,id:undefined,schedule:{kind:'interval',minutes:5}};
+ const pending=assert.rejects(repo.save(draft),/save failed/);draft.schedule.minutes=10;
+ await assert.rejects(repo.save(draft),/操作尚未完成/);assert.equal(calls[0][1].schedule.minutes,5);
+ hold.reject(Error('save failed'));await pending;await repo.save(draft);assert.equal(calls.length,2);
+});
+test('independent repositories and synchronous transport failures do not retain locks',async()=>{
+ const repo=createAutomationRepository(()=>{throw Error('offline')});
+ await assert.rejects(repo.run('a'),/offline/);await assert.rejects(repo.cancel('a'),/offline/);
+ const hold=deferred();const pending=createAutomationRepository(()=>hold.promise).run('a');
+ await createAutomationRepository(async()=>{}).run('a');hold.resolve();await pending;
+});

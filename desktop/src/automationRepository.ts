@@ -43,12 +43,22 @@ function task(value: any): value is ScheduledTask {
     && (run.finishedAt == null || date(run.finishedAt)) && (run.output == null || typeof run.output === 'string') && (run.error == null || typeof run.error === 'string'));
 }
 export function createAutomationRepository(request: Request): AutomationRepository {
+  // Shared by all views using this repository, including after page remounts.
+  // runTask acknowledges dispatch; the execution lifetime belongs to the scheduler.
+  const pending = new Set<string>();
+  async function mutate(key: string, operation: Parameters<Request>[0], ...args: unknown[]) {
+    if (pending.has(key)) throw Error('此任务的操作尚未完成，请稍后重试。');
+    pending.add(key);
+    try { await request(operation, ...args); }
+    finally { pending.delete(key); }
+  }
+  const taskKey = (id: string) => `task:${id}`;
   return {
-    async save(draft) { await request('saveTask', structuredClone(draft)); },
-    async run(id) { await request('runTask', id); },
-    async cancel(id) { await request('cancelTask', id); },
-    async remove(id) { await request('deleteTask', id); },
-    async setStatus(id, status) { await request('setTaskStatus', id, status); },
+    async save(draft) { const snapshot = structuredClone(draft); await mutate(snapshot.id ? taskKey(snapshot.id) : 'create', 'saveTask', snapshot); },
+    async run(id) { await mutate(taskKey(id), 'runTask', id); },
+    async cancel(id) { await mutate(taskKey(id), 'cancelTask', id); },
+    async remove(id) { await mutate(taskKey(id), 'deleteTask', id); },
+    async setStatus(id, status) { await mutate(taskKey(id), 'setTaskStatus', id, status); },
     async list() {
       const result = await request('listTasks') as any;
       if (!Array.isArray(result?.tasks) || !result.tasks.every(task) || new Set(result.tasks.map((item: ScheduledTask) => item.id)).size !== result.tasks.length) throw Error('任务列表格式无效，请重试。');
