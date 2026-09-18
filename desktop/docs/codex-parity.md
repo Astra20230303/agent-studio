@@ -1807,3 +1807,5 @@ remains low. The expanded browser flow passes without further product changes.
 ## Markdown 导出异常记录容错
 
 计划与交付：完整服务端历史导出跳过空值和原始值，非对象包装保留为原始记录，非数组用户内容安全导出为空文本；合法未知类型仍保留。模拟桥接完整分页导出验收加入脏条目，生产构建通过。
+
+提交后修正：抽离 conversationMarkdown 纯函数，处理 undefined 内容块及非字符串正文，保留 JSON 字段而非输出 [object Object]。独立脏记录测试、完整导出浏览器回归和构建通过。本轮未交付每会话 Provider 路由或图片生成结果专用视图，这两项仍待实现。
