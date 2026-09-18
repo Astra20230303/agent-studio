@@ -6,7 +6,7 @@ const { CodexRpc } = require('./codex-rpc.cjs');
 const { findCommand, ensureProjectConfig, compatibilityCatalog } = require('./codex-server.cjs');
 const { startMiniMaxAdapter } = require('./minimax-adapter.cjs');
 
-function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_KEY, upstream, provider, timeoutMs = 10 * 60 * 1000, dataRoot = require('./data-directory.cjs').dataDirectory(projectRoot), runtimeRoot = require('./runtime-directory.cjs').runtimeDirectory() } = {}) {
+function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_KEY, upstream, provider, onThreadCreated, timeoutMs = 10 * 60 * 1000, dataRoot = require('./data-directory.cjs').dataDirectory(projectRoot), runtimeRoot = require('./runtime-directory.cjs').runtimeDirectory() } = {}) {
   return async (task, { signal, runId }) => {
     const cwd = task.cwd || projectRoot;
     if (!path.isAbsolute(cwd) || !fs.existsSync(cwd) || !fs.statSync(cwd).isDirectory()) throw new Error('任务工作目录不存在或无效，请编辑任务选择有效目录。');
@@ -77,6 +77,7 @@ function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_
         const result = await rpc.request('thread/start', { cwd, model: task.model, modelProvider: 'minimax', sandbox: task.permission, approvalPolicy: 'never', ephemeral: false });
         threadId = result.thread?.id;
         if (!threadId) throw new Error('Codex 未返回任务线程。');
+        await onThreadCreated?.({ threadId, providerId: selected.id, model: task.model });
         await rpc.request('turn/start', { threadId, input: [{ type: 'text', text: task.prompt }] });
         await completed;
         if (!output.trim()) throw new Error('任务结束但没有输出。');

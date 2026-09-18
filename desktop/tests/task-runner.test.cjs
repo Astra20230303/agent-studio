@@ -11,6 +11,7 @@ const { spawn } = require('node:child_process');
 const { CodexRpc } = require('../electron/codex-rpc.cjs');
 const { findCommand } = require('../electron/codex-server.cjs');
 const { startMiniMaxAdapter } = require('../electron/minimax-adapter.cjs');
+const { ThreadProviderRouter } = require('../electron/thread-provider-router.cjs');
 const root = path.resolve(__dirname, '../..');
 const task = { name: 'Runner integration', model: 'MiniMax-M2.1', prompt: 'Print FELIX_SCHEDULE_OK using a read-only shell command and report the result.', permission: 'read-only' };
 
@@ -49,8 +50,13 @@ test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local
   });
   server.listen(0, '127.0.0.1'); await once(server, 'listening');
   try {
-    activeProvider = { apiKey, baseUrl: `http://127.0.0.1:${server.address().port}` };
-    const runner = createTaskRunner(root, { dataRoot, provider: () => { providerReads++; return activeProvider; }, timeoutMs: 45000 });
+    activeProvider = { id:'original', apiKey, baseUrl: `http://127.0.0.1:${server.address().port}` };
+    const bindings=path.join(dataRoot,'thread-providers.json');
+    const router=new ThreadProviderRouter(bindings,()=>activeProvider,()=> 'http://127.0.0.1:1');
+    const runner = createTaskRunner(root, { dataRoot, provider: () => { providerReads++; return activeProvider; }, onThreadCreated:({threadId,providerId,model})=>{
+      assert.equal(requests,0,'Bind the conversation before starting model work');
+      router.save(threadId,providerId,'minimax',model);
+    }, timeoutMs: 45000 });
     const directory = fs.mkdtempSync(path.join(root, '.project-cache/tmp/task-real-runner-'));
     let clock = Date.now();
     const scheduler = new TaskScheduler({ directory, runner, now: () => clock });
@@ -68,6 +74,11 @@ test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local
     assert.equal(restarted.detail(saved.id).runs[0].output, result.output);
     assert.equal(restarted.detail(saved.id).cwd, workspace);
     assert.ok(result.threadId);
+    assert.equal(router.get(result.threadId),'original');
+    const recoveredRouter=new ThreadProviderRouter(bindings,id=>({id:id||'changed-default',apiKey:'key',baseUrl:'https://example.invalid'}),()=> 'http://127.0.0.1:1');
+    const routed=[];await recoveredRouter.request({request:async(method,params)=>{routed.push(params);return {}; }},'thread/resume',{threadId:result.threadId});
+    assert.equal(routed[0].config['model_providers.minimax.base_url'],'http://127.0.0.1:1/providers/original/v1');
+    assert.equal(routed[0].model,task.model);
     const adapter=startMiniMaxAdapter({port:0,apiKey,upstream:`http://127.0.0.1:${server.address().port}`});await once(adapter,'listening');
     const child = spawn(findCommand(root).command, ['-c', 'web_search="disabled"', '-c', 'model_providers.minimax.name="MiniMax"', '-c', 'model_providers.minimax.wire_api="responses"', '-c', `model_providers.minimax.base_url="http://127.0.0.1:${adapter.address().port}/v1"`, 'app-server', '--stdio'], {cwd:root,windowsHide:true,stdio:['pipe','pipe','pipe'],env:{...process.env,CODEX_HOME:path.join(dataRoot,'codex-home')}});
     const rpc = new CodexRpc(child);const timer=setTimeout(()=>rpc.close(),20000);
