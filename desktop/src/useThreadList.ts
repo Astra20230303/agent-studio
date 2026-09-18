@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { DesktopState } from './domain';
 import { listThreads, searchThreads } from './codexClient';
+import { threadPage } from './threadPage';
 
 export function useThreadList(connected: boolean, setState: Dispatch<SetStateAction<DesktopState>>, search = '') {
   const query = search.trim();
@@ -19,16 +20,16 @@ export function useThreadList(connected: boolean, setState: Dispatch<SetStateAct
     try {
       const response = query ? await searchThreads(query, next) : await listThreads(next);
       if (query && (!Array.isArray(response?.data) || response.data.some((item: any) => typeof item?.thread?.id !== 'string' || !item.thread.id || typeof item.snippet !== 'string'))) throw Error('服务端返回的会话搜索结果无效，请重试');
-      const result = query ? { ...response, data: response.data?.map((item: any) => item.thread) } : response;
+      const result = threadPage(query ? { ...response, data: response.data?.map((item: any) => item.thread) } : response);
       if (generation !== epoch.current) return;
       const nextCursor = result.nextCursor || undefined;
       if (nextCursor && (nextCursor === next || seen.current.has(nextCursor))) throw Error('会话分页游标重复，请重新连接后重试。');
-      setMatches(previous => ({ query, snippets: { ...(next && previous.query === query ? previous.snippets : {}), ...Object.fromEntries((query ? response.data || [] : []).filter((item: any) => item.thread?.id && typeof item.snippet === 'string').map((item: any) => [item.thread.id, item.snippet])) }, ids: [...new Set([...(next && previous.query === query ? previous.ids : []), ...(result.data || result.threads || []).filter((item: any) => typeof item?.id === 'string').map((item: any) => item.id)])] }));
+      setMatches(previous => ({ query, snippets: { ...(next && previous.query === query ? previous.snippets : {}), ...Object.fromEntries((query ? response.data || [] : []).filter((item: any) => item.thread?.id && typeof item.snippet === 'string').map((item: any) => [item.thread.id, item.snippet])) }, ids: [...new Set([...(next && previous.query === query ? previous.ids : []), ...result.data.map(item => item.id)])] }));
       setState(previous => {
         if (generation !== epoch.current) return previous;
         const threads = [...previous.threads];
         const ids = new Set(threads.map(thread => thread.remoteId));
-        for (const item of result.data || result.threads || []) {
+        for (const item of result.data) {
           if (typeof item?.id !== 'string' || !item.id || ids.has(item.id)) continue;
           ids.add(item.id);
           const timestamp = Number(item.updatedAt) * 1000;

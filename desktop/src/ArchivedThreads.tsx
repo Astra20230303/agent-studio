@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { RotateCcw, X } from 'lucide-react';
 import { listArchivedThreads, searchThreads, unarchiveThread } from './codexClient';
 import type { Thread } from './domain';
+import { threadPage } from './threadPage';
 
 export function ArchivedThreads({ threads, connected, onRestore, onClose }: { threads: Thread[]; connected: boolean; onRestore: (thread: Thread) => void; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -25,7 +26,7 @@ export function ArchivedThreads({ threads, connected, onRestore, onClose }: { th
     try {
       const response = search ? await searchThreads(search, next, true) : await listArchivedThreads(next);
       if (search && (!Array.isArray(response?.data) || response.data.some((item: any) => !item?.thread?.id || typeof item.snippet !== 'string'))) throw Error('归档搜索结果无效，请重试');
-      const result = search ? { ...response, data: response.data.map((item: any) => ({ ...item.thread, snippet: item.snippet })) } : response;
+      const result = threadPage(search ? { ...response, data: response.data.map((item: any) => ({ ...item.thread, snippet: item.snippet })) } : response);
       if (token !== generation.current) return;
       if (result.nextCursor && (result.nextCursor === next || cursors.current.has(result.nextCursor))) throw Error('归档分页游标重复');
       const entries: (Thread & { snippet?: string })[] = result.data.map((item: any) => ({ snippet: item.snippet, id: `remote-${item.id}`, remoteId: item.id, title: item.name || item.preview || '归档会话', cwd: item.cwd, status: 'completed', pinned: false, archived: true, messages: [], updatedAt: new Date().toISOString() }));
