@@ -47,9 +47,11 @@ async function main() {
       } catch (error) { return { ok: false, error: error.message }; }
     });
     await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText: async text => { window.__copied = text; } } });
       window.desktop = { listModels: async () => ({ ok: true, models: ['MiniMax-Test'] }), providerStatus: async () => ({ keyConfigured: true }), getProjectRoot: async () => 'D:\\Workspace2026\\my-agent-plantform' };
       for (const method of ['listTasks', 'saveTask', 'setTaskStatus', 'runTask', 'cancelTask', 'deleteTask', 'taskDetail']) window.desktop[method] = (...args) => window.taskOperation(method, args);
       window.desktop.onTasksChanged = listener => { window.__taskChanged = listener; return () => { window.__taskChanged = null; }; };
+      window.desktop.saveTaskOutput = async input => { window.__exported = input; return { ok: true }; };
       window.codex = { connect: async () => ({ ok: true }), notify: async () => {}, request: async () => ({ ok: true, result: { data: [] } }), onNotification: () => () => {}, onServerRequest: () => () => {}, onError: () => () => {}, onStderr: () => () => {}, onClosed: () => () => {} };
     });
     const changed = () => page.evaluate(() => window.__taskChanged?.());
@@ -81,6 +83,11 @@ async function main() {
     await changed();
     await dialog.locator('.task-run summary').first().click();
     await dialog.getByText(/真实持久化结果/).waitFor();
+    await dialog.getByRole('button', { name: '复制运行结果', exact: true }).click();
+    assert.match(await page.evaluate(() => window.__copied), /每日工作区检查[\s\S]*已完成[\s\S]*真实持久化结果/);
+    await dialog.getByRole('button', { name: '导出运行结果', exact: true }).click();
+    assert.equal(await page.evaluate(() => window.__exported.content), await page.evaluate(() => window.__copied));
+    assert.match(await page.evaluate(() => window.__exported.filename), /^task-.*\.txt$/);
     await page.screenshot({ path: path.join(artifacts, 'scheduled-results.png') });
     await dialog.getByRole('button', { name: '编辑', exact: true }).click();
     assert.equal(await page.getByRole('dialog', { name: '编辑任务', exact: true }).getByLabel('任务 Provider', { exact: true }).inputValue(), '');
