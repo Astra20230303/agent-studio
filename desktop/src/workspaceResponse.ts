@@ -4,8 +4,9 @@ const object = (value: unknown): value is Record<string, any> => Boolean(value) 
 export function parseWorkspaceResult(value: unknown, action: 'list' | 'search' | 'search-content' | 'read') {
   if (!object(value)) throw Error('工作区文件响应格式无效，请重试');
   if (action === 'read') {
-    if (!['text', 'image', 'binary'].some(key => Object.hasOwn(value, key)) || value.text != null && typeof value.text !== 'string' || value.revision != null && typeof value.revision !== 'string'
+    if (!(typeof value.text === 'string' || typeof value.image === 'string' && value.image.length > 0 || value.binary === true) || value.text != null && typeof value.text !== 'string' || value.revision != null && typeof value.revision !== 'string'
       || value.size != null && (!Number.isInteger(value.size) || value.size < 0) || value.image != null && typeof value.image !== 'string' || value.binary != null && typeof value.binary !== 'boolean') throw Error('工作区文件响应格式无效，请重试');
+    if (['truncated', 'encodingInvalid'].some(key => value[key] != null && typeof value[key] !== 'boolean') || value.previewBytes != null && (!Number.isSafeInteger(value.previewBytes) || value.previewBytes < 0)) throw Error('工作区文件响应格式无效，请重试');
     return structuredClone(value) as any;
   }
   if (!Array.isArray(value.entries) || value.truncated != null && typeof value.truncated !== 'boolean' || value.skipped != null && (!Number.isInteger(value.skipped) || value.skipped < 0)

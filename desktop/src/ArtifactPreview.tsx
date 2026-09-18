@@ -1,3 +1,4 @@
+import { parseWorkspaceResult } from './workspaceResponse';
 import { useEffect, useRef, useState } from 'react';
 import type { ArtifactTarget } from './Artifacts';
 import type { FileEditSession } from './WorkspaceFiles';
@@ -27,8 +28,8 @@ export function ArtifactPreview({ target, onClose, onEdit }: { target: ArtifactT
       try {
         const result = await window.desktop?.workspaceFile?.({ root: target.root, path: target.path, action: 'read' });
         if (disposed) return;
-        if (!result?.ok) throw Error(result?.error || '无法读取文件');
-        setPreview(result.result);
+        if (result?.ok !== true) throw Error(result?.error || '无法读取文件');
+        setPreview(parseWorkspaceResult(result.result, 'read'));
       } catch (error) { if (!disposed) setError(error instanceof Error ? error.message : String(error)); }
     })();
     return () => { disposed = true; };

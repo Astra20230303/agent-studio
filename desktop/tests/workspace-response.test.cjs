@@ -9,3 +9,8 @@ test('validates file previews and rejects malformed responses',()=>{
  for(const bad of [null,{}, {entries:{}},{entries:[null]},{entries:[{name:'a',path:1,directory:false,symlink:false}]},{entries:[{name:'a',path:'a',directory:false,symlink:false,line:0}]},{entries:[],truncated:'no'},{entries:[],skipped:-1}]) assert.throws(()=>parseWorkspaceResult(bad,'list'),/工作区文件响应格式无效/);
  for(const bad of [{},{text:2},{revision:3},{size:-1},{image:2},{binary:'no'}]) assert.throws(()=>parseWorkspaceResult(bad,'read'),/工作区文件响应格式无效/);
 });
+
+test('preview metadata rejects unusable content and malformed display fields',()=>{
+ for(const value of [{text:null},{image:''},{binary:false},{text:'ok',truncated:'yes'},{text:'ok',encodingInvalid:1},{text:'ok',previewBytes:{}},{text:'ok',previewBytes:-1}]) assert.throws(()=>parseWorkspaceResult(value,'read'),/响应格式无效/);
+ for(const value of [{text:''},{binary:true},{text:'partial',truncated:true,previewBytes:7,size:20},{text:'replacement',encodingInvalid:true}]) assert.deepEqual(parseWorkspaceResult(value,'read'),value);
+});

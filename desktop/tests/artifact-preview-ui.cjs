@@ -32,6 +32,13 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  assert.ok(blank.width>0 && blank.height>0);
  assert.equal(await modal.locator('pre').textContent(),'last\n');
  await page.evaluate(()=>window.__result={ok:false,error:'file removed'});await modal.getByRole('button',{name:'刷新预览'}).click();await modal.getByRole('alert').getByText('file removed').waitFor();assert.equal(await modal.getByRole('button',{name:'编辑此文件'}).count(),0);
+ for(const response of [{ok:true,result:{}},{ok:true,result:{text:'bad',truncated:true,previewBytes:{}}},{ok:true,result:{text:'bad',size:{}}},{ok:'yes',result:{text:'bad',revision:'bad'}}]){
+  await page.evaluate(value=>window.__result=value,response);
+  await modal.getByRole('button',{name:'刷新预览'}).click();
+  await modal.getByRole('alert').waitFor();
+  assert.equal(await modal.locator('pre').count(),0);
+  assert.equal(await modal.getByRole('button',{name:'编辑此文件'}).count(),0);
+ }
  await page.evaluate(()=>window.__result={ok:true,result:{text:'short',revision:'short'}});await modal.getByRole('button',{name:'刷新预览'}).click();await modal.getByRole('status').getByText('第 2 行不在当前预览范围内。').waitFor();
  await page.evaluate(()=>window.__result=undefined);await modal.getByRole('button',{name:'刷新预览'}).click();await modal.locator('pre').getByText('second',{exact:true}).waitFor();
  await modal.getByRole('button',{name:'编辑此文件'}).click();await page.locator('.file-editor textarea').waitFor();assert.equal(await page.locator('.file-editor textarea').inputValue(),'first\nsecond\nthird');
