@@ -589,8 +589,12 @@ function App({ initialState }: { initialState: DesktopState }) {
     const thread = state.threads.find(item => item.id === threadId);
     if (!thread || thread.archived || archiveLocks.current.has(threadId)) return;
     if (thread.remoteId && codexStatus !== 'connected') { toast('请重新连接服务后再归档或删除远端会话。'); return; }
+    if (sendingRef.current.has(threadId)) { toast('请等待会话操作完成后再归档。'); return; }
     archiveLocks.current.add(threadId);
+    sendingRef.current.add(threadId);
+    setPendingThreads(previous => [...previous, threadId]);
     try {
+      if (queue.read().some(item => item.localId === threadId) && !queue.pauseThread(threadId)) throw Error('排队消息暂停未能保存，请重试保存队列后再归档。');
       if (thread.remoteId) await archiveThread(thread.remoteId);
       update(next => {
         const item = next.threads.find(value => value.id === threadId);
@@ -600,17 +604,31 @@ function App({ initialState }: { initialState: DesktopState }) {
       audit.record('归档会话', thread.id);
       setRemoteThreadId(value => value === thread.remoteId ? undefined : value);
     } catch (error) { toast(`归档失败：${error instanceof Error ? error.message : String(error)}`); }
-    finally { archiveLocks.current.delete(threadId); }
+    finally {
+      archiveLocks.current.delete(threadId);
+      sendingRef.current.delete(threadId);
+      setPendingThreads(previous => previous.filter(id => id !== threadId));
+    }
   };
   const archiveActive = () => { if (state.activeThreadId) void archiveConversation(state.activeThreadId); };
   const performDelete = async (threadId: string) => {
     const thread = state.threads.find(item => item.id === threadId);
     if (!thread) throw Error('会话已不存在，请关闭后重试。');
     if (thread.remoteId && codexStatus !== 'connected') throw Error('请重新连接服务后再归档或删除远端会话。');
-    if (thread.remoteId) await deleteThread(thread.remoteId);
-    update(next => { next.threads = next.threads.filter(value => value.id !== threadId); if (next.activeThreadId === threadId) next.activeThreadId = undefined; });
-    audit.record('删除会话');
-    setRemoteThreadId(value => value === thread.remoteId ? undefined : value);
+    if (sendingRef.current.has(threadId)) throw Error('请等待会话操作完成后再删除。');
+    sendingRef.current.add(threadId);
+    setPendingThreads(previous => [...previous, threadId]);
+    try {
+      if (queue.read().some(item => item.localId === threadId) && !queue.pauseThread(threadId)) throw Error('排队消息暂停未能保存，请重试保存队列后再删除。');
+      if (thread.remoteId) await deleteThread(thread.remoteId);
+      update(next => { next.threads = next.threads.filter(value => value.id !== threadId); if (next.activeThreadId === threadId) next.activeThreadId = undefined; });
+      queue.change(items => items.filter(item => item.localId !== threadId));
+      audit.record('删除会话');
+      setRemoteThreadId(value => value === thread.remoteId ? undefined : value);
+    } finally {
+      sendingRef.current.delete(threadId);
+      setPendingThreads(previous => previous.filter(id => id !== threadId));
+    }
   };
   const deleteActive = async () => { const thread = state.threads.find(item => item.id === state.activeThreadId); if (thread) setDeleteCandidate(thread.id); };
   const togglePinned = (threadId: string) => update(next => { const thread = next.threads.find(item => item.id === threadId); if (thread) thread.pinned = !thread.pinned; });
