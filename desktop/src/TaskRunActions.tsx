@@ -1,6 +1,7 @@
+import { taskRunExport } from './taskRunExport';
 import { useRef, useState } from 'react';
 import { Copy, Download } from 'lucide-react';
-import { taskRunLabels, type TaskRun } from './scheduledTasks';
+import { type TaskRun } from './scheduledTasks';
 
 export function TaskRunActions({ name, run, onOpenConversation }: { name: string; run: TaskRun; onOpenConversation?: (threadId: string, title: string) => void }) {
   const [busy, setBusy] = useState(false);
@@ -10,7 +11,7 @@ export function TaskRunActions({ name, run, onOpenConversation }: { name: string
   const act = async (download: boolean) => {
     if (lock.current || run.status === 'running') return;
     lock.current = true; setBusy(true); setNotice(''); setError('');
-    const content = `${name}\n${run.startedAt}\n${taskRunLabels[run.status]}\n${run.error ? `\n${run.error}\n` : ''}\n${run.output || ''}`;
+    const content = taskRunExport(name, run);
     try {
       if (!download) { await navigator.clipboard.writeText(content); setNotice('已复制运行结果'); }
       else {
@@ -25,7 +26,7 @@ export function TaskRunActions({ name, run, onOpenConversation }: { name: string
     finally { lock.current = false; setBusy(false); }
   };
   return <div><div className="task-actions">
-    {run.threadId && onOpenConversation && <button disabled={run.status === 'running'} onClick={() => onOpenConversation(run.threadId!, name)}>打开运行会话</button>}
+    {run.threadId && onOpenConversation && <button disabled={run.status === 'running'} onClick={() => onOpenConversation(run.threadId!, run.configuration?.name || name)}>打开运行会话</button>}
     <button className="task-icon-button" title="复制运行结果" aria-label="复制运行结果" disabled={busy || run.status === 'running'} onClick={() => void act(false)}><Copy /></button>
     <button className="task-icon-button" title="导出运行结果" aria-label="导出运行结果" disabled={busy || run.status === 'running'} onClick={() => void act(true)}><Download /></button>
   </div>{notice && <p role="status">{notice}</p>}{error && <p role="alert">{error}</p>}</div>;
