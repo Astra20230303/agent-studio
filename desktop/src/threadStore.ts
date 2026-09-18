@@ -1,3 +1,6 @@
+import { createThreadHistory, type HistoryReadOptions } from './threadHistory.ts';
+import { validateRestorableHistory } from './historyValidation.ts';
+import { findMessageTurn } from './messageTurn.ts';
 import { readThreadFork } from './threadFork.ts';
 import { readThreadStart, type ThreadStartOptions } from './threadStart.ts';
 import { readThreadResume } from './threadResume.ts';
@@ -6,16 +9,23 @@ import { createThreadRepository, type ThreadRepository, type ThreadSource } from
 import { createThreadMutations, type ThreadMutations, type ThreadRemoteMutations } from './threadMutations.ts';
 
 export interface ThreadStore extends ThreadRepository, ThreadMutations {
+  readHistory(threadId: string, options?: HistoryReadOptions): Promise<unknown[]>;
+  findMessageTurn(threadId: string, messageId: string): Promise<string | undefined>;
   start(localId: string, options: ThreadStartOptions): Promise<ReturnType<typeof readThreadStart>>;
   fork(source: Pick<Thread, 'id'> & { remoteId: string }, lastTurnId?: string): Promise<ReturnType<typeof readThreadFork>>;
   resume(threadId: string): Promise<ReturnType<typeof readThreadResume>>;
   syncInitialTitle(thread: Pick<Thread, 'id'> & { remoteId: string }, title: string): Promise<void>;
 }
-export type ThreadBackend = ThreadSource & ThreadRemoteMutations & { resume(threadId: string): Promise<unknown>; start(options: ThreadStartOptions): Promise<unknown>; fork(threadId: string, lastTurnId?: string): Promise<unknown> };
+export type ThreadBackend = ThreadSource & ThreadRemoteMutations & { items(threadId: string, cursor?: string): Promise<unknown>; turns(threadId: string, cursor?: string): Promise<unknown>; resume(threadId: string): Promise<unknown>; start(options: ThreadStartOptions): Promise<unknown>; fork(threadId: string, lastTurnId?: string): Promise<unknown> };
 
 // One instance per application state. View lifetimes and queue persistence remain
 // with callers; mutation exclusion spans all views and survives reconnects.
 export function createThreadStore(backend: ThreadBackend, update: (mutate: (state: DesktopState) => void) => void): ThreadStore {
+  const history = createThreadHistory(async (threadId, cursor) => {
+    const page = await backend.items(threadId, cursor);
+    // Capture each page before later requests or callbacks can mutate it.
+    return structuredClone(page);
+  });
   const repository = createThreadRepository(backend);
   const mutations = createThreadMutations(backend, update);
   const pending = new Set<string>();
@@ -32,6 +42,12 @@ export function createThreadStore(backend: ThreadBackend, update: (mutate: (stat
   }
   return {
     query: repository.query,
+    async readHistory(threadId, options) {
+      const items = await history.readAll(threadId, options);
+      validateRestorableHistory(items);
+      return items;
+    },
+    findMessageTurn: (threadId, messageId) => findMessageTurn((id, cursor) => backend.turns(id, cursor), threadId, messageId),
     async start(localId, options) {
       const key = `start:${localId}`;
       if (pending.has(key)) throw Error('此会话正在创建，请等待完成。');

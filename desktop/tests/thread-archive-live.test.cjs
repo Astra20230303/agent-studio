@@ -65,7 +65,7 @@ test('real app-server archives, paginates and restores isolated conversations', 
     assert.match(searched.data[0].snippet, /Archive test completed/);
     const { createThreadStore } = require('../src/threadStore.ts');
     const localState = { threads: [], activeThreadId: 'current-selection' };
-    const repository = createThreadStore({ list: client.listThreads, archived: client.listArchivedThreads, search: client.searchThreads, resume: client.resumeThread, start: client.startThread, fork: client.forkThread, rename: client.setThreadName, archive: client.archiveThread, remove: client.deleteThread, restore: client.unarchiveThread }, mutate => mutate(localState));
+    const repository = createThreadStore({ items: (threadId, cursor) => rpc.request('thread/items/list', { threadId, limit: 1, sortDirection: 'asc', ...(cursor ? { cursor } : {}) }), turns: client.listThreadTurns, list: client.listThreads, archived: client.listArchivedThreads, search: client.searchThreads, resume: client.resumeThread, start: client.startThread, fork: client.forkThread, rename: client.setThreadName, archive: client.archiveThread, remove: client.deleteThread, restore: client.unarchiveThread }, mutate => mutate(localState));
     assert.deepEqual((await repository.query({ archived: true })).data.map(thread => thread.id), [ids[1]]);
     assert.ok((await repository.query()).data.some(thread => thread.id === ids[0]));
     for (const archivedScope of [false, true]) {
@@ -91,9 +91,8 @@ test('real app-server archives, paginates and restores isolated conversations', 
     assert.ok(snapshot.items.some(entry => entry.item.type === 'agentMessage' && entry.item.text.includes('Archive test completed.')));
     const turns = await client.listThreadTurns(ids[0]);
     assert.equal(turns.data.length, 1);
-    const { findMessageTurn } = require('../src/messageTurn.ts');
     const assistantItem = turns.data[0].items.find(item => item.type === 'agentMessage');
-    assert.equal(await findMessageTurn(client.listThreadTurns, ids[0], `live-${assistantItem.id}`), turns.data[0].id);
+    assert.equal(await repository.findMessageTurn(ids[0], `live-${assistantItem.id}`), turns.data[0].id);
     assert.ok(turns.data[0].items.some(item => item.type === 'agentMessage' && item.text.includes('Archive test completed.')));
     const items = await client.listThreadItems(ids[0]);
     assert.ok(items.data.some(entry => entry.item.type === 'userMessage'));
@@ -106,9 +105,7 @@ test('real app-server archives, paginates and restores isolated conversations', 
       cursor = page.nextCursor;
     } while (cursor);
     assert.deepEqual(paged.map(entry => entry.item.id), items.data.map(entry => entry.item.id));
-    const { createThreadHistory } = require('../src/threadHistory.ts');
-    const history = createThreadHistory((threadId, cursor) => rpc.request('thread/items/list', { threadId, limit: 1, sortDirection: 'asc', ...(cursor ? { cursor } : {}) }));
-    assert.deepEqual((await history.readAll(ids[0])).map(entry => entry.item.id), items.data.map(entry => entry.item.id));
+    assert.deepEqual((await repository.readHistory(ids[0])).map(entry => entry.item.id), items.data.map(entry => entry.item.id));
     const fork = await repository.fork({id:'source-local',remoteId:ids[0]}, turns.data[0].id);
     assert.ok(fork.id); assert.notEqual(fork.id, ids[0]);
     const branch = await client.listThreadItems(fork.id);

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Thread } from './domain';
-import { listAllThreadItems } from './codexClient';
+import type { ThreadStore } from './threadStore';
 
 import { conversationMarkdown } from './conversationMarkdown';
 export { conversationMarkdown } from './conversationMarkdown';
 
-export function ConversationExport({ thread, connected, busy, toast }: { thread: Thread; connected: boolean; busy: boolean; toast: (message: string) => void }) {
+export function ConversationExport({ thread, repository, connected, busy, toast }: { repository: Pick<ThreadStore, 'readHistory'>; thread: Thread; connected: boolean; busy: boolean; toast: (message: string) => void }) {
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState('');
   const [reading, setReading] = useState(false);
@@ -21,7 +21,7 @@ export function ConversationExport({ thread, connected, busy, toast }: { thread:
       let items: any[] | undefined;
       if (snapshot.remoteId && connected) {
         historyRequest.current = request; setReading(true); setProgress('正在读取导出记录…');
-        items = await listAllThreadItems(snapshot.remoteId, { signal: request.signal, onProgress: ({ pages, items }) => setProgress(`导出已读取 ${pages} 页，${items} 条记录`) });
+        items = await repository.readHistory(snapshot.remoteId, { signal: request.signal, onProgress: ({ pages, items }) => setProgress(`导出已读取 ${pages} 页，${items} 条记录`) });
       }
       request.signal.throwIfAborted();
       historyRequest.current = undefined; setReading(false); setProgress('');
