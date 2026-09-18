@@ -39,7 +39,7 @@ const { chromium } = require('playwright'); const assert = require('node:assert/
    await preview.getByRole('button', { name: '编辑此文件', exact: true }).click();
    const editor = page.getByRole('textbox', { name: '文件内容', exact: true }); await editor.waitFor();
    assert.equal(await page.evaluate(() => window.__editLine), 2);
-   assert.equal(await editor.evaluate(node => node.value.slice(node.selectionStart, node.selectionEnd)), '中文🙂');
+   assert.equal(await editor.evaluate(node => node.value.slice(node.selectionStart, node.selectionEnd)), action === 'find' ? '中文' : '中文🙂');
    await editor.press('Escape'); await editor.waitFor({ state: 'detached' });
   }
   for (const refresh of [false, true]) {

@@ -3,7 +3,7 @@ import { editorMatches } from './editorSearchMatches';
 import { CopyText } from './CopyText';
 import { SearchMatchText } from './SearchMatchText';
 
-export type PreviewTextHandle = { find: () => void; goToLine: () => void; currentLine: () => number | undefined };
+export type PreviewTextHandle = { find: () => void; goToLine: () => void; currentPosition: () => { lineNumber?: number; column?: number; matchLength?: number } };
 export function PreviewText({ text, lineNumber, column, matchLength, truncated, ref }: { text: string; lineNumber?: number; column?: number; matchLength?: number; truncated?: boolean; ref: Ref<PreviewTextHandle> }) {
   const [wrap, setWrap] = useState(false);
   const [finding, setFinding] = useState(false);
@@ -24,9 +24,13 @@ export function PreviewText({ text, lineNumber, column, matchLength, truncated, 
   const current = Math.min(index, Math.max(0, matches.length - 1));
   const match = matches[current];
   const find = () => { setFinding(true); requestAnimationFrame(() => input.current?.focus()); };
-  useImperativeHandle(ref, () => ({ find, currentLine: () => {
-    const currentLine = finding && match ? text.slice(0, match.start).split('\n').length : selectedLine;
-    return currentLine !== undefined && Number.isSafeInteger(currentLine) && currentLine >= 1 && currentLine <= lines.length ? currentLine : undefined;
+  useImperativeHandle(ref, () => ({ find, currentPosition: () => {
+    if (finding && match) {
+      const before = text.slice(0, match.start).replace(/\r\n/g, '\n');
+      return { lineNumber: before.split('\n').length, column: before.length - before.lastIndexOf('\n'), matchLength: text.slice(match.start, match.end).replace(/\r\n/g, '\n').length };
+    }
+    if (selectedLine === undefined || !Number.isSafeInteger(selectedLine) || selectedLine < 1 || selectedLine > lines.length) return {};
+    return { lineNumber: selectedLine, ...(showSearchMatch && selectedLine === lineNumber ? { column, matchLength } : {}) };
   }, goToLine: () => { lineInput.current?.focus(); lineInput.current?.select(); } }));
   useEffect(() => { setSelectedLine(lineNumber); setRequestedLine(String(lineNumber || 1)); setLineError(''); setShowSearchMatch(true); }, [text, lineNumber, column, matchLength]);
   useEffect(() => { if (!finding && showSearchMatch) pre.current?.querySelector('[data-search-match]')?.scrollIntoView({ block: 'center', inline: 'center' }); }, [text, lineNumber, column, matchLength, finding, showSearchMatch, wrap]);

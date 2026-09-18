@@ -4,7 +4,7 @@ import type { ArtifactTarget } from './Artifacts';
 import { SearchMatchText } from './SearchMatchText';
 import { isEditablePreview } from './editablePreview';
 import { parseWorkspaceResult } from './workspaceResponse';
-export type FileEditSession = { root: string; path: string; lineNumber?: number; initial: { text: string; revision: string } };
+export type FileEditSession = { root: string; path: string; lineNumber?: number; column?: number; matchLength?: number; initial: { text: string; revision: string } };
 export type FilePreviewUpdate = { root: string; path: string; preview: any };
 type Entry = { revision?: string; line?: number; column?: number; matchLength?: number; snippet?: string; name: string; path: string; directory: boolean; symlink: boolean };
 function parentDirectory(path: string) { return path.split(/[\\/]/).slice(0, -1).join('/') || '.'; }
@@ -76,7 +76,7 @@ export function WorkspaceFiles({ root, onAttach, onClose, onEdit, onPreview, pre
     {!!listing?.skipped && <p>有 {listing.skipped} 个文件或目录未搜索（无法读取、过大或非 UTF-8 文本），结果可能不完整。</p>}
     {error && <p role="alert">{error}</p>}{root && !listing && !preview && !error && <p>正在读取…</p>}
     {listing && !listing.entries.length && <p>{search ? '没有匹配文件。' : '此目录为空。'}</p>}
-    {selected && root && isEditablePreview(preview) && <button onClick={() => onEdit({ root, path: selected.path, lineNumber: staleMatch ? undefined : selected.line, initial: { text: preview.text, revision: preview.revision } })}>编辑文件</button>}
+    {selected && root && isEditablePreview(preview) && <button onClick={() => onEdit({ root, path: selected.path, lineNumber: staleMatch ? undefined : selected.line, column: staleMatch ? undefined : selected.column, matchLength: staleMatch ? undefined : selected.matchLength, initial: { text: preview.text, revision: preview.revision } })}>编辑文件</button>}
     {preview?.image && <img src={preview.image} alt={selected?.name} onError={() => setFailedImageSource(preview.image)} />}{imageFailed && <p role="alert">图片无法解码，文件可能已损坏。请修复文件后刷新文件。</p>}{preview?.encodingInvalid && <p role="status">文件包含无法按 UTF-8 解码的字符，预览使用替代字符，不能编辑。</p>}{preview?.binary && <p>二进制文件，无法显示文本预览。</p>}{staleMatch && <p role="status">文件在搜索后已变化，请返回并刷新搜索结果。</p>}{typeof preview?.text === 'string' && <pre>{selected?.line && !staleMatch ? preview.text.split('\n').map((line: string, index: number) => <span key={index} ref={index + 1 === selected.line ? matchLine : undefined} style={index + 1 === selected.line ? { background: '#ffe08a', color: '#202020' } : undefined}>{index + 1 === selected.line ? <SearchMatchText text={line} column={selected.column} length={selected.matchLength} /> : line}{'\n'}</span>) : preview.text}</pre>}{preview?.truncated && <p>仅预览前 256 KB。</p>}
   </section>;
 }
