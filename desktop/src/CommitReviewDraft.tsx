@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { commitReviewPrompt, COMMIT_REVIEW_LIMIT } from './commitReviewPrompt';
 
 export function CommitReviewDraft({ root, commit, detail, disabled, onReview }: { root: string; commit: string; detail: string; disabled: boolean; onReview: (text: string) => void }) {
+  const submitted = useRef(false);
   const [focus, setFocus] = useState('');
   const [error, setError] = useState('');
   return <form onSubmit={event => {
-    event.preventDefault(); if (disabled || !detail.trim()) return;
-    try { onReview(commitReviewPrompt(root, commit, detail, focus)); setError(''); }
-    catch (caught) { setError(caught instanceof Error ? caught.message : String(caught)); }
+    event.preventDefault(); if (submitted.current || disabled || !detail.trim()) return;
+    try { const prompt = commitReviewPrompt(root, commit, detail, focus); submitted.current = true; onReview(prompt); setError(''); }
+    catch (caught) { submitted.current = false; setError(caught instanceof Error ? caught.message : String(caught)); }
   }}>
     <label>评审重点（可选）<textarea aria-label="提交评审重点" maxLength={4000} value={focus} onChange={event => setFocus(event.target.value)} /></label>
     {detail.length > COMMIT_REVIEW_LIMIT && <p>差异较大，草稿将包含前 {COMMIT_REVIEW_LIMIT} 字符和完整提交 ID。</p>}

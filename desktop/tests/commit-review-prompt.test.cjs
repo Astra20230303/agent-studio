@@ -11,3 +11,8 @@ test('large detail has bounded excerpt with explicit follow-up and full identity
  assert.ok(text.includes('已截断'));assert.ok(text.includes(commit));assert.ok(!text.includes('omitted'));assert.ok(text.length<COMMIT_REVIEW_LIMIT+1000);
  for(const [id,detail] of [['bad','patch'],[commit,' ']])assert.throws(()=>commitReviewPrompt('D:/repo',id,detail),/有效的提交详情/);
 });
+
+test('truncation does not split a supplementary Unicode character',()=>{
+ const text=commitReviewPrompt('D:/repo',commit,'x'.repeat(COMMIT_REVIEW_LIMIT-1)+'😀tail');
+ assert.ok(text.isWellFormed());assert.ok(text.includes('已截断'));
+});

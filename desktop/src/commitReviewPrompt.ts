@@ -2,7 +2,7 @@ export const COMMIT_REVIEW_LIMIT = 60000;
 export function commitReviewPrompt(root: string, commit: string, detail: string, focus = '') {
   if (!root || !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(commit) || !detail.trim()) throw Error('请先读取有效的提交详情');
   const truncated = detail.length > COMMIT_REVIEW_LIMIT;
-  const excerpt = detail.slice(0, COMMIT_REVIEW_LIMIT);
+  const excerpt = detail.slice(0, COMMIT_REVIEW_LIMIT).replace(/[\uD800-\uDBFF]$/, '');
   return [
     '请评审以下历史 Git 提交，查找可复现的缺陷、回归和缺失测试。给出文件与行号、影响和证据，先提供评审结论。',
     `工作区：${root}`,
