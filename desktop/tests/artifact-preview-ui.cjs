@@ -59,6 +59,7 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  const editor=page.getByRole('dialog',{name:'编辑工作区文件',exact:true});
  const contents=editor.getByRole('textbox',{name:'文件内容',exact:true});
  assert.ok(await contents.evaluate(el=>el===document.activeElement));
+ assert.equal(await contents.evaluate(el=>el.value.slice(el.selectionStart,el.selectionEnd)),'second');
  await editor.press('Escape');await editor.waitFor({state:'detached'});
  assert.ok(await page.getByRole('button',{name:'open notes',exact:true}).evaluate(el=>el===document.activeElement));
  await page.getByRole('button',{name:'open notes',exact:true}).press('Enter');
@@ -77,6 +78,7 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  await editor.getByRole('alert').getByText('write denied',{exact:true}).waitFor();
  assert.equal(await contents.inputValue(),'Saved edits');
  assert.ok(await contents.evaluate(el=>el===document.activeElement));
+
  await page.evaluate(()=>window.__result={ok:true,result:{text:'Saved edits',revision:'saved'}});
  await contents.press('Control+s');await editor.waitFor({state:'detached'});
  assert.ok(await page.getByRole('button',{name:'open notes',exact:true}).evaluate(el=>el===document.activeElement));

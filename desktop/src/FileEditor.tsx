@@ -1,3 +1,4 @@
+import { selectEditorLine } from './editorLine';
 import { EditorGoToLine } from './EditorGoToLine';
 import { useEffect, useRef, useState } from 'react';
 import { CopyText } from './CopyText';
@@ -5,7 +6,7 @@ import { isEditablePreview } from './editablePreview';
 import { indentSelection } from './editorIndent';
 import { EditorFind } from './FileEditorFind';
 import { editHistory, newEditorHistory, stepHistory } from './editorHistory';
-export function FileEditor({ root, path, initial, onClose, onSaved }: { root: string; path: string; initial: { text: string; revision: string }; onClose: () => void; onSaved: (value: any) => void }) {
+export function FileEditor({ root, path, initial, lineNumber, onClose, onSaved }: { root: string; path: string; lineNumber?: number; initial: { text: string; revision: string }; onClose: () => void; onSaved: (value: any) => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const editor = useRef<HTMLTextAreaElement>(null);
   const operation = useRef(false);
@@ -32,6 +33,7 @@ export function FileEditor({ root, path, initial, onClose, onSaved }: { root: st
     const opened = dialog.current;
     opened?.showModal();
     editor.current?.focus();
+    if (editor.current && lineNumber !== undefined) selectEditorLine(editor.current, lineNumber);
     return () => {
       opened?.close();
       if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
