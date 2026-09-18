@@ -62,6 +62,7 @@ class TaskScheduler extends EventEmitter {
     this.closed = false;
     this.stopping = false;
     this.loadError = '';
+    this.pendingFinalTaskId = null;
     fs.mkdirSync(directory, { recursive: true });
     this.readStoredTasks();
   }
@@ -99,9 +100,19 @@ class TaskScheduler extends EventEmitter {
     fs.writeFileSync(temp, JSON.stringify({ version: 1, tasks: this.tasks }, null, 2), { mode: 0o600 });
     fs.renameSync(temp, this.file);
   }
+  retryFinalization() {
+    if (!this.pendingFinalTaskId) return;
+    const id = this.pendingFinalTaskId;
+    try { this.persist(); }
+    catch (error) { throw new Error(`任务已结束，但结果尚未保存，将重试：${error.message}`); }
+    this.pendingFinalTaskId = null;
+    this.emit('changed');
+    this.emit('finished', this.detail(id));
+  }
   change(fn) {
     if (this.closed) throw new Error('任务服务已停止。');
     if (this.loadError) throw new Error(this.loadError);
+    this.retryFinalization();
     const before = structuredClone(this.tasks);
     let value;
     try { value = fn(); this.persist(); }
@@ -110,6 +121,7 @@ class TaskScheduler extends EventEmitter {
     return value;
   }
   list() {
+    this.retryFinalization();
     if (this.loadError) this.readStoredTasks();
     if (this.loadError) throw new Error(this.loadError);
     return structuredClone(this.tasks.map(task => ({ ...task, runs: task.runs.map(({ output, ...run }) => run) })));
@@ -149,6 +161,7 @@ class TaskScheduler extends EventEmitter {
   }
   async tick() {
     if (this.active || this.closed || this.stopping || this.loadError) return;
+    this.retryFinalization();
     const task = this.tasks.filter(task => task.status === 'active' && task.nextRunAt && Date.parse(task.nextRunAt) <= this.now())
       .sort((a, b) => Date.parse(a.nextRunAt) - Date.parse(b.nextRunAt))[0];
     if (task) await this.run(task.id, 'scheduled');
@@ -156,6 +169,7 @@ class TaskScheduler extends EventEmitter {
   run(id, trigger = 'manual') {
     if (this.closed || this.stopping) throw new Error('任务服务已停止。');
     if (this.active) throw new Error('已有任务正在执行，请等待完成。');
+    this.retryFinalization();
     const task = this.get(id);
     const { name, prompt, kind, model, providerId, cwd, reasoningEffort, permission, timeoutMinutes } = task;
     const configuration = { name, prompt, kind, model, providerId, cwd, reasoningEffort, permission, timeoutMinutes };
@@ -208,13 +222,12 @@ class TaskScheduler extends EventEmitter {
     } catch (caught) { error = caught; }
     clearTimeout(progressTimer); clearTimeout(checkpointTimer);
     try {
-      this.change(() => {
         const current = this.get(task.id);
         const run = current.runs.find(item => item.id === runId);
         Object.assign(run, { status: signal.aborted ? 'interrupted' : error ? 'failed' : 'completed', finishedAt: new Date(this.now()).toISOString(), output: String(result.output || error?.output || run.output || '').slice(-200000), error: error ? String(error.message || error).slice(0, 4000) : signal.aborted ? '执行已停止。' : undefined, threadId: result.threadId || error?.threadId || run.threadId });
         if (current.schedule.kind === 'once' && (trigger === 'scheduled' || !error && !signal.aborted)) { current.status = 'completed'; current.nextRunAt = null; }
-      });
-      this.emit('finished', this.detail(task.id));
+      this.pendingFinalTaskId = task.id;
+      this.retryFinalization();
     } finally { this.active = null; }
   }
   cancel(id) {
@@ -224,7 +237,7 @@ class TaskScheduler extends EventEmitter {
   async stop() {
     this.stopping = true;
     clearInterval(this.timer); this.timer = null;
-    try { if (this.active) { this.active.controller.abort(); await this.active.done; } }
+    try { if (this.active) { this.active.controller.abort(); await this.active.done; } this.retryFinalization(); }
     finally { this.closed = true; }
   }
 }
