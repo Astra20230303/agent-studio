@@ -8,6 +8,10 @@ permits retry. Rendering no longer appends a newline absent from the original,
 so selection and copy agree even with highlighting, CRLF and Unicode content.
 Clipboard-mocked browser acceptance, real-file preview regression and build pass.
 
+Post-commit acceptance verifies empty content, trailing newlines, BOM/CRLF and
+blank-only files preserve exact rendered and copied text. Narrow-window preview
+layout regression also passes. No further product correction was required.
+
 ## Responsive file preview layout
 
 Preview-specific layout prevents editor footer flex rules from putting search

@@ -33,6 +33,13 @@ const assert = require('node:assert/strict');
     await page.getByRole('status').getByText('已预览部分已复制', { exact: true }).waitFor();
     assert.equal(await page.evaluate(() => window.__writes.at(-1)), 'prefix only');
     assert.equal(await pre.textContent(), 'prefix only');
+    for (const source of ['', 'ends with newline\n', '\ufeffBOM\r\n', '\n\n']) {
+      await page.evaluate(source => window.__render(source), source);
+      await copy.click();
+      await page.getByRole('status').getByText('预览内容已复制', { exact: true }).waitFor();
+      assert.equal(await pre.textContent(), source);
+      assert.equal(await page.evaluate(() => window.__writes.at(-1)), source);
+    }
     console.log('PASS: preview rendering and copying preserve exact text, highlighting, failed copy and explicit truncated scope');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
