@@ -2829,3 +2829,9 @@ user-message-copy-ui.cjs 覆盖原文保真、键盘操作、失败重试、空�
 实现 e7907cb：归档弹窗等待异步 onRestore，主界面通过 ThreadMutations.restore 完成远端确认及本地合并；恢复前捕获输入快照，优先保留最新本地会话内容，不改变当前选择，成功后记录审计。弹窗保留恢复锁、重连保护与失败重试。
 
 验收：七项会话服务测试覆盖恢复失败、remoteId 去重、本地历史保留、输入快照隔离与离线本地恢复；archive-restore-lock-ui、archived-threads-ui 和生产构建通过。真实 app-server 归档测试已直接调用新服务，验证远端取消归档与本地插入、当前选择保留同时成立。此轮完成恢复变更接口，完整会话读取/创建服务仍待继续。
+
+## 完整历史读取服务
+
+实现 15847c6：createThreadHistory 提供可注入分页读取的 readAll，会话查找完整历史与 Markdown 导出经客户端统一使用。校验数据数组和非空字符串游标，拒绝重复游标，任一页失败不返回部分历史；保留未知条目供展示层兼容处理，不声称逐项消息结构全部验证。
+
+验收：thread-history 单测覆盖并发游标隔离、无效页面/游标、循环检测、失败后从头重试；conversation-history-find-ui 和 conversation-export-ui 通过，后者新增第二页异常游标不得生成部分导出。真实 app-server 测试直接调用新服务逐条分页，返回 ID 顺序与完整结果一致。生产构建通过，已有体积提示保留。

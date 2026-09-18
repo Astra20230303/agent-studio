@@ -86,6 +86,9 @@ test('real app-server archives, paginates and restores isolated conversations', 
       cursor = page.nextCursor;
     } while (cursor);
     assert.deepEqual(paged.map(entry => entry.item.id), items.data.map(entry => entry.item.id));
+    const { createThreadHistory } = require('../src/threadHistory.ts');
+    const history = createThreadHistory((threadId, cursor) => rpc.request('thread/items/list', { threadId, limit: 1, sortDirection: 'asc', ...(cursor ? { cursor } : {}) }));
+    assert.deepEqual((await history.readAll(ids[0])).map(entry => entry.item.id), items.data.map(entry => entry.item.id));
     const fork = await client.forkThread(ids[0], turns.data[0].id);
     assert.ok(fork.thread.id); assert.notEqual(fork.thread.id, ids[0]);
     const branch = await client.listThreadItems(fork.thread.id);
