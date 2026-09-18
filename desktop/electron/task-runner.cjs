@@ -78,7 +78,7 @@ function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_
         threadId = result.thread?.id;
         if (!threadId) throw new Error('Codex 未返回任务线程。');
         await onThreadCreated?.({ threadId, providerId: selected.id, model: task.model });
-        await rpc.request('turn/start', { threadId, input: [{ type: 'text', text: task.prompt }] });
+        await rpc.request('turn/start', { threadId, ...(task.reasoningEffort ? { effort: task.reasoningEffort } : {}), input: [{ type: 'text', text: task.prompt }] });
         await completed;
         if (!output.trim()) throw new Error('任务结束但没有输出。');
         return { output, threadId };

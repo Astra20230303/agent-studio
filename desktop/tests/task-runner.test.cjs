@@ -13,7 +13,7 @@ const { findCommand } = require('../electron/codex-server.cjs');
 const { startMiniMaxAdapter } = require('../electron/minimax-adapter.cjs');
 const { ThreadProviderRouter } = require('../electron/thread-provider-router.cjs');
 const root = path.resolve(__dirname, '../..');
-const task = { name: 'Runner integration', model: 'MiniMax-M2.1', prompt: 'Print FELIX_SCHEDULE_OK using a read-only shell command and report the result.', permission: 'read-only' };
+const task = { reasoningEffort: 'high', name: 'Runner integration', model: 'MiniMax-M2.1', prompt: 'Print FELIX_SCHEDULE_OK using a read-only shell command and report the result.', permission: 'read-only' };
 
 for (const apiKey of ['local-test', '']) {
 test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local'})`, { timeout: 60000 }, async () => {
@@ -25,6 +25,7 @@ test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local
       assert.equal(req.headers.authorization, apiKey ? `Bearer ${apiKey}` : undefined);
       let raw = ''; for await (const chunk of req) raw += chunk;
       const body = JSON.parse(raw); requests++;
+      if (requests <= 2) assert.equal(body.reasoning_effort, 'high');
       res.writeHead(200, { 'content-type': 'text/event-stream' });
       if (requests === 1) {
         // Switching the global channel during a tool call must not reroute this run.
