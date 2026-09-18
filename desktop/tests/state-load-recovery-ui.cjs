@@ -10,13 +10,15 @@ const { chromium } = require('playwright');
       window.__writes = [];
       const original = Storage.prototype.setItem;
       Storage.prototype.setItem = function(key, value) { window.__writes.push(key); return original.call(this, key, value); };
+      const read = Storage.prototype.getItem;
+      Storage.prototype.getItem = function(key) { if (window.__failRead && key === 'codex-desktop-state-v1') throw Error('Read unavailable'); return read.call(this, key); };
       window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }) };
       window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async () => ({ ok: true, result: { data: [] } }), onNotification: () => () => {}, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
     });
     await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
     const retry = page.getByRole('button', { name: '重试读取', exact: true });
     await retry.waitFor();
-    for (const raw of ['{broken', 'null', '[]', '{"threads":[null]}', '{"threads":[{"id":"x","title":"x","messages":[{"content":{}}]}]}']) {
+    for (const raw of ['{broken', 'null', '[]', '{"threads":[null]}', '{"projects":null}', '{"automations":{}}', '{"threads":[{"id":"x","title":"x","messages":[{"content":{}}]}]}']) {
       await page.evaluate(raw => { localStorage.setItem('codex-desktop-state-v1', raw); window.__writes = []; }, raw);
       await retry.click();
       await page.getByRole('alert').filter({ hasText: '原始数据已保留' }).waitFor();
@@ -24,7 +26,13 @@ const { chromium } = require('playwright');
       assert.equal(await page.evaluate(() => localStorage.getItem('codex-desktop-state-v1')), raw);
       assert.deepEqual(await page.evaluate(() => window.__writes), []);
     }
+    await page.evaluate(() => { window.__failRead = true; });
+    await retry.click();
+    await page.getByRole('alert').filter({ hasText: '原始数据已保留' }).waitFor();
+    assert.deepEqual(await page.evaluate(() => window.__writes), []);
+    assert.equal(await page.getByRole('textbox', { name: '消息', exact: true }).count(), 0);
     await page.evaluate(() => {
+      window.__failRead = false;
       localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ theme: 'dark', model: 'test', activeThreadId: 'kept', threads: [{ id: 'kept', title: 'Recovered conversation', status: 'completed', updatedAt: '', messages: [{ id: 'm', role: 'user', content: 'Retained original message' }] }] }));
       window.__writes = [];
     });
