@@ -30,6 +30,7 @@ export interface ToolActivity {
 }
 
 export interface Thread {
+  providerId?: string;
   model?: string;
   reasoningEffort?: 'low' | 'medium' | 'high';
   effectivePermissions?: import('./threadPermissions').ThreadPermissions;

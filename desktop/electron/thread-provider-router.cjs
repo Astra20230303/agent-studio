@@ -15,11 +15,12 @@ class ThreadProviderRouter {
   }
   async request(rpc, method, params = {}) {
     if (!['thread/start', 'thread/resume', 'thread/fork', 'turn/start'].includes(method)) return rpc.request(method, params);
-    const stored = Object.hasOwn(this.bindings, params.threadId) ? this.bindings[params.threadId] : undefined;
+    const stored = Object.hasOwn(this.bindings, params.threadId) ? this.bindings[params.threadId] : params.providerId;
     const provider = this.readProvider(stored);
     if (!/^[A-Za-z0-9_-]+$/.test(provider.id)) throw Error('Invalid Provider ID');
     if (!provider.apiKey?.trim() && !require('./provider-url.cjs').isLocalProvider(provider.baseUrl)) throw Error('此会话渠道未配置 API Key');
     const routed = { ...params, modelProvider: 'minimax' };
+    delete routed.providerId;
     if (method !== 'turn/start') {
       routed.config = { ...params.config, 'model_providers.minimax.base_url': `${this.adapterUrl()}/providers/${provider.id}/v1` };
     }
