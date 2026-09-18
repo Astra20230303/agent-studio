@@ -543,7 +543,10 @@ function App({ initialState }: { initialState: DesktopState }) {
           if (!thread) return;
           thread.effectivePermissions = readThreadPermissions(loaded);
           if (!thread.model && typeof loaded.model === 'string' && loaded.model) thread.model = loaded.model;
-          if (!thread.reasoningEffort && ['low', 'medium', 'high'].includes(loaded.reasoningEffort)) thread.reasoningEffort = loaded.reasoningEffort;
+          if (!thread.reasoningEffort) {
+            if (loaded.reasoningEffort === null) thread.reasoningEffort = 'default';
+            else if (['low', 'medium', 'high'].includes(loaded.reasoningEffort)) thread.reasoningEffort = loaded.reasoningEffort;
+          }
           if (loaded.thread?.cwd) thread.cwd = loaded.thread.cwd;
           if (items.length) thread.messages = restoreMessages(items, thread.messages);
           thread.status = running ? 'running' : 'completed';
