@@ -1,5 +1,22 @@
 # Felix capability roadmap
 
+## WebP and GIF attachment preflight
+
+WebP/GIF attachments now decode first-frame pixels in the image worker using
+sharp/libvips, with a 16 MiB input cap, 16 Mi-pixel limit and a 10-second native
+pipeline timeout. Decoder caching is disabled and native concurrency is one.
+GIF logical screen dimensions are checked before decoding because the decoder
+can normalize them to a smaller first-frame extent. Format mismatches fail.
+PNG/JPEG retain their existing validators. Animation beyond the first frame is
+not validated or presented as a video input.
+
+Build, decoder/worker tests and browser failure/repair checks pass. A real Codex
+process delivers PNG, JPEG, WebP and GIF to the local HTTP model with correct
+decoded pixels. Windows directory packaging includes sharp's architecture-specific
+native module and DLLs. Relocated packaged acceptance verifies valid WebP/GIF
+reach Provider validation, corrupt images are rejected by production IPC, and
+bundled app-server, native terminal and reminder restart regressions still pass.
+
 ## Background image processing
 
 Attachment validation and clipboard PNG validation/storage now execute in a Node

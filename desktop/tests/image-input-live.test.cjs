@@ -25,6 +25,9 @@ test('real local image attachment reaches the Provider as image pixels', { timeo
   await page.screenshot({ path: picture });
   const jpeg = path.join(profile, 'second image.jpg');
   await page.screenshot({ path: jpeg, type: 'jpeg', quality: 95 });
+  const webp = path.join(profile, 'third.webp'), gif = path.join(profile, 'fourth.gif');
+  await require('sharp')(picture).webp({ lossless: true }).toFile(webp);
+  await require('sharp')(picture).gif().toFile(gif);
   const requests = [], events = [], authorization = [];
   const model = http.createServer(async (req, res) => {
     let raw = ''; for await (const chunk of req) raw += chunk;
@@ -56,7 +59,7 @@ test('real local image attachment reaches the Provider as image pixels', { timeo
       });
       done.catch(() => {}); await rpc.request(method, { threadId: thread.id, ...params }); await done;
     };
-    const input = userInput('Inspect the attached image.', [], [picture, jpeg]);
+    const input = userInput('Inspect the attached image.', [], [picture, jpeg, webp, gif]);
     await imageProcessing.validate('turn/start', { input });
     await run('turn/start', { input });
     assert.equal(requests.length, 1);
@@ -64,9 +67,9 @@ test('real local image attachment reaches the Provider as image pixels', { timeo
     const parts = requests[0].messages.flatMap(message => Array.isArray(message.content) ? message.content : []);
     assert.ok(JSON.stringify(requests[0].messages).includes('Inspect the attached image.'));
     const images = parts.filter(part => part.type === 'image_url');
-    assert.equal(images.length, 2);
+    assert.equal(images.length, 4);
     for (const image of images) {
-    assert.match(image.image_url.url, /^data:image\/(png|jpeg|webp);base64,/);
+    assert.match(image.image_url.url, /^data:image\/(png|jpeg|webp|gif);base64,/);
     const pixels = Buffer.from(image.image_url.url.split(',')[1], 'base64');
     assert.ok(pixels.length > 30);
     const decoded = await page.evaluate(async url => {

@@ -22,6 +22,21 @@ const path = require('node:path');
     assert.equal(connected.ok, true, JSON.stringify(connected));
     const models = await page.evaluate(() => window.codex.request('model/list', {}));
     assert.equal(models.ok, true); assert.ok(models.result.data.length);
+    const images = [];
+    for (const format of ['webp', 'gif']) {
+      const file = path.join(profile, `packaged.${format}`);
+      await require('sharp')({ create: { width: 8, height: 8, channels: 4, background: '#ff0000' } }).toFormat(format).toFile(file);
+      images.push(file);
+    }
+    const checked = await page.evaluate(images => window.codex.request('turn/start', { threadId: 'missing', input: images.map(path => ({ type: 'localImage', path })) }), images);
+    assert.equal(checked.ok, false);
+    assert.match(checked.error.message, /此会话渠道未配置 API Key/, 'valid images must pass packaged decoding and reach Provider validation');
+    for (const file of images) {
+      fs.writeFileSync(file, 'corrupt image');
+      const rejected = await page.evaluate(file => window.codex.request('turn/start', { threadId: 'missing', input: [{ type: 'localImage', path: file }] }), file);
+      assert.equal(rejected.ok, false);
+      assert.match(rejected.error.message, /图片附件无法读取或解码/);
+    }
     await page.evaluate(async cwd => {
       window.__terminalOutput = '';
       window.desktop.terminal.onData(event => { window.__terminalOutput += event.data || ''; });
@@ -43,6 +58,7 @@ const path = require('node:path');
     assert.equal(restored.task.name, 'Packaged reminder');
     assert.equal(restored.task.runs.length, 0);
     assert.equal(fs.existsSync(path.join(directory, 'resources/.project-cache')), false);
-    console.log('PASS: relocated packaged UI, bundled app-server, native terminal and reminder persistence after restart');
-  } finally { if (app) await app.close(); fs.rmSync(profile, { recursive: true, force: true }); }
+    console.log('PASS: relocated packaged UI, native WebP/GIF worker, bundled app-server, native terminal and reminder restart');
+  } catch (error) { console.error(error); throw error; }
+  finally { if (app) await app.close(); fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

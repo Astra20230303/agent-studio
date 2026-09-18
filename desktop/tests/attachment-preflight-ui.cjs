@@ -8,7 +8,7 @@ const jpeg = require('jpeg-js');
 const { validateImageInputs } = require('../electron/attachment-validation.cjs');
 (async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'felix-image-ui-'));
-  const format = process.env.FELIX_TEST_IMAGE_FORMAT === 'jpeg' ? 'jpeg' : 'png';
+  const format = ['jpeg', 'webp', 'gif'].includes(process.env.FELIX_TEST_IMAGE_FORMAT) ? process.env.FELIX_TEST_IMAGE_FORMAT : 'png';
   const file = path.join(directory, `broken.${format}`); await fs.writeFile(file, 'not an image');
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   let dispatches = 0;
@@ -35,7 +35,8 @@ const { validateImageInputs } = require('../electron/attachment-validation.cjs')
     assert.equal(await page.getByRole('textbox', { name: '消息', exact: true }).inputValue(), 'Inspect image');
     assert.equal(await page.getByRole('button', { name: `移除附件：${file}`, exact: true }).count(), 1);
     const png = new PNG({ width: 2, height: 2 }); png.data.fill(255);
-    await fs.writeFile(file, format === 'png' ? PNG.sync.write(png) : jpeg.encode(png, 90).data);
+    const repaired = format === 'png' ? PNG.sync.write(png) : format === 'jpeg' ? jpeg.encode(png, 90).data : await require('sharp')(PNG.sync.write(png)).toFormat(format).toBuffer();
+    await fs.writeFile(file, repaired);
     await page.getByRole('button', { name: '发送', exact: true }).click();
     await page.getByRole('button', { name: '停止生成', exact: true }).waitFor();
     assert.equal(dispatches, 1);

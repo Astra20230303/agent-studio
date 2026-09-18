@@ -22,8 +22,8 @@ function bundleDesktop({ output, runtime, desktop = path.resolve(__dirname, '..'
     const sourcePackage = JSON.parse(fs.readFileSync(path.join(desktop, 'package.json'), 'utf8'));
     fs.writeFileSync(path.join(appRoot, 'package.json'), JSON.stringify({ name: 'felix', productName: 'Felix', version: sourcePackage.version, main: 'electron/main.cjs' }, null, 2));
     const copied = new Map();
-    function copyDependency(name, parentRequire) {
-      let directory = path.dirname(parentRequire.resolve(name));
+    function copyDependency(name, parentRequire, entry = name) {
+      let directory = path.dirname(parentRequire.resolve(entry));
       while (!fs.existsSync(path.join(directory, 'package.json')) || JSON.parse(fs.readFileSync(path.join(directory, 'package.json'), 'utf8')).name !== name) {
         const parent = path.dirname(directory);
         if (parent === directory) throw new Error(`Cannot locate package ${name}`);
@@ -39,7 +39,9 @@ function bundleDesktop({ output, runtime, desktop = path.resolve(__dirname, '..'
       const childRequire = createRequire(path.join(directory, 'package.json'));
       for (const dependency of Object.keys(pkg.dependencies || {})) copyDependency(dependency, childRequire);
     }
-    for (const dependency of ['node-pty', 'cron-parser', 'playwright', 'pngjs', 'jpeg-js']) copyDependency(dependency, resolve);
+    for (const dependency of ['node-pty', 'cron-parser', 'playwright', 'pngjs', 'jpeg-js', 'sharp']) copyDependency(dependency, resolve);
+    const sharpBinary = `@img/sharp-${process.platform}-${process.arch}`;
+    copyDependency(sharpBinary, createRequire(resolve.resolve('sharp')), `${sharpBinary}/sharp.node`);
     fs.cpSync(runtime, path.join(output, 'resources/felix-runtime'), { recursive: true, dereference: true });
     verifyRuntime(path.join(output, 'resources/felix-runtime'));
     fs.writeFileSync(path.join(output, 'desktop-manifest.json'), JSON.stringify({ version: sourcePackage.version, platform: process.platform, arch: process.arch, dependencies: Object.fromEntries(copied) }, null, 2));

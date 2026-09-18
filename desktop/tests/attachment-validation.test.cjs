@@ -23,6 +23,32 @@ test('PNG preflight rejects corrupt and missing images before dispatch, accepts 
   await validateImageInputs('thread/start', { input: [{ type: 'localImage', path: '../missing' }] });
 });
 
+test('WebP/GIF preflight decodes first-frame pixels and rejects corrupt, truncated and oversized files', async t => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'felix-web-image-'));
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const sharp = require('sharp');
+  for (const format of ['webp', 'gif']) {
+    const file = path.join(directory, `image.${format.toUpperCase()}`);
+    const valid = await sharp({ create: { width: 16, height: 16, channels: 4, background: '#ff0000' } }).toFormat(format).toBuffer();
+    const input = { input: [{ type: 'localImage', path: file }] };
+    for (const method of ['turn/start', 'turn/steer']) {
+      await fs.writeFile(file, 'not an image');
+      await assert.rejects(validateImageInputs(method, input), /解码/);
+      await fs.writeFile(file, valid.subarray(0, Math.floor(valid.length / 2)));
+      await assert.rejects(validateImageInputs(method, input), /解码/);
+      await fs.writeFile(file, valid);
+      await validateImageInputs(method, input);
+    }
+    if (format === 'gif') {
+      const huge = Buffer.from(valid); huge.writeUInt16LE(65535, 6); huge.writeUInt16LE(65535, 8);
+      await fs.writeFile(file, huge);
+      await assert.rejects(validateImageInputs('turn/start', input), /pixel limit|解码/);
+    }
+    const oversized = await fs.open(file, 'w'); await oversized.truncate(17 * 1024 * 1024); await oversized.close();
+    await assert.rejects(validateImageInputs('turn/start', input), /16 MB/);
+  }
+});
+
 test('JPEG preflight decodes pixels and rejects truncation, corrupt data and excessive dimensions', async t => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'felix-jpeg-check-'));
   t.after(() => fs.rm(directory, { recursive: true, force: true }));

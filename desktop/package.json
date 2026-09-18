@@ -29,7 +29,8 @@
     "playwright": "^1.63.0",
     "pngjs": "^7.0.0",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "sharp": "0.34.5"
   },
   "devDependencies": {
     "@types/react": "latest",
