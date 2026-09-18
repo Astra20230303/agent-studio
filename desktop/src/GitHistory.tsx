@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import { parseGitHistory, parseGitCommitDetail, type GitCommit } from './gitHistoryResponse';
 
-type Commit = { id: string; author: string; date: string; subject: string };
 export function GitHistory({ root }: { root: string }) {
   const [page, setPage] = useState<{ anchor?: string; offset: number }>({ offset: 0 });
-  const [commits, setCommits] = useState<Commit[]>([]);
+  const [commits, setCommits] = useState<GitCommit[]>([]);
   const [refs, setRefs] = useState<string[]>([]);
   const [ref, setRef] = useState('HEAD');
   const [hasMore, setHasMore] = useState(false);
@@ -21,8 +21,8 @@ export function GitHistory({ root }: { root: string }) {
         const result = await window.desktop?.workspaceGit?.({ root, action: selected ? 'commit-detail' : 'history', commit: selected, ref, ...page });
         if (disposed) return;
         if (!result?.ok) throw Error(result?.error || '无法读取提交历史');
-        if (selected) setDetail(result.result.detail);
-        else { setRefs(result.result.refs || []); setCommits(result.result.commits); setHasMore(result.result.hasMore); anchor.current = result.result.anchor; }
+        if (selected) setDetail(parseGitCommitDetail(result.result));
+        else { const next = parseGitHistory(result.result); setRefs(next.refs); setCommits(next.commits); setHasMore(next.hasMore); anchor.current = next.anchor; }
       } catch (error) { if (!disposed) setError(error instanceof Error ? error.message : String(error)); }
       finally { if (!disposed) setLoading(false); }
     })();

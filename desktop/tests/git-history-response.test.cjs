@@ -1,0 +1,5 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const {parseGitHistory,parseGitCommitDetail}=require('../src/gitHistoryResponse.ts');
+const id='a'.repeat(40);const commit={id,author:'A',date:'2026-01-01T00:00:00Z',subject:'subject'};
+test('validates and clones commit history pages',()=>{const input={refs:['refs/heads/main'],anchor:id,commits:[commit],hasMore:false};const result=parseGitHistory(input);result.commits[0].subject='changed';assert.equal(input.commits[0].subject,'subject');});
+test('rejects malformed history and duplicate commits',()=>{for(const value of [null,{}, {refs:{}},{refs:[1],commits:[],hasMore:false},{refs:[],anchor:'bad',commits:[],hasMore:false},{refs:[],commits:{},hasMore:false},{refs:[],commits:[{...commit,id:'bad'}],hasMore:false},{refs:[],commits:[commit,commit],hasMore:false},{refs:[],commits:[],hasMore:1}])assert.throws(()=>parseGitHistory(value),/Git 提交历史/);});
+test('validates commit detail text',()=>{assert.equal(parseGitCommitDetail({detail:'plain <script>' }),'plain <script>');for(const value of [null,{}, {detail:7}])assert.throws(()=>parseGitCommitDetail(value),/Git 提交详情/);});
