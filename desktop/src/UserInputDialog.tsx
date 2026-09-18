@@ -4,7 +4,7 @@ import './userInput.css';
 type Question = { id: string; header: string; question: string; isSecret?: boolean; isOther?: boolean; options?: { label: string; description: string }[] | null };
 export type UserAnswers = Record<string, { answers: string[] }>;
 
-export function UserInputDialog({ request, onDecision }: { request: { params?: { questions?: Question[] } }; onDecision: (decision: string, answers?: UserAnswers) => Promise<void> }) {
+export function UserInputDialog({ request, onDecision, inline = false }: { inline?: boolean; request: { params?: { questions?: Question[] } }; onDecision: (decision: string, answers?: UserAnswers) => Promise<void> }) {
   const questions = request.params?.questions || [];
   const [values, setValues] = useState<Record<string, string>>({});
   const [choices, setChoices] = useState<Record<string, string>>({});
@@ -21,8 +21,8 @@ export function UserInputDialog({ request, onDecision }: { request: { params?: {
     } catch (err) { setError(err instanceof Error ? err.message : '提交失败，请重试。'); }
     finally { sending.current = false; setBusy(false); }
   };
-  return <div className="approval-backdrop"><form className="approval-dialog user-input-dialog" role="dialog" aria-modal="true" aria-labelledby="user-input-title" onSubmit={event => { event.preventDefault(); void submit(); }}>
-    <h2 id="user-input-title">需要补充信息</h2>
+  return <div className={inline ? 'inline-user-input' : 'approval-backdrop'}><form className="approval-dialog user-input-dialog" role={inline ? undefined : 'dialog'} aria-modal={inline ? undefined : true} aria-label="需要补充信息" onSubmit={event => { event.preventDefault(); void submit(); }}>
+    <h2>需要补充信息</h2>
     {questions.map(q => <fieldset key={q.id} disabled={busy}>
       <legend>{q.header}</legend><p>{q.question}</p>
       {!q.isSecret && q.options?.map((option, index) => <label className="question-option" key={index}>
