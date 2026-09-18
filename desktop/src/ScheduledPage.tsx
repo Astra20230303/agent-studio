@@ -118,12 +118,31 @@ export function ScheduledPage({ providers, cwd, openRequest, onOpenHandled, onOp
     const unsubscribe = window.desktop?.onTasksChanged?.(message => { if (message?.error) setError(message.error); void reload(); });
     return () => { alive.current = false; ++refreshId.current; clearInterval(timer); unsubscribe?.(); };
   }, [reload]);
+  const refreshDetail = useRef<() => void>(() => {});
   useEffect(() => {
-    let active = true;
-    if (!selectedId) { setDetail(undefined); return; }
-    if (!tasks.some(task => task.id === selectedId)) { setSelectedId(undefined); return; }
-    automationRepository.detail(selectedId).then(result => { if (active) { setDetail(result); setDetailError(''); } }).catch(caught => { if (active) setDetailError(caught.message); });
+    let active = true, inFlight = false, queued = false;
+    const id = selectedId;
+    const refresh = async () => {
+      if (!active || !id) return;
+      if (inFlight) { queued = true; return; }
+      inFlight = true;
+      try {
+        const result = await automationRepository.detail(id);
+        if (active) { setDetail(result); setDetailError(''); }
+      } catch (caught) { if (active) setDetailError(caught instanceof Error ? caught.message : '任务详情读取失败。'); }
+      finally {
+        inFlight = false;
+        if (active && queued) { queued = false; void refresh(); }
+      }
+    };
+    refreshDetail.current = () => { void refresh(); };
+    if (!id) setDetail(undefined);
     return () => { active = false; };
+  }, [selectedId]);
+  useEffect(() => {
+    if (!selectedId) return;
+    if (!tasks.some(task => task.id === selectedId)) { setSelectedId(undefined); return; }
+    refreshDetail.current();
   }, [tasks, selectedId]);
   useEffect(() => {
     if (!createMenu) return;
