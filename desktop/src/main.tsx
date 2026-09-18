@@ -659,6 +659,11 @@ function App() {
       { id: 'scheduled', label: '查看已安排任务', keywords: 'scheduled automation', run: () => setPage('scheduled') },
       { id: 'settings', label: '打开设置', keywords: 'settings provider', run: () => setPage('settings') },
       { id: 'archives', label: '查看归档会话', keywords: 'archive', run: () => setArchivesOpen(true) },
+      { id: 'browser', label: '打开远程桌面', keywords: 'browser remote desktop', run: () => setBrowserOpen(true) },
+      { id: 'rename', label: '重命名当前会话', keywords: 'rename conversation', disabled: !active || Boolean(active.remoteId) && codexStatus !== 'connected', run: renameActive },
+      { id: 'pin', label: active?.pinned ? '取消置顶当前会话' : '置顶当前会话', keywords: 'pin conversation', disabled: !active, run: () => { if (active) togglePinned(active.id); } },
+      { id: 'fork', label: '分叉当前会话', keywords: 'fork branch conversation', disabled: !active?.remoteId || codexStatus !== 'connected' || forking || pending || Boolean(runningTurnId) || active.status === 'running', run: () => void forkActive() },
+      { id: 'stop', label: '停止当前回合', keywords: 'stop interrupt turn', disabled: !active?.remoteId || !runningTurnId || codexStatus !== 'connected', run: cancel },
       ...state.threads.filter(thread => !thread.archived).slice().sort((a, b) => Number(b.pinned) - Number(a.pinned) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt)).map(thread => ({
         id: `thread-${thread.id}`, label: `打开会话：${thread.title}`, description: `${thread.id === state.activeThreadId ? '当前会话 · ' : ''}${workspaceFor(state, thread) || '未指定工作区'}`, keywords: 'conversation thread',
         run: () => { void selectThread(thread); requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('textarea[aria-label="消息"]')?.focus()); },
