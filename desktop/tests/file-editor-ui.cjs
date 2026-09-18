@@ -11,8 +11,8 @@ const assert = require('node:assert/strict');
         if (input.action === 'read') window.__reads.push(input);
         if (input.action === 'read' && window.__readFail) return { ok: false, error: 'Read failed' };
         if (input.action === 'read' && window.__latest) return { ok: true, result: window.__latest };
-        if (input.action === 'write') { window.__writes.push(input); if (window.__hold) await new Promise(resolve => { window.__release = resolve; }); return window.__fail ? { ok: false, error: '文件已被外部修改' } : { ok: true, result: { text: input.edit.text, revision: 'new' } }; }
-        return { ok: true, result: input.action === 'read' ? { text: 'original\r\nline', revision: 'old' } : { entries: [{ name: 'file.txt', path: 'file.txt' }] } };
+        if (input.action === 'write') { window.__writes.push(input); if (window.__hold) await new Promise(resolve => { window.__release = resolve; }); if (window.__saveResponse) return window.__saveResponse; return window.__fail ? { ok: false, error: '文件已被外部修改' } : { ok: true, result: { text: input.edit.text, revision: 'new' } }; }
+        return { ok: true, result: input.action === 'read' ? { text: 'original\r\nline', revision: 'old' } : { entries: [{ name: 'file.txt', path: 'file.txt', directory: false, symlink: false }] } };
       } };
     });
     await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
@@ -68,6 +68,25 @@ const assert = require('node:assert/strict');
     assert.equal(await editor.inputValue(),'Foo $&\n$&');
     await editor.press('Control+y');
     assert.equal(await editor.inputValue(),'new 中文\nline');
+    const invalidSaves = [
+      { ok: 'true', result: { text: 'new 中文\r\nline', revision: 'new' } },
+      { ok: true },
+      { ok: true, result: { text: 'new 中文\r\nline', revision: '   ' } },
+      { ok: true, result: { text: 'different disk content', revision: 'new' } },
+      { ok: true, result: { text: 'new 中文\r\nline', revision: 'new', truncated: true } },
+    ];
+    for (const response of invalidSaves) {
+      await page.evaluate(response => { window.__saveResponse = response; }, response);
+      await page.getByRole('button', { name: '保存文件', exact: true }).click();
+      await page.getByRole('alert').filter({ hasText: '当前编辑内容已保留' }).waitFor();
+      assert.equal(await editor.inputValue(), 'new 中文\nline');
+      await editor.press('Control+z');
+      assert.equal(await editor.inputValue(), 'Foo $&\n$&');
+      await editor.press('Control+y');
+      assert.equal(await editor.inputValue(), 'new 中文\nline');
+      assert.equal(await page.evaluate(() => window.__writes.at(-1).edit.revision), 'old');
+    }
+    await page.evaluate(() => { delete window.__saveResponse; });
     await page.evaluate(() => { window.__fail = false; });
     await page.getByRole('button', { name: '保存文件', exact: true }).click();
     await page.getByRole('dialog', { name: '编辑工作区文件' }).waitFor({ state: 'detached' });
@@ -84,7 +103,7 @@ const assert = require('node:assert/strict');
     page.once('dialog', dialog => dialog.accept());
     await page.getByRole('button', { name: '取消编辑' }).click();
     await editor.waitFor({ state: 'detached' });
-    assert.equal(await page.evaluate(() => window.__writes.length), 2);
+    assert.equal(await page.evaluate(() => window.__writes.length), 2 + invalidSaves.length);
     await page.getByRole('button', { name: '编辑文件', exact: true }).click();
     await editor.fill('keep until reload succeeds');
     page.once('dialog', dialog => dialog.dismiss());
@@ -130,7 +149,7 @@ const assert = require('node:assert/strict');
     await editor.press('Control+s');
     await page.waitForFunction(() => Boolean(window.__release));
     await page.getByRole('dialog', { name: '编辑工作区文件' }).dispatchEvent('keydown', { key: 's', ctrlKey: true, bubbles: true });
-    assert.equal(await page.evaluate(() => window.__writes.length), 3);
+    assert.equal(await page.evaluate(() => window.__writes.length), 3 + invalidSaves.length);
     await page.evaluate(() => { window.__hold = false; window.__release(); });
     await editor.waitFor({ state: 'detached' });
     assert.deepEqual(await page.evaluate(() => window.__writes.at(-1).edit), { text: 'edited\nversion', revision: 'disk-revision' });

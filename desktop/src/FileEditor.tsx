@@ -53,8 +53,10 @@ export function FileEditor({ root, path, initial, onClose, onSaved }: { root: st
   const save = async () => {
     if (operation.current || !dirty) return; operation.current = true; setBusy(true); setError('');
     try {
-      const response = await window.desktop?.workspaceFile?.({ root, path, action: 'write', edit: { text: useCRLF ? text.replace(/\n/g, '\r\n') : text, revision: baseline.revision } });
-      if (!response?.ok) throw Error(response?.error || '保存不可用');
+      const submitted = useCRLF ? text.replace(/\n/g, '\r\n') : text;
+      const response = await window.desktop?.workspaceFile?.({ root, path, action: 'write', edit: { text: submitted, revision: baseline.revision } });
+      if (response?.ok !== true) throw Error(response?.error || '保存未获确认，当前编辑内容已保留');
+      if (!isEditablePreview(response.result) || !response.result.revision.trim() || response.result.text !== submitted) throw Error('保存结果不完整或与提交内容不一致，当前编辑内容已保留；请核对磁盘文件');
       onSaved(response.result); onClose();
     } catch (error) { setError(error instanceof Error ? error.message : String(error)); }
     finally { operation.current = false; setBusy(false); }
