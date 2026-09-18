@@ -18,3 +18,5 @@
 .terminal-find{display:flex;align-items:center;gap:4px;padding:4px 12px;flex-wrap:wrap;font-size:12px}
 .terminal-find input{min-width:80px;flex:1;background:#292c30;color:#eee;border:1px solid #777;padding:4px}
 .terminal-find span{color:#ddd}
+
+.terminal-find label{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}.terminal-find input[type=checkbox]{min-width:0;flex:none;margin:0}

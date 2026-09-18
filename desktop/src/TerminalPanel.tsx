@@ -47,13 +47,16 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
   const [finding, setFinding] = useState(false);
   const [query, setQuery] = useState('');
   const [found, setFound] = useState(false);
+  const [caseSensitive, setCaseSensitive] = useState(false);
+  const [wholeWord, setWholeWord] = useState(false);
   const find = (previous = false, incremental = false) => {
-    setFound(Boolean(previous ? search.current?.findPrevious(query) : search.current?.findNext(query, { incremental })));
+    const options = { incremental, caseSensitive, wholeWord };
+    setFound(Boolean(previous ? search.current?.findPrevious(query, options) : search.current?.findNext(query, options)));
   };
   const closeFind = () => { setFinding(false); search.current?.clearDecorations(); terminal.current?.clearSelection(); terminal.current?.focus(); };
   const refreshSearch = useRef(() => {});
   refreshSearch.current = () => { if (finding && query) find(false, true); };
-  useEffect(() => { if (finding) { searchInput.current?.focus(); find(false, true); } }, [finding, query]);
+  useEffect(() => { if (finding) { searchInput.current?.focus(); find(false, true); } }, [finding, query, caseSensitive, wholeWord]);
   const session = useRef<string | undefined>(undefined);
   const [revision, setRevision] = useState(0);
   const [status, setStatus] = useState('正在启动');
@@ -127,7 +130,7 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
       if (event.nativeEvent.isComposing) return;
       if (event.key === 'Enter') { event.preventDefault(); find(event.shiftKey); }
       if (event.key === 'Escape') { event.preventDefault(); closeFind(); }
-    }} /><span role="status">{query ? found ? '已定位匹配' : '没有匹配' : '范围：当前终端缓冲区'}</span><button aria-label="终端上一个匹配" disabled={!query} onClick={() => find(true)}>↑</button><button aria-label="终端下一个匹配" disabled={!query} onClick={() => find()}>↓</button><button aria-label="关闭终端查找" onClick={closeFind}>×</button></div>}
+    }} /><label><input type="checkbox" checked={caseSensitive} onChange={event => setCaseSensitive(event.target.checked)} />区分大小写</label><label><input type="checkbox" checked={wholeWord} onChange={event => setWholeWord(event.target.checked)} />整词匹配</label><span role="status">{query ? found ? '已定位匹配' : '没有匹配' : '范围：当前终端缓冲区'}</span><button aria-label="终端上一个匹配" disabled={!query} onClick={() => find(true)}>↑</button><button aria-label="终端下一个匹配" disabled={!query} onClick={() => find()}>↓</button><button aria-label="关闭终端查找" onClick={closeFind}>×</button></div>}
     {exportNotice && <p role="status">{exportNotice}</p>}{error && <p role="alert">{error}</p>}<div ref={host} className="terminal-host" />
   </section>;
 }
