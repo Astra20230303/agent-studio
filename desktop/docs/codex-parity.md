@@ -10,6 +10,11 @@ conversation persistence. Browser acceptance covers ordered delivery, pending
 counts, literal text and background-thread isolation; production build passes.
 Upstream image preparation still logs failures without emitting these notifications.
 
+Post-commit browser acceptance verifies identical messages remain separate events,
+new arrivals preserve the current warning, and Enter dismisses one warning while
+retaining button focus for the next. All warning acceptance cases pass; no further
+product correction was needed.
+
 ## Paste JPEG, WebP and GIF images
 
 Clipboard image saving now detects PNG/JPEG/WebP/GIF from bytes, reuses attachment
