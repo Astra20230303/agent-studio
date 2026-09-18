@@ -30,6 +30,12 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(()=>window.__answers.length===2);
     assert.deepEqual(await page.evaluate(()=>window.__answers),[{id:2,result:{answers:{b:{answers:[]}}}},{id:1,result:{answers:{q:{answers:['Answer A']}}}}]);
     assert.equal(await page.getByRole('textbox',{name:'消息',exact:true}).inputValue(),'Continue draft');
+    await page.evaluate(()=>window.__ask({id:3,method:'item/tool/requestUserInput',params:{threadId:'a',isBlocking:false,questions:[{id:'q3',header:'Later',question:'Pending question'}]}}));
+    await page.getByText('待回答问题 · a',{exact:true}).click();
+    await page.getByRole('textbox',{name:'Pending question',exact:true}).fill('Not submitted');
+    await page.evaluate(()=>window.__notify({method:'serverRequest/resolved',params:{requestId:3,threadId:'a'}}));
+    await page.locator('.async-question').waitFor({state:'detached'});
+    assert.equal(await page.evaluate(()=>window.__answers.length),2);
     console.log('PASS: nonblocking question permits editing, blocking request bypasses it, answers retry with correct IDs');
   } finally { await browser.close(); }
 })().catch(error=>{console.error(error);process.exitCode=1;});

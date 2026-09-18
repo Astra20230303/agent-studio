@@ -1819,3 +1819,5 @@ remains low. The expanded browser flow passes without further product changes.
 ## 非阻塞用户问题
 
 计划与交付：isBlocking=false 问题显示为可展开回答区域，不遮挡编辑；阻塞请求独立排队。回答绑定原请求 ID，保留失败输入并允许重试。模拟桥接浏览器覆盖混合请求、编辑不中断、正确回答路由及原有问题回归；生产构建通过。未提供 isBlocking 的旧请求仍按阻塞处理。
+
+提交后验收：扩展模拟桥接浏览器测试，服务端通过 serverRequest/resolved 提前解决非阻塞问题后，回答区域移除，未提交输入没有发送，既有回答数量保持不变。测试通过，无额外产品修正。
