@@ -2701,3 +2701,9 @@ user-message-copy-ui.cjs 覆盖原文保真、键盘操作、失败重试、空�
 实现 7acaafc：工具栏与侧栏共用 archiveConversation 和按本地会话 ID 的同步请求锁。重复点击只发一次归档请求，失败解除锁并允许重试。成功只清除被归档会话的选中状态和对应远端标识；等待期间切换到另一会话时，其选择、正文与草稿保留。工具栏不再继续显示已归档的当前会话。
 
 验收：archive-concurrency-ui.cjs 覆盖同 tick 重复点击、跨入口重复请求、等待期间切换、失败重试及一次成功审计；补充两条会话归档后正文与草稿持久化断言通过。offline-thread-mutations-ui、archived-threads-ui 和生产构建通过。thread-archive-live.test.cjs 使用隔离 profile、真实 app-server 与本地模型替身验证归档、分页和恢复通过；不代表真实云模型或全部网络故障矩阵。
+
+## 归档/删除与待发送队列生命周期
+
+实现 ae3cad7：归档或删除前先用同步队列接口持久化暂停目标会话的排队消息；队列保存失败则不发远端 mutation。操作请求期间以会话 ID 加入发送锁，回合完成、重连或队列 effect 不会派发下一条。归档失败保留暂停队列和会话供重试；归档成功保留暂停队列，等待用户明确继续；删除成功才清理目标会话队列。发送中的会话仍被拒绝归档/删除。
+
+验收：thread-lifecycle-queue-ui.cjs 对归档、删除分别注入队列配额失败、延迟远端响应、失败响应和回合完成通知，验证零 mutation、无派发、正文保留、归档保留队列及删除清理队列。archive-concurrency-ui、delete-thread-ui、turn-queue-ui、queue-inflight-ui 与生产构建通过。协议为模拟桥接，真实 app-server 的归档恢复由前一交付覆盖；未宣称远端删除与队列的全部网络故障矩阵。
