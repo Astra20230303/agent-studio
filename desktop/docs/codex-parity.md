@@ -17,6 +17,11 @@ native module and DLLs. Relocated packaged acceptance verifies valid WebP/GIF
 reach Provider validation, corrupt images are rejected by production IPC, and
 bundled app-server, native terminal and reminder restart regressions still pass.
 
+Post-commit acceptance generates two-frame WebP/GIF animations, confirms both
+frames exist and verifies the first-frame pixel extent/color. Mislabeled PNG
+content fails under either extension. An actual 4097-by-4097 WebP is rejected by
+the pixel limit. All four decoder tests pass; no product correction was needed.
+
 ## Background image processing
 
 Attachment validation and clipboard PNG validation/storage now execute in a Node
