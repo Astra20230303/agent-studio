@@ -1,5 +1,14 @@
 # Felix capability roadmap
 
+## Queue editor lifecycle follows the current queue
+
+The editor is identified by message ID and resolved against the current paused
+queue item. Removing the item, changing queue scope or transitioning to sending
+closes the editor and clears stale edit state, so another queue's resume action
+remains available. Returning to the original queue does not restore an abandoned
+edit. Browser component acceptance covers scope and status transitions without
+unintended saves; full queue workflow regression and production build pass.
+
 ## Remove attachments from queued messages
 
 Queue editing now lists attachment filenames and full paths, and permits removing
