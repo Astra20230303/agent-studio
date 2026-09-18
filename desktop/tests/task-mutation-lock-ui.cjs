@@ -1,0 +1,27 @@
+const assert=require('node:assert/strict');const {chromium}=require('playwright');
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
+ const page=await browser.newPage();await page.addInitScript(()=>{
+  window.__calls=[];window.__task={id:'a',name:'Lock test',prompt:'Test',kind:'reminder',model:'',permission:'read-only',notify:true,status:'active',nextRunAt:null,schedule:{kind:'daily',time:'09:00',timezone:'UTC'},runs:[]};
+  const hold=(operation,...args)=>{window.__calls.push({operation,args});return new Promise(resolve=>window.__finish=resolve);};
+  window.desktop={listModels:async()=>({ok:true,models:['test']}),listTasks:async()=>({ok:true,tasks:[window.__task]}),taskDetail:async()=>({ok:true,task:window.__task}),setTaskStatus:(...args)=>hold('status',...args),saveTask:(...args)=>hold('save',...args)};
+ });await page.goto(process.env.FELIX_TEST_URL||'http://127.0.0.1:5318');
+ await page.getByRole('button',{name:'已安排',exact:true}).click();
+ const pause=page.getByRole('button',{name:'暂停 Lock test',exact:true});
+ await pause.evaluate(el=>{el.click();el.click();});assert.equal(await page.evaluate(()=>window.__calls.length),1);
+ await page.evaluate(()=>window.__finish({ok:false,error:'Status failed'}));await page.getByText('Status failed',{exact:true}).waitFor();
+ await pause.click();await page.waitForFunction(()=>window.__calls.length===2);
+ await page.evaluate(()=>{window.__task.status='paused';window.__finish({ok:true});});
+ await page.getByRole('button',{name:'恢复 Lock test',exact:true}).waitFor();
+ await page.getByRole('button',{name:'查看任务 Lock test',exact:true}).click();
+ await page.getByRole('dialog',{name:'Lock test',exact:true}).getByRole('button',{name:'编辑',exact:true}).click();
+ const editor=page.getByRole('dialog',{name:'编辑任务',exact:true});
+ await editor.locator('form').evaluate(form=>{form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));});
+ await page.waitForFunction(()=>window.__calls.length===3);
+ assert.equal(await page.evaluate(()=>window.__calls.filter(c=>c.operation==='save').length),1);
+ await page.keyboard.press('Escape');assert.equal(await editor.count(),1);
+ await page.evaluate(()=>window.__finish({ok:false,error:'Save failed'}));await editor.getByText('Save failed',{exact:true}).waitFor();
+ await editor.getByRole('button',{name:'保存任务',exact:true}).click();await page.waitForFunction(()=>window.__calls.length===4);
+ await page.evaluate(()=>window.__finish({ok:true}));await editor.waitFor({state:'detached'});
+ assert.deepEqual(await page.evaluate(()=>window.__calls.map(c=>c.operation)),['status','status','save','save']);
+ console.log('PASS: same-tick duplicate mutations/save blocked, pending Escape retained, failure retries once');
+}finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});
