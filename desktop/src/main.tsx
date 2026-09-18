@@ -461,6 +461,7 @@ function App() {
   };
   const newChat = () => { setRemoteThreadId(undefined); update(next => createThread(next)); setPage('chat'); };
   useAppShortcuts({
+    files: () => { setFilesOpen(true); setGitOpen(false); requestAnimationFrame(() => document.querySelector<HTMLInputElement>('[aria-label="查找工作区文件"]')?.focus()); },
     palette: () => setPaletteOpen(true),
     newChat: () => { newChat(); requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('textarea[aria-label="消息"]')?.focus()); },
     search: () => { setSidebarVisible(true); setShowSearch(true); requestAnimationFrame(() => document.getElementById('sidebar-search')?.focus()); },

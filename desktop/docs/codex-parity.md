@@ -1,5 +1,13 @@
 # Felix capability roadmap
 
+## Focus workspace search from the keyboard
+
+Ctrl/Command+P opens the workspace file panel, closes Git review and focuses its
+search input. Repeating the shortcut preserves the current query and draft.
+Ctrl/Command+Shift+P remains the command palette. The shared shortcut scope blocks
+dialogs, terminal targets, repeats and IME composition; settings document the new
+binding. Browser shortcut/isolation acceptance and production build pass.
+
 ## Open a search result's containing folder
 
 Selected workspace files provide an open-containing-folder action. It clears the
