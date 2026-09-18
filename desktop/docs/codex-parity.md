@@ -1,5 +1,20 @@
 # Felix capability roadmap
 
+## Main-process workspace usage checks
+
+Worktree removal now checks main-process terminal directories and the active
+scheduled agent task immediately before starting Git removal. Terminal directory
+ownership lasts until the PTY actually exits, including asynchronous close.
+Canonical native paths handle Windows short-name aliases and subdirectories.
+Tasks without an explicit cwd protect the default project directory.
+
+Acceptance: a real temporary Git repository refuses removal while terminal/task
+usage is present and removes successfully after release. A real PowerShell PTY
+test verifies protection before and during close, then release after exit. A real
+TaskScheduler with a held runner verifies protection from run start to completion.
+Build passes. These are pre-removal checks, not a cross-process lease: external
+processes and new work started after Git removal launches remain outside scope.
+
 ## Worktree protection for conversation activity
 
 The worktree panel disables deletion when another local conversation is running,
