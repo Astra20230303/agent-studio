@@ -1,5 +1,13 @@
 # Felix capability roadmap
 
+## Copy file preview text exactly
+
+Read-only previews offer copy using the loaded text, with an explicit partial-copy
+label for truncated files. The shared copy control reports clipboard errors and
+permits retry. Rendering no longer appends a newline absent from the original,
+so selection and copy agree even with highlighting, CRLF and Unicode content.
+Clipboard-mocked browser acceptance, real-file preview regression and build pass.
+
 ## Responsive file preview layout
 
 Preview-specific layout prevents editor footer flex rules from putting search
