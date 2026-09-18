@@ -1,14 +1,20 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { persistentStorage } from './persistentStorage';
 
 export type AuditEntry = { id: string; at: string; action: string; detail?: string };
 const KEY = 'felix-audit-log-v1';
 const MAX = 200;
-function readEntries(): { entries: AuditEntry[]; error: string } {
+function readEntries(): { entries: AuditEntry[]; error: string; needsRedaction?: boolean } {
   try {
     const value = JSON.parse(persistentStorage.getItem(KEY) || '[]');
     if (!Array.isArray(value) || !value.every(item => typeof item?.id === 'string' && typeof item?.at === 'string' && typeof item?.action === 'string' && (item.detail === undefined || typeof item.detail === 'string'))) throw Error('操作记录格式无效');
-    return { entries: value.slice(0, MAX), error: '' };
+    const needsRedaction = value.some(item => item.action === '切换项目' && item.detail !== undefined);
+    const entries = value.slice(0, MAX).map((item: AuditEntry) => {
+      if (item.action !== '切换项目') return item;
+      const { detail: _detail, ...redacted } = item;
+      return redacted;
+    });
+    return { entries, error: '', needsRedaction };
   } catch { return { entries: [], error: '操作记录读取失败，已暂停写入以保留原始数据。' }; }
 }
 export function useAuditLog() {
@@ -26,8 +32,13 @@ export function useAuditLog() {
       catch { if (version === revision.current) setError('操作记录未能保存，请重试。'); }
     });
   }, []);
+  useEffect(() => {
+    if (loaded.needsRedaction) persist(current.current);
+  }, [loaded, persist]);
   const record = useCallback((action: string, detail?: string) => {
     if (loaded.error) return;
+    // Native project IDs are absolute paths, not opaque identifiers.
+    if (action === '切换项目') detail = undefined;
     const next = [{ id: crypto.randomUUID(), at: new Date().toISOString(), action, ...(detail ? { detail: detail.slice(0, 300) } : {}) }, ...current.current].slice(0, MAX);
     current.current = next; setEntries(next); persist(next);
   }, [persist, loaded.error]);

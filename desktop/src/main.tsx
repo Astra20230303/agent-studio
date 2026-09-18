@@ -479,15 +479,15 @@ function App() {
     finally { sendingRef.current.delete(thread.id); setPendingThreads(previous => previous.filter(id => id !== thread.id)); }
   };
   const newChat = () => { setRemoteThreadId(undefined); update(next => createThread(next)); audit.record('新建会话'); setPage('chat'); };
-  const changeProject = (project: Pick<Project, 'id' | 'name' | 'path' | 'git' | 'environment'>) => {
+  const changeProject = (project: Project) => {
     update(next => {
-      if (!next.projects.some(item => item.id === project.id)) next.projects.push(project as Project);
+      if (!next.projects.some(item => item.id === project.id)) next.projects.push(project);
       next.activeProjectId = project.id;
       const thread = createThread(next);
       thread.projectId = project.id;
       thread.cwd = project.path;
     });
-    audit.record('切换项目', project.id);
+    audit.record('切换项目');
     setPage('chat');
   };
   useAppShortcuts({
@@ -792,7 +792,7 @@ function ApprovalDialog({ request, onDecision }: { request: any; onDecision: (de
   return <div className="approval-backdrop"><section className="approval-dialog"><h2>{title}</h2><p>{reason}</p>{params.command && <pre>{params.command}</pre>}{params.cwd && <small>{params.cwd}</small>}<div className="approval-actions"><button onClick={() => onDecision(isInput ? 'cancel' : 'decline')}>{isInput ? '取消' : '拒绝'}</button><button className="primary" onClick={() => onDecision('accept')}>{isInput ? '提交' : '允许'}</button></div></section></div>;
 }
 
-function Chat({ savingImages, onPasteImages, onDropAttachments, loadFullHistory, onChangePermission, onRetryFailure, sendShortcut, composerSkills, setComposerSkills, onOpenAgent, removeAttachment, busy, mode, permission, onOpenPlugins, composerPlugins, setComposerPlugins, onForkMessage, catalog, active, input, setInput, send, cancel, running, activity, model, reasoningEffort, update, attachments, addAttachment, showModel, setShowModel, showProjects, setShowProjects, toast, projectId, projects, status, onProjectChange }: { loadFullHistory: () => Promise<void>; onChangePermission: (permission: DesktopState['permission']) => Promise<void>; onRetryFailure: (messageId: string) => void; sendShortcut?: 'enter' | 'mod-enter'; composerSkills: SelectedSkill[]; setComposerSkills: (skills: SelectedSkill[]) => void; onOpenAgent: (id: string) => void; removeAttachment: (path: string) => void; busy: boolean; mode: DesktopState['mode']; permission: DesktopState['permission']; onOpenPlugins: () => void; composerPlugins: Plugin[]; setComposerPlugins: (plugins: Plugin[]) => void; onForkMessage: (messageId: string) => Promise<void>; catalog: ReturnType<typeof useModelCatalog>; active: DesktopState['threads'][number] | undefined; input: string; setInput: (value: string) => void; send: () => void; cancel: () => void; running: boolean; activity?: string; model: string; reasoningEffort: DesktopState['reasoningEffort']; update: (fn: (next: DesktopState) => void) => void; savingImages: boolean; onPasteImages: (event: ClipboardEvent) => void; onDropAttachments: (paths: string[]) => void; attachments: string[]; addAttachment: () => void; showModel: boolean; setShowModel: (value: boolean) => void; showProjects: boolean; setShowProjects: (value: boolean) => void; toast: (text: string) => void; projectId?: string; projects: DesktopState['projects']; status: string; onProjectChange: (project: Pick<Project, 'id' | 'name' | 'path' | 'git' | 'environment'>) => void }) {
+function Chat({ savingImages, onPasteImages, onDropAttachments, loadFullHistory, onChangePermission, onRetryFailure, sendShortcut, composerSkills, setComposerSkills, onOpenAgent, removeAttachment, busy, mode, permission, onOpenPlugins, composerPlugins, setComposerPlugins, onForkMessage, catalog, active, input, setInput, send, cancel, running, activity, model, reasoningEffort, update, attachments, addAttachment, showModel, setShowModel, showProjects, setShowProjects, toast, projectId, projects, status, onProjectChange }: { loadFullHistory: () => Promise<void>; onChangePermission: (permission: DesktopState['permission']) => Promise<void>; onRetryFailure: (messageId: string) => void; sendShortcut?: 'enter' | 'mod-enter'; composerSkills: SelectedSkill[]; setComposerSkills: (skills: SelectedSkill[]) => void; onOpenAgent: (id: string) => void; removeAttachment: (path: string) => void; busy: boolean; mode: DesktopState['mode']; permission: DesktopState['permission']; onOpenPlugins: () => void; composerPlugins: Plugin[]; setComposerPlugins: (plugins: Plugin[]) => void; onForkMessage: (messageId: string) => Promise<void>; catalog: ReturnType<typeof useModelCatalog>; active: DesktopState['threads'][number] | undefined; input: string; setInput: (value: string) => void; send: () => void; cancel: () => void; running: boolean; activity?: string; model: string; reasoningEffort: DesktopState['reasoningEffort']; update: (fn: (next: DesktopState) => void) => void; savingImages: boolean; onPasteImages: (event: ClipboardEvent) => void; onDropAttachments: (paths: string[]) => void; attachments: string[]; addAttachment: () => void; showModel: boolean; setShowModel: (value: boolean) => void; showProjects: boolean; setShowProjects: (value: boolean) => void; toast: (text: string) => void; projectId?: string; projects: DesktopState['projects']; status: string; onProjectChange: (project: Project) => void }) {
   const fileDrop = useFileDrop(onDropAttachments, toast);
   const pluginCwd = useContext(ArtifactWorkspaceContext);
   const textarea = useRef<HTMLTextAreaElement>(null);
