@@ -9,6 +9,7 @@ const assert = require('node:assert/strict');
       window.__reads = []; window.__attachments = [];
       window.desktop = { workspaceFile: async input => {
         window.__reads.push(input);
+        if (input.action === 'list' && window.__denyFolder) return { ok: false, error: 'Folder unavailable' };
         if (input.action === 'search' || input.action === 'search-content') return { ok: true, result: { entries: [{ name: 'found.txt', path: window.__rootFile ? 'found.txt' : 'src\\nested\\found.txt', directory: false }] } };
         if (input.action === 'read') return { ok: true, result: { text: 'Found file', revision: 'hash' } };
         return { ok: true, result: { entries: [] } };
@@ -37,6 +38,16 @@ const assert = require('node:assert/strict');
     await panel.getByRole('button', { name: '打开所在目录', exact: true }).click();
     await panel.getByText('.', { exact: true }).waitFor();
     assert.equal(await panel.getByRole('button', { name: '上级目录', exact: true }).count(), 0);
+    await search.fill('found'); await panel.getByRole('button', { name: '查找文件', exact: true }).click();
+    await panel.getByRole('button', { name: '▧ found.txt', exact: true }).click();
+    await page.evaluate(() => { window.__denyFolder = true; });
+    await panel.getByRole('button', { name: '打开所在目录', exact: true }).click();
+    await panel.getByRole('alert').getByText('Folder unavailable', { exact: true }).waitFor();
+    await page.evaluate(() => { window.__denyFolder = false; });
+    await panel.getByRole('button', { name: '刷新文件', exact: true }).click();
+    await panel.getByText('此目录为空。', { exact: true }).waitFor();
+    assert.equal(await panel.getByRole('alert').count(), 0);
+    assert.equal(await page.locator('.attachment-list').count(), 0);
     console.log('PASS: name/content search opens containing folder, clears search and uses consistent parent/root navigation');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

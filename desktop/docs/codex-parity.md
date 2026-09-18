@@ -8,6 +8,10 @@ content search use the same parent resolver as ordinary upward navigation.
 Windows separators and root-level files are handled without navigating beyond
 the workspace. Browser name/content/root navigation acceptance and build pass.
 
+Post-commit acceptance simulates an unavailable parent directory, verifies its
+error and successful refresh after recovery, and confirms navigation does not add
+attachments. Existing workspace workflow regression passes; no correction needed.
+
 ## Explain workspace preview decoding failures
 
 The workspace panel now reports invalid UTF-8 and image decode errors, matching
