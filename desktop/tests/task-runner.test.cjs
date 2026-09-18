@@ -90,3 +90,34 @@ test('cancellation closes active model connections and terminates the dedicated 
     await Promise.race([requested, done.catch(() => {})]); controller.abort(); await rejected;
   } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
 });
+
+
+test('subsequent runs pick up the newly selected provider', { timeout: 60000 }, async () => {
+  const servers = [], received = [];
+  const dataRoot = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'felix-provider-runs-'));
+  try {
+    for (const name of ['first', 'second']) {
+      const server = http.createServer(async (req, res) => {
+        for await (const chunk of req) { /* drain request */ }
+        received.push({ name, authorization: req.headers.authorization });
+        res.writeHead(200, { 'content-type': 'text/event-stream' });
+        res.end('data: ' + JSON.stringify({ choices: [{ delta: { content: name + ' provider answered' }, finish_reason: 'stop' }] }) + '\n\ndata: [DONE]\n\n');
+      });
+      servers.push(server);
+      server.listen(0, '127.0.0.1'); await once(server, 'listening');
+    }
+    let selected;
+    const runner = createTaskRunner(root, { dataRoot, provider: () => selected, timeoutMs: 20000 });
+    for (const [index, name] of ['first', 'second'].entries()) {
+      selected = { apiKey: name + '-key', baseUrl: `http://127.0.0.1:${servers[index].address().port}` };
+      const result = await runner({ ...task, prompt: 'Reply briefly.' }, { signal: new AbortController().signal, runId: randomUUID() });
+      assert.match(result.output, new RegExp(name + ' provider answered'));
+    }
+    assert.deepEqual(received, [
+      { name: 'first', authorization: 'Bearer first-key' },
+      { name: 'second', authorization: 'Bearer second-key' },
+    ]);
+  } finally {
+    for (const server of servers) { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
+  }
+});
