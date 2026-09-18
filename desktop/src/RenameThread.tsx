@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-export function RenameThread({ title, onSave, onClose }: { title: string; onSave: (title: string) => Promise<void>; onClose: () => void }) {
+export function RenameThread({ title, onSave, onClose, subject = '会话', maxLength }: { subject?: '会话' | '终端'; maxLength?: number; title: string; onSave: (title: string) => Promise<void>; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const lock = useRef(false);
@@ -20,9 +20,9 @@ export function RenameThread({ title, onSave, onClose }: { title: string; onSave
     catch (error) { setError(error instanceof Error ? error.message : String(error)); }
     finally { lock.current = false; setBusy(false); }
   };
-  return <dialog ref={dialog} className="task-modal" aria-label="重命名会话" onCancel={event => { event.preventDefault(); if (!lock.current) onClose(); }}>
+  return <dialog ref={dialog} className="task-modal" aria-label={`重命名${subject}`} onCancel={event => { event.preventDefault(); if (!lock.current) onClose(); }}>
     <form onSubmit={event => { event.preventDefault(); void save(); }}>
-      <h2>重命名会话</h2><input ref={input} aria-label="会话名称" value={name} disabled={busy} required onChange={event => setName(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && (event.nativeEvent.isComposing || event.keyCode === 229)) event.preventDefault(); }} />
+      <h2>重命名{subject}</h2><input ref={input} aria-label={`${subject}名称`} maxLength={maxLength} value={name} disabled={busy} required onChange={event => setName(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && (event.nativeEvent.isComposing || event.keyCode === 229)) event.preventDefault(); }} />
       {error && <p role="alert">{error}</p>}
       <div className="approval-actions"><button type="button" disabled={busy} onClick={onClose}>取消重命名</button><button disabled={busy || !name.trim()}>{busy ? '正在保存…' : '保存名称'}</button></div>
     </form>

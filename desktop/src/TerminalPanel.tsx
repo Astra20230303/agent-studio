@@ -5,8 +5,9 @@ import { SearchAddon } from '@xterm/addon-search';
 import { createTerminalStartupBuffer } from './terminalStartupBuffer';
 import { readTerminalEvent } from './terminalEvents';
 import type { ValidTerminalEvent } from './terminalEvents';
+import { RenameThread } from './RenameThread';
 import { terminalText } from './terminalExport';
-import { Play, Plus, Square, X, Trash2 } from 'lucide-react';
+import { Play, Plus, Square, X, Trash2, Pencil } from 'lucide-react';
 import '@xterm/xterm/css/xterm.css';
 import './terminal.css';
 export type TerminalEvent = { id: string; type: 'data' | 'exit'; data?: string; code?: number };
@@ -19,25 +20,29 @@ export type TerminalBridge = {
 };
 export function TerminalPanel({ cwd, open, onClose }: { cwd?: string; open: boolean; onClose: () => void }) {
   const next = useRef(2);
-  const [tabs, setTabs] = useState(() => [{ id: 1, cwd }]);
+  const [tabs, setTabs] = useState(() => [{ id: 1, cwd, title: '终端 1' }]);
   const [selected, setSelected] = useState(1);
-  const add = () => { const id = next.current++; setTabs(current => [...current, { id, cwd }]); setSelected(id); };
+  const [renaming, setRenaming] = useState<number>();
+  const renameTarget = tabs.find(tab => tab.id === renaming);
+  const add = () => { const id = next.current++; setTabs(current => [...current, { id, cwd, title: `终端 ${id}` }]); setSelected(id); };
   const remove = () => {
     const remaining = tabs.filter(tab => tab.id !== selected);
     setTabs(remaining); setSelected(remaining[remaining.length - 1]?.id || 0);
   };
-  return <section className="terminal-panel" hidden={!open} aria-label="终端">
+  return <><section className="terminal-panel" hidden={!open} aria-label="终端">
     <div className="terminal-tabs"><div role="tablist" aria-label="终端会话">{tabs.map((tab, index) => <button key={tab.id} role="tab" tabIndex={selected === tab.id ? 0 : -1} id={`terminal-tab-${tab.id}`} aria-controls={`terminal-session-${tab.id}`} aria-selected={selected === tab.id} title={tab.cwd} onClick={() => setSelected(tab.id)} onKeyDown={event => {
+      if (event.key === 'F2' && !event.nativeEvent.isComposing) { event.preventDefault(); setRenaming(tab.id); return; }
       const target = event.key === 'ArrowRight' ? (index + 1) % tabs.length : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : undefined;
       if (target === undefined) return;
       event.preventDefault(); setSelected(tabs[target].id);
       document.getElementById(`terminal-tab-${tabs[target].id}`)?.focus();
-    }}>终端 {tab.id}</button>)}</div>
+    }}>{tab.title}</button>)}</div>
       <button title="新建终端" aria-label="新建终端" disabled={tabs.length >= 8} onClick={add}><Plus size={16} /></button>
+      <button title="重命名当前终端（F2）" aria-label="重命名当前终端" disabled={!tabs.length} onClick={() => setRenaming(selected)}><Pencil size={16} /></button>
       <button title="关闭当前终端" aria-label="关闭当前终端" disabled={!tabs.length} onClick={remove}><Trash2 size={16} /></button>
       <button title="隐藏终端" aria-label="隐藏终端" onClick={onClose}><X size={16} /></button></div>
     {tabs.map(tab => <TerminalSession key={tab.id} id={tab.id} cwd={tab.cwd} open={open && selected === tab.id} />)}
-  </section>;
+  </section>{open && renameTarget && <RenameThread key={renameTarget.id} subject="终端" maxLength={80} title={renameTarget.title} onClose={() => setRenaming(undefined)} onSave={async title => { setTabs(current => current.map(tab => tab.id === renameTarget.id ? { ...tab, title } : tab)); }} />}</>;
 }
 function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: boolean }) {
   const visible = useRef(open);

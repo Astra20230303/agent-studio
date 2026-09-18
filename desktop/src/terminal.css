@@ -20,3 +20,4 @@
 .terminal-find span{color:#ddd}
 
 .terminal-find label{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}.terminal-find input[type=checkbox]{min-width:0;flex:none;margin:0}
+.terminal-tabs button[role=tab]{max-width:180px;overflow:hidden;text-overflow:ellipsis;display:block;flex-shrink:0}
