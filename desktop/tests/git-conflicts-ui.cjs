@@ -10,6 +10,7 @@ const assert = require('node:assert/strict');
       window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }), workspaceGit: async input => {
         window.__requests.push(input);
         if (input.action === 'conflict') {
+          if (window.__stages) return {ok:true,result:{stages:window.__stages}};
           if (!window.__retried) return { ok: false, error: 'Read failed' };
           return { ok: true, result: { stages: [{ stage: 1, text: 'base content' }, { stage: 2, text: '<script>current side</script>' }] } };
         }
@@ -28,6 +29,14 @@ const assert = require('node:assert/strict');
     assert.equal(await page.getByRole('button', { name: '已暂存 U', exact: true }).count(), 0);
     await page.getByRole('button', { name: '未暂存 U', exact: true }).click();
     await page.getByRole('alert').filter({ hasText: 'Read failed' }).waitFor();
+    for (const stages of [[{stage:1}], [{stage:2,unavailable:' '}]]) {
+      await page.evaluate(stages=>{window.__stages=stages;},stages);
+      await page.getByRole('button',{name:'重试读取版本',exact:true}).click();
+      await page.getByRole('alert').filter({hasText:'冲突版本数据无效'}).waitFor();
+      assert.equal(await page.getByText('（空文件）',{exact:true}).count(),0);
+      assert.equal(await page.getByLabel('冲突版本').locator('details').count(),0);
+    }
+    await page.evaluate(()=>{delete window.__stages;});
     await page.evaluate(() => { window.__retried = true; });
     await page.getByRole('button', { name: '重试读取版本', exact: true }).click();
     await page.getByLabel('冲突版本').getByText('base content', { exact: true }).waitFor();
@@ -35,6 +44,16 @@ const assert = require('node:assert/strict');
     assert.equal(await page.getByLabel('冲突版本').locator('script').count(), 0);
     await page.getByText('此阶段没有文件（新增或删除）。', { exact: true }).waitFor();
     await page.getByRole('button', { name: '返回变更', exact: true }).click();
+    await page.evaluate(()=>{window.__stages=[{stage:2,text:''},{stage:3,unavailable:'二进制内容无法预览'}];});
+    await page.getByRole('button',{name:'未暂存 U',exact:true}).click();
+    await page.getByText('（空文件）',{exact:true}).waitFor();
+    await page.getByText('二进制内容无法预览',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'返回变更',exact:true}).click();
+    await page.evaluate(()=>{window.__stages=[];});
+    await page.getByRole('button',{name:'未暂存 U',exact:true}).click();
+    await page.getByRole('status').filter({hasText:'该文件没有未合并版本'}).waitFor();
+    assert.equal(await page.getByLabel('冲突版本').locator('details').count(),0);
+    await page.getByRole('button',{name:'返回变更',exact:true}).click();
     await page.getByRole('button', { name: '让 Felix 处理冲突', exact: true }).click();
     const draft = await page.getByRole('textbox', { name: '消息', exact: true }).inputValue();
     assert.ok(draft.startsWith('Existing draft\n\n')); assert.ok(draft.includes('D:/repo')); assert.ok(draft.includes('conflict.txt'));
