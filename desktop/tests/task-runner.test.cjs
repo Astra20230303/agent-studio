@@ -212,3 +212,13 @@ test('task minute limit arms real execution timeout and closes its model connect
   await Promise.race([requested,done.catch(()=>{})]);assert.equal(typeof expire,'function');expire();await rejected;
  }finally{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));fs.rmSync(dataRoot,{recursive:true,force:true});}
 });
+
+test('conversation checkpoint failure prevents model execution after provider binding', {timeout:20000},async()=>{
+ let requests=0,bound;const server=http.createServer((req,res)=>{requests++;res.end();});server.listen(0,'127.0.0.1');await once(server,'listening');
+ const dataRoot=fs.mkdtempSync(path.join(require('node:os').tmpdir(),'felix-conversation-checkpoint-'));
+ try{
+  const runner=createTaskRunner(root,{dataRoot,provider:()=>({id:'p',baseUrl:`http://127.0.0.1:${server.address().port}`}),onThreadCreated:binding=>{bound=binding.threadId;}});
+  await assert.rejects(runner(task,{signal:new AbortController().signal,runId:randomUUID(),onConversation:threadId=>{assert.equal(threadId,bound);throw Error('Conversation checkpoint failed');}}),error=>{assert.equal(error.message,'Conversation checkpoint failed');assert.equal(error.threadId,bound);return true;});
+  assert.ok(bound);assert.equal(requests,0);
+ }finally{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));fs.rmSync(dataRoot,{recursive:true,force:true});}
+});
