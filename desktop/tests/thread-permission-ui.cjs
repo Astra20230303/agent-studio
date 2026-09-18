@@ -35,8 +35,29 @@ const assert = require('node:assert/strict');
     await page.getByText('修改权限失败：Policy rejected', { exact: true }).waitFor();
     await page.getByRole('button', { name: '权限待确认', exact: true }).waitFor();
     assert.equal(await page.evaluate(() => window.__listeners.length), 1);
+    await page.evaluate(() => { window.__fail = false; });
+    let currentLabel = '权限待确认';
+    for (const settings of [{}, { sandboxPolicy: { type: 'readOnly' }, approvalPolicy: 'on-request', approvalsReviewer: 'user' }]) {
+      await page.getByRole('button', { name: currentLabel, exact: true }).click();
+      await page.getByRole('button', { name: '当前会话：帮我审批', exact: true }).click();
+      await page.getByRole('button', { name: '权限待确认', exact: true }).waitFor();
+      await page.waitForFunction(() => window.__listeners.length === 2);
+      await page.evaluate(threadSettings => window.__emit({ method: 'thread/settings/updated', params: { threadId: 'remote-saved', threadSettings } }), settings);
+      await page.getByText('修改权限失败：权限变更未得到有效确认，请重新打开会话核对后重试。', { exact: true }).waitFor();
+      await page.waitForFunction(() => window.__listeners.length === 1);
+      assert.equal(await page.getByRole('textbox', { name: '消息', exact: true }).inputValue(), 'Do not send before settings are confirmed');
+      assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads[0].requestedPermission), 'danger-full-access');
+      currentLabel = settings.sandboxPolicy ? '只读 · 用户审批' : '权限待确认';
+      await page.getByRole('button', { name: currentLabel, exact: true }).waitFor();
+    }
+    await page.getByRole('button', { name: currentLabel, exact: true }).click();
+    await page.getByRole('button', { name: '当前会话：帮我审批', exact: true }).click();
+    await page.waitForFunction(() => window.__listeners.length === 2);
+    await page.evaluate(() => window.__emit({ method: 'thread/settings/updated', params: { threadId: 'remote-saved', threadSettings: { sandboxPolicy: { type: 'workspaceWrite' }, approvalPolicy: 'on-request', approvalsReviewer: 'auto_review' } } }));
+    await page.getByRole('button', { name: '工作区写入 · 自动审查', exact: true }).waitFor();
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads[0].requestedPermission === 'workspace-write');
     await page.evaluate(() => window.__emit({ method: 'turn/started', params: { threadId: 'remote-saved', turn: { id: 'running', status: 'inProgress' } } }));
-    await page.getByRole('button', { name: '权限待确认', exact: true }).click();
+    await page.getByRole('button', { name: '工作区写入 · 自动审查', exact: true }).click();
     for (const name of ['当前会话：按需审批', '当前会话：帮我审批', '当前会话：完全访问权限']) assert.equal(await page.getByRole('button', { name, exact: true }).isDisabled(), true);
     console.log('PASS: current-thread mutation waits for matching notification, blocks send, preserves defaults and handles rejection');
   } finally { await browser.close(); }

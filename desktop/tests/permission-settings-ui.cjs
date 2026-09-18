@@ -51,7 +51,7 @@ const assert = require('node:assert/strict');
       }, known);
       await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
       await page.getByRole('button', { name: known === true ? '工作区写入 · 自动审查' : '权限待确认', exact: true }).waitFor();
-      if (known === 'failure') await page.getByText('恢复线程失败：Resume unavailable', { exact: true }).waitFor();
+      if (known === 'failure') await page.getByText('恢复会话失败：Resume unavailable', { exact: true }).waitFor();
       assert.equal(await page.getByRole('button', { name: '完全访问 · 不请求审批', exact: true }).count(), 0);
       await page.close();
     }
