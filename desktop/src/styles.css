@@ -74,3 +74,5 @@
 .markdown-content blockquote{margin:12px 0;padding:2px 16px;border-left:3px solid #999;color:inherit;opacity:.85}
 .markdown-content ul,.markdown-content ol{padding-left:26px;margin:10px 0}.markdown-content li{margin:4px 0}.markdown-content li>input[type=checkbox]{margin-right:8px}.markdown-content hr{border:0;border-top:1px solid #8886;margin:20px 0}
 dialog.approval-dialog::backdrop{background:#0005}
+
+.code-controls{display:flex;align-items:center;gap:10px;flex-shrink:0}.code-header>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}.code-block pre.code-wrap{white-space:pre-wrap;overflow-wrap:anywhere}.code-block pre:focus-visible{outline:2px solid #288eaa;outline-offset:-2px}.code-controls button[aria-pressed=true]{text-decoration:underline}
