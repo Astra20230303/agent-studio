@@ -9,6 +9,11 @@ preview and editor reload: complete text plus a nonempty revision is required;
 truncated, encoding-invalid, binary and image payloads cannot enter editing.
 Browser delayed-read and contradictory-payload acceptance and build pass.
 
+Post-commit acceptance rejects an older pending refresh after a saved update and
+verifies the saved text remains visible without the stale error. Workspace
+navigation/search/attachment and preview/editor keyboard/save regressions pass.
+No further product correction was required.
+
 ## Block duplicate writes from copy controls
 
 Shared CopyText controls now lock synchronously while a clipboard write is

@@ -26,6 +26,14 @@ const assert = require('node:assert/strict');
     await page.evaluate(() => window.__resolveRead({ ok: true, result: { text: 'Old disk read', revision: 'old' } }));
     assert.equal(await page.locator('pre').textContent(), 'Saved latest');
     await page.getByRole('button', { name: '编辑文件', exact: true }).waitFor();
+    await page.evaluate(() => { delete window.__rejectRead; });
+    await page.getByRole('button', { name: '刷新文件', exact: true }).click();
+    await page.waitForFunction(() => !!window.__rejectRead);
+    await page.evaluate(() => window.__renderPanel({ text: 'Saved after refresh', revision: 'newer' }));
+    await page.locator('pre').getByText('Saved after refresh', { exact: true }).waitFor();
+    await page.evaluate(() => window.__rejectRead(Error('late read failure')));
+    assert.equal(await page.getByRole('alert').count(), 0);
+    assert.equal(await page.locator('pre').textContent(), 'Saved after refresh');
     for (const extra of [{ truncated: true }, { encodingInvalid: true }, { binary: true }, { image: 'data:image/png;base64,AA==' }]) {
       await page.evaluate(extra => window.__renderPanel({ text: 'Not editable', revision: 'present', ...extra }), extra);
       await page.locator('pre').getByText('Not editable', { exact: true }).waitFor();
