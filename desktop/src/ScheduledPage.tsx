@@ -1,3 +1,4 @@
+import { createAutomationRepository } from './automationRepository';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode, FormEvent } from 'react';
 import { Bell, CheckCircle2, ChevronDown, Circle, Clock3, FileSearch, LoaderCircle, Pause, Pencil, Play, Plus, RefreshCw, Square, Search, Trash2, X } from 'lucide-react';
@@ -6,6 +7,7 @@ import type { ScheduledTask, TaskDraft, TaskSchedule } from './scheduledTasks';
 import { useModelCatalog } from './ModelPicker';
 import { TaskRunActions } from './TaskRunActions';
 import './scheduled.css';
+const automationRepository = createAutomationRepository(taskRequest);
 
 function TaskModal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -72,7 +74,7 @@ export function ScheduledPage({ providers, cwd }: { providers: { id: string; nam
   const alive = useRef(true); const refreshId = useRef(0);
   const reload = useCallback(async () => {
     const requestId = ++refreshId.current;
-    try { const result = await taskRequest<{ tasks: ScheduledTask[] }>('listTasks'); if (alive.current && requestId === refreshId.current) { setTasks(result.tasks); setLoadError(''); } }
+    try { const result = await automationRepository.list(); if (alive.current && requestId === refreshId.current) { setTasks(result); setLoadError(''); } }
     catch (caught) { if (alive.current && requestId === refreshId.current) setLoadError(caught instanceof Error ? caught.message : '任务加载失败。'); }
     finally { if (alive.current && requestId === refreshId.current) setLoading(false); }
   }, []);
@@ -85,7 +87,7 @@ export function ScheduledPage({ providers, cwd }: { providers: { id: string; nam
     let active = true;
     if (!selectedId) { setDetail(undefined); return; }
     if (!tasks.some(task => task.id === selectedId)) { setSelectedId(undefined); return; }
-    taskRequest<{ task: ScheduledTask }>('taskDetail', selectedId).then(result => { if (active) { setDetail(result.task); setDetailError(''); } }).catch(caught => { if (active) setDetailError(caught.message); });
+    automationRepository.detail(selectedId).then(result => { if (active) { setDetail(result); setDetailError(''); } }).catch(caught => { if (active) setDetailError(caught.message); });
     return () => { active = false; };
   }, [tasks, selectedId]);
   useEffect(() => {
