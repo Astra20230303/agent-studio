@@ -893,13 +893,13 @@ function SettingsWorkspace({ audit, serviceControl, state, update, toast, onBack
     : section === '电脑操控' ? <RemoteDesktopPanel />
     : section === '操作记录' ? <AuditLog onRetry={audit.retry} readFailed={audit.readFailed} entries={audit.entries} error={audit.error} onClear={audit.clear} />
     : section === '通知' ? <NotificationSettings />
-    : section === '配置' ? <ProviderSettings state={state} update={update} toast={toast} />
+    : section === '配置' ? <ProviderSettings audit={audit} state={state} update={update} toast={toast} />
     : section === '权限' ? <><PermissionSettings value={state.permission} onChange={value => update(next => { next.permission = value; })} /><WindowsSandboxSettings cwd={workspaceFor(state, state.threads.find(thread => thread.id === state.activeThreadId))} /></>
     : <div className="settings-card"><div className="settings-line"><div><b>主题</b><small>应用界面主题</small></div><select aria-label="主题" value={state.theme} onChange={e => update(next => { next.theme = e.target.value as DesktopState['theme']; })}><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></div><div className="settings-line"><div><b>默认模型</b><small>Agent 默认使用的模型</small></div><span>{state.model || '自动选择'}</span></div></div>
   }</>}</SettingsNavigation>;
 }
 
-function ProviderSettings({ state, update, toast }: { state: DesktopState; update: (fn: (next: DesktopState) => void) => void; toast: (text: string) => void }) {
+function ProviderSettings({ audit, state, update, toast }: { audit: ReturnType<typeof useAuditLog>; state: DesktopState; update: (fn: (next: DesktopState) => void) => void; toast: (text: string) => void }) {
   type ProviderSummary = { id: string; name: string; baseUrl: string; model: string; enabled: boolean; keyConfigured: boolean; authRequired?: boolean; manualModel?: boolean };
   const [providers, setProviders] = useState<ProviderSummary[]>([]);
   const [deleting, setDeleting] = useState<ProviderSummary>();
@@ -938,6 +938,7 @@ function ProviderSettings({ state, update, toast }: { state: DesktopState; updat
       if (!result?.ok) throw new Error(result?.error || '请在桌面应用中配置 Provider');
       if (activate) { update(next => { next.model = draft.model.trim(); }); window.dispatchEvent(new Event('provider-changed')); }
       setDraft({ ...draft, id: result.id || draft.id, apiKey: '' });
+      audit.record(activate ? '启用渠道' : '保存渠道', result.id || draft.id || 'new');
       await reload();
       toast(activate ? `已启用模型：${draft.model}` : '渠道已保存');
     } catch (error) { toast(error instanceof Error ? error.message : '保存失败'); }
@@ -950,6 +951,7 @@ function ProviderSettings({ state, update, toast }: { state: DesktopState; updat
       if (!result?.ok) throw new Error(result?.error || '切换失败');
       update(next => { next.model = result.model || ''; });
       window.dispatchEvent(new Event('provider-changed'));
+      audit.record('启用渠道', provider.id);
       await reload();
       toast(`已切换到 ${provider.name}`);
     } catch (error) { toast(error instanceof Error ? error.message : '切换失败'); }
@@ -963,6 +965,7 @@ function ProviderSettings({ state, update, toast }: { state: DesktopState; updat
       if (!result?.ok) throw new Error(result?.error || '删除渠道失败');
       if (draft.id === deleting.id) { setDraft({ id: '', name: '', baseUrl: '', apiKey: '', model: '', manualModel: false }); setModels([]); setConnectionError(''); }
       setDeleting(undefined);
+      audit.record('删除渠道', deleting.id);
       await reload();
       toast('渠道及其已保存密钥已删除');
     } catch (error) { setDeleteError(error instanceof Error ? error.message : '删除渠道失败'); }
