@@ -107,6 +107,28 @@ const { workspaceFile } = require('../electron/workspace-files.cjs');
     await editor.waitFor({ state: 'detached' });
     assert.equal(await fs.readFile(target, 'utf8'), 'external two\r\n中文\r\nmy addition');
     assert.equal(writes.length, 3);
+    await page.getByRole('button', { name: '编辑文件', exact: true }).click();
+    await fs.writeFile(target, '');
+    await inspect.click();
+    await editor.fill('');
+    page.once('dialog', dialog => dialog.accept());
+    await adopt.click();
+    const save = page.getByRole('button', { name: '保存文件', exact: true });
+    assert.equal(await save.isDisabled(), true);
+    assert.equal(await adopt.isDisabled(), true);
+    assert.equal(await editor.inputValue(), '');
+    await editor.press('Control+z');
+    assert.equal(await editor.inputValue(), 'external two\n中文\nmy addition');
+    assert.equal(await save.isEnabled(), true);
+    await editor.press('Control+y');
+    assert.equal(await editor.inputValue(), '');
+    assert.equal(await save.isDisabled(), true);
+    assert.equal(writes.length, 3);
+    assert.equal(await fs.readFile(target, 'utf8'), '');
+    // Equal draft and adopted baseline can close without a discard prompt.
+    await page.getByRole('button', { name: '取消编辑', exact: true }).click();
+    await editor.waitFor({ state: 'detached' });
+
     console.log('PASS: real disk compare/adopt preserves history, requires confirmation, rejects newer writes and saves manually merged draft');
   } finally { await browser.close(); await fs.rm(root, { recursive: true, force: true }); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
