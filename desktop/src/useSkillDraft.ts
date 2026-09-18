@@ -10,12 +10,13 @@ export function useSkillDraft(threadId?: string) {
     } catch { return {}; }
   });
   const [saveFailed, setSaveFailed] = useState(false);
+  const [saveAttempt, setSaveAttempt] = useState(0);
   useEffect(() => {
     let disposed = false;
     void persistentStorage.setItem('felix-skill-drafts-v1', JSON.stringify(drafts)).then(() => { if (!disposed) setSaveFailed(false); }, () => { if (!disposed) setSaveFailed(true); });
     return () => { disposed = true; };
-  }, [drafts]);
+  }, [drafts, saveAttempt]);
   const id = threadId || 'new';
   const set = (value: SetStateAction<SelectedSkill[]>, target = id) => setDrafts(previous => ({ ...previous, [target]: typeof value === 'function' ? value(previous[target] || []) : value }));
-  return [drafts[id] || [], set, saveFailed] as const;
+  return [drafts[id] || [], set, { saveFailed, retry: () => setSaveAttempt(attempt => attempt + 1) }] as const;
 }
