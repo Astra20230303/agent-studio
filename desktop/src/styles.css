@@ -73,3 +73,4 @@
 .settings-mode .desktop-body>.sidebar{display:none}.settings-mode .desktop-body>main{border-radius:0}.settings-mode .settings-shell{position:absolute;inset:0;z-index:10}.settings-mode .settings-content{background:#fff}
 .markdown-content blockquote{margin:12px 0;padding:2px 16px;border-left:3px solid #999;color:inherit;opacity:.85}
 .markdown-content ul,.markdown-content ol{padding-left:26px;margin:10px 0}.markdown-content li{margin:4px 0}.markdown-content li>input[type=checkbox]{margin-right:8px}.markdown-content hr{border:0;border-top:1px solid #8886;margin:20px 0}
+dialog.approval-dialog::backdrop{background:#0005}
