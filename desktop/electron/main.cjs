@@ -74,7 +74,15 @@ scheduler.on('finished', task => {
   if (quitting || !require('./task-notifications.cjs').shouldNotifyTask(task) || !Notification?.isSupported()) return;
   const run = task.runs[0];
   const body = run.status === 'completed' ? task.kind === 'reminder' ? task.prompt.slice(0, 240) : '任务已完成，可在已安排页面查看结果。' : run.error || '任务未完成，请查看运行记录。';
-  try { new Notification({ title: task.name, body }).show(); } catch { /* Task results remain available when OS notifications are disabled. */ }
+  try {
+    const notification = new Notification({ title: task.name, body });
+    notification.on('click', () => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show(); mainWindow.focus(); sendToWindow('desktop:open-task', task.id);
+    });
+    notification.show();
+  } catch { /* Task results remain available when OS notifications are disabled. */ }
 });
 
 function sendToWindow(channel, payload) {

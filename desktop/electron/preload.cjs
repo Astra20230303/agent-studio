@@ -12,6 +12,11 @@ contextBridge.exposeInMainWorld('desktop', {
   savePastedImage: bytes => ipcRenderer.invoke('desktop:pasted-image', bytes),
   customFrame: process.argv.includes('--felix-soft-frame'),
   conversationNotifications: input => ipcRenderer.invoke('desktop:conversation-notifications', input),
+  onOpenTask: listener => {
+    const handler = (_event, taskId) => listener(taskId);
+    ipcRenderer.on('desktop:open-task', handler);
+    return () => ipcRenderer.removeListener('desktop:open-task', handler);
+  },
   onOpenConversation: listener => {
     const handler = (_event, threadId) => listener(threadId);
     ipcRenderer.on('desktop:open-conversation', handler);

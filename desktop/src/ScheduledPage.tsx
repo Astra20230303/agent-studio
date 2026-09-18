@@ -66,7 +66,7 @@ function TaskEditor({ draft, providers, onClose, onSaved }: { draft: TaskDraft; 
   </form></TaskModal>;
 }
 
-export function ScheduledPage({ providers, cwd }: { providers: { id: string; name: string; enabled?: boolean }[]; cwd?: string }) {
+export function ScheduledPage({ providers, cwd, openRequest }: { openRequest?: { id: string }; providers: { id: string; name: string; enabled?: boolean }[]; cwd?: string }) {
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
   const [query, setQuery] = useState(''); const [filter, setFilter] = useState('all');
   const [draft, setDraft] = useState<TaskDraft>(); const [selectedId, setSelectedId] = useState<string>();
@@ -75,6 +75,13 @@ export function ScheduledPage({ providers, cwd }: { providers: { id: string; nam
   const mutationLock = useRef(false);
   const [loadError, setLoadError] = useState(''); const [detailError, setDetailError] = useState('');
   const [createMenu, setCreateMenu] = useState(false); const createRoot = useRef<HTMLDivElement>(null);
+  const openedRequest = useRef<{ id: string } | undefined>(undefined);
+  useEffect(() => {
+    if (!openRequest || openedRequest.current === openRequest || loading || loadError) return;
+    openedRequest.current = openRequest;
+    if (!tasks.some(task => task.id === openRequest.id)) { setError('通知对应的任务已不存在。'); return; }
+    setDetail(undefined); setDetailError(''); setSelectedId(openRequest.id);
+  }, [openRequest, tasks, loading, loadError]);
   const alive = useRef(true); const refreshId = useRef(0);
   const reload = useCallback(async () => {
     const requestId = ++refreshId.current;
