@@ -19,14 +19,15 @@ export function ConversationFind({ messages, view, searching, loadHistory, disab
   };
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  useEffect(() => { setOpen(false); setQuery(''); setSelected(undefined); }, [reset]);
+  const [scope, setScope] = useState('all');
+  useEffect(() => { setOpen(false); setQuery(''); setSelected(undefined); setScope('all'); }, [reset]);
   const [selected, setSelected] = useState<string>();
   const input = useRef<HTMLInputElement>(null);
   const composing = useRef(false);
   useEffect(() => { composing.current = false; }, [open, reset]);
   const button = useRef<HTMLButtonElement>(null);
   const term = query.trim().toLocaleLowerCase();
-  const matches = term ? messages.filter(message => [message.content, ...(message.attachments || []), ...(message.skills || []).map(skill => `${skill.name} ${skill.path}`), ...(message.plugins || []).map(plugin => `${plugin.name} ${plugin.id}`), message.tool ? JSON.stringify(message.tool) : ''].join('\n').toLocaleLowerCase().includes(term)) : [];
+  const matches = term ? messages.filter(message => (scope === 'all' || (message.tool ? scope === 'tool' : message.role === scope)) && [message.content, ...(message.attachments || []), ...(message.skills || []).map(skill => `${skill.name} ${skill.path}`), ...(message.plugins || []).map(plugin => `${plugin.name} ${plugin.id}`), message.tool ? JSON.stringify(message.tool) : ''].join('\n').toLocaleLowerCase().includes(term)) : [];
   const index = Math.max(0, matches.findIndex(message => message.id === selected));
   const id = open ? matches[index]?.id : undefined;
   searching.current = open && Boolean(term);
@@ -56,7 +57,7 @@ export function ConversationFind({ messages, view, searching, loadHistory, disab
     {open && loadHistory && <button disabled={loading || disabled} onClick={() => void load()}>{loading ? '正在加载历史…' : '加载完整历史'}</button>}
     {open && loading && <button onClick={() => historyRequest.current?.abort()}>取消加载历史</button>}
     {open && historyStatus && <span role="status">{historyStatus}</span>}
-    {open && <><input ref={input} type="search" aria-label="查找会话内容" placeholder="查找已加载消息和工具记录" value={query} onChange={event => { setQuery(event.target.value); setSelected(undefined); }} onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }} onBlur={() => { composing.current = false; }} onKeyDown={event => {
+    {open && <><select aria-label="会话查找范围" value={scope} onChange={event => { setScope(event.target.value); setSelected(undefined); }}><option value="all">全部记录</option><option value="user">我的消息</option><option value="assistant">助手回复</option><option value="tool">工具记录</option></select><input ref={input} type="search" aria-label="查找会话内容" placeholder="查找已加载消息和工具记录" value={query} onChange={event => { setQuery(event.target.value); setSelected(undefined); }} onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }} onBlur={() => { composing.current = false; }} onKeyDown={event => {
       if (composing.current || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
       if (event.key === 'Enter') { event.preventDefault(); move(event.shiftKey ? -1 : 1); }
       if (event.key === 'Escape') { event.preventDefault(); close(); }

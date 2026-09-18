@@ -9,3 +9,5 @@
 .tool-copy-actions { display:flex; flex-wrap:wrap; gap:10px; margin:8px 0; }
 .tool-copy-actions button { border:1px solid #8885; border-radius:4px; background:transparent; color:inherit; cursor:pointer; padding:4px 8px; }
 .copy-text [role="alert"] { display:block; color:#c54b45; font-size:12px; }
+
+.conversation-find select{max-width:100%;padding:5px 8px;border:1px solid #aaa;border-radius:4px;background:inherit;color:inherit}
