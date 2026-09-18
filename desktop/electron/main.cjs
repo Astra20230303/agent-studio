@@ -40,7 +40,7 @@ const codex = new CodexServer(projectRoot, { dataRoot, runtimeRoot });
 const threadProviders = new (require('./thread-provider-router.cjs').ThreadProviderRouter)(path.join(dataRoot, 'thread-providers.json'), readProvider, () => `http://127.0.0.1:${codex.adapter.address().port}`);
 const scheduler = new TaskScheduler({
   directory: path.join(dataRoot, 'scheduled-tasks'),
-  runner: createTaskRunner(projectRoot, { dataRoot, runtimeRoot, provider: readProvider }),
+  runner: createTaskRunner(projectRoot, { dataRoot, runtimeRoot, provider: id => readProvider(id) }),
 });
 let mainWindow;
 const conversationNotifications = require('./conversation-notifications.cjs').createConversationNotifications(path.join(app.getPath('userData'), 'conversation-notifications.json'), {

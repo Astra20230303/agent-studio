@@ -11,7 +11,7 @@ function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_
     const cwd = task.cwd || projectRoot;
     if (!path.isAbsolute(cwd) || !fs.existsSync(cwd) || !fs.statSync(cwd).isDirectory()) throw new Error('任务工作目录不存在或无效，请编辑任务选择有效目录。');
     // Capture one provider for the entire run, including all tool round trips.
-    const selected = provider ? provider() : { apiKey: apiKey(), baseUrl: typeof upstream === 'function' ? upstream() : upstream };
+    const selected = provider ? provider(task.providerId) : { apiKey: apiKey(), baseUrl: typeof upstream === 'function' ? upstream() : upstream };
     const runKey = selected.apiKey;
     const runUpstream = selected.baseUrl;
     if (!runKey?.trim() && !require('./provider-url.cjs').isLocalProvider(runUpstream)) throw new Error('未配置 MINIMAX_API_KEY，请带密钥重新启动项目副本。');
