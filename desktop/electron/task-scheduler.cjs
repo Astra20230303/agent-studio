@@ -1,3 +1,4 @@
+const { validateTaskRuns } = require('./task-run-validation.cjs');
 const { EventEmitter } = require('node:events');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -66,8 +67,11 @@ class TaskScheduler extends EventEmitter {
       if (fs.existsSync(this.file)) {
         const data = JSON.parse(fs.readFileSync(this.file, 'utf8'));
         if (data.version !== 1 || !Array.isArray(data.tasks)) throw new Error('任务文件格式无效。');
+        const taskIds = new Set();
         for (const task of data.tasks) {
-          if (typeof task.id !== 'string' || !['active', 'paused', 'completed'].includes(task.status) || !Array.isArray(task.runs)) throw new Error('任务记录无效。');
+          if (!task || typeof task.id !== 'string' || !task.id.trim() || taskIds.has(task.id) || !['active', 'paused', 'completed'].includes(task.status) || !Array.isArray(task.runs)) throw new Error('任务记录无效。');
+          taskIds.add(task.id);
+          validateTaskRuns(task.runs);
           validateTask(task, task.schedule?.kind === 'once' ? Date.parse(task.schedule.at) - 1 : now());
           if (task.nextRunAt && !Number.isFinite(Date.parse(task.nextRunAt))) throw new Error('下次运行时间无效。');
           for (const run of task.runs) if (run.status === 'running') {
