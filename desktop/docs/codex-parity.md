@@ -11,6 +11,11 @@ Seven reader/file tests cover short reads, multibyte boundaries, invalid/binary
 content, size changes and existing edit/path protections. Build passes. Same-size
 concurrent rewrites are not a snapshot guarantee; save still checks content hash.
 
+Post-commit real-file browser acceptance confirms a split Chinese character is
+omitted without a replacement glyph, byte-limit status is visible and editing is
+unavailable. Invalid UTF-8 shows its specific warning; repairing and refreshing
+restores editing and clears the warning. No product correction was needed.
+
 ## Preview draft attachments before sending
 
 Draft attachment names now use the same preview button and path resolution as
