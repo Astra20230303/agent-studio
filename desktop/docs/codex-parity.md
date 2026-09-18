@@ -2695,3 +2695,9 @@ user-message-copy-ui.cjs 覆盖原文保真、键盘操作、失败重试、空�
 实现 2ed779c：删除确认使用原生模态框，默认聚焦取消；远端删除完成前锁定按钮及 Escape，同步锁阻止重复请求。失败保留对话框、错误和原会话供重试；仅成功后移除本地会话并记录一次删除操作。离线远端删除仍不请求服务，用户可取消回到会话。
 
 验收：delete-thread-ui.cjs 使用延迟模拟协议响应验证重复点击、等待期间 Escape、失败不删除/不记录审计、原地重试与成功关闭。提交后增加空闲 Escape 取消、焦点回到触发按钮、Ctrl+F 模态隔离；均通过。offline-thread-mutations-ui、app-shortcuts-ui、完整 sidebar-ui 与生产构建通过。此轮验证使用模拟删除接口，不代表服务端实际永久删除和全部网络故障验收。
+
+## 统一归档并发与当前会话保护
+
+实现 7acaafc：工具栏与侧栏共用 archiveConversation 和按本地会话 ID 的同步请求锁。重复点击只发一次归档请求，失败解除锁并允许重试。成功只清除被归档会话的选中状态和对应远端标识；等待期间切换到另一会话时，其选择、正文与草稿保留。工具栏不再继续显示已归档的当前会话。
+
+验收：archive-concurrency-ui.cjs 覆盖同 tick 重复点击、跨入口重复请求、等待期间切换、失败重试及一次成功审计；补充两条会话归档后正文与草稿持久化断言通过。offline-thread-mutations-ui、archived-threads-ui 和生产构建通过。thread-archive-live.test.cjs 使用隔离 profile、真实 app-server 与本地模型替身验证归档、分页和恢复通过；不代表真实云模型或全部网络故障矩阵。

@@ -36,6 +36,10 @@ const { chromium } = require('playwright');
     await toolbar.waitFor({ state: 'detached' });
     await page.waitForFunction(() => !JSON.parse(localStorage.getItem('codex-desktop-state-v1')).activeThreadId);
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('felix-audit-log-v1')).filter(entry => entry.action === '归档会话').length), 2);
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')));
+    assert.ok(saved.threads.every(thread => thread.archived && thread.status === 'completed'));
+    assert.deepEqual(saved.threads.map(thread => thread.messages[0].content), ['History a', 'History b']);
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('felix-thread-drafts-v1')).b), 'Draft in b');
     console.log('PASS: shared archive lock prevents duplicates, preserves switched conversation and retries failure');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
