@@ -1,3 +1,4 @@
+import { validateRestorableHistory } from './historyValidation';
 import { unarchiveThread } from './codexClient';
 import { createThreadMutations } from './threadMutations';
 import { approvalFileChanges } from './approvalFileChanges';
@@ -520,6 +521,8 @@ function App({ initialState }: { initialState: DesktopState }) {
         setRestoreErrors(previous => { const next = { ...previous }; delete next[threadId]; return next; });
         if (loaded.providerId) update(next => { const thread = next.threads.find(item => item.remoteId === threadId); if (thread) thread.providerId = loaded.providerId; });
         const turns = loaded?.thread?.turns || [];
+        const items = turns.flatMap((turn: any) => (turn.items || []).map((item: any) => ({ item, turnId: turn.id })));
+        validateRestorableHistory(items);
         const running = turns.find((turn: any) => turn.status === 'inProgress');
         // Only use a snapshot that predates no live turn events.
         if ((runtime.read(threadId)?.revision || 0) !== revision) return;
@@ -531,7 +534,6 @@ function App({ initialState }: { initialState: DesktopState }) {
           if (!thread.model && typeof loaded.model === 'string' && loaded.model) thread.model = loaded.model;
           if (!thread.reasoningEffort && ['low', 'medium', 'high'].includes(loaded.reasoningEffort)) thread.reasoningEffort = loaded.reasoningEffort;
           if (loaded.thread?.cwd) thread.cwd = loaded.thread.cwd;
-          const items = turns.flatMap((turn: any) => (turn.items || []).map((item: any) => ({ item, turnId: turn.id })));
           if (items.length) thread.messages = restoreMessages(items, thread.messages);
           thread.status = running ? 'running' : 'completed';
           ensureThreadTitle(thread);
@@ -569,6 +571,7 @@ function App({ initialState }: { initialState: DesktopState }) {
     setPendingThreads(previous => [...previous, thread.id]);
     try {
       const items = await listAllThreadItems(thread.remoteId);
+      validateRestorableHistory(items);
       if (activeThreadRef.current !== thread.id) throw new Error('已切换会话，未应用旧请求');
       if ((runtime.read(thread.remoteId)?.revision || 0) !== revision) throw new Error('会话已有新活动，请重新加载历史');
       update(next => { const target = next.threads.find(item => item.id === thread.id); if (target) target.messages = restoreMessages(items, target.messages); });
