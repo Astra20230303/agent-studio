@@ -10,6 +10,11 @@ tool records. Browser acceptance covers guards, plugin matches, cyclic navigatio
 streaming scroll retention and conversation reset; app shortcut regression and
 production build pass.
 
+Post-commit acceptance opens the application's rename dialog and confirms Ctrl+F
+keeps focus inside it without opening background search. Closing the dialog
+restores normal search. Paginated full-history loading and failed-reload transcript
+retention regression pass; no additional product correction was needed.
+
 ## Load scheduled tasks on demand
 
 The scheduled page and its stylesheet now load only when opened. A local Suspense
