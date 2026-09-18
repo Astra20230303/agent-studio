@@ -170,6 +170,7 @@ function App({ initialState }: { initialState: DesktopState }) {
   const [connectionError, setConnectionError] = useState('');
   const [remoteThreadId, setRemoteThreadId] = useState<string>();
   const runtime = useTurnRuntime();
+  const transcriptVersions = useRef(new Map<string, number>());
   const queue = useTurnQueue();
   const [pendingThreads, setPendingThreads] = useState<string[]>([]);
   const [pendingImages, setPendingImages] = useState<Record<string, number>>({});
@@ -262,7 +263,14 @@ function App({ initialState }: { initialState: DesktopState }) {
     const cleanup = subscribeCodex({
       notification: message => {
         const params = message.params || {};
-        if (threadEvents(message)) return;
+        if (threadEvents(message)) {
+          // Invalidate pending history even for content-only events that do not
+          // advance the turn lifecycle. Conservatively include unknown payloads.
+          if (typeof params.threadId === 'string' && params.threadId.trim()) {
+            transcriptVersions.current.set(params.threadId, (transcriptVersions.current.get(params.threadId) || 0) + 1);
+          }
+          return;
+        }
         if (message.method === 'warning' && typeof params.message === 'string' && params.message.trim()) {
           if (typeof params.threadId === 'string' && params.threadId) {
             const warningId = crypto.randomUUID();
@@ -486,6 +494,7 @@ function App({ initialState }: { initialState: DesktopState }) {
     if (!threadId || codexStatus !== 'connected' || pendingThreads.includes(active.id)) return;
     let disposed = false;
     const revision = runtime.read(threadId)?.revision || 0;
+    const transcriptVersion = transcriptVersions.current.get(threadId) || 0;
     setRestoringThread(threadId);
     update(next => { const thread = next.threads.find(item => item.remoteId === threadId); if (thread) thread.effectivePermissions = undefined; });
     void (async () => {
@@ -507,7 +516,7 @@ function App({ initialState }: { initialState: DesktopState }) {
             if (loaded.reasoningEffort) thread.reasoningEffort = loaded.reasoningEffort;
           }
           if (loaded.cwd) thread.cwd = loaded.cwd;
-          if (items.length) thread.messages = restoreMessages(items, thread.messages);
+          if (items.length && (transcriptVersions.current.get(threadId) || 0) === transcriptVersion) thread.messages = restoreMessages(items, thread.messages);
           thread.status = running ? 'running' : 'completed';
           ensureThreadTitle(thread);
         });
