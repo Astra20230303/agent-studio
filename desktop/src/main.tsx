@@ -1,3 +1,4 @@
+import { createThreadMutations } from './threadMutations';
 import { approvalFileChanges } from './approvalFileChanges';
 import { BackgroundTerminals } from './BackgroundTerminals';
 import { useTurnInterrupt } from './useTurnInterrupt';
@@ -96,6 +97,7 @@ function projectLabel(pathOrName?: string) {
 
 function App({ initialState }: { initialState: DesktopState }) {
   const { state, setState, update, saveFailed: stateSaveFailed, retrySave } = useDesktopState(() => ({ ...initialState, model: modelId(initialState.model) }));
+  const threadMutations = useMemo(() => createThreadMutations({ rename: setThreadName, archive: archiveThread, remove: deleteThread }, update), [update]);
   const audit = useAuditLog();
   const effectiveTheme = useTheme(state.theme);
   const [input, setInput, draftStorage] = useThreadDraft(state.activeThreadId);
@@ -577,9 +579,8 @@ function App({ initialState }: { initialState: DesktopState }) {
     if (!thread) throw Error('会话已不存在，请关闭后重试。');
     if (thread.remoteId) {
       if (codexStatus !== 'connected') throw Error('请重新连接服务后重试。');
-      await setThreadName(thread.remoteId, name);
     }
-    update(next => { const target = next.threads.find(item => item.id === thread.id); if (target) { target.title = name; target.titleSource = 'manual'; } });
+    await threadMutations.rename(thread, name);
     audit.record('重命名会话');
   };
   const archiveConversation = async (threadId: string) => {
@@ -592,12 +593,7 @@ function App({ initialState }: { initialState: DesktopState }) {
     setPendingThreads(previous => [...previous, threadId]);
     try {
       if (queue.read().some(item => item.localId === threadId) && !queue.pauseThread(threadId)) throw Error('排队消息暂停未能保存，请重试保存队列后再归档。');
-      if (thread.remoteId) await archiveThread(thread.remoteId);
-      update(next => {
-        const item = next.threads.find(value => value.id === threadId);
-        if (item) { item.archived = true; item.status = 'completed'; }
-        if (next.activeThreadId === threadId) next.activeThreadId = undefined;
-      });
+      await threadMutations.archive(thread);
       audit.record('归档会话', thread.id);
       setRemoteThreadId(value => value === thread.remoteId ? undefined : value);
     } catch (error) { toast(`归档失败：${error instanceof Error ? error.message : String(error)}`); }
@@ -617,8 +613,7 @@ function App({ initialState }: { initialState: DesktopState }) {
     setPendingThreads(previous => [...previous, threadId]);
     try {
       if (queue.read().some(item => item.localId === threadId) && !queue.pauseThread(threadId)) throw Error('排队消息暂停未能保存，请重试保存队列后再删除。');
-      if (thread.remoteId) await deleteThread(thread.remoteId);
-      update(next => { next.threads = next.threads.filter(value => value.id !== threadId); if (next.activeThreadId === threadId) next.activeThreadId = undefined; });
+      await threadMutations.remove(thread);
       queue.change(items => items.filter(item => item.localId !== threadId));
       audit.record('删除会话');
       setRemoteThreadId(value => value === thread.remoteId ? undefined : value);
