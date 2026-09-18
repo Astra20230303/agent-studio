@@ -1,6 +1,21 @@
 export type RemoteProject = { id: string; name: string; roots: string[]; metadata: Record<string, string>; position: number; createdAt: number; updatedAt: number; recencyAt?: number | null };
 export type RemoteProjectPage = { data: RemoteProject[]; nextCursor?: string };
 const identity = (value: unknown): value is string => typeof value === 'string' && !!value.trim() && value === value.trim() && !/[\0\r\n]/.test(value);
+function projectRoots(roots: string[]) { if (!Array.isArray(roots) || roots.some(root => typeof root !== 'string' || !root.trim() || /[\0\r\n]/.test(root))) throw new Error('远端项目根目录无效'); return roots.map(path => ({ path: path.trim() })); }
+function projectMetadata(metadata: Record<string, string>) { if (!metadata || Array.isArray(metadata) || Object.entries(metadata).some(([key, value]) => !/^\S+$/.test(key) || typeof value !== 'string' || /[\0\r\n]/.test(value))) throw new Error('远端项目 metadata 无效'); return { ...metadata }; }
+export function createRemoteProjectParams(name: string, roots: string[], metadata: Record<string, string>, idempotencyKey: string) {
+  if (!name.trim() || /[\0\r\n]/.test(name) || !/^\S+$/.test(idempotencyKey)) throw new Error('远端项目创建参数无效');
+  return { name: name.trim(), roots: projectRoots(roots), metadata: projectMetadata(metadata), idempotencyKey };
+}
+export function updateRemoteProjectParams(projectId: string, name: string, roots: string[], metadata: Record<string, string>) {
+  if (!/^\S+$/.test(projectId) || !name.trim() || /[\0\r\n]/.test(name)) throw new Error('远端项目更新参数无效');
+  return { projectId, name: name.trim(), roots: projectRoots(roots), metadata: projectMetadata(metadata) };
+}
+export function deleteRemoteProjectParams(projectId: string) { if (!/^\S+$/.test(projectId)) throw new Error('远端项目身份无效'); return { projectId }; }
+export function readRemoteProject(value: unknown): RemoteProject {
+  const page = readRemoteProjectPage({ data: [value] });
+  return page.data[0];
+}
 export function readRemoteProjectPage(value: unknown): RemoteProjectPage {
   const input = value as any;
   if (!input || !Array.isArray(input.data) || input.nextCursor != null && !identity(input.nextCursor)) throw new Error('远端项目列表格式无效');
