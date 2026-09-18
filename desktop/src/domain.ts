@@ -38,6 +38,7 @@ export interface ToolActivity {
 
 export interface Thread {
   sectionId?: string;
+  unread?: boolean;
   providerId?: string;
   model?: string;
   reasoningEffort?: ReasoningEffort;

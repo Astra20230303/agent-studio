@@ -8,11 +8,12 @@ import type { TurnEvent, TurnRuntime } from './turnRuntime';
 
 const methods = new Set(['turn/plan/updated', 'turn/diff/updated', 'turn/started', 'turn/completed', 'error', 'item/agentMessage/delta', 'item/started', 'item/completed', 'item/autoApprovalReview/started', 'item/autoApprovalReview/completed', 'item/plan/delta', 'item/commandExecution/outputDelta', 'item/commandExecution/terminalInteraction', 'item/fileChange/outputDelta', 'item/fileChange/patchUpdated', 'item/mcpToolCall/progress', 'item/reasoning/textDelta', 'item/reasoning/summaryTextDelta', 'item/reasoning/summaryPartAdded']);
 
-export function createThreadEvents({ update, runtime, queue, audit }: {
+export function createThreadEvents({ update, runtime, queue, audit, activeRemoteId }: {
   update: (mutate: (state: DesktopState) => void) => void;
   runtime: { read: (threadId: string) => TurnRuntime | undefined; apply: (threadId: string, event: TurnEvent) => void };
   queue: { finish: (threadId: string, turnId: string, success: boolean) => void };
   audit: { record: (action: string, detail?: string) => void };
+  activeRemoteId?: () => string | undefined;
 }) {
   // One event boundary coordinates transcript, runtime, queue and audit effects.
   return (message: { method?: string; params?: any; eventId?: string }): boolean => {
@@ -110,6 +111,7 @@ export function createThreadEvents({ update, runtime, queue, audit }: {
       update(next => {
         const thread = next.threads.find(item => item.remoteId === params.threadId);
         if (!thread) return;
+        if (thread.remoteId !== activeRemoteId?.()) thread.unread = true;
         finishTools(thread, params.turn?.id, params.turn?.status === 'failed');
         if (params.turn?.error || params.turn?.status === 'failed') {
           recordTurnFailure(thread, params.turn?.id, params.turn?.error);

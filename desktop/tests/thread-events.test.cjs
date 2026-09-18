@@ -5,7 +5,7 @@ const { reduceTurn } = require('../src/turnRuntime.ts');
 function fixture() {
   const state = { threads: ['a', 'b'].map(id => ({ id, remoteId: id, status: 'completed', messages: [] })) };
   const records = new Map(); const finishes = []; const audits = [];
-  const handle = createThreadEvents({ update: fn => fn(state), runtime: { read: id => records.get(id), apply: (id, event) => records.set(id, reduceTurn(records.get(id), event)) }, queue: { finish: (...args) => finishes.push(args) }, audit: { record: (...args) => audits.push(args) } });
+  const handle = createThreadEvents({ update: fn => fn(state), runtime: { read: id => records.get(id), apply: (id, event) => records.set(id, reduceTurn(records.get(id), event)) }, queue: { finish: (...args) => finishes.push(args) }, audit: { record: (...args) => audits.push(args) }, activeRemoteId: () => 'a' });
   return { state, records, finishes, audits, handle, emit: (method, params, eventId) => handle({ method, params, eventId }) };
 }
 test('complete event chain coordinates transcript, runtime, queue and audit across concurrent threads', () => {
@@ -72,6 +72,13 @@ test('transport event identity is forwarded to assistant delta deduplication', (
   f.emit('item/agentMessage/delta', params, 'transport-1');
   assert.equal(f.state.threads[0].messages[0].content, 'same');
   assert.deepEqual(f.state.threads[0].messages[0].streamDeltaIds, ['transport-1']);
+});
+test('completion marks background threads unread while leaving the active thread clear', () => {
+  const f = fixture();
+  f.emit('turn/started', { threadId: 'b', turn: { id: 'turn-b' } });
+  f.emit('turn/completed', { threadId: 'b', turn: { id: 'turn-b', status: 'completed' } });
+  assert.equal(f.state.threads[0].unread, undefined);
+  assert.equal(f.state.threads[1].unread, true);
 });
 test('plan deltas accumulate for one item, isolate item switches, and clear on completion', () => {
   const f = fixture();

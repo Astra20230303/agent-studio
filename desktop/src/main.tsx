@@ -213,6 +213,8 @@ function App({ initialState }: { initialState: DesktopState }) {
   const forkingRef = useRef(false);
   activeThreadRef.current = state.activeThreadId;
   const active = state.threads.find(thread => thread.id === state.activeThreadId);
+  const activeRemoteRef = useRef<string | undefined>(undefined);
+  activeRemoteRef.current = active?.remoteId;
   const activeModel = active?.model || state.model;
   const activeEffort = active?.reasoningEffort || state.reasoningEffort;
   const effortUnsupported = unsupportedEffort(activeEffort, catalog.efforts[activeModel]);
@@ -282,7 +284,7 @@ function App({ initialState }: { initialState: DesktopState }) {
       connected: () => { if (window.desktop?.platform === 'win32') void checkWindowsSandbox(); },
     });
     reconnectRef.current = recovery.start; stopRecoveryRef.current = recovery.stop;
-    const threadEvents = createThreadEvents({ update, runtime, queue, audit });
+    const threadEvents = createThreadEvents({ update, runtime, queue, audit, activeRemoteId: () => activeRemoteRef.current });
     const cleanup = subscribeCodex({
       notification: message => {
         const params = message.params || {};
@@ -316,7 +318,7 @@ function App({ initialState }: { initialState: DesktopState }) {
         }
         if (message.method === 'thread/status/changed') {
           const status = readThreadStatus(params);
-          if (status) update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) thread.status = status.status; });
+          if (status) update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) { thread.status = status.status; if (thread.remoteId !== activeRemoteRef.current && status.status === 'needs_input') thread.unread = true; } });
         }
         if (message.method === 'thread/name/updated') {
           const name = readThreadName(params);
@@ -528,7 +530,7 @@ function App({ initialState }: { initialState: DesktopState }) {
     search: () => { setSidebarVisible(true); setShowSearch(true); requestAnimationFrame(() => document.getElementById('sidebar-search')?.focus()); },
     composer: () => { closeNarrowSidebar(); setPage('chat'); requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('textarea[aria-label="消息"]')?.focus()); },
   });
-  const selectThread = async (thread: DesktopState['threads'][number]) => { closeNarrowSidebar(); update(next => { next.activeThreadId = thread.id; }); audit.record('切换会话', thread.id); setPage('chat'); };
+  const selectThread = async (thread: DesktopState['threads'][number]) => { closeNarrowSidebar(); update(next => { next.activeThreadId = thread.id; const selected = next.threads.find(item => item.id === thread.id); if (selected) delete selected.unread; }); audit.record('切换会话', thread.id); setPage('chat'); };
   useEffect(() => {
     const threadId = active?.remoteId;
     if (!threadId || codexStatus !== 'connected' || pendingThreads.includes(active.id)) return;
