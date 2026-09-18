@@ -15,7 +15,7 @@ const { chromium } = require('playwright'); const assert = require('node:assert/
     root.render(React.createElement(FileEditor, { ...session, onClose: () => root.render(null), onSaved: () => {} }));
    } }));
   });
-  for (const [line, revision, expected, selected] of [[2,'disk',2,'中文🙂'],[2,'old',null,''],[99,'disk',99,'']]) {
+  for (const [line, revision, expected, selected] of [[2,'disk',2,'中文🙂'],[2,'old',null,''],[99,'disk',null,'']]) {
    await page.evaluate(args => window.__preview(...args), [line, revision]);
    await page.getByRole('button', { name: '编辑此文件', exact: true }).click();
    const editor = page.getByRole('textbox', { name: '文件内容', exact: true }); await editor.waitFor();
@@ -25,6 +25,23 @@ const { chromium } = require('playwright'); const assert = require('node:assert/
    assert.equal(await page.getByRole('button', { name: '保存文件', exact: true }).isDisabled(), true);
    await editor.press('Escape'); await editor.waitFor({ state: 'detached' });
   }
-  console.log('PASS: source line survives preview editing, CRLF selection is exact, stale and out-of-range positions do not mis-select');
+  for (const action of ['jump', 'find']) {
+   await page.evaluate(() => window.__preview(1, 'old'));
+   const preview = page.getByRole('dialog', { name: '消息文件预览' });
+   await preview.getByLabel('文件预览文本', { exact: true }).waitFor();
+   if (action === 'jump') {
+    await preview.getByRole('textbox', { name: '预览行号', exact: true }).fill('2');
+    await preview.getByRole('button', { name: '跳转到行', exact: true }).click();
+   } else {
+    await preview.getByRole('button', { name: '查找预览内容', exact: true }).click();
+    await preview.getByRole('textbox', { name: '查找预览内容', exact: true }).fill('中文');
+   }
+   await preview.getByRole('button', { name: '编辑此文件', exact: true }).click();
+   const editor = page.getByRole('textbox', { name: '文件内容', exact: true }); await editor.waitFor();
+   assert.equal(await page.evaluate(() => window.__editLine), 2);
+   assert.equal(await editor.evaluate(node => node.value.slice(node.selectionStart, node.selectionEnd)), '中文🙂');
+   await editor.press('Escape'); await editor.waitFor({ state: 'detached' });
+  }
+  console.log('PASS: source and current preview positions enter editor, including fresh manual/search locations after stale source');
  } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
