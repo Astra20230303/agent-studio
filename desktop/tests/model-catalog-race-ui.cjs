@@ -32,6 +32,16 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: '刷新模型列表', exact: true }).click();
     await page.evaluate(() => window.__requests.at(-1).resolve({ ok: true, models: ['recovered-model'] }));
     await page.getByRole('option', { name: 'recovered-model', exact: true }).waitFor();
+    await page.evaluate(() => {
+      window.dispatchEvent(new Event('provider-changed'));
+      window.__malformedStale = window.__requests.at(-1);
+      window.dispatchEvent(new Event('provider-changed'));
+      window.__requests.at(-1).resolve({ ok: true, models: ['final-model'] });
+    });
+    await page.getByRole('option', { name: 'final-model', exact: true }).waitFor();
+    await page.evaluate(() => window.__malformedStale.resolve({ ok: true, models: [null] }));
+    await page.getByRole('option', { name: 'final-model', exact: true }).waitFor();
+    assert.equal(await page.getByText('模型列表格式无效，请刷新重试。', { exact: true }).count(), 0);
     console.log('PASS: provider change starts fresh request and stale success cannot replace current catalog');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
