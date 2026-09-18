@@ -1,3 +1,4 @@
+import { approvalFileChanges } from './approvalFileChanges';
 import { BackgroundTerminals } from './BackgroundTerminals';
 import { useTurnInterrupt } from './useTurnInterrupt';
 import { RelatedThreads } from './RelatedThreads';
@@ -825,7 +826,7 @@ function App({ initialState }: { initialState: DesktopState }) {
       {terminalStarted && <TerminalPanel cwd={workspaceFor(state, active)} open={terminalOpen} onClose={() => setTerminalOpen(false)} />}
       {gitOpen && <GitPanel protectedPaths={state.threads.filter(thread => thread.status === 'running' || pendingThreads.includes(thread.id) || thread.remoteId && (restoringThread === thread.remoteId || runtime.threads[thread.remoteId]?.turnId) || queue.items.some(item => item.localId === thread.id)).map(thread => workspaceFor(state, thread)).filter((path): path is string => Boolean(path))} onReview={text => { setInput(current => current ? `${current}\n\n${text}` : text); setPage('chat'); setGitOpen(false); }} key={workspaceFor(state, active) || 'none'} root={workspaceFor(state, active)} onClose={() => setGitOpen(false)} onWorktree={project => { changeProject(project); setGitOpen(false); }} />}
       {filesOpen && <WorkspaceFiles onPreview={setArtifactTarget} onEdit={setFileEdit} previewUpdate={filePreviewUpdate} key={workspaceFor(state, active) || 'none'} root={workspaceFor(state, active)} onClose={() => setFilesOpen(false)} onAttach={path => setAttachments(current => [...new Set([...current, path])])} />}
-    </div>{notice && <div className="toast">{notice}</div>}{approval && <ApprovalDialog request={approval} onDecision={respondApproval} />}{deleteCandidate && <DeleteThread title={state.threads.find(item => item.id === deleteCandidate)?.title || '会话'} onCancel={() => setDeleteCandidate(undefined)} onConfirm={() => performDelete(deleteCandidate)} />}
+    </div>{notice && <div className="toast">{notice}</div>}{approval && <ApprovalDialog fileChanges={approvalFileChanges(approval, state.threads)} request={approval} onDecision={respondApproval} />}{deleteCandidate && <DeleteThread title={state.threads.find(item => item.id === deleteCandidate)?.title || '会话'} onCancel={() => setDeleteCandidate(undefined)} onConfirm={() => performDelete(deleteCandidate)} />}
     {artifactTarget && <ArtifactPreview target={artifactTarget} onClose={() => setArtifactTarget(undefined)} onEdit={session => { setArtifactTarget(undefined); setFileEdit(session); }} />}
     {fileEdit && <FileEditor root={fileEdit.root} path={fileEdit.path} initial={fileEdit.initial} onClose={() => setFileEdit(undefined)} onSaved={preview => setFilePreviewUpdate({ root: fileEdit.root, path: fileEdit.path, preview })} />}
     {archivesOpen && <ArchivedThreads threads={state.threads} connected={codexStatus === 'connected'} onClose={() => setArchivesOpen(false)} onRestore={thread => { audit.record('恢复归档会话', thread.id); update(next => { const existing = next.threads.find(item => item.id === thread.id || !!thread.remoteId && item.remoteId === thread.remoteId); if (existing) existing.archived = false; else next.threads.push({ ...thread, archived: false }); }); }} />}
@@ -835,11 +836,11 @@ function App({ initialState }: { initialState: DesktopState }) {
 function modelId(model: string) { return model.split(' · ')[0]; }
 
 
-function ApprovalDialog({ request, onDecision }: { request: any; onDecision: (decision: string, answers?: UserAnswers, content?: Record<string, unknown>) => Promise<void> }) {
+function ApprovalDialog({ request, onDecision, fileChanges }: { fileChanges?: import('./domain').ToolActivity['changes']; request: any; onDecision: (decision: string, answers?: UserAnswers, content?: Record<string, unknown>) => Promise<void> }) {
   if (request.method === 'mcpServer/elicitation/request' && request.params?.mode === 'url') return <McpUrl key={request.id} request={request} onDecision={onDecision} />;
   if (request.method === 'mcpServer/elicitation/request') return <McpForm key={request.id} request={request} onSubmit={(action, content) => onDecision(action, undefined, content)} />;
   if (request.method === 'item/tool/requestUserInput') return <UserInputDialog key={request.id} request={request} onDecision={onDecision} />;
-  if (['item/commandExecution/requestApproval', 'item/fileChange/requestApproval', 'item/permissions/requestApproval'].includes(request.method)) return <ApprovalPrompt key={request.id} request={request} onDecision={onDecision} />;
+  if (['item/commandExecution/requestApproval', 'item/fileChange/requestApproval', 'item/permissions/requestApproval'].includes(request.method)) return <ApprovalPrompt fileChanges={fileChanges} key={request.id} request={request} onDecision={onDecision} />;
   const params = request.params || {};
   const isFile = request.method === 'item/fileChange/requestApproval';
   const isInput = request.method === 'item/tool/requestUserInput';
