@@ -28,6 +28,9 @@ const { chromium } = require('playwright');
   const region = page.getByRole('region', { name: '操作记录', exact: true });
   await region.getByText('置顶会话', { exact: true }).waitFor();
   await region.getByText('取消置顶会话', { exact: true }).waitFor();
+  await region.getByRole('searchbox', { name: '搜索操作记录' }).fill('取消置顶');
+  assert.equal(await region.getByText('置顶会话', { exact: true }).count(), 0);
+  assert.equal(await region.getByText('取消置顶会话', { exact: true }).count(), 1);
   console.log('PASS: sidebar and palette pin changes persist one privacy-safe audit event each and survive reload');
  } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
