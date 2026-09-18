@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { readRemoteProjectPage, createRemoteProjectParams, updateRemoteProjectParams, deleteRemoteProjectParams, moveRemoteProjectParams, readRemoteProjectChange } = require('../src/remoteProjects.ts');
 const { updateThreadProjectParams, updateThreadGitParams } = require('../src/threadMetadata.ts');
+const { readThreadTimelinePage } = require('../src/threadTimeline.ts');
 
 test('remote project pages validate roots, metadata, timestamps and cursors', () => {
   const wireProject = { id: 'p', name: 'Felix', roots: [{ path: 'D:/repo' }], metadata: { team: 'core', empty: '' }, position: 0, createdAt: 1, updatedAt: 2, recencyAt: 3 };
@@ -38,4 +39,10 @@ test('thread Git metadata updates preserve explicit null clears', () => {
   assert.deepEqual(updateThreadGitParams('thread', { sha: null, branch: null }), { threadId: 'thread', gitInfo: { sha: null, branch: null } });
   assert.throws(() => updateThreadGitParams('thread', { branch: 'bad\nbranch' }), /Git/);
   assert.throws(() => updateThreadGitParams('', { sha: 'abc' }), /Git/);
+});
+
+test('thread timeline pages validate positions, identities and timestamps', () => {
+  const page = readThreadTimelinePage({ data: [{ type: 'turnStarted', position: 0, turnId: 't', startedAt: 10 }, { type: 'item', position: 1, turnId: 't', item: { id: 'i', type: 'agentMessage' } }, { type: 'turnCompleted', position: 2, turnId: 't', status: 'completed', completedAt: 12, durationMs: 2 }], nextCursor: null });
+  assert.equal(page.data[1].itemType, 'agentMessage');
+  for (const value of [null, { data: [{ type: 'realtime', position: 0 }, { type: 'realtime', position: 0 }] }, { data: [{ type: 'item', position: 0, turnId: 't', item: {} }] }, { data: [{ type: 'turnStarted', position: 0, turnId: 't', startedAt: 1.2 }] }]) assert.throws(() => readThreadTimelinePage(value), /会话时间线/);
 });

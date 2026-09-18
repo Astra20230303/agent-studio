@@ -17,6 +17,7 @@ import { readThreadSearchOccurrences, type ThreadSearchOccurrence } from './thre
 import { createRemoteProjectParams, deleteRemoteProjectParams, moveRemoteProjectParams, readRemoteProject, readRemoteProjectPage, updateRemoteProjectParams, type RemoteProject } from './remoteProjects';
 import { updateThreadGitParams, updateThreadProjectParams } from './threadMetadata';
 import { readRemoteControlClients as readRemoteControlClientPage, readRemoteControlPairing, readRemoteControlStatus, remoteControlId, type RemoteControlClient, type RemoteControlPairing, type RemoteControlStatus } from './remoteControl';
+import { readThreadTimelinePage, type TimelineEntry } from './threadTimeline';
 export type RpcMessage = { id?: number | string; method?: string; params?: any; result?: any; error?: any };
 type Bridge = { connect: () => Promise<any>; request: (method: string, params?: unknown) => Promise<any>; notify: (method: string, params?: unknown) => Promise<any>; respond: (id: number | string, result?: unknown, error?: unknown) => Promise<any>; onNotification: (listener: (message: RpcMessage) => void) => () => void; onServerRequest: (listener: (message: RpcMessage) => void) => () => void; onError: (listener: (message: any) => void) => () => void; onStderr: (listener: (message: any) => void) => () => void; onClosed: (listener: (message: any) => void) => () => void };
 const bridge = () => window.codex as Bridge;
@@ -137,6 +138,15 @@ export async function deleteRemoteProject(id: string) { await unwrap<any>(bridge
 export async function moveRemoteProject(id: string, beforeId?: string) { await unwrap<any>(bridge().request('project/move', moveRemoteProjectParams(id, beforeId))); }
 export async function updateThreadProject(threadId: string, projectId: string | null) { return unwrap<any>(bridge().request('thread/metadata/update', updateThreadProjectParams(threadId, projectId))); }
 export async function updateThreadGitInfo(threadId: string, gitInfo: { sha?: string | null; branch?: string | null; originUrl?: string | null }) { return unwrap<any>(bridge().request('thread/metadata/update', updateThreadGitParams(threadId, gitInfo))); }
+export async function listThreadTimeline(threadId: string): Promise<TimelineEntry[]> {
+  if (!/^\S+$/.test(threadId)) throw new Error('会话时间线身份无效');
+  const data: TimelineEntry[] = []; let cursor: string | undefined; const seen = new Set<string>();
+  for (let page = 0; page < 100; page++) {
+    const result = readThreadTimelinePage(await unwrap<unknown>(bridge().request('thread/timeline/list', { threadId, limit: 100, ...(cursor ? { cursor } : {}) })));
+    data.push(...result.data); if (!result.nextCursor) return data; if (seen.has(result.nextCursor)) throw new Error('会话时间线分页重复，请重试'); seen.add(result.nextCursor); cursor = result.nextCursor;
+  }
+  throw new Error('会话时间线页数过多');
+}
 export async function readRemoteControlStatusInfo(): Promise<RemoteControlStatus> { return readRemoteControlStatus(await unwrap<unknown>(bridge().request('remoteControl/status/read', {}))); }
 export async function enableRemoteControl(ephemeral = false): Promise<RemoteControlStatus> { return readRemoteControlStatus(await unwrap<unknown>(bridge().request('remoteControl/enable', { ephemeral }))); }
 export async function disableRemoteControl(ephemeral = false): Promise<RemoteControlStatus> { return readRemoteControlStatus(await unwrap<unknown>(bridge().request('remoteControl/disable', { ephemeral }))); }
