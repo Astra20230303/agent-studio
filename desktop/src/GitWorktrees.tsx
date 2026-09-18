@@ -23,7 +23,7 @@ export function GitWorktrees({ root, protectedPaths = [], onOpen, onBusyChange, 
   useEffect(() => { generation.current++; return () => { generation.current++; }; }, [root]);
   useEffect(() => {
     let disposed = false;
-    setLoading(true); setError('');
+    setLoading(true); setError(''); setEntries([]); setRemoving(undefined);
     void (async () => {
       try {
         const result = await window.desktop?.workspaceGit?.({ root, action: 'worktrees' });
@@ -36,7 +36,7 @@ export function GitWorktrees({ root, protectedPaths = [], onOpen, onBusyChange, 
     return () => { disposed = true; };
   }, [root, revision]);
   const open = async (path: string, remove = false) => {
-    if (lock.current) return;
+    if (lock.current || loading || !entries.some(entry => entry.path === path)) return;
     if (remove && isProtected(path)) { setError('工作树仍有会话活动或待发送消息，请先完成或取消。'); return; }
     lock.current = true; setBusy(true); setError('');
     const requestGeneration = generation.current;
