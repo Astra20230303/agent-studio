@@ -84,8 +84,13 @@ test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local
       const finished=await completed;assert.equal(finished.id,next.turn.id);assert.equal(finished.status,'completed',JSON.stringify(finished.error));
       if(upstreamError)throw upstreamError;assert.equal(requests,3);
       const latest=await rpc.request('thread/resume',{threadId:result.threadId});
+      assert.equal(latest.thread.turns.length,2);
+      assert.equal(latest.thread.turns[0].id,restored.thread.turns[0].id);
+      assert.equal(latest.thread.turns[1].id,next.turn.id);
       assert.ok(latest.thread.turns.some(turn=>turn.items.some(item=>item.type==='agentMessage'&&item.text==='Continued with retained task context.')));
     } finally {clearTimeout(timer);const exited=child.exitCode===null?once(child,'exit').catch(()=>{}):Promise.resolve();rpc.close();await exited;adapter.closeAllConnections();await new Promise(resolve=>adapter.close(resolve));}
+    assert.equal(restarted.detail(saved.id).runs.length,1,'Interactive continuation does not fabricate another scheduled run');
+    assert.equal(restarted.detail(saved.id).runs[0].output,result.output);
     assert.equal(restarted.detail(saved.id).status, 'completed'); await restarted.stop();
   } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
 });
