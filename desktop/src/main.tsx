@@ -47,6 +47,7 @@ import { useTurnQueue } from './useTurnQueue';
 import { TurnQueue } from './TurnQueuePanel';
 import { PlanPanel } from './PlanPanel';
 import { TurnDiffPanel } from './TurnDiffPanel';
+import { readThreadStatus } from './threadStatus';
 import { workspaceFor } from './workspace';
 import { useAttachmentDraft } from './useAttachmentDraft';
 import { WorkspaceFiles, type FileEditSession, type FilePreviewUpdate } from './WorkspaceFiles';
@@ -293,6 +294,10 @@ function App({ initialState }: { initialState: DesktopState }) {
         if (message.method === 'thread/tokenUsage/updated') {
           const usage = readContextTokens(params.tokenUsage);
           if (usage) update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) thread.contextTokens = usage; });
+        }
+        if (message.method === 'thread/status/changed') {
+          const status = readThreadStatus(params);
+          if (status) update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) thread.status = status.status; });
         }
         if (message.method === 'serverRequest/resolved') {
           serverResponses.invalidate(params.requestId);

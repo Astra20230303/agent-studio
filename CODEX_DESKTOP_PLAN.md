@@ -527,3 +527,7 @@
 ### 回合统一差异（2026-09-19）
 
 - 当前增量计划：接入上游 `turn/diff/updated`，按会话/回合保存最新聚合 diff，拒绝坏文本、跨回合和已结束回合事件；在聊天计划区提供可折叠、可复制的统一差异展示。新回合清理旧差异，验证重复更新、迟到事件和窄屏长差异。
+
+### 会话状态变更通知（2026-09-19）
+
+- 当前增量计划：接入上游 `thread/status/changed`，校验 thread/status 枚举和 active flags，将 waitingOnApproval/waitingOnUserInput 映射为 needs_input、普通 active 映射为 running、systemError 映射为 failed；未知/损坏状态不覆盖本地状态。验证多会话隔离、坏 flags 和状态恢复。

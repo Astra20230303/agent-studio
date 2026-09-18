@@ -3604,3 +3604,8 @@ Codex Rust 传递依赖和原生二进制传递依赖仍需进一步许可审计
 
 - 已交付：接入上游 `turn/diff/updated`，按会话/回合保存最新聚合 diff，在聊天计划区显示可折叠、可复制的统一差异；新回合清理旧差异，坏身份、跨回合和已结束回合事件不会覆盖当前结果。多行 diff 内容保持原样，限制单次快照 2 MiB。
 - 验证：13 项 planning/thread-events/turn-runtime 测试通过，覆盖重复更新、合法多行 diff、坏身份、迟到事件和新回合清理；生产 TypeScript/Vite 构建通过。
+
+### 会话状态变更通知（2026-09-19）
+
+- 已交付：接入上游 `thread/status/changed`。`active` 无 flags 映射 running，包含 waitingOnApproval 或 waitingOnUserInput 映射 needs_input，idle 保持 idle，systemError 映射 failed，notLoaded 映射 idle；更新仅作用于对应远端会话。
+- 验证：9 项 thread-status/thread-events 测试通过，覆盖多种等待 flags、终态、坏状态和多会话事件隔离；生产 TypeScript/Vite 构建通过。未知状态或非法 flags 不覆盖已有状态。
