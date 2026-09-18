@@ -7,15 +7,25 @@ import { canHandleAppShortcut } from './shortcutScope';
 export function ConversationFind({ messages, view, searching, loadHistory, disabled, reset = 0 }: { messages: Message[]; view: RefObject<HTMLDivElement | null>; searching: RefObject<boolean>; loadHistory?: (options?: HistoryReadOptions) => Promise<void>; disabled?: boolean; reset?: number }) {
   const [loading, setLoading] = useState(false);
   const historyRequest = useRef<AbortController | undefined>(undefined);
-  useEffect(() => () => historyRequest.current?.abort(), [reset]);
+  useEffect(() => {
+    setLoading(false); setHistoryStatus('');
+    return () => { const request = historyRequest.current; historyRequest.current = undefined; request?.abort(); };
+  }, [reset]);
   const [historyStatus, setHistoryStatus] = useState('');
   const load = async () => {
     if (!loadHistory || historyRequest.current || disabled) return;
     const request = new AbortController(); historyRequest.current = request;
     setLoading(true); setHistoryStatus('');
-    try { await loadHistory({ signal: request.signal, onProgress: ({ pages, items }) => setHistoryStatus(`已读取 ${pages} 页，${items} 条记录`) }); setHistoryStatus('历史已加载，可查找消息和工具记录'); }
-    catch (error) { setHistoryStatus(request.signal.aborted ? '已取消加载，已有消息保留' : `加载失败：${error instanceof Error ? error.message : String(error)}`); }
-    finally { historyRequest.current = undefined; setLoading(false); }
+    try {
+      await loadHistory({ signal: request.signal, onProgress: ({ pages, items }) => {
+        if (historyRequest.current === request && !request.signal.aborted) setHistoryStatus(`已读取 ${pages} 页，${items} 条记录`);
+      } });
+      if (historyRequest.current === request) setHistoryStatus(request.signal.aborted ? '已取消加载，已有消息保留' : '历史已加载，可查找消息和工具记录');
+    } catch (error) {
+      if (historyRequest.current === request) setHistoryStatus(request.signal.aborted ? '已取消加载，已有消息保留' : `加载失败：${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      if (historyRequest.current === request) { historyRequest.current = undefined; setLoading(false); }
+    }
   };
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
