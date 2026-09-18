@@ -14,7 +14,7 @@ for (const apiKey of ['local-test', '']) {
 test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local'})`, { timeout: 60000 }, async () => {
   const workspace = fs.mkdtempSync(path.join(root, '.project-cache/tmp/task-workspace-'));
   const dataRoot = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'felix-runner-data-'));
-  let requests = 0, upstreamError;
+  let requests = 0, upstreamError, activeProvider, providerReads = 0;
   const server = http.createServer(async (req, res) => {
     try {
       assert.equal(req.headers.authorization, apiKey ? `Bearer ${apiKey}` : undefined);
@@ -22,6 +22,8 @@ test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local
       const body = JSON.parse(raw); requests++;
       res.writeHead(200, { 'content-type': 'text/event-stream' });
       if (requests === 1) {
+        // Switching the global channel during a tool call must not reroute this run.
+        activeProvider = { apiKey: 'different-key', baseUrl: 'http://127.0.0.1:1' };
         assert.ok(JSON.stringify(body.messages).includes(workspace.replaceAll('\\', '\\\\')), 'Task context must use the selected workspace');
         const tool = body.tools.find(item => /(^|__)(exec_command|shell_command|shell)$/.test(item.function.name));
         assert.ok(tool);
@@ -39,7 +41,8 @@ test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local
   });
   server.listen(0, '127.0.0.1'); await once(server, 'listening');
   try {
-    const runner = createTaskRunner(root, { dataRoot, apiKey: () => apiKey, upstream: `http://127.0.0.1:${server.address().port}`, timeoutMs: 45000 });
+    activeProvider = { apiKey, baseUrl: `http://127.0.0.1:${server.address().port}` };
+    const runner = createTaskRunner(root, { dataRoot, provider: () => { providerReads++; return activeProvider; }, timeoutMs: 45000 });
     const directory = fs.mkdtempSync(path.join(root, '.project-cache/tmp/task-real-runner-'));
     let clock = Date.now();
     const scheduler = new TaskScheduler({ directory, runner, now: () => clock });
@@ -52,7 +55,7 @@ test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local
     assert.equal(result.status, 'completed', result.error);
     assert.equal(result.trigger, 'scheduled');
     assert.ok(fs.existsSync(path.join(dataRoot, 'scheduled-tasks', 'runs', result.id, 'config.toml')));
-    assert.equal(requests, 2); assert.match(result.output, /Verified FELIX_SCHEDULE_OK/); assert.ok(result.threadId);
+    assert.equal(providerReads, 1); assert.equal(requests, 2); assert.match(result.output, /Verified FELIX_SCHEDULE_OK/); assert.ok(result.threadId);
     const restarted = new TaskScheduler({ directory, runner });
     assert.equal(restarted.detail(saved.id).runs[0].output, result.output);
     assert.equal(restarted.detail(saved.id).cwd, workspace);

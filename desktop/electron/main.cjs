@@ -39,7 +39,7 @@ ipcMain.handle('desktop:remote-action', async (_event, action) => {
 const codex = new CodexServer(projectRoot, { dataRoot, runtimeRoot });
 const scheduler = new TaskScheduler({
   directory: path.join(dataRoot, 'scheduled-tasks'),
-  runner: createTaskRunner(projectRoot, { dataRoot, runtimeRoot, apiKey: () => readProvider().apiKey, upstream: () => readProvider().baseUrl }),
+  runner: createTaskRunner(projectRoot, { dataRoot, runtimeRoot, provider: readProvider }),
 });
 let mainWindow;
 const conversationNotifications = require('./conversation-notifications.cjs').createConversationNotifications(path.join(app.getPath('userData'), 'conversation-notifications.json'), {
