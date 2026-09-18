@@ -9,6 +9,7 @@ const assert=require('node:assert/strict');const {chromium}=require('playwright'
  const pause=page.getByRole('button',{name:'暂停 Lock test',exact:true});
  await pause.evaluate(el=>{el.click();el.click();});assert.equal(await page.evaluate(()=>window.__calls.length),1);
  await page.evaluate(()=>window.__finish({ok:false,error:'Status failed'}));await page.getByText('Status failed',{exact:true}).waitFor();
+ assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('felix-audit-log-v1')||'[]')),[]);
  await pause.click();await page.waitForFunction(()=>window.__calls.length===2);
  await page.evaluate(()=>{window.__task.status='paused';window.__finish({ok:true});});
  await page.getByRole('button',{name:'恢复 Lock test',exact:true}).waitFor();
@@ -23,5 +24,8 @@ const assert=require('node:assert/strict');const {chromium}=require('playwright'
  await editor.getByRole('button',{name:'保存任务',exact:true}).click();await page.waitForFunction(()=>window.__calls.length===4);
  await page.evaluate(()=>window.__finish({ok:true}));await editor.waitFor({state:'detached'});
  assert.deepEqual(await page.evaluate(()=>window.__calls.map(c=>c.operation)),['status','status','save','save']);
+ const entries=await page.evaluate(()=>JSON.parse(localStorage.getItem('felix-audit-log-v1')));
+ assert.deepEqual(entries.map(entry=>entry.action),['编辑任务','暂停任务']);
+ assert.ok(entries.every(entry=>entry.detail===undefined));
  console.log('PASS: same-tick duplicate mutations/save blocked, pending Escape retained, failure retries once');
 }finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});

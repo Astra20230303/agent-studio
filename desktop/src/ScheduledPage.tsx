@@ -67,7 +67,7 @@ function TaskEditor({ draft, providers, onClose, onSaved }: { draft: TaskDraft; 
   </form></TaskModal>;
 }
 
-export function ScheduledPage({ providers, cwd, openRequest, onOpenHandled, onOpenConversation }: { onOpenConversation?: (threadId: string, title: string) => void; onOpenHandled?: (request: { id: string }) => void; openRequest?: { id: string }; providers: { id: string; name: string; enabled?: boolean }[]; cwd?: string }) {
+export function ScheduledPage({ providers, cwd, openRequest, onOpenHandled, onOpenConversation, onRecord }: { onRecord?: (action: string) => void; onOpenConversation?: (threadId: string, title: string) => void; onOpenHandled?: (request: { id: string }) => void; openRequest?: { id: string }; providers: { id: string; name: string; enabled?: boolean }[]; cwd?: string }) {
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
   const [query, setQuery] = useState(''); const [filter, setFilter] = useState('all');
   const [draft, setDraft] = useState<TaskDraft>(); const [selectedId, setSelectedId] = useState<string>();
@@ -118,7 +118,9 @@ export function ScheduledPage({ providers, cwd, openRequest, onOpenHandled, onOp
     try { if (operation === 'runTask') await automationRepository.run(id);
       else if (operation === 'cancelTask') await automationRepository.cancel(id);
       else if (operation === 'deleteTask') await automationRepository.remove(id);
-      else if (status) await automationRepository.setStatus(id, status); if (operation === 'deleteTask') { setSelectedId(undefined); setDeleting(undefined); } await reload(); }
+      else if (status) await automationRepository.setStatus(id, status);
+      onRecord?.(operation === 'runTask' ? '请求运行任务' : operation === 'cancelTask' ? '请求停止任务' : operation === 'deleteTask' ? '删除任务' : status === 'paused' ? '暂停任务' : '恢复任务');
+      if (operation === 'deleteTask') { setSelectedId(undefined); setDeleting(undefined); } await reload(); }
     catch (caught) { setError(caught instanceof Error ? caught.message : '操作失败。'); }
     finally { mutationLock.current = false; setBusy(false); }
   };
@@ -151,7 +153,7 @@ export function ScheduledPage({ providers, cwd, openRequest, onOpenHandled, onOp
       <h3>运行记录</h3><div className="task-runs">{detail.runs.length ? detail.runs.map(run => <details key={run.id} className="task-run"><summary><span>{formatTaskDate(run.startedAt)}</span><span className={run.status === 'failed' ? 'task-failed' : ''}>{taskRunLabels[run.status]}</span></summary><small>{run.trigger === 'scheduled' ? '定时执行' : '手动执行'}{run.finishedAt ? ` · 结束于 ${formatTaskDate(run.finishedAt)}` : ''}</small>{run.error && <p className="task-failed">{run.error}</p>}<pre>{run.output || (run.status === 'running' ? '正在执行，结束后保存结果。' : '无输出')}</pre><TaskRunActions onOpenConversation={onOpenConversation} key={`${run.id}:${run.status}`} name={detail.name} run={run} /></details>) : <p className="task-muted">尚无运行记录</p>}</div>
       {error && <p className="task-error" role="alert">{error}</p>}<footer><button className="task-danger" disabled={busy || detail.runs[0]?.status === 'running'} onClick={() => setDeleting(detail)}><Trash2 />删除</button><button disabled={busy || detail.runs[0]?.status === 'running'} onClick={() => setDraft(detail)}><Pencil />编辑</button><button disabled={busy || anyRunning && detail.runs[0]?.status !== 'running'} onClick={() => void mutate(detail.runs[0]?.status === 'running' ? 'cancelTask' : 'runTask', detail.id)}>{detail.runs[0]?.status === 'running' ? <Square /> : <Play />}{detail.runs[0]?.status === 'running' ? '停止运行' : '立即运行'}</button></footer>
     </>}</TaskModal>}
-    {draft && <TaskEditor draft={draft} providers={providers} onClose={() => setDraft(undefined)} onSaved={() => { setDraft(undefined); void reload(); }} />}
+    {draft && <TaskEditor draft={draft} providers={providers} onClose={() => setDraft(undefined)} onSaved={() => { onRecord?.(draft.id ? '编辑任务' : '创建任务'); setDraft(undefined); void reload(); }} />}
     {deleting && <TaskModal title="删除任务" onClose={() => { if (!mutationLock.current) setDeleting(undefined); }}><p>删除“{deleting.name}”及其运行记录？</p>{error && <p role="alert" className="task-error">{error}</p>}<footer><button disabled={busy} onClick={() => setDeleting(undefined)}>取消</button><button disabled={busy} className="task-danger" onClick={() => void mutate('deleteTask', deleting.id)}>确认删除</button></footer></TaskModal>}
   </div>;
 }
