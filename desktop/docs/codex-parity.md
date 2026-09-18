@@ -1,5 +1,20 @@
 # Felix capability roadmap
 
+## Worktree protection for conversation activity
+
+The worktree panel disables deletion when another local conversation is running,
+sending, restoring or retains queued input in that directory or a subdirectory.
+Confirmation rechecks current activity; a turn starting after confirmation opens
+disables deletion immediately. Windows drive/UNC paths match case-insensitively.
+
+Acceptance: browser notifications start a background turn with a differently
+cased Windows subdirectory, disable both deletion controls without an IPC call,
+then complete the turn and permit normal cancellation/failure/retry/removal.
+Reloaded paused queues also protect the directory. Real temporary Git repository
+creation/deletion/data-protection regressions and production build pass.
+This is renderer activity protection, not a cross-process directory lock: other
+windows, external tools, terminal processes and scheduled runs are not covered.
+
 ## Authoritative thread Provider restoration
 
 Thread start, resume and fork now return the Provider ID after its binding has

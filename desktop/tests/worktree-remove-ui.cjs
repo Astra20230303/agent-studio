@@ -46,6 +46,13 @@ const assert = require('node:assert/strict');
     assert.ok(await page.getByRole('button', {name:'关闭 Git 面板',exact:true}).isEnabled());
     await page.getByRole('button', {name:'返回 Git 变更',exact:true}).click();
     await page.getByRole('button', {name:'浏览工作树',exact:true}).waitFor();
+    await page.evaluate(() => localStorage.setItem('felix-turn-queue-v1', JSON.stringify([{ id: 'queued', localId: 'child-local', threadId: 'child-remote', text: 'pending work', model: 'test', effort: 'low', plugins: [], status: 'paused' }])));
+    await page.reload();
+    await page.getByRole('button', { name: '查看 Git 变更', exact: true }).click();
+    await page.getByRole('button', { name: '浏览工作树', exact: true }).click();
+    await page.getByText(/会话使用中/).waitFor();
+    assert.ok(await page.getByRole('button', { name: '删除工作树 D:/child', exact: true }).isDisabled());
+    assert.equal(await page.evaluate(() => window.__calls.filter(c => c.action === 'remove-worktree').length), 0);
     console.log('PASS: worktree removal cancellation, failure retry, expected HEAD and refreshed inventory');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
