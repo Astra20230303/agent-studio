@@ -88,6 +88,9 @@ test('real app-server archives, paginates and restores isolated conversations', 
     assert.ok(snapshot.items.some(entry => entry.item.type === 'agentMessage' && entry.item.text.includes('Archive test completed.')));
     const turns = await client.listThreadTurns(ids[0]);
     assert.equal(turns.data.length, 1);
+    const { findMessageTurn } = require('../src/messageTurn.ts');
+    const assistantItem = turns.data[0].items.find(item => item.type === 'agentMessage');
+    assert.equal(await findMessageTurn(client.listThreadTurns, ids[0], `live-${assistantItem.id}`), turns.data[0].id);
     assert.ok(turns.data[0].items.some(item => item.type === 'agentMessage' && item.text.includes('Archive test completed.')));
     const items = await client.listThreadItems(ids[0]);
     assert.ok(items.data.some(entry => entry.item.type === 'userMessage'));
