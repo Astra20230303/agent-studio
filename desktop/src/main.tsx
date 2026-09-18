@@ -157,6 +157,7 @@ function App({ initialState }: { initialState: DesktopState }) {
   const approval = approvals.find(item => !nonblockingQuestions.includes(item));
   const [renameCandidate, setRenameCandidate] = useState<{ id: string; title: string }>();
   const [deleteCandidate, setDeleteCandidate] = useState<string>();
+  const archiveLocks = useRef(new Set<string>());
   const [forking, setForking] = useState(false);
   const [providerStatus, setProviderStatus] = useState<any>();
   const [providerChoices, setProviderChoices] = useState<Array<{ id: string; name: string; enabled?: boolean; keyConfigured?: boolean; authRequired?: boolean }>>([]);
@@ -584,7 +585,24 @@ function App({ initialState }: { initialState: DesktopState }) {
     update(next => { const target = next.threads.find(item => item.id === thread.id); if (target) { target.title = name; target.titleSource = 'manual'; } });
     audit.record('重命名会话');
   };
-  const archiveActive = async () => { const thread = state.threads.find(item => item.id === state.activeThreadId); if (!thread) return; if (thread.remoteId && codexStatus !== 'connected') { toast('请重新连接服务后再归档或删除远端会话。'); return; } if (thread.remoteId) { try { await archiveThread(thread.remoteId); } catch (error: any) { toast(`归档失败：${error.message}`); return; } } update(next => { const item = next.threads.find(value => value.id === thread.id); if (item) { item.archived = true; item.status = 'completed'; } }); audit.record('归档会话'); setRemoteThreadId(undefined); };
+  const archiveConversation = async (threadId: string) => {
+    const thread = state.threads.find(item => item.id === threadId);
+    if (!thread || thread.archived || archiveLocks.current.has(threadId)) return;
+    if (thread.remoteId && codexStatus !== 'connected') { toast('请重新连接服务后再归档或删除远端会话。'); return; }
+    archiveLocks.current.add(threadId);
+    try {
+      if (thread.remoteId) await archiveThread(thread.remoteId);
+      update(next => {
+        const item = next.threads.find(value => value.id === threadId);
+        if (item) { item.archived = true; item.status = 'completed'; }
+        if (next.activeThreadId === threadId) next.activeThreadId = undefined;
+      });
+      audit.record('归档会话', thread.id);
+      setRemoteThreadId(value => value === thread.remoteId ? undefined : value);
+    } catch (error) { toast(`归档失败：${error instanceof Error ? error.message : String(error)}`); }
+    finally { archiveLocks.current.delete(threadId); }
+  };
+  const archiveActive = () => { if (state.activeThreadId) void archiveConversation(state.activeThreadId); };
   const performDelete = async (threadId: string) => {
     const thread = state.threads.find(item => item.id === threadId);
     if (!thread) throw Error('会话已不存在，请关闭后重试。');
@@ -596,7 +614,6 @@ function App({ initialState }: { initialState: DesktopState }) {
   };
   const deleteActive = async () => { const thread = state.threads.find(item => item.id === state.activeThreadId); if (thread) setDeleteCandidate(thread.id); };
   const togglePinned = (threadId: string) => update(next => { const thread = next.threads.find(item => item.id === threadId); if (thread) thread.pinned = !thread.pinned; });
-  const archiveThreadFromSidebar = async (threadId: string) => { const thread = state.threads.find(item => item.id === threadId); if (!thread) return; if (thread.remoteId && codexStatus !== 'connected') { toast('请重新连接服务后再归档或删除远端会话。'); return; } if (thread.remoteId) { try { await archiveThread(thread.remoteId); } catch (error: any) { toast(`归档失败：${error.message}`); return; } } update(next => { const item = next.threads.find(value => value.id === threadId); if (item) { item.archived = true; item.status = 'completed'; if (next.activeThreadId === threadId) next.activeThreadId = undefined; } }); audit.record('归档会话', thread.id); setRemoteThreadId(value => value === thread.remoteId ? undefined : value); };
   const deleteThreadFromSidebar = async (threadId: string) => { if (state.threads.some(item => item.id === threadId)) setDeleteCandidate(threadId); };
   const forkActive = async () => {
     const source = state.threads.find(item => item.id === state.activeThreadId);
@@ -767,7 +784,7 @@ function App({ initialState }: { initialState: DesktopState }) {
           {state.activeProjectId ? <div className="sidebar-project" title={projectLabel(state.projects.find(project => project.id === state.activeProjectId)?.name ?? state.activeProjectId)}><FolderOpen aria-hidden="true" /><span>{projectLabel(state.projects.find(project => project.id === state.activeProjectId)?.name ?? state.activeProjectId)}</span></div> : <div className="empty">没有项目</div>}
         </section>
         <section aria-labelledby="sidebar-recent"><h2 id="sidebar-recent" className="section">最近</h2>
-          {threads.map(thread => <div key={thread.id}><ThreadButton thread={thread} selected={page === 'chat' && state.activeThreadId === thread.id} onSelect={() => { void selectThread(thread); }} onTogglePin={() => togglePinned(thread.id)} onArchive={() => { void archiveThreadFromSidebar(thread.id); }} onDelete={() => { void deleteThreadFromSidebar(thread.id); }} />{search.trim() && thread.remoteId && threadList.snippets[thread.remoteId] && <p className="thread-search-snippet">{threadList.snippets[thread.remoteId].slice(0, 300)}</p>}</div>)}
+          {threads.map(thread => <div key={thread.id}><ThreadButton thread={thread} selected={page === 'chat' && state.activeThreadId === thread.id} onSelect={() => { void selectThread(thread); }} onTogglePin={() => togglePinned(thread.id)} onArchive={() => { void archiveConversation(thread.id); }} onDelete={() => { void deleteThreadFromSidebar(thread.id); }} />{search.trim() && thread.remoteId && threadList.snippets[thread.remoteId] && <p className="thread-search-snippet">{threadList.snippets[thread.remoteId].slice(0, 300)}</p>}</div>)}
           {threads.length === 0 && !threadList.loading && !threadList.error && <div className="empty">{search ? '没有匹配的会话' : '暂无会话'}</div>}
           {threadList.error && <p role="alert">{threadList.error}</p>}
           {(threadList.hasMore || threadList.error || threadList.loading) && <button disabled={threadList.loading || codexStatus !== 'connected'} onClick={() => void threadList.loadMore()}>{threadList.loading ? '正在加载会话…' : threadList.error ? '重试加载会话' : '加载更多会话'}</button>}
