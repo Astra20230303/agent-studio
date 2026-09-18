@@ -14,6 +14,18 @@ const {digest, verifyDesktop} = require('../scripts/verify-desktop.cjs');
  try{
   execFileSync('tar.exe',['-xf',archive,'-C',extracted],{windowsHide:true,stdio:'pipe'});
   verifyDesktop(extracted);console.log('PASS: release ZIP checksum and extracted desktop inventory');
+  const report=JSON.parse(fs.readFileSync(path.join(extracted,'THIRD-PARTY-COMPONENTS.json'),'utf8'));
+  const desktop=JSON.parse(fs.readFileSync(path.join(extracted,'desktop-manifest.json'),'utf8'));
+  const frontend=JSON.parse(fs.readFileSync(path.join(extracted,'resources/app/dist/third-party-licenses.json'),'utf8'));
+  assert.equal(report.format,1);
+  assert.deepEqual(report.components.filter(item=>item.scope==='desktop').map(item=>[item.name,item.version]).sort(),Object.entries(desktop.dependencies).sort());
+  assert.deepEqual(report.components.filter(item=>item.scope==='frontend').map(item=>[item.name,item.version]).sort(),frontend.components.map(item=>[item.name,item.version]).sort());
+  assert.ok(report.components.some(item=>item.name==='react' && item.notices.length));
+  for(const item of report.externalNotices)for(const file of item.files)assert.ok(fs.statSync(path.join(extracted,file)).isFile());
+  assert.ok(report.reviewRequired.some(item=>item.includes('Rust')));
+  const notices=fs.readFileSync(path.join(extracted,'THIRD-PARTY-NOTICES.txt'),'utf8');
+  for(const item of report.components)for(const notice of item.notices)assert.ok(notices.includes(notice.text));
+  console.log(`PASS: extracted license inventory for ${report.components.length} components and external notices`);
   await new Promise((resolve,reject)=>{
    const child=spawn(process.execPath,[path.join(__dirname,'packaged-desktop.cjs'),extracted],{windowsHide:true,stdio:'inherit'});
    child.once('error',reject);child.once('exit',code=>code===0?resolve():reject(Error(`Packaged acceptance exited ${code}`)));

@@ -21,10 +21,16 @@ node desktop/scripts/bundle-portable.cjs .project-cache/desktop-new .project-cac
 ## 验收
 
 ```powershell
-node --test desktop/tests/desktop-manifest.test.cjs desktop/tests/bundle-portable.test.cjs
+node --test desktop/tests/desktop-manifest.test.cjs desktop/tests/bundle-portable.test.cjs desktop/tests/third-party-notices.test.cjs
 node desktop/tests/portable-release.cjs .project-cache/release-new
 ```
 
-第二条命令检查 ZIP 校验值、解压文件清单，再调用真实打包应用验收：移动到仓库外含空格路径，启动 Electron，连接内置 app-server、检查图片解码和原生终端，保存提醒后关闭并重启确认恢复。使用临时用户数据目录，不修改日常 Felix 配置。
+第二条命令检查 ZIP 校验值、解压文件清单和第三方组件/许可证覆盖，再调用真实打包应用验收：移动到仓库外含空格路径，启动 Electron，连接内置 app-server、检查图片解码和原生终端，保存提醒后关闭并重启确认恢复。使用临时用户数据目录，不修改日常 Felix 配置。
 
-2026-09-18 在开发 Windows 主机通过该流程，产物位于 `.project-cache/felix-portable-release-20260918`。尚未验证干净 Windows VM、签名安装器或其他平台；发布许可清单审计仍未完成。
+2026-09-18 在开发 Windows 主机通过该流程，产物位于 `.project-cache/felix-portable-notices-20260918`。尚未验证干净 Windows VM、签名安装器或其他平台；发布许可清单审计仍未完成。
+
+## 第三方组件清单
+
+Vite 的生产构建从输出 chunk 的模块记录提取 npm 包身份和许可证文本，生成 `dist/third-party-licenses.json`。目录打包结合实际复制的桌面 npm 依赖，生成根目录的 `THIRD-PARTY-COMPONENTS.json` 和 `THIRD-PARTY-NOTICES.txt`；两者均进入发布完整性清单。
+
+当前包记录 13 个前端组件和 13 个桌面 npm 组件，另索引 Electron/Chromium、Node 和 Codex 的包内许可证。机器清单的 `reviewRequired` 保留未完成审计项；缺少许可文本或元数据的组件会被显式列出。此清单不是完整法律审查结论，Codex 的 Rust 传递依赖及原生二进制的传递依赖仍需审计。

@@ -21,6 +21,9 @@ test('desktop inventory matches packaged versions, references external notices a
  file(root,'resources/app/dist/third-party-licenses.json',JSON.stringify({format:1,components:[{name:'ui',version:'2',license:'UNKNOWN',notices:[],reviewRequired:true}]}));
  file(root,'resources/felix-runtime/manifest.json',JSON.stringify({nodeVersion:'v22',codexVersion:'codex 1'}));
  for(const name of ['version','LICENSE','LICENSES.chromium.html','resources/felix-runtime/licenses/node-LICENSE','resources/felix-runtime/licenses/codex-LICENSE','resources/felix-runtime/licenses/codex-NOTICE'])file(root,name,'license');
+ fs.unlinkSync(path.join(root,'LICENSES.chromium.html'));
+ assert.throws(()=>writeThirdPartyNotices(root),/ENOENT/);assert.equal(fs.existsSync(path.join(root,'THIRD-PARTY-COMPONENTS.json')),false);
+ file(root,'LICENSES.chromium.html','license');
  const report=writeThirdPartyNotices(root);assert.equal(report.components.length,2);assert.equal(report.externalNotices.length,3);
  assert.ok(report.reviewRequired.some(item=>item.includes('ui@2')));assert.ok(report.reviewRequired.some(item=>item.includes('Rust')));
  assert.match(fs.readFileSync(path.join(root,'THIRD-PARTY-NOTICES.txt'),'utf8'),/Example license text/);
