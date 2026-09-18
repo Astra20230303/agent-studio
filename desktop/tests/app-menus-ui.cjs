@@ -52,6 +52,6 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: '视图', exact: true }).click();
     await page.getByRole('menuitem', { name: '隐藏终端', exact: true }).click();
     await page.waitForFunction(() => document.querySelector('.terminal-panel')?.hidden);
-    console.log('PASS: menu keyboard navigation, shortcut isolation, narrow layout, new chat draft retention and settings action');
+    console.log('PASS: menu keyboard navigation, shortcut isolation, wide layout, new chat draft retention and settings action');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -25,6 +25,7 @@ const assert = require('node:assert/strict');
     assert.equal(await send.isDisabled(),true);
     await page.setViewportSize({width:390,height:844});
     await page.locator('aside.sidebar').waitFor({state:'hidden'});
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth > innerWidth),false);
     assert.equal(await page.locator('.composer').evaluate(node=>node.scrollWidth>node.clientWidth),false);
     const sendBounds=await send.boundingBox();
     assert.ok(sendBounds.x >= 0 && sendBounds.x + sendBounds.width <= 390);
