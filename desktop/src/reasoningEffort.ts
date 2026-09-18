@@ -23,3 +23,7 @@ export function isExplicitReasoningEffort(value: unknown): value is ExplicitReas
 export function effortLabel(value?: ExplicitReasoningEffort) {
   return effortLevels.find(level => level.value === (value ?? 'default'))!.label;
 }
+
+export function unsupportedEffort(value: string, supported?: readonly string[]): boolean {
+  return value !== 'default' && supported !== undefined && !supported.includes(value);
+}
