@@ -3493,3 +3493,10 @@ Codex Rust 传递依赖和原生二进制传递依赖仍需进一步许可审计
 - 会话恢复和加载完整历史分别捕获会话通知版本，避免仅检查回合状态而遗漏完整回复、工具内容通知。恢复期间收到该会话的新事件时保留已有消息；完整历史读取遇到新活动则提示重新加载。其他会话事件不干扰，之后没有竞争的读取仍正常采用服务器快照。
 - 验证：thread-restore-content-race-ui.cjs 延迟模拟桥接响应，覆盖完整回复/命令完成输出、其他会话隔离、重新打开后采用快照、完整历史竞争拒绝与重试；完整历史用例在修正前失败、修正后通过。thread-restore-retry-ui.cjs、8 项 thread-events/turn-runtime 测试及构建通过。
 - 范围：这是正在读取的快照保护，不是持久事件重放或历史自动合并。通知版本对已识别事件族保守递增，即使内部解析器忽略具体负载，也可能放弃该次历史快照；需要时可重新加载。运行状态仍由原回合版本检查保护。本次未验证真实服务端网络乱序。
+
+### 会话扩展推理强度（2026-09-19）
+
+- 会话选择器增加 none、minimal、xhigh、max、ultra、persistent；共享选项定义用于 UI、全局状态解码和会话恢复。none 显式发送，模型默认仍省略 effort 并采用默认协作配置。窄窗口选项换行。
+- 依据：官方配置文档 https://developers.openai.com/codex/config-reference/ 列出 minimal/low/medium/high/xhigh；本仓库 codex-upstream/codex-rs/protocol/src/openai_models.rs 的 ReasoningEffort 还定义 none/max/ultra/persistent。已知协议值不等于每个模型都支持，界面保留相应说明；未添加上游 Custom(String) 任意值输入。
+- 验证：reasoning-effort.test.cjs 和 thread-resume.test.cjs 共 5 项通过；reasoning-effort-ui.cjs 验证恢复、隔离、刷新、xhigh/none 的 turn/start 与协作参数、新增选项、Home/End 和 390px 布局；thread-model-ui.cjs 默认值和排队发送回归通过；构建通过。使用模拟桥接，未验证具体模型的实际推理执行。
+- 后续：定时任务仍使用其独立的 low/medium/high 配置；服务端模型能力动态筛选尚未贯通。

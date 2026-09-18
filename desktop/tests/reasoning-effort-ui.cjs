@@ -44,6 +44,24 @@ const assert = require('node:assert/strict');
     sent = await page.evaluate(() => window.__calls.filter(call => call.method === 'turn/start')[1].params);
     assert.equal(sent.effort, 'none');
     assert.equal(sent.collaborationMode.settings.reasoning_effort, 'none');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole('button', { name: '推理强度：关闭', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: '推理强度', exact: true });
+    for (const [value, label] of [['minimal', '极低'], ['xhigh', '极高'], ['max', 'Max'], ['ultra', 'Ultra'], ['persistent', 'Persistent']]) {
+      const option = dialog.getByRole('button', { name: label, exact: true });
+      await option.click();
+      assert.equal(await option.getAttribute('aria-pressed'), 'true');
+      await page.waitForFunction(expected => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.find(t => t.id === 'a').reasoningEffort === expected, value);
+      const bounds = await option.boundingBox();
+      assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= 390);
+    }
+    const slider = dialog.getByRole('slider', { name: '推理强度', exact: true });
+    await slider.focus(); await slider.press('Home');
+    await page.getByRole('button', { name: '推理强度：模型默认', exact: true }).waitFor();
+    await slider.press('End');
+    await page.getByRole('button', { name: '推理强度：Persistent', exact: true }).waitFor();
+    await dialog.getByRole('button', { name: '恢复默认强度', exact: true }).click();
+    await page.getByRole('button', { name: '推理强度：模型默认', exact: true }).waitFor();
     console.log('PASS: extended effort restores, persists across reload, stays per thread and reaches turn request; none is explicit');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
