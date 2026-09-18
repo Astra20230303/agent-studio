@@ -16,6 +16,7 @@ const assert = require('node:assert/strict');
         window.__calls.push({ method, params });
         if (method === 'thread/resume') {
           if (window.__hold) await new Promise(resolve => window.__release = resolve);
+          if (window.__invalid) return {ok:true,result:{thread:{id:params.threadId,turns:[{id:'bad-turn',items:[{id:'bad',type:'agentMessage',text:42}]}]}}};
           return window.__fail ? { ok: false, error: 'temporary resume failure' } : { ok: true, result: { thread: { id: params.threadId, cwd: 'D:/confirmed', turns: [] } } };
         }
         if (method === 'turn/start') return { ok: true, result: { turn: { id: 'turn', status: 'completed' } } };
@@ -36,6 +37,11 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: 'Thread A', exact: true }).click();
     await error.waitFor();
     assert.equal(await input.inputValue(), 'edited A');
+    await page.evaluate(() => { window.__invalid = true; });
+    await error.getByRole('button', { name: '重试恢复会话' }).click();
+    await error.getByText(/服务端历史条目无效/).waitFor();
+    assert.ok(await send.isDisabled()); assert.equal(await input.inputValue(),'edited A');
+    await page.evaluate(() => { window.__invalid = false; });
     await page.evaluate(() => { window.__fail = false; window.__hold = true; });
     const retry = error.getByRole('button', { name: '重试恢复会话' });
     await retry.click();

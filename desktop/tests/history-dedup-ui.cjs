@@ -7,11 +7,15 @@ const assert = require('node:assert/strict');
     await page.addInitScript(() => {
       localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeThreadId:'t', model:'test', threads:[{id:'t',remoteId:'remote',title:'History',messages:[],status:'completed',updatedAt:''}] }));
       window.__calls=[]; window.desktop={listModels:async()=>({ok:true,models:['test']})};
-      window.codex={connect:async()=>({ok:true}),notify:async()=>({ok:true}),request:async(method,params)=>{window.__calls.push({method,params}); if(method==='thread/resume') return {ok:true,result:{thread:{id:'remote',turns:[]}}}; if(method==='thread/items/list') return {ok:true,result:{data:[null,42,{item:null},{type:'agentMessage'},{id:'invalid-content',type:'userMessage',content:{}},{id:'mixed',type:'userMessage',content:[null,{type:'text',text:'Recovered text'},{type:'mention',name:'Recovered Plugin',path:'plugin://restored@local'}]},{id:'m',type:'agentMessage',text:'Final answer'},{id:'c',type:'commandExecution',status:'inProgress',command:'pwd'},{id:'m',type:'agentMessage',text:'Final answer'},{id:'c',type:'commandExecution',status:'completed',command:'pwd',aggregatedOutput:'D:/repo',exitCode:0}]}}; return {ok:true,result:{data:[]}};},onNotification:fn=>()=>{},onServerRequest:()=>()=>{},onClosed:()=>()=>{},onError:()=>()=>{},onStderr:()=>()=>{}};
+      window.codex={connect:async()=>({ok:true}),notify:async()=>({ok:true}),request:async(method,params)=>{window.__calls.push({method,params}); if(method==='thread/resume') return {ok:true,result:{thread:{id:'remote',turns:[]}}}; if(method==='thread/items/list') return {ok:true,result:{data:[...(window.__valid?[]:[null,42,{item:null},{type:'agentMessage'},{id:'invalid-content',type:'userMessage',content:{}}]),{id:'mixed',type:'userMessage',content:[...(window.__valid?[]:[null]),{type:'text',text:'Recovered text'},{type:'mention',name:'Recovered Plugin',path:'plugin://restored@local'}]},{id:'m',type:'agentMessage',text:'Final answer'},{id:'c',type:'commandExecution',status:'inProgress',command:'pwd'},{id:'m',type:'agentMessage',text:'Final answer'},{id:'c',type:'commandExecution',status:'completed',command:'pwd',aggregatedOutput:'D:/repo',exitCode:0}]}}; return {ok:true,result:{data:[]}};},onNotification:fn=>()=>{},onServerRequest:()=>()=>{},onClosed:()=>()=>{},onError:()=>()=>{},onStderr:()=>()=>{}};
     });
     await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
     await page.waitForFunction(() => window.__calls.some(call=>call.method==='thread/resume'));
     await page.getByRole('button',{name:'会话内查找'}).click();
+    await page.getByRole('button',{name:'加载完整历史'}).click();
+    await page.getByRole('status').filter({hasText:'服务端历史条目无效，已有消息已保留'}).waitFor();
+    assert.equal(await page.getByText('Final answer',{exact:true}).count(),0);
+    await page.evaluate(()=>{window.__valid=true;});
     await page.getByRole('button',{name:'加载完整历史'}).click();
     await page.getByText('Final answer',{exact:true}).waitFor();
     assert.equal(await page.getByText('Final answer',{exact:true}).count(),1);
