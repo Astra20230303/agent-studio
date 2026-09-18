@@ -115,6 +115,10 @@ async function main() {
     const failedRun = dialog.locator('.task-run').filter({ has: page.locator('summary', { hasText: '失败' }) });
     await failedRun.getByRole('button', { name: '复制运行结果', exact: true }).click();
     assert.match(await page.evaluate(() => window.__copied), /失败[\s\S]*TEST_MODEL_FAILURE/);
+    await dialog.getByRole('button', { name: '关闭对话框' }).click();
+    await page.getByRole('tab', { name: '最近失败', exact: true }).click();
+    assert.equal(await page.locator('.task-row').count(), 1);
+    await page.getByRole('button', { name: '查看任务 每日工作区检查', exact: true }).click();
     await dialog.getByRole('button', { name: '编辑', exact: true }).click();
     await editor.getByRole('textbox', { name: '任务内容', exact: true }).fill('WAIT');
     await editor.getByRole('button', { name: '保存任务' }).click(); await editor.waitFor({ state: 'detached' });
@@ -122,6 +126,8 @@ async function main() {
     await dialog.getByRole('button', { name: '停止运行', exact: true }).click(); await changed();
     await dialog.getByText('已中断', { exact: true }).waitFor();
     await dialog.getByRole('button', { name: '关闭对话框' }).click();
+    await page.getByText('没有匹配的任务', { exact: true }).waitFor();
+    await page.getByRole('tab', { name: '全部', exact: true }).click();
     await page.getByRole('button', { name: '创建', exact: true }).click();
     await page.getByRole('menuitem', { name: '提醒', exact: true }).click();
     const createDialog = page.getByRole('dialog', { name: '创建任务', exact: true });
