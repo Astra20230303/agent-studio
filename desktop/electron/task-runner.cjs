@@ -6,8 +6,10 @@ const { CodexRpc } = require('./codex-rpc.cjs');
 const { findCommand, ensureProjectConfig, compatibilityCatalog } = require('./codex-server.cjs');
 const { startMiniMaxAdapter } = require('./minimax-adapter.cjs');
 
-function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_KEY, upstream, provider, onThreadCreated, timeoutMs = 10 * 60 * 1000, dataRoot = require('./data-directory.cjs').dataDirectory(projectRoot), runtimeRoot = require('./runtime-directory.cjs').runtimeDirectory() } = {}) {
+function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_KEY, upstream, provider, onThreadCreated, timeoutMs, dataRoot = require('./data-directory.cjs').dataDirectory(projectRoot), runtimeRoot = require('./runtime-directory.cjs').runtimeDirectory() } = {}) {
   return async (task, { signal, runId, onResolved }) => {
+    if (task.timeoutMinutes != null && (!Number.isInteger(task.timeoutMinutes) || task.timeoutMinutes < 1 || task.timeoutMinutes > 120)) throw new Error('执行时限须为 1 至 120 分钟的整数。');
+    const runTimeoutMs = timeoutMs ?? (task.timeoutMinutes ?? 10) * 60 * 1000;
     const cwd = task.cwd || projectRoot;
     if (!path.isAbsolute(cwd) || !fs.existsSync(cwd) || !fs.statSync(cwd).isDirectory()) throw new Error('任务工作目录不存在或无效，请编辑任务选择有效目录。');
     // Capture one provider for the entire run, including all tool round trips.
@@ -27,7 +29,7 @@ function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_
     const aborted = new Promise((_, reject) => { fail = error => { halted = true; reject(error); }; });
     const cancel = () => fail(new Error('执行已停止。'));
     signal.addEventListener('abort', cancel, { once: true });
-    timer = setTimeout(() => fail(new Error('任务执行超过 10 分钟，已停止。')), timeoutMs);
+    timer = setTimeout(() => fail(new Error(`任务执行超时，已停止（时限 ${runTimeoutMs / 60000} 分钟）。`)), runTimeoutMs);
     try {
       const execute = async () => {
         if (signal.aborted || halted) throw new Error('执行已停止。');

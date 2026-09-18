@@ -15,6 +15,7 @@ const date = (value: unknown) => typeof value === 'string' && Number.isFinite(Da
 function task(value: any): value is ScheduledTask {
   if (!record(value) || typeof value.id !== 'string' || !value.id || typeof value.name !== 'string' || typeof value.prompt !== 'string'
     || !['agent','reminder'].includes(value.kind) || !['active','paused','completed'].includes(value.status)
+    || value.timeoutMinutes != null && (!Number.isInteger(value.timeoutMinutes) || value.timeoutMinutes < 1 || value.timeoutMinutes > 120)
     || value.reasoningEffort != null && !['low','medium','high'].includes(value.reasoningEffort)
     || value.notificationPolicy != null && value.notificationPolicy !== 'failed_runs_only'
     || typeof value.model !== 'string' || typeof value.notify !== 'boolean' || !['read-only','workspace-write'].includes(value.permission)
@@ -32,6 +33,7 @@ function task(value: any): value is ScheduledTask {
     && (run.environment == null || record(run.environment) && typeof run.environment.cwd === 'string' && !!run.environment.cwd
       && (run.environment.providerId == null || typeof run.environment.providerId === 'string'))
     && (run.configuration == null || record(run.configuration) && ['name','prompt','model'].every(key => typeof run.configuration[key] === 'string')
+      && (run.configuration.timeoutMinutes == null || Number.isInteger(run.configuration.timeoutMinutes) && run.configuration.timeoutMinutes >= 1 && run.configuration.timeoutMinutes <= 120)
       && ['agent','reminder'].includes(run.configuration.kind) && ['read-only','workspace-write'].includes(run.configuration.permission)
       && [run.configuration.cwd, run.configuration.providerId].every(value => value == null || typeof value === 'string')
       && (run.configuration.reasoningEffort == null || ['low','medium','high'].includes(run.configuration.reasoningEffort)))

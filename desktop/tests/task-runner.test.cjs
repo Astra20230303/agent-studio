@@ -195,3 +195,17 @@ test('resolved environment persistence failure prevents process startup',async()
   assert.equal(fs.existsSync(path.join(directory,'codex-home')),false);
  } finally {fs.rmSync(directory,{recursive:true,force:true});}
 });
+
+test('task minute limit arms real execution timeout and closes its model connection', {timeout:20000}, async t=>{
+ let expire,incoming;const requested=new Promise(resolve=>{incoming=resolve;});
+ const originalTimer=global.setTimeout;
+ t.mock.method(global,'setTimeout',(callback,delay,...args)=>{if(delay===60000)expire=callback;return originalTimer(callback,delay,...args);});
+ const server=http.createServer(()=>incoming());server.listen(0,'127.0.0.1');await once(server,'listening');
+ const dataRoot=fs.mkdtempSync(path.join(require('node:os').tmpdir(),'felix-time-limit-'));
+ try{
+  const runner=createTaskRunner(root,{dataRoot,apiKey:()=>'',upstream:`http://127.0.0.1:${server.address().port}`});
+  const done=runner({...task,timeoutMinutes:1},{signal:new AbortController().signal,runId:randomUUID()});
+  const rejected=assert.rejects(done,error=>{assert.match(error.message,/超时.*1 分钟/);assert.ok(error.threadId);return true;});
+  await Promise.race([requested,done.catch(()=>{})]);assert.equal(typeof expire,'function');expire();await rejected;
+ }finally{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));fs.rmSync(dataRoot,{recursive:true,force:true});}
+});

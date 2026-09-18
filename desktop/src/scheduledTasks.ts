@@ -1,6 +1,6 @@
 export type TaskSchedule = { kind: 'interval'; minutes: number } | { kind: 'once'; at: string } | { kind: 'daily' | 'weekdays' | 'weekly'; time: string; timezone: string; day?: number };
-export type TaskDraft = { reasoningEffort?: 'low' | 'medium' | 'high'; id?: string; providerId?: string; cwd?: string; name: string; prompt: string; kind: 'agent' | 'reminder'; model: string; permission: 'read-only' | 'workspace-write'; notify: boolean; notificationPolicy?: 'failed_runs_only' | null; schedule: TaskSchedule };
-export type TaskRunConfiguration = Pick<TaskDraft, 'name' | 'prompt' | 'kind' | 'model' | 'providerId' | 'cwd' | 'reasoningEffort' | 'permission'>;
+export type TaskDraft = { timeoutMinutes?: number; reasoningEffort?: 'low' | 'medium' | 'high'; id?: string; providerId?: string; cwd?: string; name: string; prompt: string; kind: 'agent' | 'reminder'; model: string; permission: 'read-only' | 'workspace-write'; notify: boolean; notificationPolicy?: 'failed_runs_only' | null; schedule: TaskSchedule };
+export type TaskRunConfiguration = Pick<TaskDraft, 'timeoutMinutes' | 'name' | 'prompt' | 'kind' | 'model' | 'providerId' | 'cwd' | 'reasoningEffort' | 'permission'>;
 export type TaskRun = { environment?: { cwd: string; providerId?: string }; configuration?: TaskRunConfiguration; threadId?: string; id: string; status: 'running' | 'completed' | 'failed' | 'interrupted'; trigger: 'manual' | 'scheduled'; startedAt: string; finishedAt?: string; error?: string; output?: string };
 export type ScheduledTask = TaskDraft & { id: string; status: 'active' | 'paused' | 'completed'; nextRunAt: string | null; runs: TaskRun[] };
 export const taskRunLabels = { running: '运行中', completed: '已完成', failed: '失败', interrupted: '已中断' };

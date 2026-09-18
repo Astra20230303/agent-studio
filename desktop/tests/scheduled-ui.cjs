@@ -108,6 +108,7 @@ async function main() {
     await editor.getByRole('spinbutton', { name: '任务间隔分钟数', exact: true }).fill('15');
     await editor.getByRole('combobox', { name: '任务推理强度', exact: true }).selectOption('high');
     await editor.getByRole('combobox', { name: '任务通知范围', exact: true }).selectOption('failed_runs_only');
+    await editor.getByRole('spinbutton', { name: '任务执行时限', exact: true }).fill('25');
     await editor.getByRole('textbox', { name: '任务内容', exact: true }).fill('FAIL');
     await editor.getByRole('button', { name: '保存任务' }).click(); await editor.waitFor({ state: 'detached' });
     await dialog.getByRole('button', { name: '立即运行', exact: true }).click(); await changed();
@@ -156,9 +157,11 @@ async function main() {
     assert.equal(scheduler.detail(sample.id).runs.length, 3, 'Results survive service restart');
     assert.deepEqual(scheduler.detail(sample.id).schedule, {kind:'interval',minutes:15});
     await page.getByText('每隔 15 分钟', {exact:false}).waitFor();
+    assert.equal(scheduler.detail(sample.id).timeoutMinutes,25);
     assert.equal(scheduler.detail(sample.id).reasoningEffort, 'high', 'Reasoning effort survives service restart');
     assert.equal(scheduler.detail(sample.id).notificationPolicy, 'failed_runs_only', 'Notification policy survives service restart');
     await page.getByRole('button', { name: '查看任务 每日工作区检查' }).click();
+    await dialog.locator('.task-metadata').getByText('25 分钟', {exact:true}).waitFor();
     await dialog.locator('.task-metadata').getByText('高', { exact: true }).waitFor();
     await dialog.locator('.task-metadata').getByText('仅失败时通知', { exact: true }).waitFor();
     await dialog.locator('.task-metadata').getByText('跟随当前启用渠道', { exact: true }).waitFor();

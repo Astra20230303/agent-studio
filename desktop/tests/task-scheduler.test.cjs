@@ -167,3 +167,14 @@ test('validation rejects unsafe or ambiguous schedules', () => {
   assert.throws(() => validateTask(task({ schedule: { kind: 'once', at: new Date(Date.now() - 1000).toISOString() } }), Date.now()), /未来/);
   assert.throws(() => validateTask(task({ schedule: { kind: 'daily', time: '25:00', timezone: 'Asia/Shanghai' } }), Date.now()), /HH:mm/);
 });
+
+test('task time limits validate, persist and reset to default',async()=>{
+ const directory=temp();let scheduler=new TaskScheduler({directory});
+ try{
+  const saved=scheduler.save(task({kind:'agent',model:'test',timeoutMinutes:120}));await scheduler.stop();scheduler=new TaskScheduler({directory});
+  assert.equal(scheduler.detail(saved.id).timeoutMinutes,120);
+  for(const value of [0,-1,121,1.5,'10',NaN])assert.throws(()=>scheduler.save({...saved,timeoutMinutes:value}),/执行时限/);
+  assert.equal(scheduler.save({...saved,timeoutMinutes:undefined}).timeoutMinutes,undefined);
+  assert.equal(scheduler.save(task({timeoutMinutes:5})).timeoutMinutes,undefined);
+ }finally{await scheduler.stop();}
+});

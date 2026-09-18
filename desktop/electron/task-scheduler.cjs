@@ -43,9 +43,10 @@ function validateTask(input, now) {
     if (raw.kind === 'weekly' && (!Number.isInteger(raw.day) || raw.day < 0 || raw.day > 6)) throw new Error('星期无效。');
     schedule = { kind: raw.kind, time: raw.time, timezone: raw.timezone, ...(raw.kind === 'weekly' ? { day: raw.day } : {}) };
   }
+  if (input.timeoutMinutes != null && (!Number.isInteger(input.timeoutMinutes) || input.timeoutMinutes < 1 || input.timeoutMinutes > 120)) throw new Error('执行时限须为 1 至 120 分钟的整数。');
   if (input.reasoningEffort != null && !['low', 'medium', 'high'].includes(input.reasoningEffort)) throw new Error('推理强度无效。');
   if (input.notificationPolicy != null && input.notificationPolicy !== 'failed_runs_only') throw new Error('通知策略无效。');
-  return { name, prompt, kind: input.kind, reasoningEffort: input.kind === 'agent' ? input.reasoningEffort : undefined, model, providerId, cwd, permission: input.permission, notify: Boolean(input.notify), notificationPolicy: input.notificationPolicy ?? null, schedule };
+  return { timeoutMinutes: input.kind === 'agent' ? input.timeoutMinutes : undefined, name, prompt, kind: input.kind, reasoningEffort: input.kind === 'agent' ? input.reasoningEffort : undefined, model, providerId, cwd, permission: input.permission, notify: Boolean(input.notify), notificationPolicy: input.notificationPolicy ?? null, schedule };
 }
 
 class TaskScheduler extends EventEmitter {
@@ -143,8 +144,8 @@ class TaskScheduler extends EventEmitter {
     if (this.closed || this.stopping) throw new Error('任务服务已停止。');
     if (this.active) throw new Error('已有任务正在执行，请等待完成。');
     const task = this.get(id);
-    const { name, prompt, kind, model, providerId, cwd, reasoningEffort, permission } = task;
-    const configuration = { name, prompt, kind, model, providerId, cwd, reasoningEffort, permission };
+    const { name, prompt, kind, model, providerId, cwd, reasoningEffort, permission, timeoutMinutes } = task;
+    const configuration = { name, prompt, kind, model, providerId, cwd, reasoningEffort, permission, timeoutMinutes };
     const run = { configuration, id: randomUUID(), status: 'running', trigger, startedAt: new Date(this.now()).toISOString(), output: '' };
     this.change(() => {
       task.runs.unshift(run); task.runs = task.runs.slice(0, 50);
