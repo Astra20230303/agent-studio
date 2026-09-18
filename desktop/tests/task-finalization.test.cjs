@@ -12,3 +12,15 @@ test('failed final save retains result, blocks another execution and retries onc
   const disk=JSON.parse(fs.readFileSync(scheduler.file,'utf8')).tasks[0];assert.equal(disk.runs[0].output,'FINAL_RESULT');assert.equal(disk.status,'completed');
  }finally{scheduler.persist=persist;await scheduler.stop();fs.rmSync(directory,{recursive:true,force:true});}
 });
+
+for(const status of ['failed','interrupted'])test(`${status} results retry final persistence through list reads`,async()=>{
+ const directory=fs.mkdtempSync(path.join(os.tmpdir(),'felix-final-status-'));let rejectRun,progress;
+ const scheduler=new TaskScheduler({directory,runner:async(task,{onProgress})=>{progress=onProgress;return new Promise((resolve,reject)=>{rejectRun=reject;});}});const persist=scheduler.persist.bind(scheduler);
+ try{
+  const task=scheduler.save({name:'Final status',prompt:'Test',kind:'agent',model:'test',permission:'read-only',notify:false,schedule:{kind:'interval',minutes:60}});
+  const pending=scheduler.run(task.id);await Promise.resolve();progress('Retained partial');scheduler.persist=()=>{throw Error('Disk full');};
+  if(status==='interrupted')scheduler.cancel(task.id);rejectRun(Error('Runner stopped'));await assert.rejects(pending,/结果尚未保存/);
+  assert.equal(scheduler.detail(task.id).runs[0].status,status);scheduler.persist=persist;scheduler.list();
+  const saved=JSON.parse(fs.readFileSync(scheduler.file,'utf8')).tasks[0].runs[0];assert.equal(saved.status,status);assert.equal(saved.output,'Retained partial');assert.equal(saved.error,'Runner stopped');
+ }finally{scheduler.persist=persist;await scheduler.stop();fs.rmSync(directory,{recursive:true,force:true});}
+});
