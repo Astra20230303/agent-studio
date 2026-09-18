@@ -36,3 +36,18 @@ test('invalid ID never reaches transport; synchronous errors release the request
   for (let i = 0; i < 2; i++) await assert.rejects(service.send({ id: 0 }, 'decline'), /offline/);
   assert.equal(calls, 2);
 });
+
+test('resolved or disconnected requests cannot affect a replacement using the same ID', async () => {
+  for (const reset of ['invalidate', 'reset']) for (const fail of [false, true]) {
+    const waits = [];
+    const service = createServerResponses(() => new Promise((resolve, reject) => waits.push({ resolve, reject })));
+    const request = { id: 7, method: 'item/commandExecution/requestApproval' };
+    const old = service.send(request, 'accept');
+    service[reset](7);
+    const replacement = service.send(request, 'decline');
+    if (fail) waits[0].reject(Error('Old failure')); else waits[0].resolve({ ok: true });
+    assert.equal(await old, false);
+    await assert.rejects(service.send(request, 'accept'), /正在提交/);
+    waits[1].resolve({ ok: true }); assert.equal(await replacement, true);
+  }
+});
