@@ -50,6 +50,13 @@ const { chromium } = require('playwright');
   const audit = await page.evaluate(() => JSON.parse(localStorage.getItem('felix-audit-log-v1')).filter(e => e.action === '终止后台命令'));
   assert.equal(audit.length, 1); assert.equal(audit[0].detail, undefined);
   assert.deepEqual(await page.evaluate(() => window.__kills), [{threadId:'a',processId:'1'},{threadId:'a',processId:'1'},{threadId:'b',processId:'1'}]);
+  await page.reload();
+  await page.getByRole('button',{name:'设置',exact:true}).click();
+  await page.getByRole('button',{name:'操作记录',exact:true}).click();
+  const region=page.getByRole('region',{name:'操作记录',exact:true});
+  await region.getByRole('searchbox',{name:'搜索操作记录'}).fill('终止后台命令');
+  await region.getByText('终止后台命令',{exact:true}).waitFor();
+  assert.equal(await region.getByText('终止后台命令',{exact:true}).count(),1);
   console.log('PASS: background terminal list retry/pagination, termination lock/retry and thread isolation');
  } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode=1; });

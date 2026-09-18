@@ -2805,3 +2805,9 @@ user-message-copy-ui.cjs 覆盖原文保真、键盘操作、失败重试、空�
 验证 979b734：启动实际 app-server，使用本地固定响应模型及支持 apply_patch 的 gpt-5.4 工具配置，read-only 工作区触发文件审批。真实通知经过 Felix applyToolEvent 与 approvalFileChanges，审批前获得对应路径/差异且文件不存在；允许后准确写入。
 
 提交后补验 decline：文件未创建，工具状态 declined；accept 为 completed，两者均发出对应 serverRequest/resolved 清理审批队列。两个真实测试、文件审批界面与审批队列回归通过，无产品修正。首次 MiniMax 配置未提供独立 apply_patch，改用声明该工具的配置；首次目标位于受保护 CODEX_HOME 内而写入失败，将配置目录与工作区分离后通过。测试不调用云模型，不证明所有模型兼容性；此轮仅测试及文档变更。
+
+## 后台命令终止操作记录
+
+实现 de370d5：仅服务端 terminated=true 时记录“终止后台命令”，不保存命令、目录或进程标识；失败和已经退出不伪造终止成功。记录确认结果先于界面连接代次判断，因此切换会话或重连后的真实成功仍保留记录，旧界面反馈仍被隔离。
+
+验收：background-terminals-ui 覆盖失败重试、重复点击、跨会话迟到成功、已退出不记录、刷新后操作记录搜索；background-terminals-refresh-ui 覆盖重连迟到成功只记录一次且界面重新读取，迟到失败不记录；audit-read-recovery-ui 通过。生产构建通过，保留已有体积提示。此轮扩充操作记录覆盖，不代表完整审计覆盖已完成。
