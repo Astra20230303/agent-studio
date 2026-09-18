@@ -51,6 +51,24 @@ const assert = require('node:assert/strict');
     assert.equal(await editor.inputValue(), 'Retain my draft');
     await select.selectOption('b');
     await page.waitForFunction(() => !!window.__migration);
+    for (const result of [
+      {},
+      { thread: { id: 'wrong-thread' }, providerId: 'b', model: 'beta-model' },
+      { thread: { id: 'remote-a' }, providerId: 'a', model: 'beta-model' },
+      { thread: { id: 'remote-a' }, providerId: 'b', model: 'wrong-model' },
+    ]) {
+      await page.evaluate(result => { window.__migration({ ok: true, result }); window.__migration = undefined; }, result);
+      await page.getByText('切换会话渠道失败：服务端渠道切换确认无效，本地设置未更改，请重新打开会话核对后重试。', { exact: true }).waitFor();
+      assert.equal(await select.inputValue(), 'a');
+      assert.equal(await editor.inputValue(), 'Retain my draft');
+      const original = await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.find(thread => thread.id === 'local-a'));
+      assert.equal(original.remoteId, 'remote-a');
+      assert.equal(original.providerId, 'a');
+      assert.equal(original.model, 'alpha-model');
+      assert.equal(original.messages[0].content, 'Keep this history');
+      await select.selectOption('b');
+      await page.waitForFunction(() => !!window.__migration);
+    }
     await page.getByRole('button', { name: '新对话', exact: true }).click();
     await editor.fill('Independent draft');
     await page.evaluate(() => { window.__provider = 'b'; window.__model = 'beta-model'; window.__migration({ ok: true, result: { providerId: 'b', model: 'beta-model', thread: { id: 'remote-a' } } }); });
