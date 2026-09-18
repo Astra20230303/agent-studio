@@ -30,6 +30,7 @@ function task(value: any): value is ScheduledTask {
     if (schedule.kind === 'weekly' && (!Number.isInteger(schedule.day) || schedule.day < 0 || schedule.day > 6)) return false;
   }
   return value.runs.every((run: any) => record(run) && typeof run.id === 'string' && !!run.id
+    && (run.outputTruncated == null || typeof run.outputTruncated === 'boolean')
     && (run.environment == null || record(run.environment) && typeof run.environment.cwd === 'string' && !!run.environment.cwd
       && (run.environment.providerId == null || typeof run.environment.providerId === 'string'))
     && (run.configuration == null || record(run.configuration) && ['name','prompt','model'].every(key => typeof run.configuration[key] === 'string')

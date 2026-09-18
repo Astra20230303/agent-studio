@@ -23,8 +23,8 @@ function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_
     const cache = dataRoot;
     fs.mkdirSync(home, { recursive: true });
     fs.mkdirSync(temp, { recursive: true });
-    let rpc, adapter, timer, child, threadId, halted = false, output = '';
-    const append = text => { if (halted) return; output = (output + text).slice(-200000); onProgress?.(output); };
+    let rpc, adapter, timer, child, threadId, halted = false, output = '', outputTruncated = false;
+    const append = text => { if (halted) return; outputTruncated ||= output.length + text.length > 200000; output = (output + text).slice(-200000); onProgress?.(output, { outputTruncated }); };
     let fail;
     const aborted = new Promise((_, reject) => { fail = error => { halted = true; reject(error); }; });
     const cancel = () => fail(new Error('执行已停止。'));
@@ -85,10 +85,10 @@ function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_
         await rpc.request('turn/start', { threadId, ...(task.reasoningEffort ? { effort: task.reasoningEffort } : {}), input: [{ type: 'text', text: task.prompt }] });
         await completed;
         if (!output.trim()) throw new Error('任务结束但没有输出。');
-        return { output, threadId };
+        return { output, threadId, outputTruncated };
       };
       return await Promise.race([execute(), aborted]);
-    } catch (error) { error.output = output; if (threadId) error.threadId = threadId; throw error; }
+    } catch (error) { error.output = output; error.outputTruncated = outputTruncated; if (threadId) error.threadId = threadId; throw error; }
     finally {
       halted = true;
       clearTimeout(timer); signal.removeEventListener('abort', cancel);

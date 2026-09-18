@@ -200,10 +200,11 @@ class TaskScheduler extends EventEmitter {
         }
       }, 2000);
     };
-    const onProgress = output => {
+    const onProgress = (output, metadata) => {
       if (typeof output !== 'string' || this.active?.runId !== runId) return;
       const run = this.get(task.id).runs.find(item => item.id === runId);
       if (!run || run.status !== 'running') return;
+      run.outputTruncated = run.outputTruncated === true || metadata?.outputTruncated === true || output.length > 200000;
       run.output = output.slice(-200000);
       checkpoint();
       if (!progressTimer) progressTimer = setTimeout(() => { progressTimer = undefined; this.emit('changed'); }, 250);
@@ -224,7 +225,9 @@ class TaskScheduler extends EventEmitter {
     try {
         const current = this.get(task.id);
         const run = current.runs.find(item => item.id === runId);
-        Object.assign(run, { status: signal.aborted ? 'interrupted' : error ? 'failed' : 'completed', finishedAt: new Date(this.now()).toISOString(), output: String(result.output || error?.output || run.output || '').slice(-200000), error: error ? String(error.message || error).slice(0, 4000) : signal.aborted ? '执行已停止。' : undefined, threadId: result.threadId || error?.threadId || run.threadId });
+        const finalOutput = String(result.output || error?.output || run.output || '');
+        run.outputTruncated = run.outputTruncated === true || result.outputTruncated === true || error?.outputTruncated === true || finalOutput.length > 200000;
+        Object.assign(run, { status: signal.aborted ? 'interrupted' : error ? 'failed' : 'completed', finishedAt: new Date(this.now()).toISOString(), output: finalOutput.slice(-200000), error: error ? String(error.message || error).slice(0, 4000) : signal.aborted ? '执行已停止。' : undefined, threadId: result.threadId || error?.threadId || run.threadId });
         if (current.schedule.kind === 'once' && (trigger === 'scheduled' || !error && !signal.aborted)) { current.status = 'completed'; current.nextRunAt = null; }
       this.pendingFinalTaskId = task.id;
       this.retryFinalization();

@@ -11,6 +11,7 @@ export function taskRunExport(name: string, run: TaskRun): string {
   } else lines.push('', '此运行记录没有配置快照。');
   if (run.environment) lines.push('', '实际执行环境', `工作目录：${run.environment.cwd}`, `渠道 ID：${run.environment.providerId || '未提供渠道 ID'}`);
   if (run.error) lines.push('', '错误：', run.error);
+  if (run.outputTruncated) lines.push('', '输出过长，仅保留末尾 200000 字符。');
   lines.push('', '运行输出：', run.output || '');
   return lines.join('\n');
 }
