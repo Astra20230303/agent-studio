@@ -7,7 +7,14 @@ function block(value: unknown) {
 }
 export function conversationMarkdown(thread: Thread, items?: any[]) {
   const title = thread.title.replace(/[\r\n]+/g, ' ');
-  const intro = `# ${title}\n\n导出时间：${new Date().toISOString()}\n\n来源：${items ? '服务端完整分页记录' : '本机已加载记录（可能不完整）'}\n\n会话：${block(thread.remoteId || thread.id)}\n`;
+  const metadata = [
+    ['模型', thread.model], ['Provider', thread.providerId], ['推理强度', thread.reasoningEffort],
+    ['执行模式', thread.planningMode === 'plan' ? '先规划' : thread.planningMode === 'default' ? '直接执行' : undefined],
+    ['工作目录', thread.cwd], ['请求权限', thread.requestedPermission],
+    ['实际沙箱', thread.effectivePermissions?.sandbox], ['审批策略', thread.effectivePermissions?.approvalPolicy],
+  ].filter((entry): entry is [string, string] => typeof entry[1] === 'string' && !!entry[1].trim())
+    .map(([label, value]) => `- ${label}：${value.replace(/[\r\n]+/g, ' ')}`).join('\n');
+  const intro = `# ${title}\n\n导出时间：${new Date().toISOString()}\n\n来源：${items ? '服务端完整分页记录' : '本机已加载记录（可能不完整）'}\n\n会话：${block(thread.remoteId || thread.id)}\n${metadata ? `\n配置摘要：\n${metadata}\n` : ''}`;
   const records = items ? items.filter(entry => entry && typeof entry === 'object' && !Array.isArray(entry)).map(entry => {
     const item = entry.item && typeof entry.item === 'object' && !Array.isArray(entry.item) ? entry.item : entry;
     if (!item || typeof item.type !== 'string') return `## 服务端记录\n\n${block(entry)}`;

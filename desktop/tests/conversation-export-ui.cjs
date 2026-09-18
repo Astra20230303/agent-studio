@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
   try {
     const page = await browser.newPage();
     await page.addInitScript(() => {
-      localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeThreadId: 'a', threads: [{ id: 'a', remoteId: 'remote-a', title: 'Export test', messages: [{ id: 'local', role: 'user', content: 'local preview', createdAt: '' }], status: 'completed', updatedAt: '' }] }));
+      localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeThreadId: 'a', threads: [{ id: 'a', remoteId: 'remote-a', title: 'Export test', model: 'model-a', reasoningEffort: 'high', planningMode: 'plan', cwd: 'D:/workspace', requestedPermission: 'workspace-write', effectivePermissions: { sandbox: 'workspaceWrite', approvalPolicy: 'on-request', reviewer: 'auto_review' }, messages: [{ id: 'local', role: 'user', content: 'local preview', createdAt: '' }], status: 'completed', updatedAt: '' }] }));
       window.__exports = []; window.__pages = []; window.__fail = false;
       window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }), saveConversation: async input => { window.__exports.push(input); if(window.__holdSave)await new Promise(resolve=>{window.__releaseSave=resolve;});return { ok: true }; } };
       window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async (method, params) => {
@@ -17,7 +17,7 @@ const assert = require('node:assert/strict');
           if (window.__badItem && params.cursor) return { ok: true, result: { data: [{ item: { type: 'agentMessage', text: 'Missing ID' } }] } };
           return { ok: true, result: params.cursor ? { data: [{ item: { id: 'reply', type: 'agentMessage', text: 'Final reply' } }, { item: { id: 'future', type: 'futureTool', payload: '``` nested ```' } }], nextCursor: null } : { data: [{ item: { id: 'user', type: 'userMessage', content: [{ type: 'text', text: '你好' }, { type: 'localImage', path: 'D:/image.png' }] } }, { item: { id: 'command', type: 'commandExecution', command: 'pwd', aggregatedOutput: 'D:/workspace' } }], nextCursor: 'second' } };
         }
-        return { ok: true, result: method === 'thread/resume' ? { thread: { id: params.threadId, turns: [] } } : { data: [] } };
+        return { ok: true, result: method === 'thread/resume' ? { model:'model-a', reasoningEffort:'high', thread: { id: params.threadId, cwd:'D:/workspace', turns: [] }, sandboxPolicy:{type:'workspaceWrite'}, approvalPolicy:'on-request', approvalsReviewer:'auto_review' } : { data: [] } };
       }, onNotification: () => () => {}, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
     });
     await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
@@ -26,7 +26,7 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(() => window.__exports.length === 1);
     const data = await page.evaluate(() => window.__exports[0]);
     assert.equal(data.filename, 'Export test.md');
-    for (const text of ['服务端完整分页记录', '你好', 'D:/image.png', 'D:/workspace', 'Final reply', 'futureTool', '````']) assert.ok(data.content.includes(text), text);
+    for (const text of ['模型：model-a', '推理强度：high', '执行模式：先规划', '工作目录：D:/workspace', '实际沙箱：workspaceWrite', '服务端完整分页记录', '你好', 'D:/image.png', 'D:/workspace', 'Final reply', 'futureTool', '````']) assert.ok(data.content.includes(text), text);
     assert.ok(data.content.indexOf('你好') < data.content.indexOf('Final reply'));
     assert.deepEqual(await page.evaluate(() => window.__pages.map(params => params.cursor)), [undefined, 'second']);
     await page.evaluate(() => { window.__fail = true; });
