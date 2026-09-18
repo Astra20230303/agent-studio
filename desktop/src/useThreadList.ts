@@ -30,10 +30,15 @@ export function useThreadList(repository: ThreadRepository, connected: boolean, 
         for (const item of result.data) {
           if (typeof item?.id !== 'string' || !item.id) continue;
           const section = readOptionalThreadSection(item.section);
+          const hasProject = Object.prototype.hasOwnProperty.call(item, 'projectId');
+          const projectId = typeof item.projectId === 'string' && item.projectId.trim() ? item.projectId : undefined;
           if (ids.has(item.id)) {
             const existing = threads.find(thread => thread.remoteId === item.id);
             if (existing && Object.prototype.hasOwnProperty.call(item, 'section')) {
               if (section) existing.sectionId = section.id; else delete existing.sectionId;
+            }
+            if (existing && hasProject) {
+              if (projectId) existing.projectId = projectId; else delete existing.projectId;
             }
             continue;
           }
@@ -41,7 +46,7 @@ export function useThreadList(repository: ThreadRepository, connected: boolean, 
           const timestamp = Number(item.updatedAt) * 1000;
           const updatedAt = new Date(Number.isFinite(timestamp) && Math.abs(timestamp) <= 8640000000000000 ? timestamp : 0).toISOString();
           const title = [item.name, item.preview].find(value => typeof value === 'string' && value.trim()) || 'Felix 对话';
-          threads.push({ id: `remote-${item.id}`, remoteId: item.id, sectionId: section?.id, title, cwd: item.cwd, status: item.status?.type === 'active' ? 'running' : 'completed', pinned: false, archived: false, messages: [], updatedAt });
+          threads.push({ id: `remote-${item.id}`, remoteId: item.id, sectionId: section?.id, ...(projectId ? { projectId } : {}), title, cwd: item.cwd, status: item.status?.type === 'active' ? 'running' : 'completed', pinned: false, archived: false, messages: [], updatedAt });
         }
         return { ...previous, threads };
       });

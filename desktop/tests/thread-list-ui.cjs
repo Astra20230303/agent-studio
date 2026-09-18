@@ -20,7 +20,7 @@ const assert = require('node:assert/strict');
           if (params.searchTerm === 'slow') return new Promise(resolve => { window.__resolveSlow = () => resolve({ ok: true, result: { data: [{ id: 'stale', name: 'Stale result', updatedAt: 50 }] } }); });
           if (params.searchTerm) return { ok: true, result: { data: [{ id: 'hidden', name: 'Remote match', updatedAt: 40 }] } };
           if (params.cursor && window.__fail) return { ok: false, error: { message: 'Page unavailable' } };
-          return { ok: true, result: params.cursor ? { data: [{ id: 'new', name: 'Newest', updatedAt: 30 }, { id: 'old', name: 'Older', updatedAt: 10 }, { id: 'invalid', name: 'Invalid timestamp', updatedAt: 'invalid' }, null] } : { data: [{ id: 'new', name: 'Newest', updatedAt: 30 }, { id: 'mid', name: 'Middle', updatedAt: 20 }], nextCursor: 'older-page' } };
+          return { ok: true, result: params.cursor ? { data: [{ id: 'new', name: 'Newest', projectId: 'project-a', updatedAt: 30 }, { id: 'old', name: 'Older', updatedAt: 10 }, { id: 'invalid', name: 'Invalid timestamp', updatedAt: 'invalid' }, null] } : { data: [{ id: 'new', name: 'Newest', projectId: 'project-a', updatedAt: 30 }, { id: 'mid', name: 'Middle', updatedAt: 20 }], nextCursor: 'older-page' } };
         }
         return { ok: true, result: { data: [] } };
       }, notify: async () => ({}), onNotification: () => () => {}, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
@@ -33,6 +33,7 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: '重试加载会话' }).click();
     await page.getByRole('button', { name: 'Older', exact: true }).waitFor();
     assert.deepEqual(await page.locator('.recent').evaluateAll(nodes => nodes.map(node => node.getAttribute('aria-label'))), ['Newest', 'Middle', 'Older', 'Invalid timestamp']);
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.find(thread => thread.remoteId === 'new').projectId), 'project-a');
     assert.equal(await page.getByRole('button', { name: '加载更多会话' }).count(), 0);
     assert.equal(await page.evaluate(() => window.__calls.filter(call => call.method === 'thread/list' && call.params.cursor === 'older-page').length), 2);
     await page.getByRole('button', { name: '搜索', exact: true }).click();
