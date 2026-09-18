@@ -1809,3 +1809,7 @@ remains low. The expanded browser flow passes without further product changes.
 计划与交付：完整服务端历史导出跳过空值和原始值，非对象包装保留为原始记录，非数组用户内容安全导出为空文本；合法未知类型仍保留。模拟桥接完整分页导出验收加入脏条目，生产构建通过。
 
 提交后修正：抽离 conversationMarkdown 纯函数，处理 undefined 内容块及非字符串正文，保留 JSON 字段而非输出 [object Object]。独立脏记录测试、完整导出浏览器回归和构建通过。本轮未交付每会话 Provider 路由或图片生成结果专用视图，这两项仍待实现。
+
+## 图片生成结果专用视图
+
+计划与交付：按上游 ImageGenerationItem 字段显示生成中、完成、失败与额度错误，展示修订提示词；有效 PNG/JPEG/WebP base64 可预览下载，缺少内嵌结果时使用已有工作区文件预览边界。浏览器以协议记录验证 PNG 解码、下载、文本转义与状态，生产构建通过。此交付仅为结果展示，不新增图片生成 Provider 或证明实际模型生成能力。

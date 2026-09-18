@@ -8,8 +8,10 @@ import { CopyText } from './CopyText';
 import { WebSearchActivity } from './WebSearchActivity';
 import { ImageViewActivity } from './ImageViewActivity';
 import { ReasoningActivity } from './ReasoningActivity';
+import { ImageGenerationActivity } from './ImageGenerationActivity';
 
 function ToolRow({ tool, onOpenAgent }: { tool: ToolActivity; onOpenAgent?: (id: string) => void }) {
+  if (tool.rawRecord?.type === 'imageGeneration') return <ImageGenerationActivity tool={tool} />;
   if (tool.rawRecord?.type === 'reasoning') return <ReasoningActivity tool={tool} />;
   if (tool.rawRecord?.type === 'webSearch') return <WebSearchActivity tool={tool} />;
   if (tool.rawRecord?.type === 'imageView') return <ImageViewActivity tool={tool} />;
