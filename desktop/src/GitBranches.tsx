@@ -6,6 +6,7 @@ export function GitBranches({ root, onSwitched, onBusyChange }: { root: string; 
   const [target, setTarget] = useState('');
   const [remoteRef, setRemoteRef] = useState('');
   const [localName, setLocalName] = useState('');
+  const [newName, setNewName] = useState('');
   const [deleteName, setDeleteName] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -29,12 +30,12 @@ export function GitBranches({ root, onSwitched, onBusyChange }: { root: string; 
     })();
     return () => { disposed = true; };
   }, [root, revision]);
-  const switchBranch = async (track = false, deleting = false) => {
+  const switchBranch = async (track = false, deleting = false, creating = false) => {
     const remote = snapshot?.remoteBranches?.find(entry => entry.ref === remoteRef);
-    if (locked.current || !snapshot || (deleting ? !deleteName : track ? !remote || !localName.trim() : !target)) return;
+    if (locked.current || !snapshot || (creating ? !snapshot.head || !newName.trim() || snapshot.branches.includes(newName) : deleting ? !deleteName : track ? !remote || !localName.trim() : !target)) return;
     locked.current = true; setBusy(true); onBusyChange(true); setError(''); setNotice('');
     try {
-      const result = await window.desktop?.workspaceGit?.({ root, action: deleting ? 'delete-branch' : track ? 'track-branch' : 'switch-branch', branch: deleting ? deleteName : track ? localName : target, expectedBranch: snapshot.current, expectedHead: snapshot.head, ...(track ? { ref: remote!.ref, expectedRemoteHead: remote!.head } : {}) });
+      const result = await window.desktop?.workspaceGit?.({ root, action: creating ? 'create-branch' : deleting ? 'delete-branch' : track ? 'track-branch' : 'switch-branch', branch: creating ? newName : deleting ? deleteName : track ? localName : target, expectedBranch: snapshot.current, expectedHead: snapshot.head, ...(track ? { ref: remote!.ref, expectedRemoteHead: remote!.head } : {}) });
       if (!mounted.current) return;
       if (!result?.ok) throw Error(result?.error || '无法切换分支');
       if (deleting) { setRevision(value => value + 1); setDeleteName(''); setError(''); setNotice(`已删除本地分支 ${deleteName}`); } else onSwitched(result.result.branch);
@@ -52,6 +53,14 @@ export function GitBranches({ root, onSwitched, onBusyChange }: { root: string; 
       <label>目标分支<select aria-label="目标分支" value={target} disabled={busy} onChange={event => setTarget(event.target.value)}><option value="">选择本地分支</option>{snapshot.branches.map(branch => <option key={branch} value={branch}>{branch}</option>)}</select></label>
       <p>未提交修改会随工作区保留；若目标分支会覆盖修改，Git 将拒绝切换。</p>
       <button disabled={busy || !target || target === snapshot.current}>{busy ? '正在切换…' : '切换到所选分支'}</button>
+    </form>}
+    {snapshot && <form onSubmit={event => { event.preventDefault(); void switchBranch(false, false, true); }}>
+      <h3>从当前提交创建本地分支</h3>
+      <label>新分支名称<input aria-label="新分支名称" value={newName} disabled={busy} onChange={event => setNewName(event.target.value)} /></label>
+      {!snapshot.head && <p>请先完成首个提交，再创建本地分支。</p>}
+      {newName && snapshot.branches.includes(newName) && <p>本地分支已存在，请选择其他名称。</p>}
+      <p>创建后立即切换，保留当前未提交修改。</p>
+      <button disabled={busy || !snapshot.head || !newName.trim() || snapshot.branches.includes(newName)}>创建本地分支并切换</button>
     </form>}
     {snapshot && <form onSubmit={event => { event.preventDefault(); void switchBranch(true); }}>
       <h3>从远端分支创建本地分支</h3>

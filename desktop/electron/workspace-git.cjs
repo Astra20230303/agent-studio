@@ -54,7 +54,7 @@ async function workspaceGit(input, { assertWorktreeIdle } = {}) {
     await git(root, ['stash', 'pop']);
     return { changed: true };
   }
-  if (['branches', 'switch-branch', 'track-branch', 'delete-branch'].includes(input.action)) {
+  if (['branches', 'switch-branch', 'create-branch', 'track-branch', 'delete-branch'].includes(input.action)) {
     const branches = (await git(root, ['for-each-ref', '--format=%(refname:strip=2)', 'refs/heads/'])).trim().split('\n').filter(Boolean);
     const current = (await git(root, ['symbolic-ref', '--short', '-q', 'HEAD']).catch(() => '')).trim();
     const head = (await git(root, ['rev-parse', '--verify', 'HEAD']).catch(() => '')).trim();
@@ -62,6 +62,16 @@ async function workspaceGit(input, { assertWorktreeIdle } = {}) {
       const [ref, head, symbolic] = row.split('\0'); return { ref, head, symbolic };
     }).filter(entry => !entry.symbolic).map(({ ref, head }) => ({ ref, head }));
     if (input.action === 'branches') return { branches, remoteBranches, current, head };
+    if (input.action === 'create-branch') {
+      if (input.expectedBranch !== current || input.expectedHead !== head) throw Error('当前分支或提交已变化，请刷新分支列表');
+      if (!head) throw Error('请先完成首个提交，再创建本地分支');
+      if (typeof input.branch !== 'string' || !input.branch || input.branch !== input.branch.trim()) throw Error('请输入有效本地分支名');
+      await git(root, ['check-ref-format', '--branch', input.branch]);
+      await git(root, ['check-ref-format', `refs/heads/${input.branch}`]);
+      if (branches.includes(input.branch)) throw Error('本地分支已存在，请选择其他名称或切换已有分支');
+      await git(root, ['switch', '--no-guess', '--no-track', '-c', input.branch, '--', head]);
+      return { branch: input.branch };
+    }
     if (input.action === 'track-branch') {
       const remote = remoteBranches.find(entry => entry.ref === input.ref);
       if (!remote) throw Error('远端分支不存在，请获取远端后刷新分支列表');
