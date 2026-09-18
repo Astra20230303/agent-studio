@@ -35,6 +35,16 @@ const assert = require('node:assert/strict');
   assert.deepEqual(await editor.evaluate(node => [node.selectionStart, node.selectionEnd]), [5, 5]);
   await editor.press('Control+z');
   assert.equal(await editor.inputValue(), Array.from({ length: 100 }, (_, index) => 'line ' + (index + 1)).join('\n') + '\n');
-  console.log('PASS: editor line jump uses draft coordinates, scrolls, handles empty lines and preserves text/history');
+  await editor.press('Control+g');
+  await line.fill('1');
+  await line.dispatchEvent('keydown', { key: 'Enter', code: 'Enter', isComposing: true, bubbles: true });
+  assert.equal(await line.evaluate(node => node === document.activeElement), true);
+  await editor.fill('');
+  await line.fill('1'); await line.press('Enter');
+  assert.deepEqual(await editor.evaluate(node => [node.selectionStart, node.selectionEnd]), [0, 0]);
+  assert.equal(await editor.inputValue(), '');
+  await line.fill('2'); await line.press('Enter');
+  await dialog.getByText('请输入 1 至 1 的编辑行号。', { exact: true }).waitFor();
+  console.log('PASS: editor jump selection/scroll, draft coordinates, empty files, invalid lines, IME and history preservation');
  } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
