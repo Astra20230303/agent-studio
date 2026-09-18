@@ -9,7 +9,7 @@ const assert = require('node:assert/strict');
       localStorage.setItem('codex-desktop-state-v1', JSON.stringify({
         model: 'alpha-model', activeThreadId: 'local-a', threads: [{ id: 'local-a', remoteId: 'remote-a', providerId: 'a', model: 'alpha-model', title: 'Existing conversation', messages: [{ id: 'm', role: 'user', content: 'Keep this history', createdAt: new Date().toISOString() }], status: 'completed', pinned: false, archived: false, updatedAt: new Date().toISOString() }], projects: [], automations: [],
       }));
-      window.__calls = [];
+      window.__calls = []; window.__provider = 'a'; window.__model = 'alpha-model';
       window.desktop = {
         listProviders: async () => [{ id: 'a', name: 'Alpha', enabled: true }, { id: 'b', name: 'Beta' }],
         listModels: async input => ({ ok: true, models: [input?.providerId === 'b' ? 'beta-model' : 'alpha-model'] }),
@@ -19,7 +19,7 @@ const assert = require('node:assert/strict');
         connect: async () => ({ ok: true }), notify: async () => ({}),
         request: async (method, params) => {
           window.__calls.push({ method, params });
-          if (method === 'thread/resume') return { ok: true, result: { providerId: 'a', thread: { id: 'remote-a', turns: [] } } };
+          if (method === 'thread/resume') return { ok: true, result: { providerId: window.__provider, model: window.__model, thread: { id: 'remote-a', turns: [] } } };
           if (method === 'felix/thread/provider') return new Promise(resolve => { window.__migration = resolve; });
           if (method === 'turn/start') return { ok: true, result: { turn: { id: 'turn', status: 'inProgress' } } };
           return { ok: true, result: { data: [] } };
@@ -45,7 +45,13 @@ const assert = require('node:assert/strict');
     assert.equal(await editor.inputValue(), 'Retain my draft');
     await select.selectOption('b');
     await page.waitForFunction(() => !!window.__migration);
-    await page.evaluate(() => window.__migration({ ok: true, result: { providerId: 'b', thread: { id: 'remote-a' } } }));
+    await page.getByRole('button', { name: '新对话', exact: true }).click();
+    await editor.fill('Independent draft');
+    await page.evaluate(() => { window.__provider = 'b'; window.__model = 'beta-model'; window.__migration({ ok: true, result: { providerId: 'b', model: 'beta-model', thread: { id: 'remote-a' } } }); });
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.find(thread => thread.id === 'local-a').providerId === 'b');
+    assert.equal(await editor.inputValue(), 'Independent draft');
+    assert.equal(await select.inputValue(), 'a');
+    await page.getByRole('button', { name: 'Existing conversation', exact: true }).click();
     await page.waitForFunction(() => document.querySelector('.model-button')?.textContent.includes('beta-model'));
     assert.equal(await select.inputValue(), 'b');
     assert.equal(await editor.inputValue(), 'Retain my draft');
@@ -54,7 +60,7 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(() => window.__calls.some(call => call.method === 'turn/start'));
     const calls = await page.evaluate(() => window.__calls);
     assert.equal(calls.some(call => call.method === 'thread/start'), false);
-    assert.deepEqual(calls.find(call => call.method === 'felix/thread/provider').params, { threadId: 'remote-a', providerId: 'b' });
+    assert.deepEqual(calls.find(call => call.method === 'felix/thread/provider').params, { threadId: 'remote-a', providerId: 'b', model: 'beta-model' });
     assert.equal(calls.find(call => call.method === 'turn/start').params.model, 'beta-model');
     assert.equal(calls.find(call => call.method === 'turn/start').params.threadId, 'remote-a');
     console.log('PASS: existing thread migration locks sending, preserves failed selection and draft, then uses target catalog without replacing history');

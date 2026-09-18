@@ -9,8 +9,8 @@ class ThreadProviderRouter {
     this.inflight = new Map();
     this.failedMigrations = new Set();
   }
-  save(threadId, providerId, modelProvider = 'minimax') {
-    const next = { ...this.bindings, [threadId]: modelProvider === 'minimax' ? providerId : { providerId, modelProvider } };
+  save(threadId, providerId, modelProvider = 'minimax', model) {
+    const next = { ...this.bindings, [threadId]: modelProvider === 'minimax' && !model ? providerId : { providerId, modelProvider, ...(model ? { model } : {}) } };
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
     fs.writeFileSync(this.file + '.tmp', JSON.stringify(next), { mode: 0o600 });
     fs.renameSync(this.file + '.tmp', this.file);
@@ -32,8 +32,9 @@ class ThreadProviderRouter {
       [`model_providers.${engine}.base_url`]: `${this.adapterUrl()}/providers/${providerId}/v1`,
     };
   }
-  async migrate(rpc, { threadId, providerId }) {
+  async migrate(rpc, { threadId, providerId, model }) {
     if (typeof threadId !== 'string' || !threadId || typeof providerId !== 'string' || !providerId) throw Error('会话和目标渠道不能为空');
+    if (model !== undefined && (typeof model !== 'string' || !model.trim())) throw Error('目标模型无效');
     if (this.migrating.has(threadId) || this.inflight.get(threadId)) throw Error('会话操作尚未完成，请稍后切换渠道');
     const target = this.provider(providerId);
     const previous = this.get(threadId);
@@ -42,22 +43,26 @@ class ThreadProviderRouter {
     const engine = `felix_${target.id}`;
     this.migrating.add(threadId);
     let detached = false;
+    let previousModel;
     try {
       const current = await rpc.request('thread/read', { threadId, includeTurns: false });
       if (!['idle', 'notLoaded'].includes(current.thread?.status?.type)) throw Error('会话正在运行，完成后才能切换渠道');
+      const snapshot = await rpc.request('thread/resume', { threadId, excludeTurns: true, ...(this.bindings[threadId]?.model ? { model: this.bindings[threadId].model } : {}), modelProvider: previousEngine, config: this.config(previous, previousEngine) });
+      previousModel = snapshot.model;
+      if (snapshot.thread?.id !== threadId || typeof previousModel !== 'string' || !previousModel) throw Error('无法读取当前会话模型');
       await rpc.request('thread/unsubscribe', { threadId });
       detached = true;
-      const result = await rpc.request('thread/resume', { threadId, excludeTurns: true, modelProvider: engine, config: this.config(target.id, engine) });
-      if (result.thread?.id !== threadId || result.modelProvider !== engine) throw Error('引擎未应用目标渠道');
-      this.save(threadId, target.id, engine);
+      const result = await rpc.request('thread/resume', { threadId, excludeTurns: true, ...(model ? { model } : {}), modelProvider: engine, config: this.config(target.id, engine) });
+      if (result.thread?.id !== threadId || result.modelProvider !== engine || model && result.model !== model) throw Error('引擎未应用目标渠道或模型');
+      this.save(threadId, target.id, engine, result.model);
       this.failedMigrations.delete(threadId);
       return { ...result, providerId: target.id };
     } catch (error) {
       if (detached) {
         try {
           await rpc.request('thread/unsubscribe', { threadId });
-          const restored = await rpc.request('thread/resume', { threadId, excludeTurns: true, modelProvider: previousEngine, config: this.config(previous, previousEngine) });
-          if (restored.thread?.id !== threadId || restored.modelProvider !== previousEngine) throw Error('旧渠道恢复未确认');
+          const restored = await rpc.request('thread/resume', { threadId, excludeTurns: true, model: previousModel, modelProvider: previousEngine, config: this.config(previous, previousEngine) });
+          if (restored.thread?.id !== threadId || restored.modelProvider !== previousEngine || restored.model !== previousModel) throw Error('旧渠道恢复未确认');
         } catch (restoreError) {
           this.failedMigrations.add(threadId);
           throw Error(`${error.message}；恢复旧渠道失败：${restoreError.message}。请重启服务后重试。`);
@@ -84,11 +89,12 @@ class ThreadProviderRouter {
     const routed = { ...params, modelProvider: engine };
     delete routed.providerId;
     if (method !== 'turn/start') {
+      if (!routed.model && this.bindings[params.threadId]?.model) routed.model = this.bindings[params.threadId].model;
       routed.config = { ...params.config, ...this.config(provider.id, engine) };
     }
     const result = await rpc.request(method, routed);
     if (method !== 'turn/start' && result.thread?.id) {
-      this.save(result.thread.id, provider.id, engine);
+      this.save(result.thread.id, provider.id, engine, result.model);
       return { ...result, providerId: provider.id };
     }
     return result;

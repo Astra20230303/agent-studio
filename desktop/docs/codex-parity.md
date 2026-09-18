@@ -9,14 +9,23 @@ Provider name confirms the override took effect before the binding is persisted.
 Concurrent operations are blocked during migration; failure restores the previous
 engine configuration, and failed rollback blocks requests until service restart.
 The selector is disabled for running conversations and nonempty message queues.
-After success the composer loads the target catalog and resets its model choice.
+Migration keeps the current model if available in the target catalog, otherwise
+selects the first available target model and applies it to both engine and UI.
 
 Build, four migration fault/concurrency tests, browser migration/reload/catalog
 checks and a real Codex process test pass. Two local HTTP model services verify
 new address and credentials, previous assistant history in the new request,
 binding reload, fork inheritance and switching back. This validates routing and
-history transfer, not the quality of any hosted model. Process restart acceptance
-is the next verification step.
+history transfer, not the quality of any hosted model.
+
+Post-commit acceptance found custom models reverted to the engine default after
+cold resume. Bindings now persist the confirmed model and supply it on resume and
+fork; rollback restores the previous model too. A real process exit/restart and
+next HTTP request prove target model, address, credentials, prior history, sandbox
+and approval policy survive. Browser navigation during a delayed migration keeps
+the destination draft separate and restores the source's target model on return.
+Six concurrency/fault tests cover active/pending operations, ignored overrides,
+write failure and failed rollback. Build and new-thread Provider regression pass.
 
 ## Paste clipboard screenshots
 

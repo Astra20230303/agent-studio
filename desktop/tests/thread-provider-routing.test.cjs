@@ -32,8 +32,11 @@ test('real threads retain their provider through global switches, resume and for
     adapter = startMiniMaxAdapter({ port: 0, resolveProvider: read }); await once(adapter, 'listening');
     const url = () => `http://127.0.0.1:${adapter.address().port}`;
     const settings = ['model_providers.minimax.name="Felix"', 'model_providers.minimax.wire_api="responses"', 'model_providers.minimax.env_key="MINIMAX_API_KEY"', `model_providers.minimax.base_url="${url()}/v1"`, `model_catalog_json=${JSON.stringify(compatibilityCatalog(root, home))}`, 'web_search="disabled"'];
-    rpc = new CodexRpc(spawn(findCommand(root).command, [...settings.flatMap(s => ['-c', s]), 'app-server', '--stdio'], { cwd: root, env: { ...process.env, CODEX_HOME: home, MINIMAX_API_KEY: 'adapter' }, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true }));
-    await rpc.request('initialize', { clientInfo: { name: 'test', version: '1' }, capabilities: { experimentalApi: true } }); rpc.notify('initialized', {});
+    const connect = async () => {
+      rpc = new CodexRpc(spawn(findCommand(root).command, [...settings.flatMap(s => ['-c', s]), 'app-server', '--stdio'], { cwd: root, env: { ...process.env, CODEX_HOME: home, MINIMAX_API_KEY: 'adapter' }, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true }));
+      await rpc.request('initialize', { clientInfo: { name: 'test', version: '1' }, capabilities: { experimentalApi: true } }); rpc.notify('initialized', {});
+    };
+    await connect();
     let router = new ThreadProviderRouter(path.join(home, 'bindings.json'), read, url);
     const start = () => router.request(rpc, 'thread/start', { cwd: home, model: 'MiniMax-M2.1', sandbox: 'read-only', approvalPolicy: 'never' });
     const turn = async threadId => {
@@ -60,13 +63,17 @@ test('real threads retain their provider through global switches, resume and for
     const fork = await router.request(rpc, 'thread/fork', { threadId: a }); await turn(fork.thread.id);
     assert.equal(fork.providerId, 'a');
     assert.deepEqual(received.slice(2).map(r => r.id), ['a', 'a']);
-    const migrated = await router.request(rpc, 'felix/thread/provider', { threadId: a, providerId: 'b' });
+    const migrated = await router.request(rpc, 'felix/thread/provider', { threadId: a, providerId: 'b', model: 'beta-model' });
     assert.equal(migrated.thread.id, a);
     assert.equal(migrated.providerId, 'b');
     assert.equal(migrated.modelProvider, 'felix_b');
+    assert.equal(migrated.model, 'beta-model');
+    assert.deepEqual(migrated.sandbox, createdA.sandbox);
+    assert.equal(migrated.approvalPolicy, createdA.approvalPolicy);
     await turn(a);
     assert.equal(received.at(-1).id, 'b');
     assert.equal(received.at(-1).key, 'Bearer b-key');
+    assert.equal(received.at(-1).body.model, 'beta-model');
     assert.match(JSON.stringify(received.at(-1).body.messages), /Reply from a/, 'migration retains previous assistant history in the actual model request');
     router = new ThreadProviderRouter(path.join(home, 'bindings.json'), read, url);
     assert.equal(router.get(a), 'b');
@@ -74,13 +81,27 @@ test('real threads retain their provider through global switches, resume and for
     const migratedFork = await router.request(rpc, 'thread/fork', { threadId: a });
     await turn(migratedFork.thread.id);
     assert.equal(received.at(-1).id, 'b');
+    const exited = once(rpc.child, 'exit');
+    rpc.close(); await exited;
+    await connect();
+    router = new ThreadProviderRouter(path.join(home, 'bindings.json'), read, url);
+    const cold = await router.request(rpc, 'thread/resume', { threadId: a });
+    assert.equal(cold.modelProvider, 'felix_b');
+    assert.equal(cold.model, 'beta-model');
+    assert.equal(cold.thread.id, a);
+    assert.deepEqual(cold.sandbox, createdA.sandbox);
+    await turn(a);
+    assert.equal(received.at(-1).id, 'b');
+    assert.equal(received.at(-1).key, 'Bearer b-key');
+    assert.match(JSON.stringify(received.at(-1).body.messages), /Reply from a/);
+    assert.equal(received.at(-1).body.model, 'beta-model');
     await router.request(rpc, 'felix/thread/provider', { threadId: a, providerId: 'a' });
     delete providers.b;
     await turn(a);
     assert.equal(received.at(-1).id, 'a', 'A bound thread remains usable when the active B provider is unavailable');
     delete providers.a;
     await assert.rejects(turn(a), /Provider missing/);
-    assert.equal(received.length, 7);
+    assert.equal(received.length, 8);
   } finally {
     rpc?.close();
     for (const server of [adapter, ...servers].filter(Boolean)) { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }

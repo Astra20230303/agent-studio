@@ -442,8 +442,12 @@ function App() {
     if (providerId === thread.providerId || pending || runningTurnId || thread.status === 'running' || sendingRef.current.has(thread.id) || queue.read().some(item => item.localId === thread.id)) return;
     sendingRef.current.add(thread.id); setPendingThreads(previous => [...previous, thread.id]);
     try {
-      const result = await switchThreadProvider(thread.remoteId, providerId);
-      update(next => { const target = next.threads.find(item => item.id === thread.id); if (target) { target.providerId = result.providerId; target.model = undefined; target.effectivePermissions = readThreadPermissions(result); } });
+      const targetCatalog = await window.desktop?.listModels?.({ providerId });
+      const models = Array.isArray(targetCatalog?.models) ? targetCatalog.models.filter((model: unknown): model is string => typeof model === 'string' && !!model.trim()) : [];
+      if (!targetCatalog?.ok || !models.length) throw Error(targetCatalog?.error || '无法获取目标渠道的模型列表');
+      const model = models.includes(activeModel) ? activeModel : models[0];
+      const result = await switchThreadProvider(thread.remoteId, providerId, model);
+      update(next => { const target = next.threads.find(item => item.id === thread.id); if (target) { target.providerId = result.providerId; target.model = result.model || model; target.effectivePermissions = readThreadPermissions(result); } });
       toast('会话渠道已切换');
     } catch (error: any) { setNotice(`切换会话渠道失败：${error.message}`); }
     finally { sendingRef.current.delete(thread.id); setPendingThreads(previous => previous.filter(id => id !== thread.id)); }

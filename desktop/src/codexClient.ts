@@ -26,7 +26,7 @@ export function connectCodex() {
 }
 export async function startThread(params: { cwd?: string; model?: string; modelProvider?: string; providerId?: string; effort?: string; permission?: 'on-request' | 'workspace-write' | 'danger-full-access' }) { const { permission, providerId, ...rest } = params; const autoReview = permission === 'workspace-write'; return unwrap<any>(bridge().request('thread/start', { ...rest, ...(providerId ? { providerId } : {}), modelProvider: 'minimax', approvalPolicy: permission === 'danger-full-access' ? 'never' : 'on-request', ...(permission === 'danger-full-access' ? { sandbox: 'danger-full-access' } : { sandbox: permission === 'workspace-write' ? 'workspace-write' : 'read-only' }), ...(autoReview ? { approvalsReviewer: 'auto_review' } : {}), personality: 'friendly' })); }
 export async function resumeThread(threadId: string) { return unwrap<any>(bridge().request('thread/resume', { threadId, excludeTurns: false })); }
-export async function switchThreadProvider(threadId: string, providerId: string) { return unwrap<any>(bridge().request('felix/thread/provider', { threadId, providerId })); }
+export async function switchThreadProvider(threadId: string, providerId: string, model: string) { return unwrap<any>(bridge().request('felix/thread/provider', { threadId, providerId, model })); }
 export async function updateThreadPermission(threadId: string, permission: 'on-request' | 'workspace-write' | 'danger-full-access') {
   const sandboxPolicy = permission === 'danger-full-access' ? { type: 'dangerFullAccess' } : permission === 'workspace-write'
     ? { type: 'workspaceWrite', writableRoots: [], networkAccess: false, excludeTmpdirEnvVar: false, excludeSlashTmp: false }
