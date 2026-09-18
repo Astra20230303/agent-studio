@@ -8,6 +8,7 @@ const assert = require('node:assert/strict');
     await page.addInitScript(() => {
       localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ model: 'test', activeThreadId: 'a', threads: [{ id: 'a', remoteId: 'a', title: 'A', messages: [], status: 'running', updatedAt: new Date().toISOString() }] }));
       window.__sent = []; window.__live = 'initial'; window.__interrupts = 0;
+      localStorage.setItem('felix-attachments-v1', JSON.stringify({ a: ['D:/missing.png', 'D:/keep.png'] }));
       window.desktop = { providerStatus: async () => ({ keyConfigured: true }), listModels: async () => ({ ok: true, models: ['test'] }) };
       window.codex = {
         connect: async () => ({ ok: true }), notify: async () => ({ ok: true }),
@@ -62,14 +63,18 @@ const assert = require('node:assert/strict');
     }), { text: 'second', status: 'paused' });
     await page.getByRole('button', { name: '编辑排队消息：first', exact: true }).click();
     const edit = page.getByRole('dialog', { name: '编辑排队消息', exact: true });
+    await edit.getByRole('button', { name: '移除排队附件：D:/missing.png', exact: true }).click();
     await edit.getByRole('textbox', { name: '排队消息正文' }).fill('edited first');
     await page.evaluate(() => { window.__queueQuota = true; });
     await edit.getByRole('button', { name: '保存排队消息', exact: true }).click();
     await edit.getByRole('alert').waitFor();
     assert.equal(await edit.getByRole('textbox').inputValue(), 'edited first');
+    assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('felix-turn-queue-v1'))[0].attachments), ['D:/missing.png', 'D:/keep.png']);
+    assert.equal(await edit.getByRole('button', { name: '移除排队附件：D:/missing.png', exact: true }).count(), 0);
     await page.evaluate(() => { window.__queueQuota = false; });
     await edit.getByRole('button', { name: '保存排队消息', exact: true }).click();
     await edit.waitFor({ state: 'hidden' });
+    assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('felix-turn-queue-v1'))[0].attachments), ['D:/keep.png']);
     await page.getByRole('button', { name: '继续队列', exact: true }).click();
     assert.equal(await page.evaluate(() => window.__sent.length), 0);
     await page.getByRole('button', { name: '取消排队：cancel-me', exact: true }).click();
@@ -83,6 +88,7 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: '继续队列', exact: true }).click();
     await page.waitForFunction(() => window.__sent.length === 1);
     assert.equal(await page.evaluate(() => window.__sent[0].input[0].text), 'edited first');
+    assert.deepEqual(await page.evaluate(() => window.__sent[0].input.filter(item => item.type === 'localImage')), [{ type: 'localImage', path: 'D:/keep.png' }]);
     await page.waitForTimeout(100);
     assert.equal(await page.evaluate(() => window.__sent.length), 1);
     await finish('failed');

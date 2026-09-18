@@ -1,5 +1,14 @@
 # Felix capability roadmap
 
+## Remove attachments from queued messages
+
+Queue editing now lists attachment filenames and full paths, and permits removing
+an invalid or unwanted attachment before retrying a paused message. Edits remain
+local to the dialog until persistence succeeds; cancellation preserves the saved
+selection. Empty text requires a remaining attachment or skill. Browser acceptance
+verifies failed-save retention, retry persistence and the actual turn/start input
+excluding the removed image while retaining the other image. Build passes.
+
 ## Preserve consecutive service warnings
 
 Global service warnings now queue in arrival order instead of replacing an unread
