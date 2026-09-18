@@ -14,3 +14,7 @@ export function readPlanMessage(params: any): { id: string; turnId: string; cont
   if (!identity(params?.threadId) || !identity(params.turnId) || params.item?.type !== 'plan' || !identity(params.item.id) || typeof params.item.text !== 'string') return;
   return { id: `plan-${params.item.id}`, turnId: params.turnId, content: params.item.text };
 }
+export function readPlanDelta(params: any): { turnId: string; itemId: string; delta: string } | undefined {
+  if (!identity(params?.threadId) || !identity(params.turnId) || !identity(params.itemId) || typeof params.delta !== 'string') return;
+  return { turnId: params.turnId, itemId: params.itemId, delta: params.delta };
+}

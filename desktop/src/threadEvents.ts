@@ -1,12 +1,12 @@
 import { applyAssistantMessage } from './assistantMessages.ts';
 import { acceptTurnNotification } from './turnNotifications.ts';
-import { readPlan, readPlanMessage } from './planning.ts';
+import { readPlan, readPlanDelta, readPlanMessage } from './planning.ts';
 import { recordTurnFailure } from './turnFailure.ts';
 import { applyToolEvent, finishTools } from './toolActivity.ts';
 import type { DesktopState } from './domain';
 import type { TurnEvent, TurnRuntime } from './turnRuntime';
 
-const methods = new Set(['turn/plan/updated', 'turn/started', 'turn/completed', 'error', 'item/agentMessage/delta', 'item/started', 'item/completed', 'item/commandExecution/outputDelta', 'item/commandExecution/terminalInteraction', 'item/fileChange/outputDelta', 'item/fileChange/patchUpdated', 'item/mcpToolCall/progress', 'item/reasoning/textDelta', 'item/reasoning/summaryTextDelta', 'item/reasoning/summaryPartAdded']);
+const methods = new Set(['turn/plan/updated', 'turn/started', 'turn/completed', 'error', 'item/agentMessage/delta', 'item/started', 'item/completed', 'item/plan/delta', 'item/commandExecution/outputDelta', 'item/commandExecution/terminalInteraction', 'item/fileChange/outputDelta', 'item/fileChange/patchUpdated', 'item/mcpToolCall/progress', 'item/reasoning/textDelta', 'item/reasoning/summaryTextDelta', 'item/reasoning/summaryPartAdded']);
 
 export function createThreadEvents({ update, runtime, queue, audit }: {
   update: (mutate: (state: DesktopState) => void) => void;
@@ -25,6 +25,17 @@ export function createThreadEvents({ update, runtime, queue, audit }: {
       if (current?.turnId && current.turnId !== params.turnId || current?.completed.includes(params.turnId)) return true;
       if (plan) update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) thread.plan = plan; });
     }
+    if (message.method === 'item/plan/delta') {
+      const delta = readPlanDelta(params);
+      const current = runtime.read(params.threadId);
+      if (!delta || current?.turnId && current.turnId !== delta.turnId || current?.completed.includes(delta?.turnId || '')) return true;
+      update(next => {
+        const thread = next.threads.find(item => item.remoteId === params.threadId);
+        if (!thread) return;
+        if (thread.planDelta && (thread.planDelta.turnId !== delta.turnId || thread.planDelta.itemId !== delta.itemId)) return;
+        thread.planDelta = { turnId: delta.turnId, itemId: delta.itemId, content: (thread.planDelta?.content || '') + delta.delta };
+      });
+    }
     if (message.method === 'item/completed' && params.item?.type === 'plan') {
       const planMessage = readPlanMessage(params);
       const current = runtime.read(params.threadId);
@@ -35,12 +46,13 @@ export function createThreadEvents({ update, runtime, queue, audit }: {
         const saved = thread.messages.find(item => item.id === planMessage.id);
         if (saved) { if (saved.role === 'assistant' && (!saved.turnId || saved.turnId === planMessage.turnId)) Object.assign(saved, planMessage); }
         else thread.messages.push({ ...planMessage, role: 'assistant', createdAt: new Date().toISOString() });
+        if (thread.planDelta?.turnId === planMessage.turnId && thread.planDelta.itemId === params.item.id) thread.planDelta = undefined;
       });
     }
     if (message.method === 'turn/started' && params.threadId && params.turn?.id) {
       audit.record('回合开始', params.threadId);
       runtime.apply(params.threadId, { type: 'start', turnId: params.turn.id });
-      update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) { thread.status = 'running'; if (thread.plan?.turnId !== params.turn.id) thread.plan = undefined; } });
+      update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) { thread.status = 'running'; if (thread.plan?.turnId !== params.turn.id) thread.plan = undefined; if (thread.planDelta?.turnId !== params.turn.id) thread.planDelta = undefined; } });
     }
     if (message.method === 'item/agentMessage/delta' || message.method === 'item/completed' && params.item?.type === 'agentMessage') {
       if (message.method === 'item/agentMessage/delta') runtime.apply(params.threadId, { type: 'activity', turnId: params.turnId });

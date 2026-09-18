@@ -3593,3 +3593,9 @@ Codex Rust 传递依赖和原生二进制传递依赖仍需进一步许可审计
 
 - 已交付：接入上游 `item/commandExecution/terminalInteraction`，记录并展示每个命令最近 100 次服务端 stdin。事件必须包含有效 processId，且与命令条目已有进程身份一致；先到事件可创建记录，完成后、跨回合、跨进程和坏输入全部拒绝。
 - 验证：23 项 tool/invocation/thread 测试通过，包含进程身份隔离；生产 TypeScript/Vite 构建通过。
+
+### 计划文本增量（2026-09-19）
+
+- 已交付：接入上游实验性 `item/plan/delta`，按 thread/turn/item 身份累积临时计划文本，在计划面板实时显示；新回合清理旧草稿，条目切换、跨回合、坏身份被隔离，正式计划条目完成后覆盖并清除临时文本。
+- 验证：16 项 planning/thread-events/turn-runtime 测试通过，覆盖空文本、重复片段、条目切换、完成覆盖和迟到事件；生产 TypeScript/Vite 构建通过。
+- 该协议在上游注明仍可能变化，Felix 不假设增量文本一定等于最终计划正文，最终正文始终以完成事件为准。

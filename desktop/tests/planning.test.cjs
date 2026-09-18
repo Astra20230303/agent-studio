@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { collaborationMode, readPlan, readPlanMessage } = require('../src/planning.ts');
+const { collaborationMode, readPlan, readPlanDelta, readPlanMessage } = require('../src/planning.ts');
 const { restoreMessages } = require('../src/toolActivity.ts');
 test('mode uses built-in instructions and explicit default exits planning', () => {
   assert.deepEqual(collaborationMode('default', 'test', 'high'), { mode: 'default', settings: { model: 'test', reasoning_effort: 'high', developer_instructions: null } });
@@ -29,4 +29,8 @@ test('plan completion requires scoped identities and string text', () => {
   assert.deepEqual(readPlanMessage(params), { id: 'plan-proposal', turnId: 'turn', content: 'Design' });
   for (const field of ['threadId', 'turnId']) for (const value of [undefined, '', 123, {}]) assert.equal(readPlanMessage({ ...params, [field]: value }), undefined);
   for (const item of [{ ...params.item, id: '' }, { ...params.item, text: {} }, { ...params.item, type: 'agentMessage' }]) assert.equal(readPlanMessage({ ...params, item }), undefined);
+});
+test('plan text deltas validate identities and preserve empty text', () => {
+  assert.deepEqual(readPlanDelta({ threadId: 'thread', turnId: 'turn', itemId: 'item', delta: '' }), { turnId: 'turn', itemId: 'item', delta: '' });
+  for (const value of [{ threadId: 'thread', turnId: 'turn', itemId: '', delta: 'x' }, { threadId: 'thread', turnId: 'turn', itemId: 'item', delta: 1 }, { turnId: 'turn', itemId: 'item', delta: 'x' }]) assert.equal(readPlanDelta(value), undefined);
 });

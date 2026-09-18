@@ -73,3 +73,16 @@ test('transport event identity is forwarded to assistant delta deduplication', (
   assert.equal(f.state.threads[0].messages[0].content, 'same');
   assert.deepEqual(f.state.threads[0].messages[0].streamDeltaIds, ['transport-1']);
 });
+test('plan deltas accumulate for one item, isolate item switches, and clear on completion', () => {
+  const f = fixture();
+  f.emit('turn/started', { threadId: 'a', turn: { id: 'turn-a' } });
+  f.emit('item/plan/delta', { threadId: 'a', turnId: 'turn-a', itemId: 'plan-a', delta: 'Part ' });
+  f.emit('item/plan/delta', { threadId: 'a', turnId: 'turn-a', itemId: 'plan-a', delta: 'two' });
+  assert.equal(f.state.threads[0].planDelta.content, 'Part two');
+  f.emit('item/plan/delta', { threadId: 'a', turnId: 'turn-a', itemId: 'plan-b', delta: 'ignored' });
+  assert.equal(f.state.threads[0].planDelta.content, 'Part two');
+  f.emit('item/completed', { threadId: 'a', turnId: 'turn-a', item: { type: 'plan', id: 'plan-a', text: 'Final plan' } });
+  assert.equal(f.state.threads[0].planDelta, undefined);
+  f.emit('item/plan/delta', { threadId: 'a', turnId: 'old', itemId: 'plan-a', delta: 'late' });
+  assert.equal(f.state.threads[0].planDelta, undefined);
+});
