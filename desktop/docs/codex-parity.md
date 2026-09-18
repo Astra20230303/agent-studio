@@ -1,5 +1,22 @@
 # Felix capability roadmap
 
+## Drag files into the composer
+
+The composer accepts dropped local files through Electron webUtils.getPathForFile,
+adds them to the current attachment draft and deduplicates paths. File drags show
+an outline; dropping prevents browser navigation and never sends automatically.
+Missing native paths produce an error and add nothing. Text-only drags retain
+normal editor behavior. Existing attachment removal, persistence and send paths
+remain in use.
+
+Build and browser acceptance pass multiple files, repeated drops, navigation
+prevention, per-draft ownership, no turn dispatch and missing paths. Post-commit
+real Electron acceptance uses a real File from a file input, resolves its spaced
+local path through the production preload, dispatches a drop into the actual
+composer and checks its attachment chip. A virtual File returns an empty path.
+The external-profile restart regression also passes. Physical OS drag gestures
+were not automated; this covers the native File bridge and DOM drop workflow.
+
 ## Image attachment preflight and draft retention
 
 Before turn/start or turn/steer reaches app-server, Felix checks local image

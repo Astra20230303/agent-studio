@@ -22,6 +22,19 @@ const path = require('node:path');
     let page = await app.firstWindow();
     assert.equal(await app.evaluate(({ app }) => app.getPath('userData')), path.join(dataRoot, 'electron-user-data'));
     await page.waitForFunction(() => window.desktop?.saveTask);
+    const attachment = path.join(scratch, 'dropped file.txt'); fs.writeFileSync(attachment, 'real attachment');
+    await page.evaluate(() => { const input = document.createElement('input'); input.type = 'file'; input.id = 'drop-fixture'; document.body.append(input); });
+    await page.locator('#drop-fixture').setInputFiles(attachment);
+    const resolved = await page.evaluate(() => {
+      const file = document.querySelector('#drop-fixture').files[0];
+      const paths = window.desktop.droppedFilePaths([file]);
+      const dataTransfer = new DataTransfer(); dataTransfer.items.add(file);
+      document.querySelector('.composer').dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
+      return paths;
+    });
+    assert.deepEqual(resolved, [attachment]);
+    await page.getByRole('button', { name: `移除附件：${attachment}`, exact: true }).waitFor();
+    assert.deepEqual(await page.evaluate(() => window.desktop.droppedFilePaths([new File(['virtual'], 'virtual.txt')])), ['']);
     const saved = await page.evaluate(async () => {
       localStorage.setItem('felix-data-test', 'persisted');
       return window.desktop.saveTask({ name: 'External profile task', prompt: 'Persist this reminder', kind: 'reminder', model: '', permission: 'read-only', notify: false, schedule: { kind: 'once', at: new Date(Date.now() + 86400000).toISOString() } });
