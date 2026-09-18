@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Check, ChevronDown, RefreshCw } from 'lucide-react';
+import { modelCatalogIds } from './modelCatalog';
 
 export function useModelCatalog(providerId?: string) {
   const [models, setModels] = useState<string[]>([]);
@@ -14,8 +15,7 @@ export function useModelCatalog(providerId?: string) {
     try {
       const result = await window.desktop?.listModels?.(providerId ? { providerId } : undefined);
       if (revision !== generation.current) return;
-      if (!result?.ok || !result.models?.length) throw new Error(result?.error || '无法获取模型列表。');
-      setModels(result.models);
+      setModels(modelCatalogIds(result));
     } catch (err) {
       if (revision !== generation.current) return;
       setModels([]);

@@ -31,6 +31,19 @@ const assert = require('node:assert/strict');
     await page.evaluate(() => { window.__failBeta = false; });
     await dialog.getByRole('button', { name: '刷新模型', exact: true }).click();
     await dialog.getByLabel('任务模型', { exact: true }).selectOption('beta-model');
+    await page.evaluate(() => {
+      window.desktop.listModels = async () => ({ ok: true, models: ['beta-model', {}] });
+    });
+    await dialog.getByRole('button', { name: '刷新模型', exact: true }).click();
+    await dialog.getByRole('alert').getByText('模型列表格式无效，请刷新重试。').waitFor();
+    assert.equal(await dialog.getByRole('button', { name: '保存任务' }).isDisabled(), true);
+    assert.equal(await page.evaluate(() => window.__saved.length), 0);
+    await page.evaluate(() => {
+      window.desktop.listModels = async () => ({ ok: true, models: ['beta-model', 'beta-model'] });
+    });
+    await dialog.getByRole('button', { name: '刷新模型', exact: true }).click();
+    await dialog.getByRole('option', { name: 'beta-model', exact: true }).waitFor({ state: 'attached' });
+    assert.equal(await dialog.getByRole('option', { name: 'beta-model', exact: true }).count(), 1);
     await dialog.getByRole('button', { name: '保存任务' }).click();
     await dialog.waitFor({ state: 'detached' });
     const saved = await page.evaluate(() => window.__saved);

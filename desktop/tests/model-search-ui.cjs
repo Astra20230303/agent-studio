@@ -4,6 +4,8 @@ const assert = require('node:assert/strict');
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
     const page = await browser.newPage();
+    const crashes = [];
+    page.on('pageerror', error => crashes.push(error.message));
     await page.addInitScript(() => {
       localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ model: 'alpha', threads: [] }));
       window.desktop = { listModels: async () => ({ ok: true, models: ['alpha', 'Beta-Code', 'beta-chat'] }) };
@@ -35,6 +37,21 @@ const assert = require('node:assert/strict');
     await search.fill('alpha'); await page.keyboard.press('Escape');
     assert.ok(await picker.evaluate(el => el === document.activeElement));
     await picker.getByText('Beta-Code', { exact: true }).waitFor();
+    await page.evaluate(() => {
+      window.desktop.listModels = async () => ({ ok: true, models: ['alpha', null] });
+      window.dispatchEvent(new Event('provider-changed'));
+    });
+    await picker.click();
+    await page.getByRole('alert').getByText('模型列表格式无效，请刷新重试。').waitFor();
+    await picker.getByText('Beta-Code（不可用）', { exact: true }).waitFor();
+    await search.press('Enter');
+    assert.equal(await search.getAttribute('aria-activedescendant'), null);
+    await page.evaluate(() => { window.desktop.listModels = async () => ({ ok: true, models: ['alpha', 'Beta-Code', 'Beta-Code'] }); });
+    await page.getByRole('button', { name: '刷新模型列表', exact: true }).click();
+    await page.getByRole('option', { name: 'Beta-Code', exact: true }).waitFor();
+    assert.equal(await page.getByRole('listbox', { name: '可用模型' }).getByRole('option').count(), 2);
+    await picker.getByText('Beta-Code', { exact: true }).waitFor();
+    assert.deepEqual(crashes, []);
     console.log('PASS: case-insensitive model search, no results, selection and reopen reset');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
