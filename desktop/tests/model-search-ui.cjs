@@ -27,6 +27,11 @@ const assert = require('node:assert/strict');
     assert.ok(await picker.evaluate(el => el === document.activeElement));
     await picker.click(); assert.equal(await search.inputValue(), '');
     assert.equal(await page.locator('.model-options button').count(), 3);
+    await search.evaluate(el => {
+      for (const key of ['Enter', 'Escape', 'ArrowDown']) el.dispatchEvent(new KeyboardEvent('keydown', { key, isComposing: true, bubbles: true }));
+    });
+    assert.ok(await search.isVisible());
+    assert.equal(await page.getByRole('listbox', { name: '可用模型' }).getByRole('option', { selected: true }).innerText(), 'Beta-Code');
     await search.fill('alpha'); await page.keyboard.press('Escape');
     assert.ok(await picker.evaluate(el => el === document.activeElement));
     await picker.getByText('Beta-Code', { exact: true }).waitFor();

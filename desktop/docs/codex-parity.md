@@ -9,6 +9,10 @@ loading or failed catalogs cannot select a model. Opening resets search and
 starts at the current model when available. IME key events are ignored.
 Browser search, catalog-race and per-thread/queued model tests and build pass.
 
+Post-commit acceptance verifies composing Enter/Escape/arrows preserve the open
+picker and highlighted model. During catalog refresh, arrows and Enter cannot
+select stale entries and no active descendant is exposed. Both regressions pass.
+
 ## Stable command palette selection
 
 Command selection follows command ID rather than list position, so live thread
