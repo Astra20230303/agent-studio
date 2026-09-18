@@ -2608,3 +2608,10 @@ Electron 附件选择现在复用发送阶段的 PNG、JPEG、WebP、GIF 校验�
 验收：`attachment-picker-preflight-ui.cjs`、`attachments-ui.cjs`、`attachment-preflight-ui.cjs`、`attachment-storage-ui.cjs` 和生产构建通过。实际图片字节校验仍由主进程完成，浏览器测试模拟 IPC 返回并覆盖 UI 保留规则。
 
 Provider 配置审计：保存、启用和删除成功后记录不含密钥、地址或模型正文的事件；失败和取消不记录成功动作。相关 UI、注册表和生产构建验收通过。
+
+## 项目上下文审计
+
+项目选择器现在由 App 层统一处理：成功打开文件夹或切换已有项目后创建对应工作区线程，并写入 `切换项目` 本机审计事件。事件详情只保存稳定项目 ID，不保存项目名称、绝对路径或其他工作区内容；取消选择和选择器失败不记录成功事件。
+
+实现提交：`d993da0`。
+验收：`workspace-ui.cjs`、`project-audit-ui.cjs`、`audit-log-ui.cjs` 和生产构建通过。验收记录见 `desktop/tests/project-audit-verification.md`。
