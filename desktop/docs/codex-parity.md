@@ -9,6 +9,11 @@ Shared styles support wrapping long names. Real-file browser acceptance verifies
 draft preview, unchanged selection, explicit removal and independent history
 references. Drop/paste regressions and the production build pass.
 
+Post-commit keyboard acceptance found focus was lost when the preview unmounted.
+The preview now closes its native dialog and restores the connected opener on
+cleanup. Enter-open/Escape-close acceptance passes, as do attachment-only send,
+steering/queue regressions and the production build.
+
 ## Open attachments from conversation history
 
 Attachment names in user messages open the existing file preview on demand.

@@ -7,7 +7,15 @@ export function ArtifactPreview({ target, onClose, onEdit }: { target: ArtifactT
   const [preview, setPreview] = useState<any>();
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
-  useEffect(() => { dialog.current?.showModal(); }, []);
+  useEffect(() => {
+    const previous = document.activeElement;
+    const opened = dialog.current;
+    opened?.showModal();
+    return () => {
+      opened?.close();
+      if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
+    };
+  }, []);
   useEffect(() => {
     let disposed = false; setPreview(undefined); setError('');
     void (async () => {
