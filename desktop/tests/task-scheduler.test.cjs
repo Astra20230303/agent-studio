@@ -9,6 +9,17 @@ const cache = path.resolve(__dirname, '../../.project-cache/tmp');
 fs.mkdirSync(cache, { recursive: true });
 const temp = () => fs.mkdtempSync(path.join(cache, 'felix-tasks-'));
 
+test('reasoning effort is optional, validated and can return to model default',async()=>{
+  const scheduler=new TaskScheduler({directory:temp(),runner:async()=>({})});
+  try {
+    const saved=scheduler.save(task({kind:'agent',model:'test'}));assert.equal(saved.reasoningEffort,undefined);
+    for(const reasoningEffort of ['low','medium','high'])assert.equal(scheduler.save({...saved,reasoningEffort}).reasoningEffort,reasoningEffort);
+    assert.equal(scheduler.save({...saved,reasoningEffort:undefined}).reasoningEffort,undefined);
+    assert.throws(()=>scheduler.save({...saved,reasoningEffort:'invalid'}),/推理强度无效/);
+    assert.equal(scheduler.save(task({reasoningEffort:'high'})).reasoningEffort,undefined);
+  }finally{await scheduler.stop();}
+});
+
 test('failed task keeps its conversation reference and partial output across restart', async () => {
   const directory = temp();
   const scheduler = new TaskScheduler({directory,runner:async()=>{throw Object.assign(Error('model failed'),{threadId:'failed-thread',output:'partial output'});}});
