@@ -373,7 +373,9 @@ function App({ initialState }: { initialState: DesktopState }) {
           queue.change(items => items.filter(entry => entry.id !== item.id).map(entry => entry.threadId === item.threadId && entry.status !== 'paused' ? { ...entry, waitingOn: turn.id, status: outcome ? outcome === 'completed' ? 'ready' : 'paused' : 'waiting', error: outcome && outcome !== 'completed' ? '上一轮未正常完成，请确认后继续。' : undefined } : entry));
           update(next => { const target = next.threads.find(thread => thread.id === item.localId); const message = target?.messages.find(message => message.id === item.id); if (message) message.turnId = turn.id; });
         } catch (error: any) {
-          queue.change(items => items.map(entry => entry.threadId === item.threadId ? { ...entry, status: 'paused', error: `发送未确认：${error.message}。请检查会话记录后再试。` } : entry));
+          const reason = error.message || String(error);
+          const feedback = reason.includes('未确认') ? reason : `发送未确认：${reason}。请检查会话记录后再试。`;
+          queue.change(items => items.map(entry => entry.threadId === item.threadId ? { ...entry, status: 'paused', error: feedback } : entry));
           update(next => { const target = next.threads.find(thread => thread.id === item.localId); if (target) target.messages = target.messages.filter(message => message.id !== item.id); });
         } finally {
           sendingRef.current.delete(item.localId);

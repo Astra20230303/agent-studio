@@ -75,7 +75,7 @@ const assert = require('node:assert/strict');
     assert.equal(await input.inputValue(), 'Keep this draft');
     await page.evaluate(() => { window.__failStop = true; });
     await stop.click();
-    await page.getByText('停止失败：Stop rejected', { exact: true }).waitFor();
+    await page.getByRole('alert').filter({ hasText: '停止失败：Stop rejected' }).waitFor();
     assert.equal(await stop.isVisible(), true);
     // An old turn failure must not turn the currently running thread into failed.
     await page.evaluate(() => window.__notify({ method: 'turn/completed', params: { threadId: 'b', turn: { id: 'older-b-turn', status: 'failed', error: { message: 'Old failure' } } } }));
