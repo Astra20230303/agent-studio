@@ -48,6 +48,19 @@ const assert = require('node:assert/strict');
     const sent = await page.evaluate(() => window.__calls.find(x => x.method === 'turn/start').params);
     assert.equal(sent.threadId, 'remote-a'); assert.equal(sent.cwd, 'D:/confirmed');
     assert.equal(sent.input[0].text, 'edited A');
+    // A late failure from a previously selected thread must not block Local B.
+    await page.getByRole('button', { name: 'Local B', exact: true }).click();
+    await page.evaluate(() => { window.__fail = true; window.__hold = true; window.__release = undefined; });
+    await page.getByRole('button', { name: 'Thread A', exact: true }).click();
+    await page.waitForFunction(() => !!window.__release);
+    await page.getByRole('button', { name: 'Local B', exact: true }).click();
+    await page.evaluate(() => { window.__hold = false; window.__release(); });
+    assert.equal(await input.inputValue(), 'draft B');
+    assert.ok(await send.isEnabled());
+    assert.equal(await error.count(), 0);
+    await page.getByRole('button', { name: 'Thread A', exact: true }).click();
+    await error.waitFor();
+    assert.ok(await send.isDisabled());
     console.log('PASS: failed resume blocks sending, keeps editable isolated drafts, retry waits for confirmation and sends with recovered cwd');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

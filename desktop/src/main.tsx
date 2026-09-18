@@ -538,7 +538,7 @@ function App() {
       } }
       finally { if (!disposed) setRestoringThread(current => current === threadId ? undefined : current); }
     })();
-    return () => { disposed = true; };
+    return () => { disposed = true; setRestoringThread(current => current === threadId ? undefined : current); };
   }, [active?.remoteId, codexStatus, restoreAttempt]);
   const respondApproval = async (decision: string, answers?: UserAnswers, content?: Record<string, unknown>, target = approval) => {
     const approval = target;
