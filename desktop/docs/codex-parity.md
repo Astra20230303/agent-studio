@@ -1,5 +1,16 @@
 # Felix capability roadmap
 
+## Complete bounded UTF-8 text previews
+
+The file reader accumulates partial reads up to a shared 256 KiB preview/edit
+limit and probes one extra byte. Detected growth or shrinkage rejects stale size
+metadata. Truncated UTF-8 omits an incomplete trailing character; malformed
+encoding is explicitly reported and never editable. Only complete valid text
+receives a content revision. Preview UI reports byte counts and editing limits.
+Seven reader/file tests cover short reads, multibyte boundaries, invalid/binary
+content, size changes and existing edit/path protections. Build passes. Same-size
+concurrent rewrites are not a snapshot guarantee; save still checks content hash.
+
 ## Preview draft attachments before sending
 
 Draft attachment names now use the same preview button and path resolution as

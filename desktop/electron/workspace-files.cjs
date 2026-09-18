@@ -1,6 +1,7 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { createHash, randomUUID } = require('node:crypto');
+const { readTextPreview, TEXT_PREVIEW_LIMIT } = require('./text-preview.cjs');
 const revision = bytes => createHash('sha256').update(bytes).digest('hex');
 async function workspaceFile(root, name = '.', action = 'list', query = '', edit) {
   if (typeof root !== 'string' || !path.isAbsolute(root) || typeof name !== 'string') throw Error('无效工作区路径');
@@ -9,9 +10,9 @@ async function workspaceFile(root, name = '.', action = 'list', query = '', edit
   const relative = path.relative(root, target);
   if (relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative) || relative.split(path.sep).includes('.git')) throw Error('路径不在工作区可浏览范围内');
   if (action === 'write') {
-    if (typeof edit?.text !== 'string' || typeof edit?.revision !== 'string' || Buffer.byteLength(edit.text) > 256 * 1024) throw Error('无效编辑内容或文件超过 256 KB');
+    if (typeof edit?.text !== 'string' || typeof edit?.revision !== 'string' || Buffer.byteLength(edit.text) > TEXT_PREVIEW_LIMIT) throw Error('无效编辑内容或文件超过 256 KB');
     const stat = await fs.stat(target);
-    if (!stat.isFile() || stat.size > 256 * 1024) throw Error('此文件不支持编辑');
+    if (!stat.isFile() || stat.size > TEXT_PREVIEW_LIMIT) throw Error('此文件不支持编辑');
     const bytes = await fs.readFile(target);
     if (bytes.includes(0)) throw Error('二进制文件不支持编辑');
     new TextDecoder('utf-8', { fatal: true }).decode(bytes);
@@ -54,7 +55,7 @@ async function workspaceFile(root, name = '.', action = 'list', query = '', edit
         if (scannedBytes >= 32 * 1024 * 1024) { truncated = true; break; }
         try {
           const stat = await fs.stat(full);
-          if (stat.size > 256 * 1024) { skipped++; continue; }
+          if (stat.size > TEXT_PREVIEW_LIMIT) { skipped++; continue; }
           const result = await workspaceFile(root, file, 'read');
           scannedBytes += result.size || 0;
           if (typeof result.text !== 'string' || !result.revision) { skipped++; continue; }
@@ -101,13 +102,7 @@ async function workspaceFile(root, name = '.', action = 'list', query = '', edit
       if (total > stat.size) throw Error('文件正在变化，请刷新后重试');
       return { image: `data:${mime};base64,${bytes.subarray(0, total).toString('base64')}`, size: total };
     }
-    const buffer = Buffer.alloc(Math.min(stat.size, 256 * 1024));
-    const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
-    const bytes = buffer.subarray(0, bytesRead);
-    if (bytes.includes(0)) return { binary: true, size: stat.size };
-    let editable = stat.size === bytesRead;
-    try { new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch { editable = false; }
-    return { text: new TextDecoder('utf-8', { ignoreBOM: true }).decode(bytes), revision: editable ? revision(bytes) : undefined, truncated: stat.size > bytesRead, size: stat.size };
+    return await readTextPreview(handle, stat.size);
   } finally { await handle.close(); }
 }
 module.exports = { workspaceFile };
