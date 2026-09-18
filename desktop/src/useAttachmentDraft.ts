@@ -1,27 +1,3 @@
-import { useEffect, useState } from 'react';
-import type { SetStateAction } from 'react';
-import { persistentStorage } from './persistentStorage';
-export function useAttachmentDraft(threadId?: string) {
-  const [saveFailed, setSaveFailed] = useState(false);
-  const [saveAttempt, setSaveAttempt] = useState(0);
-  const [drafts, setDrafts] = useState<Record<string, string[]>>(() => {
-    try {
-      const parsed = JSON.parse(persistentStorage.getItem('felix-attachments-v1') || '{}');
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-      return Object.fromEntries(Object.entries(parsed).filter(([, value]) => Array.isArray(value) && value.every(path => typeof path === 'string'))) as Record<string, string[]>;
-    } catch { return {}; }
-  });
-  const id = threadId || 'new';
-  useEffect(() => {
-    let disposed = false;
-    void persistentStorage.setItem('felix-attachments-v1', JSON.stringify(drafts)).then(() => { if (!disposed) setSaveFailed(false); }, () => { if (!disposed) setSaveFailed(true); });
-    return () => { disposed = true; };
-  }, [drafts, saveAttempt]);
-  const set = (value: SetStateAction<string[]>, target = id) => setDrafts(previous => {
-    const next = typeof value === 'function' ? value(previous[target] || []) : value;
-    const result = { ...previous };
-    if (next.length) result[target] = next; else delete result[target];
-    return result;
-  });
-  return [drafts[id] || [], set, { saveFailed, retry: () => setSaveAttempt(attempt => attempt + 1) }] as const;
-}
+import { useDraftStorage, type DraftSchema } from './useDraftStorage';
+const schema: DraftSchema<string[]> = { key: 'felix-attachments-v1', empty: () => [], valid: (value): value is string[] => Array.isArray(value) && value.every(path => typeof path === 'string'), removeEmpty: value => !value.length };
+export function useAttachmentDraft(threadId?: string) { return useDraftStorage(schema, threadId); }
