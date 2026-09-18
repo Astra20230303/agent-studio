@@ -72,6 +72,14 @@ const assert = require('node:assert/strict');
   await dialog.getByRole('button', { name: '替换当前', exact: true }).click();
   assert.equal(await editor.inputValue(), 'new foobar foo_bar Foo foo1 中文foo foo中文 foo.');
   assert.equal(await editor.evaluate(node => node.value.slice(node.selectionStart, node.selectionEnd)), 'foo');
+  await find.fill('foobar');
+  await dialog.getByText('1 / 1 处匹配', { exact: true }).waitFor();
+  await find.fill('foob');
+  await dialog.getByText('没有匹配', { exact: true }).waitFor();
+  assert.equal(await dialog.getByRole('button', { name: '全部替换', exact: true }).isDisabled(), true);
+  await wholeWord.uncheck();
+  await dialog.getByText('1 / 1 处匹配', { exact: true }).waitFor();
+  assert.equal(await editor.evaluate(node => node.value.slice(node.selectionStart, node.selectionEnd)), 'foob');
   console.log('PASS: editor line navigation, long-line visibility and whole-word replacement with undo');
  } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
