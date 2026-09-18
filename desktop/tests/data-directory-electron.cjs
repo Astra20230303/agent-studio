@@ -86,6 +86,12 @@ const path = require('node:path');
     const restored = await page.evaluate(id => window.desktop.taskDetail(id), saved.task.id);
     assert.equal(restored.task.name, 'External profile task');
     assert.equal(restored.task.runs.length, 0);
+    const taskResources = [];
+    page.on('request', request => taskResources.push(request.url()));
+    await page.getByRole('button', { name: '已安排', exact: true }).click();
+    await page.getByText('External profile task', { exact: true }).waitFor();
+    assert.ok(taskResources.some(url => /ScheduledPage-.*\.js/.test(url)), 'native file URL loads the deferred page');
+    assert.ok(await page.evaluate(() => [...document.querySelectorAll('link[rel="stylesheet"]')].some(link => /ScheduledPage-.*\.css/.test(link.href))), 'deferred page stylesheet is installed');
     assert.equal(fs.existsSync(path.join(install, '.project-cache')), false);
     console.log('PASS: real Electron external profile, reminder persistence and restart without installation data writes');
   } finally {

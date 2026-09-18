@@ -10,6 +10,11 @@ retention. Task Provider/catalog/save regression passes. The production entry JS
 drops from about 521 kB to 492 kB; shared chunks and the deferred page still count
 toward total application size. Build passes without the previous chunk warning.
 
+Post-commit real Electron acceptance restarts the external profile, opens the
+deferred page through file URLs, observes the actual JS request and installed
+stylesheet, and displays the persisted task. Native attachment and restart
+regressions pass. No additional product correction was needed.
+
 ## Persist effective model changes
 
 The main process observes thread/settings/updated and saves the engine-confirmed
