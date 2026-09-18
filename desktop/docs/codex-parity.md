@@ -1,5 +1,21 @@
 # Felix capability roadmap
 
+## App-server warning notifications
+
+The protocol's warning notification is now visible: global messages remain in
+a dismissible banner, and thread-targeted messages persist as literal system
+records in that thread. Warnings for unloaded threads create a background local
+entry without changing selection. Subsequent warnings reuse that entry; invalid
+or blank message fields are ignored.
+
+Build and browser acceptance pass literal HTML handling, dismissal, background
+routing, persistence across reload, repeated target IDs and invalid messages.
+Notifications are injected through the browser bridge for this acceptance.
+Inspection confirms image_preparation currently logs processing failures and
+substitutes placeholder text without emitting this warning notification. Image
+processing errors therefore still need a separate upstream notification path;
+this delivery does not claim that gap is closed.
+
 ## Real multimodal attachment transport
 
 Acceptance now exercises the production userInput serializer, a real Codex

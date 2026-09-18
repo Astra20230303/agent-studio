@@ -20,6 +20,14 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.some(thread => thread.remoteId === 'background' && thread.messages.some(message => message.content === '警告：Thread warning')));
     const state = await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')));
     assert.notEqual(state.activeThreadId, state.threads.find(thread => thread.remoteId === 'background').id);
+    await page.evaluate(() => {
+      window.__emit({ method: 'warning', params: { threadId: 'background', message: 'Second warning' } });
+      window.__emit({ method: 'warning', params: { threadId: 'background', message: null } });
+      window.__emit({ method: 'warning', params: { message: '   ' } });
+    });
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.find(thread => thread.remoteId === 'background').messages.length === 2);
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.filter(thread => thread.remoteId === 'background').length), 1);
+    assert.equal(await page.getByRole('button', { name: '关闭服务警告' }).count(), 0);
     await page.reload();
     assert.ok(await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.some(thread => thread.remoteId === 'background' && thread.messages.some(message => message.role === 'system'))));
     console.log('PASS: global warnings are literal and dismissible; background warnings persist without taking focus');
