@@ -1,5 +1,22 @@
 # Felix capability roadmap
 
+## Provider-scoped model catalog and credential checks
+
+The conversation's bound Provider (or the new conversation's selection) now
+supplies the model catalog and send-time credential check. Previously these
+still used the globally active Provider, blocking a valid bound conversation
+or offering unrelated models. The main process resolves explicit IDs through
+the registry, including manual model IDs, without fallback for missing entries.
+
+Post-commit acceptance: the full browser workflow selects Beta while globally
+active Alpha has no credentials, sends Beta's distinct model, reloads, and sends
+again on the original remote thread with Beta credentials checked. This uses a
+mocked desktop bridge. Existing catalog race, new-thread selection and binding
+restoration browser checks pass. Real app-server routing and registry regressions
+also pass; production build passes with the existing bundle-size warning.
+Migration of an already loaded thread to a different Provider remains pending:
+changing only the binding file cannot retarget the engine's loaded endpoint.
+
 ## Scheduled tasks bind to a Provider
 
 Agent scheduled tasks now persist a validated `providerId`. Each run resolves
