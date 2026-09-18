@@ -26,10 +26,16 @@ const assert = require('node:assert/strict');
     await page.evaluate(() => {
       window.__notify({ method: 'turn/plan/updated', params: { threadId: 'a', turnId: 'turn', explanation: 'Implementation outline', plan: [{ step: 'Inspect', status: 'completed' }, { step: 'Implement', status: 'inProgress' }] } });
       window.__notify({ method: 'item/completed', params: { threadId: 'a', turnId: 'turn', item: { type: 'plan', id: 'proposal', text: 'Proposed feature design' } } });
+      window.__notify({ method: 'turn/plan/updated', params: { threadId: 'a', turnId: 'turn', plan: [{ step: 'Unexpected replacement', status: 'completed' }, { step: 'Broken', status: 'unknown' }] } });
+      window.__notify({ method: 'item/completed', params: { threadId: 'a', turnId: 'turn', item: { type: 'plan', id: 'proposal', text: {} } } });
+      window.__notify({ method: 'item/completed', params: { threadId: 'a', turnId: 'turn', item: { type: 'plan', text: 'Missing identity' } } });
+      window.__notify({ method: 'item/completed', params: { threadId: 'a', turnId: 'turn', item: { type: 'plan', id: 'proposal', text: 'Proposed feature design' } } });
       window.__notify({ method: 'turn/completed', params: { threadId: 'a', turn: { id: 'turn', status: 'completed' } } });
     });
     await page.getByText('任务计划 · 1/2', { exact: true }).waitFor();
     await page.getByText('Proposed feature design', { exact: true }).waitFor();
+    assert.equal(await page.getByText('Proposed feature design', { exact: true }).count(), 1);
+    assert.equal(await page.getByText('Missing identity', { exact: true }).count(), 0);
     await page.getByRole('textbox', { name: '消息', exact: true }).fill('Unsent review notes');
     assert.equal(await page.getByRole('button', { name: '按计划执行', exact: true }).isDisabled(), true);
     await page.getByRole('textbox', { name: '消息', exact: true }).fill('');
@@ -41,9 +47,12 @@ const assert = require('node:assert/strict');
     assert.equal(await page.evaluate(() => window.__sent[1].collaborationMode.mode), 'default');
     await page.evaluate(() => {
       window.__notify({ method: 'turn/started', params: { threadId: 'a', turn: { id: 'new-turn' } } });
+      window.__notify({ method: 'item/completed', params: { threadId: 'a', turnId: 'turn', item: { type: 'plan', id: 'proposal', text: 'Stale proposal' } } });
       window.__notify({ method: 'turn/plan/updated', params: { threadId: 'a', turnId: 'turn', plan: [{ step: 'Stale plan', status: 'inProgress' }] } });
     });
     await page.locator('.plan-panel').waitFor({ state: 'hidden' });
+    await page.getByText('Proposed feature design', { exact: true }).waitFor();
+    assert.equal(await page.getByText('Stale proposal', { exact: true }).count(), 0);
     assert.deepEqual(errors, []);
     console.log('PASS: plan mode payload, locked active mode, plan events, reviewed transition to implementation');
   } finally { await browser.close(); }
