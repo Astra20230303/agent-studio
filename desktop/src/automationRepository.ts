@@ -15,6 +15,7 @@ const date = (value: unknown) => typeof value === 'string' && Number.isFinite(Da
 function task(value: any): value is ScheduledTask {
   if (!record(value) || typeof value.id !== 'string' || !value.id || typeof value.name !== 'string' || typeof value.prompt !== 'string'
     || !['agent','reminder'].includes(value.kind) || !['active','paused','completed'].includes(value.status)
+    || value.notificationPolicy != null && value.notificationPolicy !== 'failed_runs_only'
     || typeof value.model !== 'string' || typeof value.notify !== 'boolean' || !['read-only','workspace-write'].includes(value.permission)
     || [value.cwd, value.providerId].some(field => field != null && typeof field !== 'string')
     || value.nextRunAt != null && !date(value.nextRunAt) || !record(value.schedule) || !Array.isArray(value.runs)) return false;

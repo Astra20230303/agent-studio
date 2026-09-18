@@ -71,7 +71,7 @@ app.on('second-instance', () => {
 scheduler.on('changed', () => sendToWindow('tasks:changed', {}));
 scheduler.on('failure', message => sendToWindow('tasks:changed', { error: message }));
 scheduler.on('finished', task => {
-  if (quitting || !task.notify || !Notification?.isSupported()) return;
+  if (quitting || !require('./task-notifications.cjs').shouldNotifyTask(task) || !Notification?.isSupported()) return;
   const run = task.runs[0];
   const body = run.status === 'completed' ? task.kind === 'reminder' ? task.prompt.slice(0, 240) : '任务已完成，可在已安排页面查看结果。' : run.error || '任务未完成，请查看运行记录。';
   try { new Notification({ title: task.name, body }).show(); } catch { /* Task results remain available when OS notifications are disabled. */ }

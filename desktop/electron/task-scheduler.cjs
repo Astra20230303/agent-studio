@@ -39,7 +39,8 @@ function validateTask(input, now) {
     if (raw.kind === 'weekly' && (!Number.isInteger(raw.day) || raw.day < 0 || raw.day > 6)) throw new Error('星期无效。');
     schedule = { kind: raw.kind, time: raw.time, timezone: raw.timezone, ...(raw.kind === 'weekly' ? { day: raw.day } : {}) };
   }
-  return { name, prompt, kind: input.kind, model, providerId, cwd, permission: input.permission, notify: Boolean(input.notify), schedule };
+  if (input.notificationPolicy != null && input.notificationPolicy !== 'failed_runs_only') throw new Error('通知策略无效。');
+  return { name, prompt, kind: input.kind, model, providerId, cwd, permission: input.permission, notify: Boolean(input.notify), notificationPolicy: input.notificationPolicy ?? null, schedule };
 }
 
 class TaskScheduler extends EventEmitter {

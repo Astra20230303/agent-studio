@@ -57,7 +57,8 @@ function TaskEditor({ draft, providers, onClose, onSaved }: { draft: TaskDraft; 
         <label>执行权限<select value={form.permission} onChange={event => { patch({ permission: event.target.value as TaskDraft['permission'] }); setWriteConfirmed(false); }}><option value="read-only">只读</option><option value="workspace-write">允许修改工作区</option></select></label>
         {form.permission === 'workspace-write' && <label className="task-check"><input type="checkbox" checked={writeConfirmed} onChange={event => setWriteConfirmed(event.target.checked)} />允许此任务无人值守修改上述任务工作目录</label>}
       </>}
-      <label className="task-check"><input type="checkbox" checked={form.notify} onChange={event => patch({ notify: event.target.checked })} />完成或失败时通知</label>
+      <label className="task-check"><input type="checkbox" checked={form.notify} onChange={event => patch({ notify: event.target.checked })} />启用任务通知</label>
+      {form.notify && <label>通知范围<select aria-label="任务通知范围" value={form.notificationPolicy || "all"} onChange={event => patch({ notificationPolicy: event.target.value === "failed_runs_only" ? "failed_runs_only" : null })}><option value="all">完成、失败或中断</option><option value="failed_runs_only">仅失败时通知</option></select></label>}
     </fieldset>
     {error && <div className="task-error" role="alert">{error}</div>}
     {form.kind === 'agent' && catalog.error && <div className="task-error" role="alert">{catalog.error}</div>}
