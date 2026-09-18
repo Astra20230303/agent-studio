@@ -18,6 +18,10 @@ export function updateRemoteProjectParams(projectId: string, name: string, roots
   return { projectId, name: name.trim(), roots: projectRoots(roots), metadata: projectMetadata(metadata) };
 }
 export function deleteRemoteProjectParams(projectId: string) { if (!/^\S+$/.test(projectId)) throw new Error('远端项目身份无效'); return { projectId }; }
+export function moveRemoteProjectParams(projectId: string, beforeProjectId?: string) {
+  if (!/^\S+$/.test(projectId) || beforeProjectId != null && !/^\S+$/.test(beforeProjectId) || beforeProjectId === projectId) throw new Error('远端项目排序参数无效');
+  return { projectId, ...(beforeProjectId ? { beforeProjectId } : {}) };
+}
 export function readRemoteProject(value: unknown): RemoteProject {
   const page = readRemoteProjectPage({ data: [value] });
   return page.data[0];

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { createRemoteProject, deleteRemoteProject, listRemoteProjects, subscribeCodex, updateRemoteProject } from './codexClient';
+import { createRemoteProject, deleteRemoteProject, listRemoteProjects, moveRemoteProject, subscribeCodex, updateRemoteProject } from './codexClient';
 import { readRemoteProjectChange, type RemoteProject } from './remoteProjects';
 
 type Draft = { name: string; roots: string; metadata: string };
@@ -29,7 +29,7 @@ export function RemoteProjectsPanel({ connected, busy }: { connected: boolean; b
   const refresh = useCallback(async (fromNotification = false) => {
     if (!connected || busy || loadingRef.current) return;
     loadingRef.current = true; setLoading(true); if (!fromNotification) setStatus('');
-    try { const result = await listRemoteProjects(); setProjects(result); setStatus(`已读取 ${result.length} 个远端项目`); }
+    try { const result = await listRemoteProjects('position', 'asc'); setProjects(result); setStatus(`已读取 ${result.length} 个远端项目`); }
     catch (error) { setStatus(`读取远端项目失败：${error instanceof Error ? error.message : String(error)}`); }
     finally { loadingRef.current = false; setLoading(false); }
   }, [connected, busy]);
@@ -41,15 +41,23 @@ export function RemoteProjectsPanel({ connected, busy }: { connected: boolean; b
       const input = parseDraft(draft);
       if (project) await updateRemoteProject(project, input.name, input.roots, input.metadata);
       else await createRemoteProject(input.name, input.roots, input.metadata);
-      setEditing(undefined); setDraft(emptyDraft()); setStatus(project ? '远端项目已更新' : '远端项目已创建'); setProjects(await listRemoteProjects());
+      setEditing(undefined); setDraft(emptyDraft()); setStatus(project ? '远端项目已更新' : '远端项目已创建'); setProjects(await listRemoteProjects('position', 'asc'));
     } catch (error) { setStatus(`保存远端项目失败：${error instanceof Error ? error.message : String(error)}`); }
     finally { setLoading(false); }
   };
   const remove = async (project: RemoteProject) => {
     if (loading || !window.confirm(`确定删除远端项目“${project.name}”吗？`)) return;
     setLoading(true); setStatus('');
-    try { await deleteRemoteProject(project.id); setProjects(await listRemoteProjects()); setStatus('远端项目已删除'); }
+    try { await deleteRemoteProject(project.id); setProjects(await listRemoteProjects('position', 'asc')); setStatus('远端项目已删除'); }
     catch (error) { setStatus(`删除远端项目失败：${error instanceof Error ? error.message : String(error)}`); }
+    finally { setLoading(false); }
+  };
+  const move = async (index: number, beforeId?: string) => {
+    const project = projects[index];
+    if (!project || loading) return;
+    setLoading(true); setStatus('');
+    try { await moveRemoteProject(project.id, beforeId); setProjects(await listRemoteProjects('position', 'asc')); setStatus('远端项目顺序已更新'); }
+    catch (error) { setStatus(`调整远端项目顺序失败：${error instanceof Error ? error.message : String(error)}`); }
     finally { setLoading(false); }
   };
   const form = editing && <form onSubmit={event => { event.preventDefault(); void save(editing === 'new' ? undefined : projects.find(project => project.id === editing)); }}>
@@ -58,5 +66,5 @@ export function RemoteProjectsPanel({ connected, busy }: { connected: boolean; b
     <label>metadata（每行 key=value）<textarea value={draft.metadata} onChange={event => setDraft({ ...draft, metadata: event.target.value })} rows={3} /></label>
     <button type="submit" disabled={loading}>{loading ? '保存中…' : '保存'}</button><button type="button" disabled={loading} onClick={() => { setEditing(undefined); setDraft(emptyDraft()); }}>取消</button>
   </form>;
-  return <section className="settings-card" aria-label="Codex 远端项目"><h2>Codex 远端项目</h2><p>查看并管理 app-server 保存的项目及其根目录。</p><button disabled={!connected || busy || loading} onClick={() => void refresh()}>{loading ? '正在处理…' : '刷新远端项目'}</button><button disabled={!connected || busy || loading} onClick={() => { setEditing('new'); setDraft(emptyDraft()); }}>新建项目</button>{status && <p role="status">{status}</p>}{form}{projects.length > 0 && <ul>{projects.map(project => <li key={project.id}><strong>{project.name}</strong><span> · {project.roots.join('、') || '无根目录'}</span>{project.recencyAt != null && <small> · 最近活跃 {new Date(project.recencyAt * 1000).toLocaleString()}</small>}{Object.keys(project.metadata).length > 0 && <small> · {Object.entries(project.metadata).map(([key, value]) => `${key}=${value}`).join(', ')}</small>}<button disabled={loading || !connected || busy} onClick={() => { setEditing(project.id); setDraft(draftFor(project)); }}>编辑</button><button disabled={loading || !connected || busy} onClick={() => void remove(project)}>删除</button></li>)}</ul>}</section>;
+  return <section className="settings-card" aria-label="Codex 远端项目"><h2>Codex 远端项目</h2><p>查看并管理 app-server 保存的项目及其根目录。</p><button disabled={!connected || busy || loading} onClick={() => void refresh()}>{loading ? '正在处理…' : '刷新远端项目'}</button><button disabled={!connected || busy || loading} onClick={() => { setEditing('new'); setDraft(emptyDraft()); }}>新建项目</button>{status && <p role="status">{status}</p>}{form}{projects.length > 0 && <ol>{projects.map((project, index) => <li key={project.id}><strong>{project.name}</strong><span> · {project.roots.join('、') || '无根目录'}</span>{project.recencyAt != null && <small> · 最近活跃 {new Date(project.recencyAt * 1000).toLocaleString()}</small>}{Object.keys(project.metadata).length > 0 && <small> · {Object.entries(project.metadata).map(([key, value]) => `${key}=${value}`).join(', ')}</small>}<button disabled={loading || !connected || busy || index === 0} onClick={() => void move(index, projects[index - 1].id)} aria-label={`上移 ${project.name}`}>↑</button><button disabled={loading || !connected || busy || index === projects.length - 1} onClick={() => void move(index, index + 2 < projects.length ? projects[index + 2].id : undefined)} aria-label={`下移 ${project.name}`}>↓</button><button disabled={loading || !connected || busy} onClick={() => { setEditing(project.id); setDraft(draftFor(project)); }}>编辑</button><button disabled={loading || !connected || busy} onClick={() => void remove(project)}>删除</button></li>)}</ol>}</section>;
 }
