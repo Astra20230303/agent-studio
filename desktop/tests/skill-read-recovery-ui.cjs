@@ -29,6 +29,15 @@ const { chromium } = require('playwright');
    await page.waitForFunction(() => JSON.parse(localStorage.getItem('felix-skill-drafts-v1')).a[0].name === 'edited');
    assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('felix-skill-drafts-v1'))), { a: [{ name: 'edited', path: 'new' }], b: [], c: [{ name: 'retained', path: 'c' }] });
   }
+  const app = await browser.newPage();
+  await app.addInitScript(() => localStorage.setItem('felix-skill-drafts-v1', '{broken'));
+  await app.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
+  const retry = app.getByRole('button', { name: '重试读取技能选择', exact: true });
+  await retry.click();
+  assert.equal(await app.evaluate(() => localStorage.getItem('felix-skill-drafts-v1')), '{broken');
+  await app.evaluate(() => localStorage.setItem('felix-skill-drafts-v1', JSON.stringify({ new: [{ name: 'restored', path: 'D:/restored/SKILL.md' }] })));
+  await retry.click(); await retry.waitFor({ state: 'detached' });
+  await app.getByRole('button', { name: '移除技能 restored', exact: true }).waitFor();
   console.log('PASS: corrupt skill drafts stay untouched; repaired reads merge edits and explicit removal without losing other threads');
  } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
