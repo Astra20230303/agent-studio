@@ -27,7 +27,7 @@ node desktop/tests/portable-release.cjs .project-cache/release-new
 
 第二条命令检查 ZIP 校验值、解压文件清单和第三方组件/许可证覆盖，再调用真实打包应用验收：移动到仓库外含空格路径，启动 Electron，连接内置 app-server、检查图片解码和原生终端，保存提醒后关闭并重启确认恢复。使用临时用户数据目录，不修改日常 Felix 配置。
 
-2026-09-18 在开发 Windows 主机通过该流程，产物位于 `.project-cache/felix-portable-notices-20260918`。尚未验证干净 Windows VM、签名安装器或其他平台；发布许可清单审计仍未完成。
+2026-09-19 在开发 Windows 主机从已提交源码独立构建并通过该流程，最新产物位于 `.project-cache/felix-portable-20260919`；源码版本、复用运行时和校验值见 [本次发布记录](release-2026-09-19.md)。尚未验证干净 Windows VM、签名安装器或其他平台；发布许可清单审计仍未完成。
 
 ## 第三方组件清单
 
