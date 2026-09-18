@@ -5,9 +5,10 @@ export function EditorFind({ text, onChange, editor, disabled, onClose }: { text
   const input = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
   const [replacement, setReplacement] = useState('');
+  const [wholeWord, setWholeWord] = useState(false);
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [index, setIndex] = useState(0);
-  const matches = useMemo(() => editorMatches(text, query, caseSensitive), [text, query, caseSensitive]);
+  const matches = useMemo(() => editorMatches(text, query, caseSensitive, wholeWord), [text, query, caseSensitive, wholeWord]);
   const current = Math.min(index, Math.max(0, matches.length - 1));
   useEffect(() => { input.current?.focus(); }, []);
   useEffect(() => { const match = matches[current]; if (match && editor.current) { editor.current.setSelectionRange(match.start, match.end); revealEditorSelection(editor.current, match.start); } }, [matches, current, editor]);
@@ -21,7 +22,7 @@ export function EditorFind({ text, onChange, editor, disabled, onClose }: { text
     } else {
       const match = matches[current];
       const next = text.slice(0, match.start) + replacement + text.slice(match.end);
-      const nextIndex = editorMatches(next, query, caseSensitive).findIndex(item => item.start >= match.start + replacement.length);
+      const nextIndex = editorMatches(next, query, caseSensitive, wholeWord).findIndex(item => item.start >= match.start + replacement.length);
       onChange(next); setIndex(Math.max(0, nextIndex));
     }
   };
@@ -32,6 +33,7 @@ export function EditorFind({ text, onChange, editor, disabled, onClose }: { text
   }}>
     <input ref={input} aria-label="查找编辑内容" value={query} onChange={event => { setQuery(event.target.value); setIndex(0); }} />
     <label><input type="checkbox" checked={caseSensitive} onChange={event => { setCaseSensitive(event.target.checked); setIndex(0); }} />区分大小写</label>
+    <label><input type="checkbox" checked={wholeWord} onChange={event => { setWholeWord(event.target.checked); setIndex(0); }} />整词匹配</label>
     <span role="status">{matches.length ? `${current + 1} / ${matches.length} 处匹配` : '没有匹配'}</span>
     <button disabled={!matches.length} onClick={() => move(-1)}>上一处</button><button disabled={!matches.length} onClick={() => move(1)}>下一处</button>
     <input aria-label="替换为" value={replacement} onChange={event => setReplacement(event.target.value)} />
