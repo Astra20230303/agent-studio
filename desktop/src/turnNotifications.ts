@@ -6,6 +6,16 @@ const object = (value: any) => value && typeof value === 'object' && !Array.isAr
 // Gate lifecycle/text notifications before any queue, transcript, or status write.
 // Other notification families retain their own parsers.
 export function acceptTurnNotification(method: string | undefined, params: any, read: (threadId: string) => TurnRuntime | undefined): boolean {
+  if (method === 'error') {
+    if (!object(params) || !identity(params.threadId) || !identity(params.turnId)
+      || params.willRetry != null && typeof params.willRetry !== 'boolean'
+      || !(typeof params.error === 'string' && !!params.error.trim() || object(params.error) && typeof params.error.message === 'string' && !!params.error.message.trim())) return false;
+    const current = read(params.threadId);
+    const outcome = current?.outcomes?.[params.turnId];
+    if (outcome === 'completed' || outcome === 'interrupted') return false;
+    if (params.willRetry && (current?.completed.includes(params.turnId) || current?.turnId && current.turnId !== params.turnId)) return false;
+    return true;
+  }
   if (!['turn/started', 'turn/completed', 'item/agentMessage/delta'].includes(method || '')) return true;
   if (!object(params) || !identity(params.threadId)) return false;
   const delta = method === 'item/agentMessage/delta';
