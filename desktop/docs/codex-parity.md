@@ -10,6 +10,11 @@ highlighted, limiting markup for repetitive files. Line references retain their
 existing target highlight; truncated previews label the search scope explicitly.
 Real-file browser acceptance and production build pass.
 
+Post-commit acceptance covers wraparound, composing Enter, literal punctuation
+beside Chinese/emoji text and excluding content beyond the preview boundary.
+Existing file-link preview/line-reference regression passes. No product correction
+was needed.
+
 ## Complete bounded UTF-8 text previews
 
 The file reader accumulates partial reads up to a shared 256 KiB preview/edit
