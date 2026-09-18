@@ -1,0 +1,47 @@
+const { chromium } = require('playwright');
+const assert = require('node:assert/strict');
+(async () => {
+  const browser = await chromium.launch({ channel: 'msedge', headless: true });
+  try {
+    const page = await browser.newPage();
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.addInitScript(() => {
+      localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ model: 'test', activeThreadId: 'a', threads: ['a', 'b'].map(id => ({ id, remoteId: id, title: `Thread ${id}`, status: 'completed', messages: [], updatedAt: '' })) }));
+      window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }), providerStatus: async () => ({ keyConfigured: true }) };
+      window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async (method, params) => ({ ok: true, result: method === 'thread/resume' ? { thread: { id: params.threadId, turns: [] } } : { data: [] } }), onNotification: fn => { window.__emit = fn; return () => {}; }, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
+    });
+    await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
+    await page.getByRole('button', { name: '选择模型', exact: true }).getByText('test', { exact: true }).waitFor();
+    const input = page.getByRole('textbox', { name: '消息', exact: true });
+    await input.fill('Preserved draft');
+    const emit = async events => page.evaluate(async events => {
+      events.forEach(event => window.__emit(event));
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }, events);
+    const state = () => page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')));
+    const start = (threadId, id) => ({ method: 'turn/started', params: { threadId, turn: { id } } });
+    const finish = (threadId, id, status = 'completed') => ({ method: 'turn/completed', params: { threadId, turn: { id, status } } });
+    const delta = (threadId, turnId, itemId, text) => ({ method: 'item/agentMessage/delta', params: { threadId, turnId, itemId, delta: text } });
+    const baseline = (await state()).threads;
+    await emit([start('a', 123), delta(undefined, 'old', 'reply', 'Unrouted'), delta('a', 'old', undefined, 'Missing item'), delta('a', 'old', 'reply', {}), finish(undefined, 'old'), finish('a', 'old', 'invalid')]);
+    assert.deepEqual((await state()).threads, baseline);
+    await emit([start('a', 'first'), delta('a', 'first', 'answer', 'Hello'), delta('a', 'first', 'answer', ' world'), finish('a', 'first')]);
+    await page.getByText('Hello world', { exact: true }).waitFor();
+    assert.equal((await state()).threads[0].status, 'completed');
+    const finished = (await state()).threads[0];
+    await emit([start('a', 'first'), delta('a', 'first', 'answer', ' late'), finish('a', 'first', 'failed')]);
+    assert.deepEqual((await state()).threads[0], finished);
+    await emit([start('a', 'second'), delta('a', 'other', 'wrong', 'Wrong turn'), finish('a', 'second', 'inProgress'), delta('b', 'background', 'other-answer', 'Background reply'), finish('b', 'background')]);
+    assert.equal((await state()).threads[0].status, 'running');
+    assert.equal((await state()).threads[0].messages.length, 1);
+    assert.equal((await state()).threads[1].messages[0].content, 'Background reply');
+    await page.getByRole('button', { name: '停止生成', exact: true }).waitFor();
+    await emit([delta('a', 'second', 'second-answer', 'Next reply'), finish('a', 'second')]);
+    await page.getByText('Next reply', { exact: true }).waitFor();
+    await page.getByRole('button', { name: '停止生成', exact: true }).waitFor({ state: 'hidden' });
+    assert.equal(await input.inputValue(), 'Preserved draft');
+    assert.deepEqual(errors, []);
+    console.log('PASS: malformed and stale turn events preserve transcript/state; valid and background streams remain isolated');
+  } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });
