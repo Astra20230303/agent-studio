@@ -21,7 +21,7 @@ export function PreviewText({ text, lineNumber, truncated, ref }: { text: string
   const close = () => { setFinding(false); pre.current?.focus(); };
   const move = (direction: number) => { if (matches.length) setIndex((current + direction + matches.length) % matches.length); };
   let offset = 0;
-  return <div>
+  return <div className="preview-text">
     {!finding && <button onClick={find}>查找预览内容</button>}
     {finding && <section aria-label="预览查找" onKeyDown={event => {
       if (event.nativeEvent.isComposing) return;

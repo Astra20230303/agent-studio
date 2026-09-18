@@ -1,5 +1,14 @@
 # Felix capability roadmap
 
+## Responsive file preview layout
+
+Preview-specific layout prevents editor footer flex rules from putting search
+controls beside the file body. Search wraps above independently scrolling text;
+long paths wrap and the dialog stays within the viewport in both dimensions.
+Browser geometry acceptance covers desktop, 390px width and short landscape
+windows, including actionable search/close buttons. Styles remain in the deferred
+preview CSS. Production build passes.
+
 ## Preserve focus through file editing
 
 The file editor explicitly focuses its text area on opening and closes its native

@@ -3,6 +3,7 @@ import type { ArtifactTarget } from './Artifacts';
 import type { FileEditSession } from './WorkspaceFiles';
 import { PreviewText, type PreviewTextHandle } from './PreviewText';
 import { PreviewImage } from './PreviewImage';
+import './artifactPreview.css';
 export function ArtifactPreview({ target, onClose, onEdit }: { target: ArtifactTarget; onClose: () => void; onEdit: (session: FileEditSession) => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const textPreview = useRef<PreviewTextHandle>(null);
@@ -30,7 +31,7 @@ export function ArtifactPreview({ target, onClose, onEdit }: { target: ArtifactT
     })();
     return () => { disposed = true; };
   }, [target, revision]);
-  return <dialog ref={dialog} className="file-editor" aria-label="消息文件预览" onKeyDown={event => {
+  return <dialog ref={dialog} className="file-editor file-preview" aria-label="消息文件预览" onKeyDown={event => {
     if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'f' && !event.nativeEvent.isComposing && textPreview.current) {
       event.preventDefault(); event.stopPropagation(); textPreview.current.find();
     }

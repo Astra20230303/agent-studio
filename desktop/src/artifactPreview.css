@@ -1,0 +1,8 @@
+.file-editor.file-preview{box-sizing:border-box;width:min(900px,calc(100vw - 32px));max-width:calc(100vw - 32px);max-height:calc(100vh - 32px);overflow:auto}
+.file-preview>p{overflow-wrap:anywhere}
+.file-preview>.preview-text{display:block;min-width:0}
+.file-preview>.preview-text pre{max-width:100%;box-sizing:border-box}
+.preview-text section{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0}
+.preview-text section>input{min-width:0;max-width:100%;box-sizing:border-box}
+.preview-text section>label{display:inline-flex;align-items:center;gap:4px}
+.file-preview>div:last-child{flex-wrap:wrap}
