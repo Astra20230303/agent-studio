@@ -26,3 +26,15 @@ test('mutation methods preserve payloads, capture drafts and wait for transport'
  }
  await assert.rejects(createAutomationRepository(async()=>{throw Error('rejected');}).save(task),/rejected/);
 });
+
+test('run configuration accepts legacy records and rejects malformed snapshots before rendering',async()=>{
+ const run={id:'r',status:'completed',startedAt:'2026-09-18T00:00:00Z'};
+ let value={...task,runs:[run]};const repo=createAutomationRepository(async()=>({task:value}));
+ await repo.detail('a');
+ const valid={name:'Before',prompt:'Old prompt',kind:'agent',model:'old',permission:'read-only',reasoningEffort:'high'};
+ value.runs=[{...run,configuration:valid}];await repo.detail('a');
+ for(const config of [[],{}, {...valid,prompt:{}},{...valid,providerId:1},{...valid,reasoningEffort:'invalid'},{...valid,permission:'unknown'}]){
+  value.runs=[{...run,configuration:config}];await assert.rejects(repo.detail('a'),/任务详情格式无效/);
+ }
+ value.runs=[run];await repo.detail('a');
+});
