@@ -10,6 +10,7 @@ import { readRateLimits } from './rateLimits';
 import { readAccountUsage } from './accountUsage';
 import { readAccountInfo } from './accountInfo';
 import { readThreadSection, readThreadSections } from './threadSections';
+import { readAccountLoginStart } from './accountAuth';
 export type RpcMessage = { id?: number | string; method?: string; params?: any; result?: any; error?: any };
 type Bridge = { connect: () => Promise<any>; request: (method: string, params?: unknown) => Promise<any>; notify: (method: string, params?: unknown) => Promise<any>; respond: (id: number | string, result?: unknown, error?: unknown) => Promise<any>; onNotification: (listener: (message: RpcMessage) => void) => () => void; onServerRequest: (listener: (message: RpcMessage) => void) => () => void; onError: (listener: (message: any) => void) => () => void; onStderr: (listener: (message: any) => void) => () => void; onClosed: (listener: (message: any) => void) => () => void };
 const bridge = () => window.codex as Bridge;
@@ -93,6 +94,13 @@ export async function resetMemory() { return unwrap<any>(bridge().request('memor
 export async function readAccountRateLimits() { return readRateLimits(await unwrap<any>(bridge().request('account/rateLimits/read', {}))); }
 export async function readAccountTokenUsage() { return readAccountUsage(await unwrap<any>(bridge().request('account/tokenUsage/read', {}))); }
 export async function readAccount() { return readAccountInfo(await unwrap<any>(bridge().request('account/read', { refreshToken: false }))); }
+export async function startAccountLogin(kind: 'chatgpt' | 'apiKey', apiKey?: string) {
+  const params = kind === 'apiKey' ? { type: 'apiKey', apiKey: apiKey || '' } : { type: 'chatgpt', codexStreamlinedLogin: true, useHostedLoginSuccessPage: false };
+  if (kind === 'apiKey' && !apiKey?.trim()) throw new Error('API Key 不能为空');
+  return readAccountLoginStart(await unwrap<any>(bridge().request('account/login/start', params)));
+}
+export async function cancelAccountLogin(loginId: string) { if (!/^\S+$/.test(loginId)) throw new Error('登录身份无效'); await unwrap<any>(bridge().request('account/login/cancel', { loginId })); }
+export async function logoutAccount() { await unwrap<any>(bridge().request('account/logout', undefined)); }
 export async function listThreadSections() { return readThreadSections(await unwrap<any>(bridge().request('threadSection/list', { limit: 100 }))); }
 export async function createThreadSection(name: string) { if (!name.trim()) throw new Error('分组名称不能为空'); return readThreadSection(await unwrap<any>(bridge().request('threadSection/create', { name: name.trim() }))); }
 export async function deleteThreadSection(sectionId: string) { if (!/^\S+$/.test(sectionId)) throw new Error('分组身份无效'); await unwrap<any>(bridge().request('threadSection/delete', { sectionId })); }
