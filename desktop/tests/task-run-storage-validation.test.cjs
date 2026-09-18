@@ -18,3 +18,12 @@ test('legacy valid records still recover interrupted state after repair',async()
   assert.equal(scheduler.detail('task').runs[0].status,'interrupted');assert.equal(scheduler.detail('task').runs[0].configuration,undefined);await scheduler.stop();
  }finally{fs.rmSync(directory,{recursive:true,force:true});}
 });
+
+test('snapshot and environment fields reject malformed values while supporting complete history',()=>{
+ const {validateTaskRuns}=require('../electron/task-run-validation.cjs');
+ const configuration={name:'Snapshot',prompt:'Original',kind:'agent',model:'m',permission:'workspace-write',providerId:'p',cwd:'D:/work',reasoningEffort:'high',timeoutMinutes:120};
+ const complete={...run,configuration,environment:{cwd:'D:/work',providerId:'p'}};
+ assert.doesNotThrow(()=>validateTaskRuns([complete]));
+ for(const patch of [{timeoutMinutes:0},{timeoutMinutes:121},{timeoutMinutes:'10'},{reasoningEffort:'bad'},{prompt:{}},{cwd:[]},{permission:'bad'}])assert.throws(()=>validateTaskRuns([{...complete,configuration:{...configuration,...patch}}]),/配置快照/);
+ for(const environment of [{cwd:''},{cwd:'D:/work',providerId:{}},[]])assert.throws(()=>validateTaskRuns([{...complete,environment}]),/环境记录/);
+});
