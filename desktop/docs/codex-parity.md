@@ -2749,3 +2749,11 @@ user-message-copy-ui.cjs 覆盖原文保真、键盘操作、失败重试、空�
 验证实现 55ff8e5：隔离 profile 启动真实 app-server，本地 HTTP 模型替身持续保持首个响应流；收到 agentMessage delta 后中断，断言 turn/completed 状态为 interrupted。随后同一会话启动新回合并正常完成，thread/turns/list 保留两个正确状态。
 
 提交后验收改用 Felix codexClient.interruptTurn 封装调用真实服务端，补充 thread/resume 验证中断状态与后续完整正文，均通过；turn-interrupt-ui 回归通过。此项只验证模型流中断、会话继续及历史恢复，未执行外部工具进程，因此不宣称所有子进程终止语义或云模型网络取消已验证。无产品修正，未重复构建。
+
+## 会话后台命令管理
+
+实现 094bef0：远端会话提供后台命令折叠区，手动刷新、分页查看命令与工作目录，逐项终止。列表/终止失败保留状态供重试，请求锁阻止重复操作；断线禁用请求，切换会话使用独立组件实例隔离迟到响应。终止返回 false 时明确提示已退出。
+
+最初真实测试证明 turn/interrupt 后 PowerShell 进程仍存活；上游 unified_exec 明确保留后台进程，因此新增独立管理入口。command-interrupt-live 在隔离 profile 中让真实 app-server 执行写 PID 后等待的 PowerShell 命令，验证回合 interrupted、后台列表可发现进程、专门终止接口后 PID 不再存活且未写入结束标记、同会话下一回合完成及历史恢复。
+
+验收：background-terminals-ui 覆盖读取失败重试、分页、重复终止、终止失败重试、会话隔离及已退出反馈；生产构建通过。提交后 live 测试改用 Felix listBackgroundTerminals/terminateBackgroundTerminal 封装，并确认终止后列表不再包含该进程，全部通过。测试覆盖 Windows 直接命令进程和本地模型替身，不证明全部平台、孙进程树或云端环境终止语义。
