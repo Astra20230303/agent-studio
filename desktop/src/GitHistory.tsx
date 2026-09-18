@@ -1,7 +1,8 @@
+import { CommitReviewDraft } from './CommitReviewDraft';
 import { useEffect, useRef, useState } from 'react';
 import { parseGitHistory, parseGitCommitDetail, type GitCommit } from './gitHistoryResponse';
 
-export function GitHistory({ root }: { root: string }) {
+export function GitHistory({ root, onReview }: { root: string; onReview: (text: string) => void }) {
   const [page, setPage] = useState<{ anchor?: string; offset: number }>({ offset: 0 });
   const [commits, setCommits] = useState<GitCommit[]>([]);
   const [refs, setRefs] = useState<string[]>([]);
@@ -47,7 +48,7 @@ export function GitHistory({ root }: { root: string }) {
     <button disabled={loading} onClick={() => { setSelected(''); setPage({ offset: 0 }); }}>刷新历史</button>
     {loading && <p role="status">正在读取提交…</p>}
     {error && <div role="alert"><p>{error}</p><button onClick={() => setRetry(value => value + 1)}>重试读取提交</button></div>}
-    {selected ? <><button onClick={() => setSelected('')}>返回提交列表</button><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{detail}</pre></> : !loading && !error && <>
+    {selected ? <><button onClick={() => setSelected('')}>返回提交列表</button><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{detail}</pre><CommitReviewDraft key={selected} root={root} commit={selected} detail={detail} disabled={loading || !!error} onReview={onReview} /></> : !loading && !error && <>
       {commits.length === 0 && <p>{search ? '没有匹配的提交。' : '暂无提交。'}</p>}
       {commits.map(commit => <div key={commit.id}><button onClick={() => { setPage(current => ({ ...current, anchor: anchor.current })); setSelected(commit.id); }}>{commit.id.slice(0, 8)} · {commit.subject}</button><p>{commit.author} · {commit.date}</p></div>)}
       <button disabled={page.offset === 0} onClick={() => setPage({ anchor: anchor.current, offset: page.offset - 30 })}>较新提交</button>
