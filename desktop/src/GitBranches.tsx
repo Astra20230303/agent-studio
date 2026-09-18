@@ -30,7 +30,8 @@ export function GitBranches({ root, onSwitched, onBusyChange }: { root: string; 
     })();
     return () => { disposed = true; };
   }, [root, revision]);
-  const switchBranch = async (track = false, deleting = false, creating = false) => {
+  const switchBranch = async (mode: 'switch' | 'track' | 'delete' | 'create' = 'switch') => {
+    const track = mode === 'track', deleting = mode === 'delete', creating = mode === 'create';
     const remote = snapshot?.remoteBranches?.find(entry => entry.ref === remoteRef);
     if (locked.current || !snapshot || (creating ? !snapshot.head || !newName.trim() || snapshot.branches.includes(newName) : deleting ? !deleteName : track ? !remote || !localName.trim() : !target)) return;
     locked.current = true; setBusy(true); onBusyChange(true); setError(''); setNotice('');
@@ -54,7 +55,7 @@ export function GitBranches({ root, onSwitched, onBusyChange }: { root: string; 
       <p>未提交修改会随工作区保留；若目标分支会覆盖修改，Git 将拒绝切换。</p>
       <button disabled={busy || !target || target === snapshot.current}>{busy ? '正在切换…' : '切换到所选分支'}</button>
     </form>}
-    {snapshot && <form onSubmit={event => { event.preventDefault(); void switchBranch(false, false, true); }}>
+    {snapshot && <form onSubmit={event => { event.preventDefault(); void switchBranch('create'); }}>
       <h3>从当前提交创建本地分支</h3>
       <label>新分支名称<input aria-label="新分支名称" value={newName} disabled={busy} onChange={event => setNewName(event.target.value)} /></label>
       {!snapshot.head && <p>请先完成首个提交，再创建本地分支。</p>}
@@ -62,7 +63,7 @@ export function GitBranches({ root, onSwitched, onBusyChange }: { root: string; 
       <p>创建后立即切换，保留当前未提交修改。</p>
       <button disabled={busy || !snapshot.head || !newName.trim() || snapshot.branches.includes(newName)}>创建本地分支并切换</button>
     </form>}
-    {snapshot && <form onSubmit={event => { event.preventDefault(); void switchBranch(true); }}>
+    {snapshot && <form onSubmit={event => { event.preventDefault(); void switchBranch('track'); }}>
       <h3>从远端分支创建本地分支</h3>
       <p>显示上次获取的远端分支；可返回 Git 变更获取最新远端信息。</p>
       {!snapshot.remoteBranches?.length && <p role="status">暂无已获取的远端分支。请先配置远端并获取远端信息。</p>}
@@ -72,7 +73,7 @@ export function GitBranches({ root, onSwitched, onBusyChange }: { root: string; 
       <p>创建后立即切换，并将所选远端分支设为拉取和推送的上游。</p>
       <button disabled={busy || !remoteRef || !localName.trim() || snapshot.branches.includes(localName)}>创建跟踪分支并切换</button>
     </form>}
-    {snapshot && <form onSubmit={event => { event.preventDefault(); void switchBranch(false, true); }}>
+    {snapshot && <form onSubmit={event => { event.preventDefault(); void switchBranch('delete'); }}>
       <h3>删除已合并本地分支</h3>
       <label>本地分支<select aria-label="删除本地分支" value={deleteName} disabled={busy} onChange={event => setDeleteName(event.target.value)}><option value="">选择分支</option>{snapshot.branches.filter(branch => branch !== snapshot.current).map(branch => <option key={branch} value={branch}>{branch}</option>)}</select></label>
       <p>仅删除已合并分支；当前分支和含未合并提交的分支会被 Git 拒绝。</p>
