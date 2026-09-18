@@ -1,5 +1,16 @@
 # Felix capability roadmap
 
+## Open attachments from conversation history
+
+Attachment names in user messages open the existing file preview on demand.
+Absolute attachments use their own parent directory, so selected files outside
+the project and stored clipboard images can be inspected; relative references
+use the conversation workspace. No background attachment reads are introduced.
+The existing reader supplies image/text/binary handling, refresh, text editing
+and path checks (image preview limit 10 MB; text preview 256 KB). Browser tests
+use real temporary files for external text, clipboard PNG, missing-file retry
+and history reload. Production build passes.
+
 ## Reorder paused messages
 
 Paused queue messages offer move-up/move-down actions. Shared neighbor resolution
