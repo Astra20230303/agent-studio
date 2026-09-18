@@ -124,7 +124,7 @@ class TaskScheduler extends EventEmitter {
     this.retryFinalization();
     if (this.loadError) this.readStoredTasks();
     if (this.loadError) throw new Error(this.loadError);
-    return structuredClone(this.tasks.map(task => ({ ...task, runs: task.runs.map(({ output, ...run }) => run) })));
+    return structuredClone(this.tasks.map(task => ({ ...task, runs: task.runs.map(({ output, configuration, environment, ...run }) => run) })));
   }
   get(id) { const task = this.tasks.find(item => item.id === id); if (!task) throw new Error('找不到任务。'); return task; }
   detail(id) { return structuredClone(this.get(id)); }
