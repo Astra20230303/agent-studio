@@ -12,7 +12,7 @@ const assert = require('node:assert/strict');
       window.__calls = []; window.__allow = false;
       window.desktop = { workspaceGit: async input => {
         window.__calls.push(input);
-        if (input.action === 'worktrees') return { ok: true, result: { worktrees: [{ path: 'D:/repo', head: 'main', current: true }, {path:'D:/primary', head:'main', primary:true}, ...window.__removed ? [] : [{ path: 'D:/child', head: 'abc', branch: 'feature' }]] } };
+        if (input.action === 'worktrees') return { ok: true, result: { worktrees: [{ path: 'D:/repo', head: 'a'.repeat(40), current: true }, {path:'D:/primary', head:'a'.repeat(40), primary:true}, ...window.__removed ? [] : [{ path: 'D:/child', head: 'b'.repeat(40), branch: 'feature' }]] } };
         if (input.action === 'remove-worktree') { if (!window.__allow) return { ok: false, error: '工作树包含修改' }; if (window.__hold) await new Promise(resolve => window.__release = resolve); window.__removed = true; return { ok: true, result: { removed: input.path } }; }
         return { ok: true, result: { root: 'D:/repo', branch: 'main', files: [] } };
       } };
@@ -41,9 +41,11 @@ const assert = require('node:assert/strict');
     await page.evaluate(() => window.__release());
     await page.getByText('已删除工作树 D:/child，分支与提交保留。', { exact: true }).waitFor();
     await page.getByRole('button', { name: '删除工作树 D:/child', exact: true }).waitFor({ state: 'detached' });
-    assert.equal(await page.evaluate(() => window.__calls.find(c => c.action === 'remove-worktree').expectedHead), 'abc');
+    assert.equal(await page.evaluate(() => window.__calls.find(c => c.action === 'remove-worktree').expectedHead), 'b'.repeat(40));
     assert.ok(await page.getByRole('button', {name:'返回 Git 变更',exact:true}).isEnabled());
     assert.ok(await page.getByRole('button', {name:'关闭 Git 面板',exact:true}).isEnabled());
+    const audit=await page.evaluate(()=>JSON.parse(localStorage.getItem('felix-audit-log-v1')).filter(entry=>entry.action==='Git 删除工作树'));
+    assert.equal(audit.length,1);assert.equal(audit[0].detail,undefined);
     await page.getByRole('button', {name:'返回 Git 变更',exact:true}).click();
     await page.getByRole('button', {name:'浏览工作树',exact:true}).waitFor();
     await page.evaluate(() => localStorage.setItem('felix-turn-queue-v1', JSON.stringify([{ id: 'queued', localId: 'child-local', threadId: 'child-remote', text: 'pending work', model: 'test', effort: 'low', plugins: [], status: 'paused' }])));

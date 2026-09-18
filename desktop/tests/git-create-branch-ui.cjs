@@ -53,6 +53,9 @@ const {workspaceGit} = require('../electron/workspace-git.cjs');
     assert.equal(await fs.readFile(path.join(root,'file.txt'),'utf8'),'working');
     assert.equal(await fs.readFile(path.join(root,'new.txt'),'utf8'),'keep');
     assert.equal(calls.filter(c=>c.action==='create-branch').length,3);
+    const audit=await page.evaluate(()=>JSON.parse(localStorage.getItem('felix-audit-log-v1')).filter(entry=>entry.action.startsWith('Git ')));
+    assert.equal(audit.length,1);assert.equal(audit[0].action,'Git 创建本地分支');assert.equal(audit[0].detail,undefined);
+    assert.ok(!JSON.stringify(audit).includes('codex/new'));
     console.log('PASS: real Git create branch UI, unborn/duplicate protection, invalid/stale retry and work preservation');
   } finally { await browser?.close(); await fs.rm(root,{recursive:true,force:true}); }
 })().catch(error=>{console.error(error);process.exitCode=1;});
