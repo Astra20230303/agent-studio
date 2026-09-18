@@ -23,3 +23,13 @@ test('plain history reload preserves previous final evidence only for the same r
   }
   assert.equal(restoreMessages([{ item, turnId: 'other' }], previous)[0].streamCompleted, undefined);
 });
+test('history restore keeps compatible applied delta identities for reconnect replay', () => {
+  const previous = [{ id: 'live-reply', role: 'assistant', content: 'Partial', turnId: 'turn', streamDeltaIds: ['e1'] }];
+  const restored = restoreMessages([{ item: { id: 'reply', type: 'agentMessage', text: 'Partial' }, turnId: 'turn' }], previous);
+  const thread = { remoteId: 'remote', messages: restored, status: 'running' };
+  assert.equal(thread.messages[0].streamDeltaIds[0], 'e1');
+  assert.equal(applyAssistantMessage(thread, 'item/agentMessage/delta', { ...delta, eventId: 'e1' }), false);
+  assert.equal(thread.messages[0].content, 'Partial');
+  const otherTurn = restoreMessages([{ item: { id: 'reply', type: 'agentMessage', text: 'Partial' }, turnId: 'other' }], previous);
+  assert.equal(otherTurn[0].streamDeltaIds, undefined);
+});
