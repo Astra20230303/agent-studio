@@ -62,6 +62,12 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
   const [status, setStatus] = useState('正在启动');
   const [error, setError] = useState('');
   const [running, setRunning] = useState(false);
+  const [starting, setStarting] = useState(true);
+  const startLock = useRef(true);
+  const restart = () => {
+    if (startLock.current || session.current) return;
+    startLock.current = true; setStarting(true); setRevision(value => value + 1);
+  };
   const [exporting, setExporting] = useState(false);
   const [exportNotice, setExportNotice] = useState('');
   const exportLock = useRef(false);
@@ -81,7 +87,7 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
   };
   useEffect(() => {
     const bridge = window.desktop?.terminal;
-    if (!bridge || !host.current) { setError('桌面终端不可用'); return; }
+    if (!bridge || !host.current) { startLock.current = false; setStarting(false); setStatus('启动失败'); setError('桌面终端不可用'); return; }
     const term = new Terminal({ cursorBlink: true, scrollback: 5000, fontSize: 13, theme: { background: '#191b1e', foreground: '#eeeeee' } });
     const addon = new FitAddon();
     const searchAddon = new SearchAddon();
@@ -102,13 +108,18 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
     const resize = () => { if (!host.current?.clientWidth) return; addon.fit(); if (session.current) void bridge.resize(session.current, term.cols, term.rows).catch(report); };
     const observer = new ResizeObserver(resize); observer.observe(host.current);
     setStatus('正在启动'); setError(''); setExportNotice(''); setRunning(false);
-    void bridge.create(cwd).then(result => {
-      if (!result.ok) throw Error('终端启动失败');
+    startLock.current = true; setStarting(true);
+    void Promise.resolve().then(() => disposed ? undefined : bridge.create(cwd)).then(result => {
+      if (result?.ok !== true || typeof result.id !== 'string' || !result.id.trim()) throw Error('终端启动失败：未获得有效会话');
       ownedId = result.id;
       if (disposed) { void bridge.close(ownedId).catch(() => {}); return; }
+      startLock.current = false; setStarting(false);
       session.current = ownedId; setRunning(true); setStatus('运行中');
       pending.forEach(receive); pending.length = 0; resize(); if (visible.current) term.focus();
-    }).catch(report);
+    }).catch(failure => {
+      if (disposed) return;
+      startLock.current = false; setStarting(false); setStatus('启动失败'); report(failure);
+    });
     return () => {
       disposed = true; off(); input.dispose(); parsed.dispose(); observer.disconnect(); term.dispose();
       terminal.current = null; fit.current = null; session.current = undefined;
@@ -123,7 +134,7 @@ function TerminalSession({ id, cwd, open }: { id: number; cwd?: string; open: bo
     <header><strong>终端</strong><span title={cwd}>{cwd || '当前项目'}</span><small role="status">{status}</small>
       <button title="查找终端输出" aria-label="查找终端输出" onClick={() => finding ? closeFind() : setFinding(true)}>⌕</button>
       <button title="导出当前终端缓冲区（最多保留 5000 行历史）" aria-label="导出终端日志" disabled={exporting} onClick={() => void exportLog()}>⇩</button>
-      <button title="重新启动终端" aria-label="重新启动终端" disabled={running} onClick={() => setRevision(value => value + 1)}><Play size={16} /></button>
+      <button title="重新启动终端" aria-label="重新启动终端" disabled={starting || running} onClick={restart}><Play size={16} /></button>
       <button title="终止终端" aria-label="终止终端" disabled={!running} onClick={() => { if (session.current) void window.desktop?.terminal?.close(session.current).catch(failure => setError(String(failure))); }}><Square size={16} /></button>
       </header>
     {finding && <div className="terminal-find"><input ref={searchInput} aria-label="查找终端输出内容" placeholder="查找终端缓冲区" value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => {
