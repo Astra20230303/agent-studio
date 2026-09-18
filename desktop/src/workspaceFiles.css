@@ -11,3 +11,5 @@
 .workspace-files .workspace-file-row[aria-current=true]{background:#288eaa26;outline:2px solid #288eaa;outline-offset:-2px}
 
 .workspace-search-options{display:flex;flex-wrap:wrap;gap:12px;margin:8px 0}.workspace-search-options label{display:inline-flex;align-items:center;gap:4px}
+
+.editor-disk-version{border:1px solid #8886;padding:12px;margin:12px 0}.editor-disk-version header{display:flex;align-items:center;justify-content:space-between;gap:12px}.editor-disk-version h3{margin:0}.editor-version-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.editor-version-columns pre{max-height:30vh;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.5 Consolas,monospace}.editor-version-columns section{min-width:0}@media(max-width:640px){.editor-version-columns{grid-template-columns:1fr}}
