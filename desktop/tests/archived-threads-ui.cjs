@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
     const page = await browser.newPage();
     await page.addInitScript(() => {
       window.__fail = true; window.__calls = [];
+      localStorage.setItem('felix-audit-log-v1', '[]');
       localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ model: 'test', threads: [{ id: 'saved', remoteId: 'saved', title: 'Saved', archived: true, messages: [{ id: 'msg', role: 'user', content: 'Keep this', createdAt: new Date().toISOString() }], updatedAt: new Date().toISOString() }, { id: 'stale', remoteId: 'remote', title: 'Local title', archived: false, messages: [], updatedAt: new Date().toISOString() }] }));
       window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }) };
       window.codex = { connect: async () => ({ ok: true }), request: async (method, params) => {
@@ -51,6 +52,7 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: '关闭归档会话' }).click();
     await page.getByRole('button', { name: 'Saved', exact: true }).waitFor();
     await page.getByRole('button', { name: 'Local title', exact: true }).waitFor();
+    assert.ok(await page.evaluate(() => JSON.parse(localStorage.getItem('felix-audit-log-v1')).some(item => item.action === '恢复归档会话')));
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.find(thread => thread.id === 'saved'));
     assert.equal(saved.messages[0].content, 'Keep this');
     assert.equal(saved.archived, false);
