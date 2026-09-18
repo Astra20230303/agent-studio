@@ -1,0 +1,40 @@
+const { chromium } = require('playwright');
+const assert = require('node:assert/strict');
+(async () => {
+ const browser = await chromium.launch({ channel: 'msedge', headless: true });
+ try {
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await page.addInitScript(() => {
+   localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeThreadId: 'a', threads: ['a','b'].map(id => ({ id, title: 'Thread ' + id, status: 'completed', updatedAt: '', messages: [{ id: 'msg-' + id, role: 'assistant', content: 'Reply ' + id, createdAt: '' }] })) }));
+  });
+  await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
+  const sidebar = page.getByRole('complementary', { name: '侧栏', exact: true });
+  const composer = page.locator('.composer textarea');
+  await composer.fill('保留窄屏草稿');
+  assert.equal(await sidebar.isVisible(), false);
+  assert.ok((await page.locator('.desktop-body > main').boundingBox()).width >= 370);
+  await page.getByRole('button', { name: '展开侧栏', exact: true }).click();
+  assert.equal(await sidebar.isVisible(), true);
+  assert.ok((await sidebar.boundingBox()).width >= 370);
+  assert.equal(await page.locator('.desktop-body > main').isVisible(), false);
+  await sidebar.getByRole('button', { name: 'Thread a', exact: true }).click();
+  assert.equal(await sidebar.isVisible(), false);
+  assert.equal(await composer.inputValue(), '保留窄屏草稿');
+  await page.getByRole('button', { name: '展开侧栏', exact: true }).click();
+  await sidebar.getByRole('button', { name: 'Thread b', exact: true }).click();
+  assert.equal(await sidebar.isVisible(), false);
+  await page.getByText('Reply b', { exact: true }).waitFor();
+  await page.setViewportSize({ width: 1280, height: 844 });
+  await page.getByRole('button', { name: '展开侧栏', exact: true }).click();
+  assert.equal(await page.locator('.desktop-body > main').isVisible(), true);
+  assert.equal(await sidebar.isVisible(), true);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: '展开侧栏', exact: true }).waitFor();
+  assert.equal(await sidebar.isVisible(), false);
+  await page.getByRole('button', { name: '展开侧栏', exact: true }).click();
+  await sidebar.getByRole('button', { name: '新对话', exact: true }).click();
+  assert.equal(await sidebar.isVisible(), false);
+  assert.equal(await composer.isVisible(), true);
+  console.log('PASS: narrow sidebar navigation preserves drafts, selects threads, creates chats and adapts across breakpoint');
+ } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

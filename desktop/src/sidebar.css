@@ -265,3 +265,10 @@
   .desktop-body .sidebar button { transition: none; }
 }
 .thread-search-snippet{margin:0 14px 9px;font-size:12px;line-height:1.4;opacity:.75;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+
+@media (max-width: 760px) {
+  .desktop-body aside.sidebar { flex: 1 1 100%; width: 100%; }
+  .desktop-body:has(> aside.sidebar:not([hidden])) > main { display: none; }
+  .desktop-body > main { min-width: 0; }
+  .desktop-body .thread-view { padding-left: 16px; padding-right: 16px; }
+}

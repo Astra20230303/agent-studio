@@ -46,7 +46,7 @@ const assert = require('node:assert/strict');
   await updating.getByRole('button', { name: '复制代码', exact: true }).click();
   await page.waitForFunction(() => window.__copied === 'partial\ncompleted 中文');
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole('button', { name: '收起侧栏', exact: true }).click();
+  assert.equal(await page.getByRole('button', { name: '展开侧栏', exact: true }).count(), 1);
   await blocks.first().getByRole('button', { name: '代码自动换行', exact: true }).click();
   assert.equal(await pre.evaluate(node => node.scrollWidth <= node.clientWidth + 1), true);
   console.log('PASS: independent code wrap, exact copy, keyboard access, 390px layout and incremental source updates');
