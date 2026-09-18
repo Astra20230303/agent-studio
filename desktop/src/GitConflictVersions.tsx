@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-type Stage = { stage: number; text?: string; unavailable?: string };
+import { parseConflictStages, type ConflictStage } from './gitConflictResponse';
+type Stage = ConflictStage;
 export function GitConflictVersions({ root, path }: { root: string; path: string }) {
   const [stages, setStages] = useState<Stage[]>();
   const [error, setError] = useState('');
@@ -10,7 +11,7 @@ export function GitConflictVersions({ root, path }: { root: string; path: string
       try {
         const response = await window.desktop?.workspaceGit?.({ root, path, action: 'conflict' });
         if (!response?.ok) throw Error(response?.error || '无法读取冲突版本');
-        if (active) setStages(response.result.stages);
+        if (active) setStages(parseConflictStages(response.result));
       } catch (error) { if (active) setError(String(error)); }
     })();
     return () => { active = false; };
