@@ -15,10 +15,12 @@ function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_
     const runKey = selected.apiKey;
     const runUpstream = selected.baseUrl;
     if (!runKey?.trim() && !require('./provider-url.cjs').isLocalProvider(runUpstream)) throw new Error('未配置 MINIMAX_API_KEY，请带密钥重新启动项目副本。');
-    const home = path.join(dataRoot, 'scheduled-tasks', 'runs', runId);
+    const temp = path.join(dataRoot, 'scheduled-tasks', 'runs', runId);
+    const home = path.join(dataRoot, 'codex-home');
     const cache = dataRoot;
     fs.mkdirSync(home, { recursive: true });
-    let rpc, adapter, timer, child, halted = false, output = '';
+    fs.mkdirSync(temp, { recursive: true });
+    let rpc, adapter, timer, child, threadId, halted = false, output = '';
     const append = text => { output = (output + text).slice(-200000); };
     let fail;
     const aborted = new Promise((_, reject) => { fail = error => { halted = true; reject(error); }; });
@@ -43,7 +45,7 @@ function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_
         child = spawn(command, [...settings.flatMap(setting => ['-c', setting]), 'app-server', '--stdio'], {
           cwd, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
           env: {
-            ...process.env, CODEX_HOME: home, MINIMAX_API_KEY: 'local-provider-adapter', TEMP: home, TMP: home, TMPDIR: home,
+            ...process.env, CODEX_HOME: home, MINIMAX_API_KEY: 'local-provider-adapter', TEMP: temp, TMP: temp, TMPDIR: temp,
             npm_config_cache: path.join(cache, 'npm-cache'), npm_config_store_dir: path.join(cache, 'pnpm-store'),
             PIP_CACHE_DIR: path.join(cache, 'pip'), UV_CACHE_DIR: path.join(cache, 'uv'),
             CARGO_HOME: path.join(cache, 'cargo'), RUSTUP_HOME: path.join(cache, 'rustup'),
@@ -57,7 +59,6 @@ function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_
           rpc.respond(message.id, undefined, { code: -32000, message: 'Scheduled task requires interactive approval. Run it in a chat.' });
           fail(new Error('任务需要交互或额外权限，请在对话中执行。'));
         });
-        let threadId;
         const completed = new Promise((resolve, reject) => rpc.on('notification', message => {
           const params = message.params || {};
           if (!threadId || params.threadId !== threadId) return;
@@ -73,7 +74,7 @@ function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_
         completed.catch(() => {});
         await rpc.request('initialize', { clientInfo: { name: 'felix_scheduled_task', version: '1' }, capabilities: { experimentalApi: true } });
         rpc.notify('initialized', {});
-        const result = await rpc.request('thread/start', { cwd, model: task.model, modelProvider: 'minimax', sandbox: task.permission, approvalPolicy: 'never', ephemeral: true });
+        const result = await rpc.request('thread/start', { cwd, model: task.model, modelProvider: 'minimax', sandbox: task.permission, approvalPolicy: 'never', ephemeral: false });
         threadId = result.thread?.id;
         if (!threadId) throw new Error('Codex 未返回任务线程。');
         await rpc.request('turn/start', { threadId, input: [{ type: 'text', text: task.prompt }] });
@@ -82,7 +83,7 @@ function createTaskRunner(projectRoot, { apiKey = () => process.env.MINIMAX_API_
         return { output, threadId };
       };
       return await Promise.race([execute(), aborted]);
-    } catch (error) { error.output = output; throw error; }
+    } catch (error) { error.output = output; if (threadId) error.threadId = threadId; throw error; }
     finally {
       halted = true;
       clearTimeout(timer); signal.removeEventListener('abort', cancel);

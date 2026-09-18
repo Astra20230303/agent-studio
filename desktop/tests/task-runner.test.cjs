@@ -7,6 +7,9 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { createTaskRunner } = require('../electron/task-runner.cjs');
 const { TaskScheduler } = require('../electron/task-scheduler.cjs');
+const { spawn } = require('node:child_process');
+const { CodexRpc } = require('../electron/codex-rpc.cjs');
+const { findCommand } = require('../electron/codex-server.cjs');
 const root = path.resolve(__dirname, '../..');
 const task = { name: 'Runner integration', model: 'MiniMax-M2.1', prompt: 'Print FELIX_SCHEDULE_OK using a read-only shell command and report the result.', permission: 'read-only' };
 
@@ -54,11 +57,20 @@ test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local
     if (upstreamError) throw upstreamError;
     assert.equal(result.status, 'completed', result.error);
     assert.equal(result.trigger, 'scheduled');
-    assert.ok(fs.existsSync(path.join(dataRoot, 'scheduled-tasks', 'runs', result.id, 'config.toml')));
+    assert.ok(fs.existsSync(path.join(dataRoot, 'codex-home', 'config.toml')));
     assert.equal(providerReads, 1); assert.equal(requests, 2); assert.match(result.output, /Verified FELIX_SCHEDULE_OK/); assert.ok(result.threadId);
     const restarted = new TaskScheduler({ directory, runner });
     assert.equal(restarted.detail(saved.id).runs[0].output, result.output);
     assert.equal(restarted.detail(saved.id).cwd, workspace);
+    assert.ok(result.threadId);
+    const child = spawn(findCommand(root).command, ['-c', 'model_providers.minimax.name="MiniMax"', '-c', 'model_providers.minimax.wire_api="responses"', '-c', 'model_providers.minimax.base_url="http://127.0.0.1:1/v1"', 'app-server', '--stdio'], {cwd:root,windowsHide:true,stdio:['pipe','pipe','pipe'],env:{...process.env,CODEX_HOME:path.join(dataRoot,'codex-home')}});
+    const rpc = new CodexRpc(child);const timer=setTimeout(()=>rpc.close(),10000);
+    try {
+      await rpc.request('initialize',{clientInfo:{name:'task_resume_acceptance',version:'1'}});rpc.notify('initialized',{});
+      const restored=await rpc.request('thread/resume',{threadId:result.threadId});
+      assert.equal(restored.thread.id,result.threadId);
+      assert.ok(restored.thread.turns.some(turn=>turn.items.some(item=>item.type==='agentMessage' && item.text.includes('FELIX_SCHEDULE_OK'))));
+    } finally {clearTimeout(timer);const exited=child.exitCode===null?once(child,'exit').catch(()=>{}):Promise.resolve();rpc.close();await exited;}
     assert.equal(restarted.detail(saved.id).status, 'completed'); await restarted.stop();
   } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
 });
