@@ -48,5 +48,17 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  assert.equal(entries.filter(e=>e.action==='停止工作区服务失败').length,1);
  assert.equal(entries.filter(e=>e.action==='重启工作区服务').length,0);
  assert.ok(entries.filter(e=>e.action.includes('工作区服务')).every(e=>e.detail===undefined));
+ await page.getByRole('button',{name:'设置',exact:true}).click();
+ await page.getByRole('button',{name:'权限',exact:true}).click();
+ await page.evaluate(()=>{window.__stopFail=false;window.__releaseStop=undefined;});
+ await restart.click();await page.waitForFunction(()=>Boolean(window.__releaseStop));
+ await page.evaluate(()=>window.__releaseStop());
+ await page.getByText('服务连接：已连接',{exact:true}).waitFor();
+ await page.waitForFunction(()=>JSON.parse(localStorage.getItem('felix-audit-log-v1')).filter(e=>e.action==='工作区服务已停止').length===2);
+ await page.reload();
+ const retained=await page.evaluate(()=>JSON.parse(localStorage.getItem('felix-audit-log-v1')));
+ assert.equal(retained.filter(e=>e.action==='请求重启工作区服务').length,3);
+ assert.equal(retained.filter(e=>e.action==='工作区服务已停止').length,2);
+ assert.equal(retained.filter(e=>e.action==='停止工作区服务失败').length,1);
  console.log('PASS: busy turn blocks restart, stop precedes reconnect, draft survives');
 }finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});
