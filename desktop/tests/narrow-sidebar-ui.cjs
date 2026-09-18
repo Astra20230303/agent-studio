@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
  try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await page.addInitScript(() => {
+   window.desktop = { onOpenConversation: fn => { window.__openConversation = fn; return () => {}; } };
    localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeThreadId: 'a', threads: ['a','b'].map(id => ({ id, title: 'Thread ' + id, status: 'completed', updatedAt: '', messages: [{ id: 'msg-' + id, role: 'assistant', content: 'Reply ' + id, createdAt: '' }] })) }));
   });
   await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
@@ -50,6 +51,20 @@ const assert = require('node:assert/strict');
   await sidebar.getByRole('button', { name: '插件', exact: true }).click();
   assert.equal(await sidebar.isVisible(), false);
   assert.equal(await page.locator('.desktop-body > main').isVisible(), true);
-  console.log('PASS: narrow sidebar drafts, threads, new chat, keyboard search, navigation pages and breakpoint changes');
+  await page.getByRole('button', { name: '展开侧栏', exact: true }).click();
+  await page.keyboard.press('Control+Shift+l');
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === '消息');
+  assert.equal(await sidebar.isVisible(), false);
+  await composer.fill('keyboard draft');
+  await page.getByRole('button', { name: '展开侧栏', exact: true }).click();
+  await page.keyboard.press('Control+Shift+o');
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === '消息');
+  assert.equal(await sidebar.isVisible(), false);
+  assert.equal(await composer.inputValue(), '');
+  await page.getByRole('button', { name: '展开侧栏', exact: true }).click();
+  await page.evaluate(() => window.__openConversation('notification-thread'));
+  await page.waitForFunction(() => document.querySelector('#workspace-sidebar').hidden);
+  assert.equal(await composer.isVisible(), true);
+  console.log('PASS: narrow sidebar navigation, keyboard composer/new chat and notification conversation');
  } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
