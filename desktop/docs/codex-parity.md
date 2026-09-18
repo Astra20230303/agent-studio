@@ -9,6 +9,11 @@ of its own read before locating that line. Already-stale results omit the line.
 Closing restores the panel action without changing attachment selection. Browser
 workspace navigation/search/attachment regression and production build pass.
 
+Post-commit acceptance changes the file between panel preview and expanded read,
+verifies the stale-line warning and absent old highlight, then manually navigates
+using the current text. Expanded workspace tests and preview/editor workflow
+regression pass without further product correction.
+
 ## Native desktop preview acceptance
 
 The copied production app now has real Electron acceptance for deferred preview
