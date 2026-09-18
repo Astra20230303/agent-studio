@@ -1,17 +1,21 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { Message } from './domain';
+import type { HistoryReadOptions } from './threadHistory';
 import './conversation-find.css';
 import { canHandleAppShortcut } from './shortcutScope';
 
-export function ConversationFind({ messages, view, searching, loadHistory, disabled, reset = 0 }: { messages: Message[]; view: RefObject<HTMLDivElement | null>; searching: RefObject<boolean>; loadHistory?: () => Promise<void>; disabled?: boolean; reset?: number }) {
+export function ConversationFind({ messages, view, searching, loadHistory, disabled, reset = 0 }: { messages: Message[]; view: RefObject<HTMLDivElement | null>; searching: RefObject<boolean>; loadHistory?: (options?: HistoryReadOptions) => Promise<void>; disabled?: boolean; reset?: number }) {
   const [loading, setLoading] = useState(false);
+  const historyRequest = useRef<AbortController | undefined>(undefined);
+  useEffect(() => () => historyRequest.current?.abort(), [reset]);
   const [historyStatus, setHistoryStatus] = useState('');
   const load = async () => {
-    if (!loadHistory || loading || disabled) return;
+    if (!loadHistory || historyRequest.current || disabled) return;
+    const request = new AbortController(); historyRequest.current = request;
     setLoading(true); setHistoryStatus('');
-    try { await loadHistory(); setHistoryStatus('历史已加载，可查找消息和工具记录'); }
-    catch (error) { setHistoryStatus(`加载失败：${error instanceof Error ? error.message : String(error)}`); }
-    finally { setLoading(false); }
+    try { await loadHistory({ signal: request.signal, onProgress: ({ pages, items }) => setHistoryStatus(`已读取 ${pages} 页，${items} 条记录`) }); setHistoryStatus('历史已加载，可查找消息和工具记录'); }
+    catch (error) { setHistoryStatus(request.signal.aborted ? '已取消加载，已有消息保留' : `加载失败：${error instanceof Error ? error.message : String(error)}`); }
+    finally { historyRequest.current = undefined; setLoading(false); }
   };
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -50,6 +54,7 @@ export function ConversationFind({ messages, view, searching, loadHistory, disab
   return <div className="conversation-find">
     <button ref={button} aria-expanded={open} onClick={() => setOpen(value => !value)}>会话内查找</button>
     {open && loadHistory && <button disabled={loading || disabled} onClick={() => void load()}>{loading ? '正在加载历史…' : '加载完整历史'}</button>}
+    {open && loading && <button onClick={() => historyRequest.current?.abort()}>取消加载历史</button>}
     {open && historyStatus && <span role="status">{historyStatus}</span>}
     {open && <><input ref={input} type="search" aria-label="查找会话内容" placeholder="查找已加载消息和工具记录" value={query} onChange={event => { setQuery(event.target.value); setSelected(undefined); }} onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }} onBlur={() => { composing.current = false; }} onKeyDown={event => {
       if (composing.current || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;

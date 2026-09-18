@@ -4,6 +4,7 @@ import { projectRepository } from './projectRepository';
 import { validateRestorableHistory } from './historyValidation';
 import { readThreadResume } from './threadResume';
 import { findMessageTurn } from './messageTurn';
+import type { HistoryReadOptions } from './threadHistory';
 import { unarchiveThread } from './codexClient';
 import { createThreadMutations } from './threadMutations';
 import { approvalFileChanges } from './approvalFileChanges';
@@ -577,14 +578,15 @@ function App({ initialState }: { initialState: DesktopState }) {
     audit.record('处理服务请求', `${approval.method} · ${decision}`);
     setApprovals(pending => pending.filter(item => item.id !== approval.id));
   };
-  const loadFullHistory = async () => {
+  const loadFullHistory = async (options?: HistoryReadOptions) => {
     const thread = active;
     if (!thread?.remoteId || codexStatus !== 'connected' || pending || runningTurnId || sendingRef.current.has(thread.id)) throw new Error('请等待会话空闲且连接成功后重试');
     const revision = runtime.read(thread.remoteId)?.revision || 0;
     sendingRef.current.add(thread.id);
     setPendingThreads(previous => [...previous, thread.id]);
     try {
-      const items = await listAllThreadItems(thread.remoteId);
+      const items = await listAllThreadItems(thread.remoteId, options);
+      options?.signal?.throwIfAborted();
       validateRestorableHistory(items);
       if (activeThreadRef.current !== thread.id) throw new Error('已切换会话，未应用旧请求');
       if ((runtime.read(thread.remoteId)?.revision || 0) !== revision) throw new Error('会话已有新活动，请重新加载历史');
@@ -847,7 +849,7 @@ function ApprovalDialog({ request, onDecision, fileChanges }: { fileChanges?: im
   return <div className="approval-backdrop"><section className="approval-dialog"><h2>{title}</h2><p>{reason}</p>{params.command && <pre>{params.command}</pre>}{params.cwd && <small>{params.cwd}</small>}<div className="approval-actions"><button onClick={() => onDecision(isInput ? 'cancel' : 'decline')}>{isInput ? '取消' : '拒绝'}</button><button className="primary" onClick={() => onDecision('accept')}>{isInput ? '提交' : '允许'}</button></div></section></div>;
 }
 
-function Chat({ compaction, stopping, savingImages, onPasteImages, onDropAttachments, loadFullHistory, onChangePermission, onRetryFailure, sendShortcut, composerSkills, setComposerSkills, onOpenAgent, removeAttachment, busy, mode, permission, onOpenPlugins, composerPlugins, setComposerPlugins, onForkMessage, catalog, active, input, setInput, send, cancel, running, activity, model, reasoningEffort, update, attachments, addAttachment, showModel, setShowModel, showProjects, setShowProjects, toast, projectId, projects, status, onProjectChange, onRemoveProject }: { onRemoveProject: (id: string) => void; compaction: ReturnType<typeof useContextCompaction>; stopping: boolean; loadFullHistory: () => Promise<void>; onChangePermission: (permission: DesktopState['permission']) => Promise<void>; onRetryFailure: (messageId: string) => void; sendShortcut?: 'enter' | 'mod-enter'; composerSkills: SelectedSkill[]; setComposerSkills: (skills: SelectedSkill[]) => void; onOpenAgent: (id: string) => void; removeAttachment: (path: string) => void; busy: boolean; mode: DesktopState['mode']; permission: DesktopState['permission']; onOpenPlugins: () => void; composerPlugins: Plugin[]; setComposerPlugins: (plugins: Plugin[]) => void; onForkMessage: (messageId: string) => Promise<void>; catalog: ReturnType<typeof useModelCatalog>; active: DesktopState['threads'][number] | undefined; input: string; setInput: (value: string) => void; send: () => void; cancel: () => void; running: boolean; activity?: string; model: string; reasoningEffort: DesktopState['reasoningEffort']; update: (fn: (next: DesktopState) => void) => void; savingImages: boolean; onPasteImages: (event: ClipboardEvent) => void; onDropAttachments: (paths: string[]) => void; attachments: string[]; addAttachment: () => void; showModel: boolean; setShowModel: (value: boolean) => void; showProjects: boolean; setShowProjects: (value: boolean) => void; toast: (text: string) => void; projectId?: string; projects: DesktopState['projects']; status: string; onProjectChange: (project: Project) => void }) {
+function Chat({ compaction, stopping, savingImages, onPasteImages, onDropAttachments, loadFullHistory, onChangePermission, onRetryFailure, sendShortcut, composerSkills, setComposerSkills, onOpenAgent, removeAttachment, busy, mode, permission, onOpenPlugins, composerPlugins, setComposerPlugins, onForkMessage, catalog, active, input, setInput, send, cancel, running, activity, model, reasoningEffort, update, attachments, addAttachment, showModel, setShowModel, showProjects, setShowProjects, toast, projectId, projects, status, onProjectChange, onRemoveProject }: { onRemoveProject: (id: string) => void; compaction: ReturnType<typeof useContextCompaction>; stopping: boolean; loadFullHistory: (options?: HistoryReadOptions) => Promise<void>; onChangePermission: (permission: DesktopState['permission']) => Promise<void>; onRetryFailure: (messageId: string) => void; sendShortcut?: 'enter' | 'mod-enter'; composerSkills: SelectedSkill[]; setComposerSkills: (skills: SelectedSkill[]) => void; onOpenAgent: (id: string) => void; removeAttachment: (path: string) => void; busy: boolean; mode: DesktopState['mode']; permission: DesktopState['permission']; onOpenPlugins: () => void; composerPlugins: Plugin[]; setComposerPlugins: (plugins: Plugin[]) => void; onForkMessage: (messageId: string) => Promise<void>; catalog: ReturnType<typeof useModelCatalog>; active: DesktopState['threads'][number] | undefined; input: string; setInput: (value: string) => void; send: () => void; cancel: () => void; running: boolean; activity?: string; model: string; reasoningEffort: DesktopState['reasoningEffort']; update: (fn: (next: DesktopState) => void) => void; savingImages: boolean; onPasteImages: (event: ClipboardEvent) => void; onDropAttachments: (paths: string[]) => void; attachments: string[]; addAttachment: () => void; showModel: boolean; setShowModel: (value: boolean) => void; showProjects: boolean; setShowProjects: (value: boolean) => void; toast: (text: string) => void; projectId?: string; projects: DesktopState['projects']; status: string; onProjectChange: (project: Project) => void }) {
   const fileDrop = useFileDrop(onDropAttachments, toast);
   const pluginCwd = useContext(ArtifactWorkspaceContext);
   const textarea = useRef<HTMLTextAreaElement>(null);

@@ -1,4 +1,5 @@
 import { createThreadHistory } from './threadHistory';
+import type { HistoryReadOptions } from './threadHistory';
 import { collaborationMode } from './planning';
 import { userInput } from './attachments';
 export type RpcMessage = { id?: number | string; method?: string; params?: any; result?: any; error?: any };
@@ -53,7 +54,7 @@ export async function updateThreadPermission(threadId: string, permission: 'on-r
 }
 export async function listThreadTurns(threadId: string, cursor?: string) { return unwrap<any>(bridge().request('thread/turns/list', { threadId, limit: 100, sortDirection: 'asc', itemsView: 'full', ...(cursor ? { cursor } : {}) })); }
 export async function listThreadItems(threadId: string, cursor?: string) { return unwrap<any>(bridge().request('thread/items/list', { threadId, limit: 200, sortDirection: 'asc', ...(cursor ? { cursor } : {}) })); }
-export async function listAllThreadItems(threadId: string) { return createThreadHistory(listThreadItems).readAll(threadId); }
+export async function listAllThreadItems(threadId: string, options?: HistoryReadOptions) { return createThreadHistory(listThreadItems).readAll(threadId, options); }
 export async function setThreadName(threadId: string, name: string) { return unwrap<any>(bridge().request('thread/name/set', { threadId, name })); }
 export async function archiveThread(threadId: string) { return unwrap<any>(bridge().request('thread/archive', { threadId })); }
 export async function unarchiveThread(threadId: string) { return unwrap<any>(bridge().request('thread/unarchive', { threadId })); }

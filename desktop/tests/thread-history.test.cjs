@@ -24,3 +24,21 @@ test('failed reads can retry from the first page',async()=>{
  await assert.rejects(service.readAll('a'),/offline/);fail=false;
  assert.deepEqual(await service.readAll('a'),['first','next']);assert.deepEqual(calls,[undefined,'next',undefined,'next']);
 });
+
+test('cancel pending history immediately without reading subsequent pages or reporting late progress',async()=>{
+ const controller=new AbortController();let release;let calls=0;const progress=[];
+ const reader=createThreadHistory(async()=>{calls++;return new Promise(resolve=>{release=resolve;});});
+ const pending=reader.readAll('a',{signal:controller.signal,onProgress:p=>progress.push(p)});
+ await Promise.resolve();controller.abort();await assert.rejects(pending,{name:'AbortError'});
+ release({data:['late'],nextCursor:'next'});await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(calls,1);assert.deepEqual(progress,[]);
+ await assert.rejects(reader.readAll('a',{signal:controller.signal}),{name:'AbortError'});assert.equal(calls,1);
+});
+test('progress counts completed pages and cancellation leaves retry independent',async()=>{
+ const controller=new AbortController();const progress=[];let calls=0;
+ const reader=createThreadHistory(async(id,cursor)=>{calls++;return {data:[cursor||'first'],nextCursor:cursor?null:'next'};});
+ await assert.rejects(reader.readAll('a',{signal:controller.signal,onProgress:p=>{progress.push(p);controller.abort();}}),{name:'AbortError'});
+ assert.equal(calls,1);assert.deepEqual(progress,[{pages:1,items:1}]);
+ const recovered=[];assert.deepEqual(await reader.readAll('a',{onProgress:p=>recovered.push(p)}),['first','next']);
+ assert.deepEqual(recovered,[{pages:1,items:1},{pages:2,items:2}]);
+});
