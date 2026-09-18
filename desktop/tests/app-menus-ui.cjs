@@ -1,0 +1,42 @@
+const { chromium } = require('playwright');
+const assert = require('node:assert/strict');
+(async () => {
+  const browser = await chromium.launch({ channel: 'msedge', headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 390, height: 700 } });
+    await page.addInitScript(() => {
+      localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeThreadId: 'a', model: 'test', threads: [{ id: 'a', title: 'Current', status: 'completed', messages: [], updatedAt: new Date().toISOString() }] }));
+      window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }), providerStatus: async () => ({ keyConfigured: true }) };
+      window.codex = { connect: async () => ({ ok: true }), request: async () => ({ ok: true, result: { data: [] } }), notify: async () => ({}), onNotification: () => () => {}, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
+    });
+    await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5329');
+    const editor = page.getByRole('textbox', { name: '消息', exact: true });
+    await editor.fill('preserve menu draft');
+    const file = page.getByRole('button', { name: '文件', exact: true });
+    await file.click();
+    const menu = page.getByRole('menu', { name: '文件', exact: true });
+    await menu.waitFor();
+    await page.waitForFunction(() => document.querySelector('[aria-controls][aria-haspopup=menu]')?.getAttribute('aria-expanded') === 'true');
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await menu.getByRole('menuitem', { name: '浏览工作区文件', exact: true }).evaluate(node => node === document.activeElement), true);
+    const bounds = await menu.boundingBox();
+    assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= 390);
+    await page.keyboard.press('Control+Shift+O');
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.length), 1);
+    await page.keyboard.press('End');
+    assert.equal(await menu.getByRole('menuitem', { name: '查看归档会话', exact: true }).evaluate(node => node === document.activeElement), true);
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.querySelector('[popover]:popover-open'));
+    assert.equal(await file.evaluate(node => node === document.activeElement), true);
+    await file.click();
+    await menu.getByRole('menuitem', { name: '新建会话', exact: true }).click();
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.length === 2);
+    assert.equal(await editor.inputValue(), '');
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('felix-thread-drafts-v1')).a), 'preserve menu draft');
+    await page.getByRole('button', { name: '帮助', exact: true }).click();
+    await page.getByRole('menu', { name: '帮助', exact: true }).getByRole('menuitem', { name: '打开设置', exact: true }).click();
+    await page.getByRole('button', { name: '返回应用', exact: true }).click();
+    assert.equal(await page.getByRole('textbox', { name: '消息', exact: true }).count(), 1);
+    console.log('PASS: menu keyboard navigation, shortcut isolation, narrow layout, new chat draft retention and settings action');
+  } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

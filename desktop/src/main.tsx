@@ -1,3 +1,4 @@
+import { AppMenus } from './AppMenus';
 import { RenameThread } from './RenameThread';
 import { useFileDrop } from './useFileDrop';
 import { pasteImage } from './pasteImage';
@@ -675,7 +676,29 @@ function App() {
         <button className="titlebar-icon" aria-label="后退" title="后退" disabled={!navigation.canGoBack} onClick={() => navigateHistory(-1)}><ArrowLeft aria-hidden="true" /></button>
         <button className="titlebar-icon" aria-label="前进" title="前进" disabled={!navigation.canGoForward} onClick={() => navigateHistory(1)}><ArrowRight aria-hidden="true" /></button>
       </div>
-      <button aria-label="浏览工作区文件" aria-expanded={filesOpen} onClick={() => setFilesOpen(value => !value)}><FolderOpen size={17} /></button><button aria-label="查看 Git 变更" aria-expanded={gitOpen} onClick={() => { setGitOpen(value => !value); setFilesOpen(false); }}><GitBranch size={17} /></button><button aria-label="打开终端" title="终端" aria-expanded={terminalOpen} onClick={() => { if (!terminalStarted) { setTerminalStarted(true); } setTerminalOpen(value => !value); }}><Terminal size={17} /></button><button aria-label="打开命令面板" title="命令面板（Ctrl/⌘+Shift+P）" onClick={() => setPaletteOpen(true)}>命令</button><nav aria-label="应用菜单"><button>文件</button><button>编辑</button><button>视图</button><button>帮助</button></nav><button className="remote-browser-toggle" aria-label="浏览器" title="浏览器" aria-expanded={browserOpen} aria-controls="remote-browser" onClick={() => setBrowserOpen(value => !value)}><Globe size={17} /></button><WindowControls />
+      <button aria-label="浏览工作区文件" aria-expanded={filesOpen} onClick={() => setFilesOpen(value => !value)}><FolderOpen size={17} /></button><button aria-label="查看 Git 变更" aria-expanded={gitOpen} onClick={() => { setGitOpen(value => !value); setFilesOpen(false); }}><GitBranch size={17} /></button><button aria-label="打开终端" title="终端" aria-expanded={terminalOpen} onClick={() => { if (!terminalStarted) { setTerminalStarted(true); } setTerminalOpen(value => !value); }}><Terminal size={17} /></button><button aria-label="打开命令面板" title="命令面板（Ctrl/⌘+Shift+P）" onClick={() => setPaletteOpen(true)}>命令</button><AppMenus groups={[
+        { label: '文件', actions: [
+          { label: '新建会话', run: newChat },
+          { label: '浏览工作区文件', run: () => { setFilesOpen(true); setGitOpen(false); } },
+          { label: '查看归档会话', run: () => setArchivesOpen(true) },
+        ] },
+        { label: '编辑', actions: [
+          { label: '聚焦消息输入', run: () => { setPage('chat'); requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('textarea[aria-label="消息"]')?.focus()); } },
+          { label: '搜索会话', run: () => { setSidebarVisible(true); setShowSearch(true); requestAnimationFrame(() => document.getElementById('sidebar-search')?.focus()); } },
+          { label: '重命名当前会话', disabled: !active || Boolean(active.remoteId) && codexStatus !== 'connected', run: renameActive },
+        ] },
+        { label: '视图', actions: [
+          { label: sidebarVisible ? '收起侧栏' : '展开侧栏', run: () => setSidebarVisible(value => !value) },
+          { label: '查看 Git 变更', run: () => { setGitOpen(true); setFilesOpen(false); } },
+          { label: terminalOpen ? '隐藏终端' : '打开终端', run: () => { setTerminalStarted(true); setTerminalOpen(value => !value); } },
+          { label: '浏览插件', run: () => setPage('plugins') },
+          { label: '查看已安排任务', run: () => setPage('scheduled') },
+        ] },
+        { label: '帮助', actions: [
+          { label: '打开命令面板', run: () => setPaletteOpen(true) },
+          { label: '打开设置', run: () => setPage('settings') },
+        ] },
+      ]} /><button className="remote-browser-toggle" aria-label="浏览器" title="浏览器" aria-expanded={browserOpen} aria-controls="remote-browser" onClick={() => setBrowserOpen(value => !value)}><Globe size={17} /></button><WindowControls />
     </header>
     {codexStatus !== 'connected' && <div className="connection-banner" role="status"><span>{codexStatus === 'connecting' ? '正在连接工作区…' : '工作区连接已断开，草稿已保留。'}{connectionError && ` ${connectionError}`}</span><button disabled={codexStatus === 'connecting'} onClick={() => reconnectRef.current()}>重新连接</button></div>}
     <div className="desktop-body"><aside id="workspace-sidebar" className="sidebar" aria-label="侧栏" hidden={!sidebarVisible}>

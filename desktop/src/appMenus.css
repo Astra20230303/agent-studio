@@ -1,0 +1,6 @@
+.app-menu-popup{position:fixed;inset:auto;margin:0;min-width:190px;max-width:calc(100vw - 16px);padding:5px;border:1px solid #d8dadd;border-radius:8px;background:#fff;color:#303438;box-shadow:0 8px 24px #0003}
+.desktop-titlebar nav .app-menu-popup button{display:block;width:100%;height:auto;padding:8px 12px;text-align:left;color:inherit;white-space:normal;border-radius:5px}
+.desktop-titlebar nav .app-menu-popup button:focus{outline:2px solid #568673;outline-offset:-2px;background:#eef3f0}
+.desktop-titlebar nav .app-menu-popup button:disabled{opacity:.45;cursor:default}
+.dark .app-menu-popup{background:#303234;color:#eee;border-color:#54585a}
+.dark .desktop-titlebar nav .app-menu-popup button:focus{background:#414946}
