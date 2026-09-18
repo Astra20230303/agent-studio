@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { parseGitBranches, type GitBranchesSnapshot } from './gitBranchesResponse';
 
 export function GitBranches({ root, onSwitched, onBusyChange }: { root: string; onSwitched: (branch: string) => void; onBusyChange: (busy: boolean) => void }) {
-  const [snapshot, setSnapshot] = useState<{ branches: string[]; remoteBranches?: { ref: string; head: string }[]; current: string; head: string }>();
+  const [snapshot, setSnapshot] = useState<GitBranchesSnapshot>();
   const [target, setTarget] = useState('');
   const [remoteRef, setRemoteRef] = useState('');
   const [localName, setLocalName] = useState('');
@@ -20,9 +21,10 @@ export function GitBranches({ root, onSwitched, onBusyChange }: { root: string; 
         const result = await window.desktop?.workspaceGit?.({ root, action: 'branches' });
         if (disposed) return;
         if (!result?.ok) throw Error(result?.error || '无法读取分支');
-        setSnapshot(result.result);
-        setTarget(value => result.result.branches.includes(value) ? value : result.result.current);
-        setRemoteRef(value => result.result.remoteBranches?.some((entry: { ref: string }) => entry.ref === value) ? value : '');
+        const next = parseGitBranches(result.result);
+        setSnapshot(next);
+        setTarget(value => next.branches.includes(value) ? value : next.current);
+        setRemoteRef(value => next.remoteBranches?.some(entry => entry.ref === value) ? value : '');
       } catch (error) { if (!disposed) setError(error instanceof Error ? error.message : String(error)); }
     })();
     return () => { disposed = true; };

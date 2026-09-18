@@ -1,0 +1,5 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const {parseGitBranches}=require('../src/gitBranchesResponse.ts');
+const head='a'.repeat(40);const base={branches:['main','feature'],current:'main',head,remoteBranches:[{ref:'refs/remotes/origin/main',head}]};
+test('validates and clones local and remote branch snapshots',()=>{const value=parseGitBranches(base);value.branches.push('changed');assert.equal(base.branches.length,2);assert.equal(value.remoteBranches[0].head,head);});
+test('rejects malformed branch names, heads and duplicates',()=>{for(const value of [null,{}, {...base,branches:{}},{...base,branches:['main','main']},{...base,branches:[1]},{...base,current:3},{...base,head:'bad'},{...base,remoteBranches:[{ref:'refs/remotes/a',head:'bad'}]},{...base,remoteBranches:[{ref:'x',head},{ref:'x',head}]}])assert.throws(()=>parseGitBranches(value),/Git 分支数据/);});
+test('allows detached and no remote branches',()=>{const value=parseGitBranches({branches:[],current:'',head,remoteBranches:[]});assert.equal(value.current,'');assert.deepEqual(value.remoteBranches,[]);});
