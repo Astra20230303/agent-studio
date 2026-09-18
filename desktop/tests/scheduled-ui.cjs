@@ -107,7 +107,7 @@ async function main() {
     const editor = page.getByRole('dialog', { name: '编辑任务', exact: true });
     await editor.getByLabel('频率').selectOption('interval');
     await editor.getByRole('spinbutton', { name: '任务间隔分钟数', exact: true }).fill('15');
-    await editor.getByRole('combobox', { name: '任务推理强度', exact: true }).selectOption('high');
+    await editor.getByRole('combobox', { name: '任务推理强度', exact: true }).selectOption('xhigh');
     await editor.getByRole('combobox', { name: '任务通知范围', exact: true }).selectOption('failed_runs_only');
     await editor.getByRole('spinbutton', { name: '任务执行时限', exact: true }).fill('25');
     await editor.getByRole('textbox', { name: '任务内容', exact: true }).fill('FAIL');
@@ -165,11 +165,11 @@ async function main() {
     assert.deepEqual(scheduler.detail(sample.id).schedule, {kind:'interval',minutes:15});
     await page.getByText('每隔 15 分钟', {exact:false}).waitFor();
     assert.equal(scheduler.detail(sample.id).timeoutMinutes,25);
-    assert.equal(scheduler.detail(sample.id).reasoningEffort, 'high', 'Reasoning effort survives service restart');
+    assert.equal(scheduler.detail(sample.id).reasoningEffort, 'xhigh', 'Reasoning effort survives service restart');
     assert.equal(scheduler.detail(sample.id).notificationPolicy, 'failed_runs_only', 'Notification policy survives service restart');
     await page.getByRole('button', { name: '查看任务 每日工作区检查' }).click();
     await dialog.locator('.task-metadata').getByText('25 分钟', {exact:true}).waitFor();
-    await dialog.locator('.task-metadata').getByText('高', { exact: true }).waitFor();
+    await dialog.locator('.task-metadata').getByText('极高', { exact: true }).waitFor();
     await dialog.locator('.task-metadata').getByText('仅失败时通知', { exact: true }).waitFor();
     await dialog.locator('.task-metadata').getByText('跟随当前启用渠道', { exact: true }).waitFor();
     await dialog.getByRole('button', { name: '关闭对话框' }).click();
@@ -197,7 +197,7 @@ async function main() {
     await page.getByRole('button', { name: '关闭错误' }).click();
     for (const size of [{ width: 960, height: 640 }, { width: 600, height: 720 }, { width: 390, height: 760 }]) {
       await page.setViewportSize(size);
-      if (size.width === 390) await page.getByRole('button', { name: '收起侧栏' }).click();
+      if (size.width <= 760) await page.locator('aside.sidebar').waitFor({ state: 'hidden' });
       await page.screenshot({ path: path.join(artifacts, `scheduled-${size.width}.png`) });
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth || document.querySelector('.scheduled-page').scrollWidth > document.querySelector('.scheduled-page').clientWidth), false, `Overflow at ${size.width}px: ${JSON.stringify(await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth, page: document.querySelector('.scheduled-page').clientWidth, scroll: document.querySelector('.scheduled-page').scrollWidth })))}`);
     }

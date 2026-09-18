@@ -14,3 +14,12 @@ export type ReasoningEffort = typeof effortLevels[number]['value'];
 export function isReasoningEffort(value: unknown): value is ReasoningEffort {
   return effortLevels.some(level => level.value === value);
 }
+
+export type ExplicitReasoningEffort = Exclude<ReasoningEffort, 'default'>;
+export const explicitEffortLevels = effortLevels.filter(level => level.value !== 'default');
+export function isExplicitReasoningEffort(value: unknown): value is ExplicitReasoningEffort {
+  return value !== 'default' && isReasoningEffort(value);
+}
+export function effortLabel(value?: ExplicitReasoningEffort) {
+  return effortLevels.find(level => level.value === (value ?? 'default'))!.label;
+}

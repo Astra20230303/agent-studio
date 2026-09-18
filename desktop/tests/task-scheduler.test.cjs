@@ -27,7 +27,7 @@ test('reasoning effort is optional, validated and can return to model default',a
   const scheduler=new TaskScheduler({directory:temp(),runner:async()=>({})});
   try {
     const saved=scheduler.save(task({kind:'agent',model:'test'}));assert.equal(saved.reasoningEffort,undefined);
-    for(const reasoningEffort of ['low','medium','high'])assert.equal(scheduler.save({...saved,reasoningEffort}).reasoningEffort,reasoningEffort);
+    for(const reasoningEffort of ['none','minimal','low','medium','high','xhigh','max','ultra','persistent'])assert.equal(scheduler.save({...saved,reasoningEffort}).reasoningEffort,reasoningEffort);
     assert.equal(scheduler.save({...saved,reasoningEffort:undefined}).reasoningEffort,undefined);
     assert.throws(()=>scheduler.save({...saved,reasoningEffort:'invalid'}),/推理强度无效/);
     assert.equal(scheduler.save(task({reasoningEffort:'high'})).reasoningEffort,undefined);

@@ -13,7 +13,7 @@ const { findCommand } = require('../electron/codex-server.cjs');
 const { startMiniMaxAdapter } = require('../electron/minimax-adapter.cjs');
 const { ThreadProviderRouter } = require('../electron/thread-provider-router.cjs');
 const root = path.resolve(__dirname, '../..');
-const task = { reasoningEffort: 'high', name: 'Runner integration', model: 'MiniMax-M2.1', prompt: 'Print FELIX_SCHEDULE_OK using a read-only shell command and report the result.', permission: 'read-only' };
+const task = { reasoningEffort: process.env.FELIX_TEST_EFFORT || 'high', name: 'Runner integration', model: 'MiniMax-M2.1', prompt: 'Print FELIX_SCHEDULE_OK using a read-only shell command and report the result.', permission: 'read-only' };
 
 for (const apiKey of ['local-test', '']) {
 test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local'})`, { timeout: 60000 }, async () => {
@@ -25,7 +25,7 @@ test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local
       assert.equal(req.headers.authorization, apiKey ? `Bearer ${apiKey}` : undefined);
       let raw = ''; for await (const chunk of req) raw += chunk;
       const body = JSON.parse(raw); requests++;
-      if (requests <= 2) assert.equal(body.reasoning_effort, 'high');
+      if (requests <= 2) assert.equal(body.reasoning_effort, task.reasoningEffort);
       res.writeHead(200, { 'content-type': 'text/event-stream' });
       if (requests === 1) {
         // Switching the global channel during a tool call must not reroute this run.
@@ -42,7 +42,7 @@ test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local
         assert.ok(result); assert.match(result.content, /FELIX_SCHEDULE_OK/);
         res.write('data: ' + JSON.stringify({ choices: [{ delta: { content: 'Verified FELIX_SCHEDULE_OK from the scheduled run.' }, finish_reason: 'stop' }] }) + '\n\n');
       } else {
-        assert.notEqual(body.reasoning_effort, 'high', 'Model default must clear the previous explicit high effort');
+        assert.notEqual(body.reasoning_effort, task.reasoningEffort, 'Model default must clear the previous explicit high effort');
         assert.ok(body.messages.some(message => message.role === 'assistant' && JSON.stringify(message.content).includes('Verified FELIX_SCHEDULE_OK')));
         assert.ok(body.messages.some(message => message.role === 'user' && JSON.stringify(message.content).includes('Continue the scheduled task conversation')));
         res.write('data: ' + JSON.stringify({choices:[{delta:{content:'Continued with retained task context.'},finish_reason:'stop'}]}) + '\n\n');

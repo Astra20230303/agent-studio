@@ -1,3 +1,4 @@
+import { isExplicitReasoningEffort } from './reasoningEffort.ts';
 import type { ScheduledTask, TaskDraft } from './scheduledTasks';
 
 export interface AutomationRepository {
@@ -16,7 +17,7 @@ function task(value: any): value is ScheduledTask {
   if (!record(value) || typeof value.id !== 'string' || !value.id || typeof value.name !== 'string' || typeof value.prompt !== 'string'
     || !['agent','reminder'].includes(value.kind) || !['active','paused','completed'].includes(value.status)
     || value.timeoutMinutes != null && (!Number.isInteger(value.timeoutMinutes) || value.timeoutMinutes < 1 || value.timeoutMinutes > 120)
-    || value.reasoningEffort != null && !['low','medium','high'].includes(value.reasoningEffort)
+    || value.reasoningEffort != null && !isExplicitReasoningEffort(value.reasoningEffort)
     || value.notificationPolicy != null && value.notificationPolicy !== 'failed_runs_only'
     || typeof value.model !== 'string' || typeof value.notify !== 'boolean' || !['read-only','workspace-write'].includes(value.permission)
     || [value.cwd, value.providerId].some(field => field != null && typeof field !== 'string')
@@ -37,7 +38,7 @@ function task(value: any): value is ScheduledTask {
       && (run.configuration.timeoutMinutes == null || Number.isInteger(run.configuration.timeoutMinutes) && run.configuration.timeoutMinutes >= 1 && run.configuration.timeoutMinutes <= 120)
       && ['agent','reminder'].includes(run.configuration.kind) && ['read-only','workspace-write'].includes(run.configuration.permission)
       && [run.configuration.cwd, run.configuration.providerId].every(value => value == null || typeof value === 'string')
-      && (run.configuration.reasoningEffort == null || ['low','medium','high'].includes(run.configuration.reasoningEffort)))
+      && (run.configuration.reasoningEffort == null || isExplicitReasoningEffort(run.configuration.reasoningEffort)))
     && (run.threadId == null || typeof run.threadId === 'string' && !!run.threadId.trim())
     && ['running','completed','failed','interrupted'].includes(run.status) && date(run.startedAt)
     && (run.finishedAt == null || date(run.finishedAt)) && (run.output == null || typeof run.output === 'string') && (run.error == null || typeof run.error === 'string'));

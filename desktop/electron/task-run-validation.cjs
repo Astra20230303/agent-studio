@@ -17,7 +17,7 @@ function validateTaskRuns(runs) {
     if (config != null && (!record(config) || !['name','prompt','model'].every(key => text(config[key]))
       || !['agent','reminder'].includes(config.kind) || !['read-only','workspace-write'].includes(config.permission)
       || [config.cwd,config.providerId].some(value => value != null && !text(value))
-      || config.reasoningEffort != null && !['low','medium','high'].includes(config.reasoningEffort)
+      || config.reasoningEffort != null && !['none','minimal','low','medium','high','xhigh','max','ultra','persistent'].includes(config.reasoningEffort)
       || config.timeoutMinutes != null && (!Number.isInteger(config.timeoutMinutes) || config.timeoutMinutes < 1 || config.timeoutMinutes > 120))) throw Error('任务运行配置快照无效。');
     const environment = run.environment;
     if (environment != null && (!record(environment) || !nonempty(environment.cwd)
