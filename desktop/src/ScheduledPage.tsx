@@ -13,6 +13,8 @@ import type { ScheduledTask, TaskDraft, TaskSchedule } from './scheduledTasks';
 import { useModelCatalog } from './ModelPicker';
 import { TaskRunActions } from './TaskRunActions';
 import { TaskHistoryExport } from './TaskHistoryExportButton';
+import { useDraftStorage } from './useDraftStorage';
+import { isTaskDraft } from './taskDraftStorage';
 import './scheduled.css';
 const automationRepository = createAutomationRepository(taskRequest);
 
@@ -22,7 +24,7 @@ function TaskModal({ title, onClose, children }: { title: string; onClose: () =>
   return <dialog className="task-modal" ref={dialog} aria-label={title} onKeyDown={event => { if (event.key === 'Escape' && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); onClose(); } }} onCancel={event => { event.preventDefault(); onClose(); }}><header><h2>{title}</h2><button type="button" className="task-icon-button" aria-label="关闭对话框" title="关闭" onClick={onClose}><X /></button></header>{children}</dialog>;
 }
 
-function TaskEditor({ draft, providers, onClose, onSaved }: { draft: TaskDraft; providers: { id: string; name: string; enabled?: boolean }[]; onClose: () => void; onSaved: () => void }) {
+function TaskEditor({ draft, providers, onClose, onSaved, onChange }: { draft: TaskDraft; providers: { id: string; name: string; enabled?: boolean }[]; onClose: () => void; onSaved: () => void; onChange: (draft: TaskDraft) => void }) {
   const [form, setForm] = useState<TaskDraft>(() => structuredClone(draft));
   const catalog = useModelCatalog(form.providerId);
   const supportedEfforts = catalog.efforts[form.model];
@@ -44,6 +46,11 @@ function TaskEditor({ draft, providers, onClose, onSaved }: { draft: TaskDraft; 
     if (edited.current) setDiscarding(true); else onClose();
   };
   const [writeConfirmed, setWriteConfirmed] = useState(Boolean(draft.id) && draft.permission === 'workspace-write');
+  useEffect(() => {
+    const parsedOnce = new Date(onceAt);
+    const schedule = form.schedule.kind === 'once' ? { kind: 'once' as const, at: Number.isNaN(parsedOnce.getTime()) ? onceAt : parsedOnce.toISOString() } : form.schedule;
+    onChange({ ...structuredClone(form), schedule });
+  }, [form, onceAt]);
   useEffect(() => { if (!form.model && models.length) setForm(current => ({ ...current, model: models[0] })); }, [models, form.model]);
   const patch = (fields: Partial<TaskDraft>) => { edited.current = true; setDiscarding(false); setForm(current => ({ ...current, ...fields })); };
   const patchSchedule = (fields: Partial<Exclude<TaskSchedule, { kind: 'once' | 'interval' }>>) => { if (form.schedule.kind !== 'once' && form.schedule.kind !== 'interval') patch({ schedule: { ...form.schedule, ...fields } }); };
@@ -101,6 +108,8 @@ export function ScheduledPage({ providers, cwd, openRequest, onOpenHandled, onOp
   useEffect(() => { setRunQuery(''); setRunFilter('all'); }, [selectedId]);
   const [detail, setDetail] = useState<ScheduledTask>(); const [deleting, setDeleting] = useState<ScheduledTask>();
   const [error, setError] = useState(''); const [loading, setLoading] = useState(true); const [busy, setBusy] = useState(false);
+  const [savedDraft, setSavedDraft, draftStorage] = useDraftStorage<TaskDraft | undefined>({ key: 'felix-task-editor-draft-v1', empty: () => undefined, valid: value => value === undefined || isTaskDraft(value), removeEmpty: value => value === undefined }, 'current');
+  useEffect(() => { if (!draft && savedDraft) setDraft(savedDraft); }, [draft, savedDraft]);
   const mutationLock = useRef(false);
   const [loadError, setLoadError] = useState(''); const [detailError, setDetailError] = useState('');
   const [createMenu, setCreateMenu] = useState(false); const createRoot = useRef<HTMLDivElement>(null);
@@ -202,7 +211,8 @@ export function ScheduledPage({ providers, cwd, openRequest, onOpenHandled, onOp
       <h3>运行记录</h3><div className="task-form-grid"><label>搜索运行记录<input type="search" aria-label="搜索运行记录" placeholder="输出、错误或任务内容" value={runQuery} onChange={event => setRunQuery(event.target.value)} /></label><label>运行结果<select aria-label="筛选运行结果" value={runFilter} onChange={event => setRunFilter(event.target.value)}><option value="all">全部结果</option>{Object.entries(taskRunLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label></div><p className="task-muted" role="status">显示 {matchingRuns.length} / {detail.runs.length} 条运行记录</p><TaskHistoryExport key={detail.id} name={detail.name} runs={matchingRuns} query={runQuery} status={runFilter} /><div className="task-runs">{matchingRuns.length ? matchingRuns.map(run => <details key={run.id} className="task-run"><summary><span>{formatTaskDate(run.startedAt)}</span><span className={run.status === 'failed' ? 'task-failed' : ''}>{taskRunLabels[run.status]}</span></summary><small>{run.trigger === 'scheduled' ? '定时执行' : '手动执行'}{run.finishedAt ? ` · 结束于 ${formatTaskDate(run.finishedAt)}` : ''}</small>{run.error && <p className="task-failed">{run.error}</p>}<>{run.outputTruncated && <p className="task-muted">输出过长，仅保留末尾 200000 字符。</p>}</><pre>{run.output || (run.status === 'running' ? '正在执行，结束后保存结果。' : '无输出')}</pre><TaskRunConfigurationView environment={run.environment} configuration={run.configuration} /><TaskRunActions onOpenConversation={onOpenConversation} key={`${run.id}:${run.status}`} name={detail.name} run={run} /></details>) : <p className="task-muted">{detail.runs.length ? '没有匹配的运行记录' : '尚无运行记录'}</p>}</div>
       {error && <p className="task-error" role="alert">{error}</p>}<footer><button className="task-danger" disabled={busy || detail.runs[0]?.status === 'running'} onClick={() => setDeleting(detail)}><Trash2 />删除</button><button disabled={busy || detail.runs[0]?.status === 'running'} onClick={() => setDraft(detail)}><Pencil />编辑</button><button disabled={busy} onClick={() => { setDraft(duplicateTask(detail)); setSelectedId(undefined); }}>复制任务</button><button disabled={busy || anyRunning && detail.runs[0]?.status !== 'running'} onClick={() => void mutate(detail.runs[0]?.status === 'running' ? 'cancelTask' : 'runTask', detail.id)}>{detail.runs[0]?.status === 'running' ? <Square /> : <Play />}{detail.runs[0]?.status === 'running' ? '停止运行' : '立即运行'}</button></footer>
     </>}</TaskModal>}
-    {draft && <TaskEditor draft={draft} providers={providers} onClose={() => setDraft(undefined)} onSaved={() => { onRecord?.(draft.id ? '编辑任务' : '创建任务'); setDraft(undefined); void reload(); }} />}
+    {draft && <TaskEditor draft={draft} providers={providers} onClose={() => { setDraft(undefined); setSavedDraft(undefined); }} onChange={setSavedDraft} onSaved={() => { onRecord?.(draft.id ? '编辑任务' : '创建任务'); setDraft(undefined); setSavedDraft(undefined); void reload(); }} />}
+    {draftStorage.readFailed && <p role="alert">任务草稿读取失败，原始数据已保留；修复后可重试读取。<button type="button" onClick={draftStorage.retry}>重试读取任务草稿</button></p>}
     {deleting && <TaskModal title="删除任务" onClose={() => { if (!mutationLock.current) setDeleting(undefined); }}><p>删除“{deleting.name}”及其运行记录？</p>{error && <p role="alert" className="task-error">{error}</p>}<footer><button disabled={busy} onClick={() => setDeleting(undefined)}>取消</button><button disabled={busy} className="task-danger" onClick={() => void mutate('deleteTask', deleting.id)}>确认删除</button></footer></TaskModal>}
   </div>;
 }
