@@ -48,8 +48,11 @@ const path = require('node:path');
       const data = new DataTransfer(); data.items.add(new File([blob], 'clipboard.png', { type: 'image/png' }));
       document.querySelector('.composer textarea').dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: data }));
     });
-    await page.waitForFunction(async () => JSON.parse((await window.desktop.storage.read()).values['felix-attachments-v1'] || '{}').new?.some(path => path.includes('clipboard-')));
-    const pasted = await page.evaluate(async () => JSON.parse((await window.desktop.storage.read()).values['felix-attachments-v1']).new.find(path => path.includes('clipboard-')));
+    const pastedChip = page.getByRole('button', { name: /移除附件：.*clipboard-.*\.png/ });
+    await pastedChip.waitFor();
+    const pasted = (await pastedChip.getAttribute('aria-label')).replace('移除附件：', '');
+    const persistedAttachments = await page.evaluate(async () => JSON.parse((await window.desktop.storage.read()).values['felix-attachments-v1']).new);
+    assert.ok(persistedAttachments.includes(pasted));
     assert.equal(path.dirname(pasted), path.join(dataRoot, 'attachments'));
     assert.deepEqual([...fs.readFileSync(pasted).subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
     const saved = await page.evaluate(async () => {

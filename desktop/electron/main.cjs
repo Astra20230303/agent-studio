@@ -25,6 +25,7 @@ else app.quit();
 
 function startDesktop() {
 const rendererStorage = require('./renderer-storage.cjs').registerRendererStorage(ipcMain, path.join(dataRoot, 'renderer-storage'));
+const imageProcessing = new (require('./image-processing.cjs').ImageProcessing)({ dataRoot });
 ipcMain.handle('desktop:open-external', (_event, url) => require('electron').shell.openExternal(require('./external-url.cjs').externalUrl(url)));
 const remoteDesktop = new RemoteDesktop();
 const localDesktop = new LocalDesktop();
@@ -184,7 +185,7 @@ ipcMain.handle('desktop:artifact', async (_event, input) => {
 });
 ipcMain.handle('desktop:project-root', () => projectRoot);
 ipcMain.handle('desktop:pasted-image', async (_event, bytes) => {
-  try { return { ok: true, path: await require('./pasted-image.cjs').savePastedImage(dataRoot, bytes) }; }
+  try { return { ok: true, path: await imageProcessing.savePaste(bytes) }; }
   catch (error) { return { ok: false, error: error.message }; }
 });
 ipcMain.handle('desktop:workspace-git', async (_event, input) => {
@@ -229,7 +230,7 @@ ipcMain.handle('codex:connect', async () => {
 });
 
 ipcMain.handle('codex:request', async (_event, { method, params }) => {
-  try { await require('./attachment-validation.cjs').validateImageInputs(method, params); }
+  try { await imageProcessing.validate(method, params); }
   catch (error) { return { ok: false, error: { message: error.message } }; }
   try { return { ok: true, result: await threadProviders.request(await getRpc(), method, params || {}) }; }
   catch (error) { return { ok: false, error: { message: error?.message || String(error), code: error?.code, data: error?.data } }; }
@@ -264,7 +265,7 @@ app.on('before-quit', event => {
   codex.stop();
   if (!tasksStopped && event?.preventDefault) {
     event.preventDefault();
-    stoppingTasks ||= Promise.allSettled([scheduler.stop(), terminals.closeAll(), rendererStorage.flush()]).finally(() => { tasksStopped = true; app.quit(); });
-  } else if (!stoppingTasks) stoppingTasks = Promise.allSettled([scheduler.stop(), terminals.closeAll(), rendererStorage.flush()]);
+    stoppingTasks ||= Promise.allSettled([scheduler.stop(), terminals.closeAll(), rendererStorage.flush(), imageProcessing.close()]).finally(() => { tasksStopped = true; app.quit(); });
+  } else if (!stoppingTasks) stoppingTasks = Promise.allSettled([scheduler.stop(), terminals.closeAll(), rendererStorage.flush(), imageProcessing.close()]);
 });
 }

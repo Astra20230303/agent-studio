@@ -1,5 +1,22 @@
 # Felix capability roadmap
 
+## Background image processing
+
+Attachment validation and clipboard PNG validation/storage now execute in a Node
+worker, keeping pixel decoding off Electron's main thread. One worker runs at a
+time with at most eight accepted jobs, a 15-second execution timeout and a 192 MiB
+V8 old-generation limit in addition to the existing byte/pixel/decoder limits.
+Each job gets a fresh worker; timeout or abnormal exit rejects its request and
+allows subsequent jobs to proceed. Application shutdown rejects queued work and
+terminates the active worker. No model request is dispatched before validation.
+
+Seven worker/decoder/storage tests, build and production Electron clipboard,
+attachment, rejection and restart acceptance pass. Fault fixtures prove timeout,
+queue backpressure, abnormal exit recovery and cancellation while the parent
+event loop remains responsive. Native clipboard acceptance waits for the actual
+attachment chip before checking its durable record. Forced termination during a
+clipboard write can leave an unreferenced file; attachment cleanup remains open.
+
 ## JPEG attachment decoding preflight
 
 JPEG/JPG attachments now receive strict jpeg-js pixel decoding before turn/start
