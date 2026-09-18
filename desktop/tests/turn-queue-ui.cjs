@@ -57,6 +57,7 @@ const assert = require('node:assert/strict');
     assert.ok(await cancelledEdit.getByRole('button', { name: '保存排队消息' }).isDisabled());
     await cancelledEdit.getByRole('textbox').fill('discard this draft');
     await cancelledEdit.getByRole('button', { name: '取消编辑' }).click();
+    await page.getByRole('button',{name:'放弃排队修改',exact:true}).click();
     assert.deepEqual(await page.evaluate(() => {
       const item = JSON.parse(localStorage.getItem('felix-turn-queue-v1')).find(item => item.text === 'second');
       return { text: item.text, status: item.status };
@@ -69,6 +70,7 @@ const assert = require('node:assert/strict');
     await edit.getByRole('button', { name: '移除排队附件：D:/missing.png', exact: true }).click();
     assert.equal(await edit.getByRole('button', { name: '保存排队消息', exact: true }).isDisabled(), true);
     await edit.getByRole('button', { name: '取消编辑', exact: true }).click();
+    await page.getByRole('button',{name:'放弃排队修改',exact:true}).click();
     assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('felix-turn-queue-v1'))[0].attachments), ['D:/missing.png', 'D:/keep.png']);
     await page.getByRole('button', { name: '编辑排队消息：first', exact: true }).click();
     assert.equal(await edit.getByRole('textbox').inputValue(), 'first');

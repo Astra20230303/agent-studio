@@ -46,6 +46,7 @@ const assert = require('node:assert/strict');
     assert.equal(await save.isDisabled(),true);
     await effort.selectOption('high');await mode.selectOption('plan');
     await editor.getByRole('button',{name:'取消编辑',exact:true}).click();
+    await page.getByRole('button',{name:'放弃排队修改',exact:true}).click();
     assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('felix-turn-queue-v1'))[0].model),'test');
     await open.click();
     assert.equal(await model.inputValue(),'test');assert.equal(await mode.inputValue(),'default');

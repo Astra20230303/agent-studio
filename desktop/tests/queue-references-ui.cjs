@@ -44,6 +44,7 @@ const assert = require('node:assert/strict');
     assert.equal(await save.isDisabled(),true);
     await editor.getByRole('button',{name:'移除排队插件：remove',exact:true}).click();
     await editor.getByRole('button',{name:'取消编辑',exact:true}).click();
+    await page.getByRole('button',{name:'放弃排队修改',exact:true}).click();
     await open.click();
     assert.equal(await editor.getByRole('textbox').inputValue(),'Queued tools');
     await editor.getByRole('button',{name:'移除排队技能：D:/remove/SKILL.md',exact:true}).click();

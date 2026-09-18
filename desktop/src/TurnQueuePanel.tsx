@@ -30,8 +30,22 @@ function QueueEditor({ item, onClose, onSave, catalog }: { catalog?: QueueCatalo
   const configurationChanged = model !== item.model || effort !== item.effort;
   const invalidConfiguration = configurationChanged && (catalog?.loading || !models.includes(model) || unsupportedEffort(effort, supported) || !effortLevels.some(level => level.value === effort));
   const [error, setError] = useState('');
-  useEffect(() => { dialog.current?.showModal(); }, []);
-  return <dialog ref={dialog} className="file-editor" aria-label="编辑排队消息" onCancel={event => { event.preventDefault(); onClose(); }}>
+  const [discarding, setDiscarding] = useState(false);
+  const continueButton = useRef<HTMLButtonElement>(null);
+  const initial = useRef(JSON.stringify([item.text, item.model, item.effort, item.planningMode || 'default', item.attachments || [], item.skills || [], item.plugins]));
+  const dirty = JSON.stringify([text, model, effort, planningMode, attachments, skills, plugins]) !== initial.current;
+  const requestClose = () => {
+    if (discarding) { setDiscarding(false); return; }
+    if (dirty) setDiscarding(true); else onClose();
+  };
+  useEffect(() => {
+    const previous = document.activeElement;
+    const element = dialog.current;
+    element?.showModal();
+    return () => { element?.close(); if (previous instanceof HTMLElement && previous.isConnected) previous.focus(); };
+  }, []);
+  useEffect(() => { if (discarding) continueButton.current?.focus(); }, [discarding]);
+  return <dialog ref={dialog} className="file-editor" aria-label="编辑排队消息" onCancel={event => { event.preventDefault(); requestClose(); }}>
     <h2>编辑排队消息</h2><p>此消息已暂停，保存或取消后可继续队列。</p>
     <textarea autoFocus aria-label="排队消息正文" value={text} onChange={event => setText(event.target.value)} />
     <label>模型<select aria-label="排队消息模型" value={model} disabled={catalog?.loading} onChange={event => setModel(event.target.value)}>
@@ -48,6 +62,7 @@ function QueueEditor({ item, onClose, onSave, catalog }: { catalog?: QueueCatalo
     {!!skills.length && <ul aria-label="排队消息技能">{skills.map(skill => <li key={skill.path}><span title={skill.path}>${skill.name}</span><button aria-label={`移除排队技能：${skill.path}`} onClick={() => setSkills(current => current.filter(value => value.path !== skill.path))}>移除</button></li>)}</ul>}
     {!!plugins.length && <ul aria-label="排队消息插件">{plugins.map(plugin => <li key={plugin.id}><span title={`plugin://${plugin.id}`}>{plugin.name}</span><button aria-label={`移除排队插件：${plugin.id}`} onClick={() => setPlugins(current => current.filter(value => value.id !== plugin.id))}>移除</button></li>)}</ul>}
     {error && <p role="alert">{error}</p>}
-    <button onClick={onClose}>取消编辑</button><button disabled={Boolean(invalidConfiguration) || !text.trim() && !attachments.length && !skills.length} onClick={() => { if (invalidConfiguration) return; if (onSave(text.trim(), attachments, { model, effort, planningMode, skills, plugins })) onClose(); else setError('消息未保存，请检查队列状态后重试。'); }}>保存排队消息</button>
+    {discarding && <section role="alert" aria-label="未保存的排队修改"><p>排队消息的修改尚未保存，是否放弃？</p><button ref={continueButton} onClick={() => { setDiscarding(false); dialog.current?.querySelector('textarea')?.focus(); }}>继续编辑</button><button onClick={onClose}>放弃排队修改</button></section>}
+    <button onClick={requestClose}>取消编辑</button><button disabled={Boolean(invalidConfiguration) || !text.trim() && !attachments.length && !skills.length} onClick={() => { if (invalidConfiguration) return; if (onSave(text.trim(), attachments, { model, effort, planningMode, skills, plugins })) onClose(); else setError('消息未保存，请检查队列状态后重试。'); }}>保存排队消息</button>
   </dialog>;
 }
