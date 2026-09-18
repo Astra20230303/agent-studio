@@ -454,6 +454,7 @@ function App() {
     try {
       const settings = await updateThreadPermission(thread.remoteId, permission);
       update(next => { const target = next.threads.find(item => item.id === thread.id); if (target) { target.effectivePermissions = readThreadPermissions(settings); target.requestedPermission = permission; } });
+      audit.record('修改会话权限', permission);
     } catch (error: any) { setNotice(`修改权限失败：${error.message}`); }
     finally { sendingRef.current.delete(thread.id); setPendingThreads(previous => previous.filter(id => id !== thread.id)); }
   };
@@ -534,6 +535,7 @@ function App() {
     if (!window.codex) throw new Error('app-server 尚未连接。');
     const response = await window.codex.respond(approval.id, result);
     if (!response?.ok) throw new Error(response?.error?.message || response?.error || '提交失败，请重试。');
+    audit.record('处理服务请求', `${approval.method} · ${decision}`);
     setApprovals(pending => pending.filter(item => item.id !== approval.id));
   };
   const loadFullHistory = async () => {
@@ -558,9 +560,10 @@ function App() {
       await setThreadName(thread.remoteId, name);
     }
     update(next => { const target = next.threads.find(item => item.id === thread.id); if (target) { target.title = name; target.titleSource = 'manual'; } });
+    audit.record('重命名会话');
   };
-  const archiveActive = async () => { const thread = state.threads.find(item => item.id === state.activeThreadId); if (!thread) return; if (thread.remoteId && codexStatus === 'connected') { try { await archiveThread(thread.remoteId); } catch (error: any) { toast(`归档失败：${error.message}`); return; } } update(next => { const item = next.threads.find(value => value.id === thread.id); if (item) { item.archived = true; item.status = 'completed'; } }); setRemoteThreadId(undefined); };
-  const performDelete = async (threadId: string) => { const thread = state.threads.find(item => item.id === threadId); if (!thread) return; if (thread.remoteId && codexStatus === 'connected') { try { await deleteThread(thread.remoteId); } catch (error: any) { toast(`删除失败：${error.message}`); return; } } update(next => { next.threads = next.threads.filter(value => value.id !== threadId); if (next.activeThreadId === threadId) next.activeThreadId = undefined; }); setRemoteThreadId(value => value === thread.remoteId ? undefined : value); };
+  const archiveActive = async () => { const thread = state.threads.find(item => item.id === state.activeThreadId); if (!thread) return; if (thread.remoteId && codexStatus === 'connected') { try { await archiveThread(thread.remoteId); } catch (error: any) { toast(`归档失败：${error.message}`); return; } } update(next => { const item = next.threads.find(value => value.id === thread.id); if (item) { item.archived = true; item.status = 'completed'; } }); audit.record('归档会话'); setRemoteThreadId(undefined); };
+  const performDelete = async (threadId: string) => { const thread = state.threads.find(item => item.id === threadId); if (!thread) return; if (thread.remoteId && codexStatus === 'connected') { try { await deleteThread(thread.remoteId); } catch (error: any) { toast(`删除失败：${error.message}`); return; } } update(next => { next.threads = next.threads.filter(value => value.id !== threadId); if (next.activeThreadId === threadId) next.activeThreadId = undefined; }); audit.record('删除会话'); setRemoteThreadId(value => value === thread.remoteId ? undefined : value); };
   const deleteActive = async () => { const thread = state.threads.find(item => item.id === state.activeThreadId); if (thread) setDeleteCandidate(thread.id); };
   const togglePinned = (threadId: string) => update(next => { const thread = next.threads.find(item => item.id === threadId); if (thread) thread.pinned = !thread.pinned; });
   const archiveThreadFromSidebar = async (threadId: string) => { const thread = state.threads.find(item => item.id === threadId); if (!thread) return; if (thread.remoteId && codexStatus === 'connected') { try { await archiveThread(thread.remoteId); } catch (error: any) { toast(`归档失败：${error.message}`); return; } } update(next => { const item = next.threads.find(value => value.id === threadId); if (item) { item.archived = true; item.status = 'completed'; if (next.activeThreadId === threadId) next.activeThreadId = undefined; } }); setRemoteThreadId(value => value === thread.remoteId ? undefined : value); };
@@ -582,6 +585,7 @@ function App() {
       const stillOnSource = activeThreadRef.current === source.id;
       update(next => { next.threads.push(copy); if (stillOnSource) next.activeThreadId = copy.id; });
       if (stillOnSource) setRemoteThreadId(copy.remoteId);
+      audit.record('分叉会话');
       toast('已创建会话分支');
     } catch (error: any) { toast(`分叉失败：${error.message}`); }
     finally {
