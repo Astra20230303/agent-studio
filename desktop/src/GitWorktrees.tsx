@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Project } from './domain';
 import { parseGitWorktrees, type WorktreeValue } from './gitWorktreesResponse';
+import { parseWorktreeProject } from './worktreeProjectResponse';
 type Worktree = WorktreeValue;
 export function GitWorktrees({ root, protectedPaths = [], onOpen, onBusyChange }: { protectedPaths?: string[]; onBusyChange?: (busy: boolean) => void; root: string; onOpen: (project: Project) => void }) {
   const isProtected = (path: string) => {
@@ -43,7 +44,7 @@ export function GitWorktrees({ root, protectedPaths = [], onOpen, onBusyChange }
       if (requestGeneration !== generation.current) return;
       if (!result?.ok) throw Error(result?.error || (remove ? '无法删除工作树' : '无法打开工作树'));
       if (remove) { setRemoving(undefined); setNotice(`已删除工作树 ${path}，分支与提交保留。`); setRevision(value => value + 1); }
-      else onOpen(result.result);
+      else onOpen(parseWorktreeProject(result.result));
     } catch (error) { setError(error instanceof Error ? error.message : String(error)); }
     finally { lock.current = false; setBusy(false); }
   };
