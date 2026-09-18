@@ -29,6 +29,7 @@ function ImageCanvas({ source, name }: { source: string; name: string }) {
       <button aria-label="缩小图片" disabled={!ready || displayedScale <= 0.1} onClick={() => setScale(Math.max(0.1, displayedScale / 1.25))}>−</button>
       <button aria-label="放大图片" disabled={!ready || displayedScale >= 8} onClick={() => setScale(Math.max(0.1, Math.min(8, displayedScale * 1.25)))}>+</button>
       {ready && <span role="status">{dimensions.width} × {dimensions.height} · {scale === null ? '适应窗口' : `${Math.round(scale * 100)}%`}</span>}
+      {ready && <a href={source} download={name.split(/[\\/]/).at(-1) || 'image'}>下载原图</a>}
     </div>
     {failed && <p role="alert">图片无法解码，文件可能已损坏。请修复文件后刷新预览。</p>}
     <div className="preview-image-viewport" tabIndex={0} aria-label="图片滚动区域">

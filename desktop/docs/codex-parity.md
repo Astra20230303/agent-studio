@@ -1,5 +1,12 @@
 # Felix capability roadmap
 
+## Download original preview images
+
+Decoded image previews expose a download link using their loaded source bytes and
+the file basename. Zoom only changes display dimensions; no canvas re-encoding
+or second disk read alters the downloaded image. Browser acceptance downloads a
+zoomed PNG and compares every byte with its original data URL. Build passes.
+
 ## Copy file preview text exactly
 
 Read-only previews offer copy using the loaded text, with an explicit partial-copy

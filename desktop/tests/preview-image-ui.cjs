@@ -1,5 +1,6 @@
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
@@ -30,6 +31,13 @@ const assert = require('node:assert/strict');
     await region.getByRole('button', { name: '放大图片', exact: true }).click();
     await region.getByRole('status').getByText('1600 × 1200 · 125%', { exact: true }).waitFor();
     assert.equal((await img.boundingBox()).width, 2000);
+    const original = Buffer.from((await img.getAttribute('src')).split(',')[1], 'base64');
+    const downloadPromise = page.waitForEvent('download');
+    await region.getByRole('link', { name: '下载原图', exact: true }).click();
+    const download = await downloadPromise;
+    assert.equal(download.suggestedFilename(), 'fixture.png');
+    assert.deepEqual(await fs.readFile(await download.path()), original);
+    await download.delete();
     await region.getByRole('button', { name: '缩小图片', exact: true }).click();
     assert.equal((await img.boundingBox()).width, 1600);
     await region.getByRole('button', { name: '适应窗口', exact: true }).click();
