@@ -79,7 +79,7 @@ import { applyToolEvent, finishTools, restoreMessages } from './toolActivity';
 import { ToolActivityGroup, groupMessages } from './ToolActivityView';
 import { MessageActions } from './ReplyActions';
 import { branchSnapshot, fullBranchSnapshot, isFinalReply } from './messageActions';
-import { listAllThreadItems, switchThreadProvider, updateThreadPermission, connectCodex, forkThread, listThreadItems, listThreadTurns, resumeThread, setThreadName, startThread, startTurn, subscribeCodex } from './codexClient';
+import { listAllThreadItems, switchThreadProvider, updateThreadPermission, connectCodex, forkThread, listThreadItems, listThreadTurns, resumeThread, startThread, startTurn, subscribeCodex } from './codexClient';
 import { ExtensionsPage, ExtensionIcon } from './ExtensionsPage';
 import { ThreadButton } from './ThreadButton';
 import { ModePicker } from './ModePicker';
@@ -415,7 +415,7 @@ function App({ initialState }: { initialState: DesktopState }) {
       };
       if (!threadId) threadId = await createRemoteThread();
       if (!threadId) throw new Error('没有返回 thread id');
-      if (automaticTitle) void setThreadName(threadId, automaticTitle).catch(() => toast('标题已保存在本地，远端同步失败。'));
+      if (automaticTitle) void threadStore.syncInitialTitle({ id: localId!, remoteId: threadId }, automaticTitle).catch(() => toast('标题已保存在本地，远端同步失败。'));
       update(next => {
         const thread = next.threads.find(item => item.id === localId);
         if (!thread) return;

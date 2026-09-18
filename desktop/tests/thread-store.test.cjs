@@ -44,3 +44,29 @@ test('local-only mutations avoid transport and synchronous failures release the 
  await assert.rejects(store.rename(local,'First'),/state unavailable/);fail=false;
  await store.rename(local,'Retry');assert.equal(local.title,'Retry');
 });
+
+test('initial title holds the same identity lock; manual retry wins after sync completes',async()=>{
+ const wait=deferred();const names=[];let hold=true;
+ const f=setup({rename:async(id,name)=>{names.push([id,name]);if(hold)await wait.promise}});
+ const thread=f.state.threads[0];const pending=f.store.syncInitialTitle(thread,'Automatic');
+ await assert.rejects(f.store.rename(thread,'Manual'),/操作尚未完成/);
+ await assert.rejects(f.store.remove(thread),/操作尚未完成/);
+ assert.deepEqual(names,[['remote-a','Automatic']]);
+ hold=false;wait.resolve();await pending;await f.store.rename(thread,'Manual');
+ assert.equal(thread.title,'Manual');assert.equal(thread.titleSource,'manual');
+ assert.deepEqual(names,[['remote-a','Automatic'],['remote-a','Manual']]);
+});
+test('manual title set before remote creation supersedes the captured automatic title',async()=>{
+ const f=setup();const local={id:'new',title:'New chat',messages:[]};f.state.threads.push(local);
+ await f.store.rename(local,'Chosen before start');
+ await f.store.syncInitialTitle({id:'new',remoteId:'created'},'Old automatic title');
+ assert.deepEqual(f.calls,[['rename','created','Chosen before start']]);
+ assert.equal(local.titleSource,'manual');
+});
+test('failed initial sync releases the lock and late auto sync preserves a manual remote alias name',async()=>{
+ let fail=true;const names=[];const f=setup({rename:async(id,name)=>{names.push(name);if(fail)throw Error('offline')}});
+ const thread=f.state.threads[0];await assert.rejects(f.store.syncInitialTitle(thread,'Auto'),/offline/);
+ fail=false;await f.store.rename(thread,'Manual');
+ await f.store.syncInitialTitle({...thread,id:'alias'},'Stale auto');
+ assert.deepEqual(names,['Auto','Manual','Manual']);assert.equal(thread.title,'Manual');
+});
