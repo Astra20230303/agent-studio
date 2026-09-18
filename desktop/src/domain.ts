@@ -45,6 +45,7 @@ export interface Thread {
   contextTokens?: import('./ContextUsage').ContextTokens;
   cwd?: string;
   planningMode?: 'default' | 'plan';
+  memoryMode?: 'enabled' | 'disabled';
   plan?: import('./planning').PlanProgress;
   planDelta?: { turnId: string; itemId: string; content: string };
   turnDiff?: { turnId: string; diff: string };

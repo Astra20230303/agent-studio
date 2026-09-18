@@ -5,6 +5,7 @@ import { userInput } from './attachments';
 import { readThreadGoalClearResponse, readThreadGoalResponse, validateThreadGoalInput } from './threadGoal';
 import { readReviewStartResponse, readReviewTarget } from './review';
 import { readThreadRevertResponse } from './threadRevert';
+import { validateThreadMemoryInput } from './threadMemory';
 export type RpcMessage = { id?: number | string; method?: string; params?: any; result?: any; error?: any };
 type Bridge = { connect: () => Promise<any>; request: (method: string, params?: unknown) => Promise<any>; notify: (method: string, params?: unknown) => Promise<any>; respond: (id: number | string, result?: unknown, error?: unknown) => Promise<any>; onNotification: (listener: (message: RpcMessage) => void) => () => void; onServerRequest: (listener: (message: RpcMessage) => void) => () => void; onError: (listener: (message: any) => void) => () => void; onStderr: (listener: (message: any) => void) => () => void; onClosed: (listener: (message: any) => void) => () => void };
 const bridge = () => window.codex as Bridge;
@@ -79,6 +80,10 @@ export const startUncommittedReview = (threadId: string) => startReview(threadId
 export async function revertThread(threadId: string, beforeTurnId: string) {
   const result = await unwrap<any>(bridge().request('thread/revert', { threadId, beforeTurnId }));
   return readThreadRevertResponse(result, threadId);
+}
+export async function setThreadMemoryMode(threadId: string, mode: 'enabled' | 'disabled') {
+  const validMode = validateThreadMemoryInput(threadId, mode);
+  return unwrap<any>(bridge().request('thread/memoryMode/set', { threadId, mode: validMode }));
 }
 export async function archiveThread(threadId: string) { return unwrap<any>(bridge().request('thread/archive', { threadId })); }
 export async function unarchiveThread(threadId: string) { return unwrap<any>(bridge().request('thread/unarchive', { threadId })); }
