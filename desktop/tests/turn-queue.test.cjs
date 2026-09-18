@@ -44,7 +44,9 @@ test('restored messages never auto-replay, especially an unconfirmed send', () =
 
 test('malformed queues fail as a whole without silently dropping records', () => {
   for (const raw of ['', '{}', 'null', JSON.stringify([item, null]), JSON.stringify([item, item])]) assert.throws(() => restoreQueue(raw));
-  for (const changed of [{ id: '' }, { plugins: [null] }, { attachments: [1] }, { skills: [{ name: 'x' }] }, { cwd: {} }, { waitingOn: 5 }]) {
+  assert.equal(restoreQueue(JSON.stringify([{ ...item, planningMode: 'plan', skills: [{ name: 'S', path: 'D:/S' }], plugins: [{ id: 'p', name: 'P' }] }]))[0].planningMode, 'plan');
+  assert.equal(restoreQueue(JSON.stringify([item]))[0].planningMode, 'default');
+  for (const changed of [{ id: '' }, { plugins: [null] }, { attachments: [1] }, { skills: [{ name: 'x' }] }, { cwd: {} }, { waitingOn: 5 }, { planningMode: 'future' }, { plugins: [{ id: '' }] }, { skills: [{ name: 'x', path: '' }] }]) {
     assert.throws(() => restoreQueue(JSON.stringify([item, { ...item, id: 'other', ...changed }])));
   }
   assert.deepEqual(restoreQueue(null), []);

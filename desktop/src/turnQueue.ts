@@ -45,8 +45,11 @@ export function restoreQueue(raw: string | null): QueuedTurn[] {
       || item.attachments !== undefined && (!Array.isArray(item.attachments) || !item.attachments.every((path: unknown) => typeof path === 'string'))
       || item.skills !== undefined && (!Array.isArray(item.skills) || !item.skills.every((skill: any) => skill && typeof skill.name === 'string' && typeof skill.path === 'string'))
       || item.cwd !== undefined && typeof item.cwd !== 'string'
-      || item.waitingOn !== undefined && typeof item.waitingOn !== 'string') return false;
+      || item.waitingOn !== undefined && typeof item.waitingOn !== 'string'
+      || item.planningMode !== undefined && !['default', 'plan'].includes(item.planningMode)
+      || !Array.isArray(item.plugins) || item.plugins.some((plugin: any) => !plugin || typeof plugin.id !== 'string' || !plugin.id.trim() || typeof plugin.name !== 'string')
+      || item.skills !== undefined && item.skills.some((skill: any) => !skill || typeof skill.name !== 'string' || typeof skill.path !== 'string' || !skill.path.trim())) return false;
     ids.add(item.id); return true;
   })) throw Error('排队消息格式无效，原始数据已保留。');
-  return items.map(item => ({ ...item, status: 'paused', error: item.status === 'sending' ? '上次发送结果未知，请检查会话记录后再试。' : '已恢复排队消息，请继续队列。' }));
+  return items.map(item => ({ ...item, planningMode: item.planningMode || 'default', status: 'paused', error: item.status === 'sending' ? '上次发送结果未知，请检查会话记录后再试。' : '已恢复排队消息，请继续队列。' }));
 }
