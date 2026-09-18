@@ -28,3 +28,17 @@ test('periodic output checkpoint survives abrupt exit and retries disk failure w
   finish({output:'Final output'});await pending;assert.equal(scheduler.detail(task.id).runs[0].output,'Final output');
  }finally{finish?.({output:'cleanup'});if(pending)await pending;await scheduler.stop();fs.rmSync(directory,{recursive:true,force:true});fs.rmSync(recoveredDirectory,{recursive:true,force:true});}
 });
+
+test('real checkpoint timer persists before completion and is cancelled at finalization',async()=>{
+ const directory=fs.mkdtempSync(path.join(os.tmpdir(),'felix-checkpoint-timer-'));let progress,finish;
+ const scheduler=new TaskScheduler({directory,runner:async(task,{onProgress})=>{progress=onProgress;return new Promise(resolve=>{finish=resolve;});}});
+ let pending;
+ try{
+  const task=scheduler.save({name:'Timer',prompt:'Test',kind:'agent',model:'test',permission:'read-only',notify:false,schedule:{kind:'interval',minutes:60}});
+  pending=scheduler.run(task.id);await Promise.resolve();const persist=scheduler.persist.bind(scheduler);let writes=0,resolveWrite;const written=new Promise(resolve=>{resolveWrite=resolve;});
+  scheduler.persist=()=>{writes++;persist();resolveWrite();};progress('Checkpoint text');await written;
+  assert.equal(JSON.parse(fs.readFileSync(scheduler.file,'utf8')).tasks[0].runs[0].output,'Checkpoint text');assert.equal(scheduler.detail(task.id).runs[0].status,'running');
+  progress('Last partial');finish({output:'Complete'});await pending;const count=writes;
+  await new Promise(resolve=>setTimeout(resolve,2200));assert.equal(writes,count);assert.equal(JSON.parse(fs.readFileSync(scheduler.file,'utf8')).tasks[0].runs[0].output,'Complete');
+ }finally{finish?.({output:'cleanup'});if(pending)await pending;await scheduler.stop();fs.rmSync(directory,{recursive:true,force:true});}
+});
