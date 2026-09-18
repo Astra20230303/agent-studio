@@ -18,6 +18,8 @@ export function ConversationFind({ messages, view, searching, loadHistory, disab
   useEffect(() => { setOpen(false); setQuery(''); setSelected(undefined); }, [reset]);
   const [selected, setSelected] = useState<string>();
   const input = useRef<HTMLInputElement>(null);
+  const composing = useRef(false);
+  useEffect(() => { composing.current = false; }, [open, reset]);
   const button = useRef<HTMLButtonElement>(null);
   const term = query.trim().toLocaleLowerCase();
   const matches = term ? messages.filter(message => [message.content, ...(message.attachments || []), ...(message.skills || []).map(skill => `${skill.name} ${skill.path}`), ...(message.plugins || []).map(plugin => `${plugin.name} ${plugin.id}`), message.tool ? JSON.stringify(message.tool) : ''].join('\n').toLocaleLowerCase().includes(term)) : [];
@@ -49,8 +51,8 @@ export function ConversationFind({ messages, view, searching, loadHistory, disab
     <button ref={button} aria-expanded={open} onClick={() => setOpen(value => !value)}>会话内查找</button>
     {open && loadHistory && <button disabled={loading || disabled} onClick={() => void load()}>{loading ? '正在加载历史…' : '加载完整历史'}</button>}
     {open && historyStatus && <span role="status">{historyStatus}</span>}
-    {open && <><input ref={input} type="search" aria-label="查找会话内容" placeholder="查找已加载消息和工具记录" value={query} onChange={event => { setQuery(event.target.value); setSelected(undefined); }} onKeyDown={event => {
-      if (event.nativeEvent.isComposing) return;
+    {open && <><input ref={input} type="search" aria-label="查找会话内容" placeholder="查找已加载消息和工具记录" value={query} onChange={event => { setQuery(event.target.value); setSelected(undefined); }} onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }} onBlur={() => { composing.current = false; }} onKeyDown={event => {
+      if (composing.current || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
       if (event.key === 'Enter') { event.preventDefault(); move(event.shiftKey ? -1 : 1); }
       if (event.key === 'Escape') { event.preventDefault(); close(); }
     }} /><span role="status">{term ? matches.length ? `${index + 1} / ${matches.length} 条匹配记录` : '没有匹配记录' : '查找范围：已加载记录'}</span><button aria-label="上一个匹配" disabled={!matches.length} onClick={() => move(-1)}>↑</button><button aria-label="下一个匹配" disabled={!matches.length} onClick={() => move(1)}>↓</button><button aria-label="关闭会话查找" onClick={close}>×</button></>}

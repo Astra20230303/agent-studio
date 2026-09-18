@@ -54,6 +54,18 @@ const assert = require('node:assert/strict');
     await input.fill('needle');
     await page.getByRole('status').filter({ hasText: '1 / 3 条匹配记录' }).waitFor();
     assert.equal(await page.locator('.conversation-find-match').getAttribute('data-message-id'), 'user');
+    // IME confirmation/cancellation must not navigate or dismiss search.
+    for (const options of [{ isComposing: true }, { keyCode: 229 }, { compositionSession: true }]) {
+      for (const key of ['Enter', 'Escape']) {
+        await input.evaluate((element, { key, options }) => {
+          if (options.compositionSession) element.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+          element.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...options }));
+        }, { key, options });
+        assert.equal(await input.count(), 1, `IME ${key} keeps search open`);
+        assert.equal(await page.locator('.conversation-find-match').getAttribute('data-message-id'), 'user', `IME ${key} keeps selection`);
+        if (options.compositionSession) await input.dispatchEvent('compositionend');
+      }
+    }
     await input.press('Enter');
     await page.getByRole('status').filter({ hasText: '2 / 3 条匹配记录' }).waitFor();
     assert.equal(await page.locator('.conversation-find-match').getAttribute('data-message-id'), 'tool');
