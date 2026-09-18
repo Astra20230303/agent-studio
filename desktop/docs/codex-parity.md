@@ -1,5 +1,14 @@
 # Felix capability roadmap
 
+## Scheduled tasks bind to a Provider
+
+Agent scheduled tasks now persist a validated `providerId`. Each run resolves
+that Provider at startup and keeps its credentials and endpoint for the entire
+run, so changing the global active Provider does not reroute an existing task.
+Legacy tasks without a binding remain compatible. The real routing acceptance
+passes for two local Providers, including authorization headers, and a removed
+bound Provider fails explicitly without fallback.
+
 ## Pause queued messages independently
 
 Plan and implementation: a pause control freezes the selected conversation's
