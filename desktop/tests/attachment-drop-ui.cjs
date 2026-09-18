@@ -19,15 +19,15 @@ const assert = require('node:assert/strict');
     });
     assert.equal(await drop(), true);
     await page.getByRole('button', { name: '移除附件：D:/files/photo.png', exact: true }).waitFor();
-    assert.equal(await page.locator('.attachment-list button').count(), 2);
-    await drop(); assert.equal(await page.locator('.attachment-list button').count(), 2);
+    assert.equal(await page.locator('.attachment-list button[aria-label^="移除附件："]').count(), 2);
+    await drop(); assert.equal(await page.locator('.attachment-list button[aria-label^="移除附件："]').count(), 2);
     assert.equal(await page.evaluate(() => window.__calls.some(call => call.method === 'turn/start')), false);
     await page.getByRole('button', { name: '新对话', exact: true }).click();
     await page.locator('.attachment-list').waitFor({ state: 'hidden' });
     await page.evaluate(() => { window.__invalid = true; });
     await drop();
     await page.getByText('无法读取拖入文件的本地路径，请使用添加附件。', { exact: true }).waitFor();
-    assert.equal(await page.locator('.attachment-list button').count(), 0);
+    assert.equal(await page.locator('.attachment-list button[aria-label^="移除附件："]').count(), 0);
     assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('felix-attachments-v1')).new), ['D:/files/photo.png', 'D:/files/notes.txt']);
     console.log('PASS: file drop prevents navigation, deduplicates, preserves draft ownership and rejects missing local paths');
   } finally { await browser.close(); }

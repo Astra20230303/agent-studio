@@ -45,7 +45,7 @@ import { RemoteDesktopPanel } from './RemoteDesktopPanel';
 import { RemoteBrowser } from './RemoteBrowser';
 import { ServerWarnings, useServerWarnings } from './ServerWarnings';
 import { moveQueuedTurn } from './turnQueue';
-import { MessageAttachment } from './MessageAttachment';
+import { AttachmentPreviewButton, MessageAttachment } from './MessageAttachment';
 import { Globe } from 'lucide-react';
 import { StrictMode, Suspense, lazy, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { ReactNode, ClipboardEvent } from 'react';
@@ -800,7 +800,7 @@ function Chat({ savingImages, onPasteImages, onDropAttachments, loadFullHistory,
       {composerSkills.length > 0 && <div className="attachment-list" aria-label="本次使用的技能">{composerSkills.map(skill => <span key={skill.path} title={skill.path}>{skill.name}<button aria-label={`移除技能 ${skill.name}`} onClick={() => setComposerSkills(composerSkills.filter(item => item.path !== skill.path))}><X size={14} /></button></span>)}</div>}
       <ContextUsage key={active?.id || 'new'} usage={active?.contextTokens} threadId={active?.remoteId} disabled={busy || running || status !== 'connected'} />
       {composerPlugins.length > 0 && <div className="composer-plugin-chips" aria-label="本次使用的插件">{composerPlugins.map(plugin => <span key={plugin.id}><ExtensionIcon item={plugin} /><span>{extensionName(plugin)}</span><button aria-label={`移除 ${extensionName(plugin)}`} onClick={() => setComposerPlugins(composerPlugins.filter(item => item.id !== plugin.id))}><X /></button></span>)}</div>}
-      {attachments.length > 0 && <div className="attachment-list">{attachments.map(name => <span key={name} title={name}>{name.replace(/^.*[\\/]/, '')}<button aria-label={`移除附件：${name}`} onClick={() => removeAttachment(name)}>×</button></span>)}</div>}
+      {attachments.length > 0 && <div className="attachment-list" aria-label="草稿附件">{attachments.map(name => <span className="attachment-chip" key={name}><AttachmentPreviewButton path={name} /><button aria-label={`移除附件：${name}`} onClick={() => removeAttachment(name)}>×</button></span>)}</div>}
       <textarea ref={textarea} aria-label="消息" value={input} onChange={event => setInput(event.target.value)}
         onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }}
         onKeyDown={event => {

@@ -1,5 +1,14 @@
 # Felix capability roadmap
 
+## Preview draft attachments before sending
+
+Draft attachment names now use the same preview button and path resolution as
+conversation history. Preview and removal are separate accessible controls;
+opening a preview neither removes the file nor changes its draft ownership.
+Shared styles support wrapping long names. Real-file browser acceptance verifies
+draft preview, unchanged selection, explicit removal and independent history
+references. Drop/paste regressions and the production build pass.
+
 ## Open attachments from conversation history
 
 Attachment names in user messages open the existing file preview on demand.
