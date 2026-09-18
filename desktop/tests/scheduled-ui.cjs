@@ -51,7 +51,7 @@ async function main() {
       window.desktop = { listModels: async () => ({ ok: true, models: ['MiniMax-Test'] }), providerStatus: async () => ({ keyConfigured: true }), getProjectRoot: async () => 'D:\\Workspace2026\\my-agent-plantform' };
       for (const method of ['listTasks', 'saveTask', 'setTaskStatus', 'runTask', 'cancelTask', 'deleteTask', 'taskDetail']) window.desktop[method] = (...args) => window.taskOperation(method, args);
       window.desktop.onTasksChanged = listener => { window.__taskChanged = listener; return () => { window.__taskChanged = null; }; };
-      window.desktop.saveTaskOutput = async input => { window.__exported = input; return { ok: true }; };
+      window.desktop.saveTaskOutput = async input => { window.__exported = input; return window.__exportFail ? { ok: false, error: 'TEST_EXPORT_FAILURE' } : { ok: true, canceled: !!window.__exportCancel }; };
       window.codex = { connect: async () => ({ ok: true }), notify: async () => {}, request: async () => ({ ok: true, result: { data: [] } }), onNotification: () => () => {}, onServerRequest: () => () => {}, onError: () => () => {}, onStderr: () => () => {}, onClosed: () => () => {} };
     });
     const changed = () => page.evaluate(() => window.__taskChanged?.());
@@ -88,6 +88,16 @@ async function main() {
     await dialog.getByRole('button', { name: '导出运行结果', exact: true }).click();
     assert.equal(await page.evaluate(() => window.__exported.content), await page.evaluate(() => window.__copied));
     assert.match(await page.evaluate(() => window.__exported.filename), /^task-.*\.txt$/);
+    await page.evaluate(() => { window.__exportFail = true; });
+    await dialog.getByRole('button', { name: '导出运行结果', exact: true }).click();
+    await dialog.getByRole('alert').getByText('TEST_EXPORT_FAILURE').waitFor();
+    await page.evaluate(() => { window.__exportFail = false; window.__exportCancel = true; });
+    await dialog.getByRole('button', { name: '导出运行结果', exact: true }).click();
+    await dialog.getByText('TEST_EXPORT_FAILURE', { exact: true }).waitFor({ state: 'detached' });
+    assert.equal(await dialog.getByText('已导出运行结果', { exact: true }).count(), 0);
+    await page.evaluate(() => { window.__exportCancel = false; });
+    await dialog.getByRole('button', { name: '导出运行结果', exact: true }).click();
+    await dialog.getByText('已导出运行结果', { exact: true }).waitFor();
     await page.screenshot({ path: path.join(artifacts, 'scheduled-results.png') });
     await dialog.getByRole('button', { name: '编辑', exact: true }).click();
     assert.equal(await page.getByRole('dialog', { name: '编辑任务', exact: true }).getByLabel('任务 Provider', { exact: true }).inputValue(), '');
@@ -98,6 +108,9 @@ async function main() {
     await dialog.getByRole('button', { name: '立即运行', exact: true }).click(); await changed();
     await dialog.locator('.task-run summary').filter({ hasText: '失败' }).click();
     await dialog.getByText('TEST_MODEL_FAILURE', { exact: true }).waitFor();
+    const failedRun = dialog.locator('.task-run').filter({ has: page.locator('summary', { hasText: '失败' }) });
+    await failedRun.getByRole('button', { name: '复制运行结果', exact: true }).click();
+    assert.match(await page.evaluate(() => window.__copied), /失败[\s\S]*TEST_MODEL_FAILURE/);
     await dialog.getByRole('button', { name: '编辑', exact: true }).click();
     await editor.getByRole('textbox', { name: '任务内容', exact: true }).fill('WAIT');
     await editor.getByRole('button', { name: '保存任务' }).click(); await editor.waitFor({ state: 'detached' });

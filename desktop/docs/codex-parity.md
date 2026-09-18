@@ -1,5 +1,18 @@
 # Felix capability roadmap
 
+## Scheduled run result export
+
+Finished task runs offer copy and UTF-8 text export with task name, start time,
+status, error and original output. Running results disable both actions. Export
+uses the desktop save dialog with a task-specific title; cancellation produces
+no success notification and failures remain visible for retry.
+
+Acceptance: the production-build UI backed by TaskScheduler verifies identical
+copy/export payloads, save failure/retry, cancellation and failed runs without
+output retaining their error. Full task CRUD/recovery/layout regression and build
+pass. Clipboard and save-dialog responses are mocked in this browser acceptance;
+actual UTF-8 writing is covered by the shared terminal export backend tests.
+
 ## Main-process workspace usage checks
 
 Worktree removal now checks main-process terminal directories and the active
