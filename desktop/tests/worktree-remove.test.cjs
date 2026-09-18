@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { workspaceGit } = require('../electron/workspace-git.cjs');
+const { assertWorkspaceIdle } = require('../electron/workspace-usage.cjs');
 test('remove registered clean worktree retains branch and protects local data', async t => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'felix-remove-'));
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
@@ -19,7 +20,10 @@ test('remove registered clean worktree retains branch and protects local data', 
   assert.equal(childEntries.find(e => e.branch === 'main').primary, true);
   assert.equal(childEntries.find(e => e.branch === 'feature').current, true);
   assert.equal(childEntries.find(e => e.branch === 'feature').primary, false);
-  const remove = extra => workspaceGit({ root, action: 'remove-worktree', path: entry.path, expectedHead: entry.head, ...extra });
+  const terminals = { directories: new Map() };
+  const task = { kind: 'agent', cwd: child };
+  const scheduler = { active: null, get: () => task };
+  const remove = extra => workspaceGit({ root, action: 'remove-worktree', path: entry.path, expectedHead: entry.head, ...extra }, { assertWorktreeIdle: directory => assertWorkspaceIdle(directory, { terminals, scheduler, projectRoot: root }) });
   await assert.rejects(remove({ path: entries.find(e => e.branch === 'main').path }), /主工作树/);
   await assert.rejects(remove({ root: child }), /当前/);
   await assert.rejects(remove({ expectedHead: 'stale' }), /变化/);
@@ -29,6 +33,12 @@ test('remove registered clean worktree retains branch and protects local data', 
     assert.equal(await fs.readFile(path.join(child, name), 'utf8'), 'keep');
     if (name === '.gitignore') await fs.writeFile(path.join(child, name), '*.cache'); else await fs.unlink(path.join(child, name));
   }
+  terminals.directories.set('terminal', child);
+  await assert.rejects(remove(), /终端会话/);
+  terminals.directories.clear(); scheduler.active = { taskId: 'task' };
+  await assert.rejects(remove(), /定时任务/);
+  assert.ok((await fs.stat(child)).isDirectory());
+  scheduler.active = null;
   await remove(); await assert.rejects(fs.stat(child), { code: 'ENOENT' });
   assert.equal(git('rev-parse', 'feature'), entry.head);
   assert.equal((await workspaceGit({ root, action: 'worktrees' })).worktrees.length, 1);

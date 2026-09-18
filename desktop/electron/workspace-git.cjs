@@ -27,7 +27,7 @@ function parseStatus(output) {
   }
   return files;
 }
-async function workspaceGit(input) {
+async function workspaceGit(input, { assertWorktreeIdle } = {}) {
   if (typeof input?.root !== 'string' || !path.isAbsolute(input.root)) throw Error('请选择工作区目录');
   const cwd = await fs.realpath(input.root);
   const root = (await git(cwd, ['rev-parse', '--show-toplevel'])).trim();
@@ -108,6 +108,7 @@ async function workspaceGit(input) {
       if (entry.locked !== undefined) throw Error('工作树已锁定，请先在 Git 中解锁');
       if (input.expectedHead !== entry.head) throw Error('工作树提交已变化，请刷新后重试');
       if ((await git(destination, ['status', '--porcelain', '--untracked-files=all', '--ignored'])).trim()) throw Error('工作树包含未提交、未跟踪或忽略文件，请先处理后重试');
+      assertWorktreeIdle?.(destination);
       await git(root, ['worktree', 'remove', '--', destination]);
       return { removed: entry.path };
     }

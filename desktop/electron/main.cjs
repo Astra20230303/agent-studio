@@ -183,7 +183,7 @@ ipcMain.handle('desktop:artifact', async (_event, input) => {
 });
 ipcMain.handle('desktop:project-root', () => projectRoot);
 ipcMain.handle('desktop:workspace-git', async (_event, input) => {
-  try { return { ok: true, result: await require('./workspace-git.cjs').workspaceGit(input) }; }
+  try { return { ok: true, result: await require('./workspace-git.cjs').workspaceGit(input, { assertWorktreeIdle: directory => require('./workspace-usage.cjs').assertWorkspaceIdle(directory, { terminals, scheduler, projectRoot }) }) }; }
   catch (error) { return { ok: false, error: error.message }; }
 });
 ipcMain.handle('desktop:workspace-file', async (_event, input) => {

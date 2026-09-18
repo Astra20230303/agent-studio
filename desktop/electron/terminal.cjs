@@ -3,17 +3,19 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 class TerminalManager {
-  constructor(send) { this.send = send; this.sessions = new Map(); this.closing = new Set(); this.nextId = 1; }
+  constructor(send) { this.send = send; this.sessions = new Map(); this.closing = new Set(); this.directories = new Map(); this.nextId = 1; }
   create(cwd) {
     cwd ||= process.cwd();
     if (typeof cwd !== 'string' || !path.isAbsolute(cwd) || !fs.statSync(cwd).isDirectory()) throw Error('Terminal working directory must be an existing absolute directory');
     if (this.sessions.size >= 8) throw Error('Too many terminal sessions');
     const id = `terminal-${this.nextId++}`;
+    cwd = fs.realpathSync.native(cwd);
     const shell = process.platform === 'win32' ? 'powershell.exe' : (process.env.SHELL || '/bin/sh');
     const args = process.platform === 'win32' ? ['-NoLogo', '-NoProfile'] : [];
     const session = pty.spawn(shell, args, { name: 'xterm-color', cols: 100, rows: 30, cwd: cwd || process.cwd(), env: process.env, useConptyDll: true });
     session.onData(data => this.send({ id, type: 'data', data }));
-    session.done = new Promise(resolve => session.onExit(event => { this.send({ id, type: 'exit', code: event.exitCode }); this.sessions.delete(id); resolve(); }));
+    this.directories.set(id, cwd);
+    session.done = new Promise(resolve => session.onExit(event => { this.send({ id, type: 'exit', code: event.exitCode }); this.sessions.delete(id); this.directories.delete(id); resolve(); }));
     this.sessions.set(id, session);
     return { id };
   }
