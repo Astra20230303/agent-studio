@@ -1,3 +1,4 @@
+import { createServerResponses } from './serverResponses';
 import { createThreadEvents } from './threadEvents';
 import { modelCatalogIds } from './modelCatalog';
 import { removeRecentProject } from './recentProjects';
@@ -102,6 +103,10 @@ function projectLabel(pathOrName?: string) {
 
 function App({ initialState }: { initialState: DesktopState }) {
   const { state, setState, update, saveFailed: stateSaveFailed, retrySave } = useDesktopState(() => ({ ...initialState, model: modelId(initialState.model) }));
+  const serverResponses = useMemo(() => createServerResponses(async (id, result) => {
+    if (!window.codex) throw Error('app-server 尚未连接。');
+    return window.codex.respond(id, result);
+  }), []);
   const threadStore = useMemo(() => createThreadStore(threadBackend, update), [update]);
   const audit = useAuditLog();
   const effectiveTheme = useTheme(state.theme);
@@ -508,17 +513,7 @@ function App({ initialState }: { initialState: DesktopState }) {
   const respondApproval = async (decision: string, answers?: UserAnswers, content?: Record<string, unknown>, target = approval) => {
     const approval = target;
     if (!approval) return;
-    let result: any = { decision };
-    if (approval.method === 'item/permissions/requestApproval') {
-      result = decision === 'accept' ? { scope: 'turn', permissions: approval.params?.permissions || {} } : { scope: 'turn', permissions: {} };
-    } else if (approval.method === 'item/tool/requestUserInput') {
-      result = { answers: answers || Object.fromEntries((approval.params?.questions || []).map((question: any) => [question.id, { answers: [] }])) };
-    } else if (approval.method === 'mcpServer/elicitation/request') {
-      result = { action: decision === 'accept' ? 'accept' : decision === 'cancel' ? 'cancel' : 'decline', content: decision === 'accept' ? content ?? null : null };
-    }
-    if (!window.codex) throw new Error('app-server 尚未连接。');
-    const response = await window.codex.respond(approval.id, result);
-    if (!response?.ok) throw new Error(response?.error?.message || response?.error || '提交失败，请重试。');
+    await serverResponses.send(approval, decision, answers, content);
     audit.record('处理服务请求', `${approval.method} · ${decision}`);
     setApprovals(pending => pending.filter(item => item.id !== approval.id));
   };
