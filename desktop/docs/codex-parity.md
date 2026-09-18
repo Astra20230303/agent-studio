@@ -2799,3 +2799,9 @@ user-message-copy-ui.cjs 覆盖原文保真、键盘操作、失败重试、空�
 实现 9c10859：审批弹窗按 threadId、turnId、itemId 从文件工具事件匹配路径和差异，迟到补丁实时更新；没有数据时明确提示，差异作为纯文本渲染。
 
 验收发现新增文件展开项被原按钮焦点循环跳过，已修正为包含 summary，提交期间仍保持弹窗焦点。approval-file-changes 单测验证跨会话/回合/条目与工具类型隔离；file-approval-diff-ui 验证迟到补丁、缺失差异、HTML 字面量、键盘展开收起和 390px 布局；approval-ui、approval-queue-ui 与生产构建通过。此轮使用模拟服务端事件，未验证真实文件写入审批全过程；构建保留已有体积提示。
+
+## 真实文件审批与写入验收
+
+验证 979b734：启动实际 app-server，使用本地固定响应模型及支持 apply_patch 的 gpt-5.4 工具配置，read-only 工作区触发文件审批。真实通知经过 Felix applyToolEvent 与 approvalFileChanges，审批前获得对应路径/差异且文件不存在；允许后准确写入。
+
+提交后补验 decline：文件未创建，工具状态 declined；accept 为 completed，两者均发出对应 serverRequest/resolved 清理审批队列。两个真实测试、文件审批界面与审批队列回归通过，无产品修正。首次 MiniMax 配置未提供独立 apply_patch，改用声明该工具的配置；首次目标位于受保护 CODEX_HOME 内而写入失败，将配置目录与工作区分离后通过。测试不调用云模型，不证明所有模型兼容性；此轮仅测试及文档变更。

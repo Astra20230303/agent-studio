@@ -11,7 +11,7 @@ const { startMiniMaxAdapter } = require('../electron/minimax-adapter.cjs');
 const { applyToolEvent } = require('../src/toolActivity.ts');
 const { approvalFileChanges } = require('../src/approvalFileChanges.ts');
 
-test('real file approval exposes the pending patch before acceptance and writes only after approval', {timeout:30000}, async () => {
+for (const decision of ['accept', 'decline']) test(`real file approval exposes pending changes and honors ${decision}`, {timeout:30000}, async () => {
   const root=path.resolve(__dirname,'../..');
   const cache=path.join(root,'.project-cache/tmp');fs.mkdirSync(cache,{recursive:true});
   const profile=fs.mkdtempSync(path.join(cache,'file-approval-live-'));
@@ -54,11 +54,16 @@ test('real file approval exposes the pending patch before acceptance and writes 
     assert.ok(changes?.length,'pending file changes must be available before approval');
     assert.equal(path.resolve(changes[0].path),target);assert.match(changes[0].diff,/approved content/);
     assert.equal(fs.existsSync(target),false);
-    rpc.respond(request.id,{decision:'accept'});
+    rpc.respond(request.id,{decision});
     await wait(()=>notifications.some(n=>n.method==='turn/completed'));
     assert.equal(notifications.find(n=>n.method==='turn/completed').params.turn.status,'completed');
-    assert.ok(fs.existsSync(target), JSON.stringify(notifications.filter(n=>n.method==='item/completed'||n.method==='item/fileChange/outputDelta'||n.method==='error')));
-    assert.equal(fs.readFileSync(target,'utf8'),'approved content\n');
+    const completed=notifications.find(n=>n.method==='item/completed' && n.params.item.id===request.params.itemId);
+    assert.ok(completed,'file tool must emit completion');
+    assert.equal(completed.params.item.status,decision==='accept'?'completed':'declined');
+    assert.equal(requests.length,1,'fixture must require exactly one approval');
+    assert.equal(fs.existsSync(target),decision==='accept');
+    if(decision==='accept')assert.equal(fs.readFileSync(target,'utf8'),'approved content\n');
+    assert.ok(notifications.some(n=>n.method==='serverRequest/resolved'&&n.params.requestId===request.id),'resolved event must clear the approval queue');
   }finally{
     clearTimeout(timer);const exited=child.exitCode===null?once(child,'exit').catch(()=>{}):Promise.resolve();rpc.close();await exited;
     adapter.closeAllConnections();await new Promise(r=>adapter.close(r));model.closeAllConnections();await new Promise(r=>model.close(r));
