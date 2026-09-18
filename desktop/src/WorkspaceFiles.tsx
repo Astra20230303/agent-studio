@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import './workspaceFiles.css';
 import type { ArtifactTarget } from './Artifacts';
+import { isEditablePreview } from './editablePreview';
 export type FileEditSession = { root: string; path: string; initial: { text: string; revision: string } };
 export type FilePreviewUpdate = { root: string; path: string; preview: any };
 type Entry = { revision?: string; line?: number; column?: number; snippet?: string; name: string; path: string; directory: boolean; symlink: boolean };
@@ -13,22 +14,26 @@ export function WorkspaceFiles({ root, onAttach, onClose, onEdit, onPreview, pre
   const [selected, setSelected] = useState<Entry>();
   const [listing, setListing] = useState<{ entries: Entry[]; truncated?: boolean; skipped?: number }>();
   const [preview, setPreview] = useState<any>();
+  const requestVersion = useRef(0);
   useEffect(() => {
-    if (previewUpdate && previewUpdate.root === root && previewUpdate.path === selected?.path) setPreview(previewUpdate.preview);
+    if (previewUpdate && previewUpdate.root === root && previewUpdate.path === selected?.path) {
+      requestVersion.current++; setPreview(previewUpdate.preview); setError('');
+    }
   }, [previewUpdate, root, selected?.path]);
   const [error, setError] = useState('');
   const [refresh, setRefresh] = useState(0);
   useEffect(() => {
     let disposed = false;
+    const version = ++requestVersion.current;
     setError(''); setPreview(undefined); setListing(undefined);
     if (!root) return;
     const read = async () => {
       const response = await window.desktop?.workspaceFile?.({ root, path: selected?.path || (search ? '.' : directory), action: selected ? 'read' : search ? contentSearch ? 'search-content' : 'search' : 'list', query: search });
-      if (disposed) return;
+      if (disposed || version !== requestVersion.current) return;
       if (!response?.ok) throw Error(response?.error || '文件浏览不可用');
       if (selected) setPreview(response.result); else setListing(response.result);
     };
-    void read().catch(error => { if (!disposed) setError(error.message); });
+    void read().catch(error => { if (!disposed && version === requestVersion.current) setError(error.message); });
     return () => { disposed = true; };
   }, [root, directory, selected, refresh, search, contentSearch]);
   useEffect(() => { matchLine.current?.scrollIntoView({ block: 'center' }); }, [preview, selected]);
@@ -40,7 +45,7 @@ export function WorkspaceFiles({ root, onAttach, onClose, onEdit, onPreview, pre
     {!!listing?.skipped && <p>有 {listing.skipped} 个文件或目录未搜索（无法读取、过大或非 UTF-8 文本），结果可能不完整。</p>}
     {error && <p role="alert">{error}</p>}{root && !listing && !preview && !error && <p>正在读取…</p>}
     {listing && !listing.entries.length && <p>{search ? '没有匹配文件。' : '此目录为空。'}</p>}
-    {selected && root && preview?.revision && <button onClick={() => onEdit({ root, path: selected.path, initial: { text: preview.text, revision: preview.revision } })}>编辑文件</button>}
+    {selected && root && isEditablePreview(preview) && <button onClick={() => onEdit({ root, path: selected.path, initial: { text: preview.text, revision: preview.revision } })}>编辑文件</button>}
     {preview?.image && <img src={preview.image} alt={selected?.name} />}{preview?.binary && <p>二进制文件，无法显示文本预览。</p>}{staleMatch && <p role="status">文件在搜索后已变化，请返回并刷新搜索结果。</p>}{typeof preview?.text === 'string' && <pre>{selected?.line && !staleMatch ? preview.text.split('\n').map((line: string, index: number) => <span key={index} ref={index + 1 === selected.line ? matchLine : undefined} style={index + 1 === selected.line ? { background: '#ffe08a', color: '#202020' } : undefined}>{line}{'\n'}</span>) : preview.text}</pre>}{preview?.truncated && <p>仅预览前 256 KB。</p>}
   </section>;
 }

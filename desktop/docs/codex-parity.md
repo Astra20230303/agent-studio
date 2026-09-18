@@ -1,5 +1,14 @@
 # Felix capability roadmap
 
+## Keep saved previews authoritative
+
+Workspace preview updates from a completed save invalidate older pending reads,
+including their errors, so stale disk responses cannot overwrite the saved text.
+A shared editable-preview predicate is used by the workspace panel, expanded
+preview and editor reload: complete text plus a nonempty revision is required;
+truncated, encoding-invalid, binary and image payloads cannot enter editing.
+Browser delayed-read and contradictory-payload acceptance and build pass.
+
 ## Block duplicate writes from copy controls
 
 Shared CopyText controls now lock synchronously while a clipboard write is

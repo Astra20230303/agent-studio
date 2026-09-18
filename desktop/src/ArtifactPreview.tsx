@@ -4,6 +4,7 @@ import type { FileEditSession } from './WorkspaceFiles';
 import { PreviewText, type PreviewTextHandle } from './PreviewText';
 import { PreviewImage } from './PreviewImage';
 import './artifactPreview.css';
+import { isEditablePreview } from './editablePreview';
 export function ArtifactPreview({ target, onClose, onEdit }: { target: ArtifactTarget; onClose: () => void; onEdit: (session: FileEditSession) => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const textPreview = useRef<PreviewTextHandle>(null);
@@ -46,6 +47,6 @@ export function ArtifactPreview({ target, onClose, onEdit }: { target: ArtifactT
     {preview?.truncated && <p role="status">仅预览前 {preview.previewBytes ?? 256 * 1024} 字节，文件共 {preview.size} 字节。末尾不完整的字符已省略，不能编辑截断内容。</p>}
     {preview?.encodingInvalid && <p role="status">文件包含无法按 UTF-8 解码的字符，预览使用替代字符，不能编辑。</p>}
     {!staleLine && target.line && typeof preview?.text === 'string' && target.line > preview.text.split('\n').length && <p role="status">第 {target.line} 行不在当前预览范围内。</p>}
-    <div><button onClick={() => setRevision(value => value + 1)}>刷新预览</button>{preview?.revision && <button onClick={() => onEdit({ root: target.root, path: target.path, initial: { text: preview.text, revision: preview.revision } })}>编辑此文件</button>}<button onClick={onClose}>关闭预览</button></div>
+    <div><button onClick={() => setRevision(value => value + 1)}>刷新预览</button>{isEditablePreview(preview) && <button onClick={() => onEdit({ root: target.root, path: target.path, initial: { text: preview.text, revision: preview.revision } })}>编辑此文件</button>}<button onClick={onClose}>关闭预览</button></div>
   </dialog>;
 }

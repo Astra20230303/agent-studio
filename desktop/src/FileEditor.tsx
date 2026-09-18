@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { CopyText } from './CopyText';
+import { isEditablePreview } from './editablePreview';
 import { indentSelection } from './editorIndent';
 import { EditorFind } from './FileEditorFind';
 import { editHistory, newEditorHistory, stepHistory } from './editorHistory';
@@ -44,7 +45,7 @@ export function FileEditor({ root, path, initial, onClose, onSaved }: { root: st
       const response = await window.desktop?.workspaceFile?.({ root, path, action: 'read' });
       if (!response?.ok) throw Error(response?.error || '重新读取失败');
       const latest = response.result;
-      if (typeof latest?.text !== 'string' || typeof latest.revision !== 'string' || latest.truncated) throw Error('磁盘文件已无法完整编辑，当前编辑内容已保留');
+      if (!isEditablePreview(latest)) throw Error('磁盘文件已无法完整编辑，当前编辑内容已保留');
       setBaseline(latest); setHistory(newEditorHistory(latest.text.replace(/\r\n/g, '\n'))); onSaved(latest);
     } catch (error) { setError(error instanceof Error ? error.message : String(error)); }
     finally { operation.current = false; setBusy(false); }
