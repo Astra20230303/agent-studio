@@ -15,6 +15,22 @@ async function fixture(t, options = {}) {
 const validate = (service, file) => service.validate('turn/start', { input: [{ type: 'localImage', path: file }] });
 const workerFile = path.join(__dirname, 'fixtures/image-worker-control.cjs');
 
+test('clipboard formats survive worker transfer and attachment preflight unchanged', async t => {
+  const { service, dataRoot } = await fixture(t);
+  const sharp = require('sharp');
+  for (const [format, extension] of [['jpeg', '.jpg'], ['webp', '.webp'], ['gif', '.gif']]) {
+    const data = await sharp({ create: { width: 7, height: 5, channels: 3, background: '#2080b0' } }).toFormat(format).toBuffer();
+    await assert.rejects(service.savePaste(data.subarray(0, 16)));
+    const saved = await service.savePaste(data);
+    assert.equal(path.extname(saved), extension);
+    assert.deepEqual(await fs.readFile(saved), data);
+    await validate(service, saved);
+  }
+  await assert.rejects(service.savePaste(Buffer.alloc(16 * 1024 * 1024 + 1)), /16 MB/);
+  await assert.rejects(service.savePaste(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>')), /格式无效/);
+  assert.equal((await fs.readdir(path.join(dataRoot, 'attachments'))).length, 3);
+});
+
 test('production worker validates files and saves clipboard bytes without bypassing decoder errors', async t => {
   const { service, dataRoot } = await fixture(t);
   const file = path.join(dataRoot, 'invalid.jpg'); await fs.writeFile(file, 'not an image');

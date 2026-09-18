@@ -10,6 +10,12 @@ frame. Renderer acceptance covers each supported MIME type, unsupported SVG,
 pending-save send blocking, source-draft ownership and save errors. Thirteen
 image validation/storage/worker tests and the production build pass.
 
+Post-commit acceptance sends JPEG/WebP/GIF through the real worker, verifies
+byte-for-byte saved content and runs attachment preflight on each output.
+Truncated, unsupported and oversized inputs leave no extra files. All five worker
+tests pass; real Electron PNG clipboard, external data directory and restart
+regressions also pass. No additional product correction was needed.
+
 ## Copy structured tool results
 
 Tool results provide a copy action using the same complete text serialization as
