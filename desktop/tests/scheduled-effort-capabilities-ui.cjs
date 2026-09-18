@@ -70,6 +70,8 @@ async function main() {
     await editor.getByText(/当前强度不在此模型声明/).waitFor();
     assert.equal(await effort.inputValue(), 'xhigh');
     assert.equal(await save.isDisabled(), true);
+    await editor.locator('form').evaluate(form => form.requestSubmit());
+    await editor.getByRole('alert').filter({hasText:'请为此模型重新选择支持的推理强度。'}).waitFor();
     assert.equal(scheduler.detail(sample.id).reasoningEffort, 'xhigh');
     assert.deepEqual(await effort.locator('option:not([disabled])').evaluateAll(nodes => nodes.map(node => node.value)), ['', 'low','high']);
     await effort.selectOption('high');
@@ -84,6 +86,20 @@ async function main() {
     assert.equal(scheduler.detail(sample.id).model, 'Default-Only');
     await page.getByRole('dialog').getByRole('button', { name: '编辑', exact: true }).click();
     assert.equal(await effort.inputValue(), '');
+    // Refresh clears old declarations while saving stays blocked until the catalog settles.
+    await page.evaluate(() => {
+      window.__catalogReleases = [];
+      window.desktop.listModels = () => new Promise(resolve => window.__catalogReleases.push(resolve));
+    });
+    await editor.getByRole('button', {name:'刷新模型',exact:true}).click();
+    await page.waitForFunction(() => window.__catalogReleases.length > 0);
+    assert.equal(await save.isDisabled(), true);
+    await page.evaluate(() => window.__catalogReleases.forEach(resolve => resolve({ok:true,models:['MiniMax-Test','Default-Only']})));
+    await effort.locator('option[value="xhigh"]').waitFor({state:'attached'});
+    await effort.selectOption('xhigh');
+    assert.equal(await save.isEnabled(), true);
+    await save.click(); await editor.waitFor({state:'detached'});
+    assert.equal(scheduler.detail(sample.id).reasoningEffort, 'xhigh');
     assert.deepEqual(errors, []);
     console.log('PASS: scheduled effort choices follow model declarations, preserve invalid old values, and save an explicit default correction');
   } finally { await scheduler.stop(); if (browser) await browser.close(); await new Promise(resolve => server.close(resolve)); }
