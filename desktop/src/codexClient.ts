@@ -78,3 +78,14 @@ export async function steerTurn(threadId: string, expectedTurnId: string, text: 
 export async function listThreads(cursor?: string, searchTerm?: string) { return unwrap<any>(bridge().request('thread/list', { modelProviders: [], limit: 100, ...(searchTerm ? { searchTerm } : {}), sortKey: 'recency_at', sortDirection: 'desc', ...(cursor ? { cursor } : {}) })); }
 export async function searchThreads(searchTerm: string, cursor?: string, archived = false) { return unwrap<any>(bridge().request('thread/search', { searchTerm, archived, limit: 100, sortKey: 'recency_at', sortDirection: 'desc', ...(cursor ? { cursor } : {}) })); }
 export function subscribeCodex(handlers: { notification?: (message: RpcMessage) => void; serverRequest?: (message: RpcMessage) => void; error?: (message: any) => void; stderr?: (message: any) => void; closed?: (message: any) => void }) { const cleanups = [handlers.notification && bridge()?.onNotification(handlers.notification), handlers.serverRequest && bridge()?.onServerRequest(handlers.serverRequest), handlers.error && bridge()?.onError(handlers.error), handlers.stderr && bridge()?.onStderr(handlers.stderr), handlers.closed && bridge()?.onClosed(handlers.closed)].filter(Boolean) as Array<() => void>; return () => cleanups.forEach(cleanup => cleanup()); }
+export type BackgroundTerminal = { processId: string; command: string; cwd: string; osPid?: number | null };
+export async function listBackgroundTerminals(threadId: string, cursor?: string) {
+  const result = await unwrap<{ data: BackgroundTerminal[]; nextCursor?: string | null }>(bridge().request('thread/backgroundTerminals/list', { threadId, limit: 50, ...(cursor ? { cursor } : {}) }));
+  if (!Array.isArray(result?.data) || !result.data.every(item => item && typeof item.processId === 'string' && typeof item.command === 'string' && typeof item.cwd === 'string') || result.nextCursor != null && typeof result.nextCursor !== 'string') throw Error('后台命令列表格式无效');
+  return result;
+}
+export async function terminateBackgroundTerminal(threadId: string, processId: string) {
+  const result = await unwrap<{ terminated: boolean }>(bridge().request('thread/backgroundTerminals/terminate', { threadId, processId }));
+  if (typeof result?.terminated !== 'boolean') throw Error('后台命令终止响应无效');
+  return result.terminated;
+}
