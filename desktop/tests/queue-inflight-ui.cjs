@@ -50,6 +50,8 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', {name:'重试保存队列',exact:true}).waitFor();
     assert.ok(await page.getByRole('button', {name:'编辑排队消息：in-flight',exact:true}).isDisabled());
     assert.ok(await page.getByRole('button', {name:'取消排队：in-flight',exact:true}).isDisabled());
+    assert.ok(await page.getByRole('button', {name:'下移排队消息：in-flight',exact:true}).isDisabled());
+    assert.ok(await page.getByRole('button', {name:'上移排队消息：successor',exact:true}).isDisabled());
     await page.evaluate(() => { window.__quota = false; });
     await page.getByRole('button', {name:'重试保存队列',exact:true}).click();
     await page.getByRole('button', {name:'重试保存队列',exact:true}).waitFor({state:'hidden'});

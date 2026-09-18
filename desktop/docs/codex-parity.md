@@ -10,6 +10,12 @@ path persists order; failed writes retain the original order. Four queue tests,
 browser persistence-failure/retry and reordered turn/start payload acceptance,
 and the production build pass. Resume remains an explicit user action.
 
+Post-commit acceptance verifies serialization/restoration retains the new order
+and attachments while pausing all restored entries, and inverse movement restores
+the original order. Browser in-flight acceptance confirms neither the sending
+message nor its paused successor can cross that boundary, including during a
+storage failure. No product correction was required.
+
 ## Queue editor lifecycle follows the current queue
 
 The editor is identified by message ID and resolved against the current paused

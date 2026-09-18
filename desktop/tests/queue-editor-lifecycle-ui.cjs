@@ -15,7 +15,7 @@ const assert = require('node:assert/strict');
       window.__b = { ...window.__a, id: 'b', localId: 'thread-b', threadId: 'remote-b', text: 'B' };
       window.__saved = []; window.__resumed = 0;
       window.__renderQueue = items => root.render(React.createElement(TurnQueue, {
-        items, disabled: false, onRemove: () => {}, onPause: () => {},
+        items, disabled: false, onRemove: () => {}, onPause: () => {}, onMove: () => {},
         onResume: () => window.__resumed++, onBeginEdit: () => true,
         onEdit: (...args) => { window.__saved.push(args); return true; },
       }));

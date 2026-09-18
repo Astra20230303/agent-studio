@@ -17,6 +17,11 @@ test('reordering swaps paused neighbors within one thread, preserves other threa
     assert.equal(moveQueuedTurn(locked, 'q', 1), locked);
   }
   assert.deepEqual(queue, [first, other, last]);
+  const moved = moveQueuedTurn(queue, 'last', -1);
+  const restored = restoreQueue(JSON.stringify(moved));
+  assert.deepEqual(restored.map(({ id, attachments }) => ({ id, attachments })), moved.map(({ id, attachments }) => ({ id, attachments })));
+  assert.ok(restored.every(item => item.status === 'paused'));
+  assert.deepEqual(moveQueuedTurn(moved, 'last', 1), queue);
 });
 test('manual pause is thread-scoped and does not reclassify an in-flight send', () => {
   const queue = [item, { ...item, id: 'sending', status: 'sending' }, { ...item, id: 'other', localId: 'elsewhere' }];
