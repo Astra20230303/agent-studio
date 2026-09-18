@@ -2598,3 +2598,5 @@ remains low. The expanded browser flow passes without further product changes.
 验收：`audit-lifecycle-ui.cjs` 验证重命名与归档事件顺序及正文隔离；`audit-log-ui.cjs`、`renderer-storage.test.cjs` 和生产构建回归通过。
 
 修正验收：补齐侧栏归档和消息级分叉记录；会话切换详情改用本机 ID，避免自动标题或消息内容进入审计日志。生命周期、审批失败重试、存储校验和生产构建回归通过。
+
+会话变更一致性修正：归档恢复纳入审计；断线时远端归档/删除不再伪造本地成功，纯本机会话仍可离线归档。浏览器与构建验收通过。
