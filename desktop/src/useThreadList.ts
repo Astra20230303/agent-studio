@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { DesktopState } from './domain';
-import { threadRepository } from './codexClient';
+import { threadRepository } from './threadQueries';
 
 export function useThreadList(connected: boolean, setState: Dispatch<SetStateAction<DesktopState>>, search = '') {
   const query = search.trim();

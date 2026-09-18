@@ -11,6 +11,7 @@ const assert = require('node:assert/strict');
       window.desktop = { listModels: async () => ({ ok: true, models: ['test'] }) };
       window.codex = { connect: async () => ({ ok: true }), request: async (method, params) => {
         window.__calls.push({ method, params });
+        if(method==='thread/search'&&window.__brokenSearch)return {ok:true,result:{data:[{thread:{id:'saved',name:'Saved'},snippet:'valid'},{thread:{id:window.__brokenSearch},snippet:'broken'}]}};
         if (method === 'thread/list' && params.archived && window.__brokenPage) return { ok: true, result: { data: [], nextCursor: {} } };
         if(method==='thread/search'&&params.searchTerm==='slow')return new Promise(resolve=>{window.__slow=()=>resolve({ok:true,result:{data:[{thread:{id:'late',name:'Late archive'},snippet:'slow content'}]}});});
         if(method==='thread/search'&&params.searchTerm==='cycle')return {ok:true,result:{data:[{thread:{id:'cycle',name:'Cycle archive'},snippet:'cycle content'}],nextCursor:params.cursor==='A'?'B':'A'}};
@@ -39,6 +40,17 @@ const assert = require('node:assert/strict');
     await page.getByText('Keep this archived content',{exact:true}).waitFor();
     assert.ok(await page.evaluate(()=>window.__calls.some(item=>item.method==='thread/search'&&item.params.archived===true)));
     assert.equal(await page.getByRole('button',{name:'恢复 Local title',exact:true}).count(),0);
+    for(const badId of [7,' ']) {
+      await page.evaluate(id=>{window.__brokenSearch=id;},badId);
+      await page.getByRole('button',{name:'刷新归档',exact:true}).click();
+      await page.getByRole('alert').filter({hasText:'会话搜索结果无效'}).waitFor();
+      await page.getByText('Keep this archived content',{exact:true}).waitFor();
+      assert.equal(await page.getByText('broken',{exact:true}).count(),0);
+    }
+    await page.evaluate(()=>{window.__brokenSearch=false;});
+    await page.getByRole('button',{name:'刷新归档',exact:true}).click();
+    await page.getByRole('alert').waitFor({state:'hidden'});
+    await page.getByText('Keep this archived content',{exact:true}).waitFor();
     await page.getByRole('button',{name:'清除归档搜索',exact:true}).click();
     await page.getByRole('button', { name: '加载更多归档' }).click();
     await page.getByRole('button', { name: '恢复 Older' }).waitFor();

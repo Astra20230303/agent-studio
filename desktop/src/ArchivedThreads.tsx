@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { RotateCcw, X } from 'lucide-react';
-import { threadRepository } from './codexClient';
+import { threadRepository } from './threadQueries';
 import type { Thread } from './domain';
 
 export function ArchivedThreads({ threads, connected, onRestore, onClose }: { threads: Thread[]; connected: boolean; onRestore: (thread: Thread) => Promise<void>; onClose: () => void }) {

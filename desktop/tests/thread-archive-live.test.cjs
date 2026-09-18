@@ -60,6 +60,15 @@ test('real app-server archives, paginates and restores isolated conversations', 
     const searched = await client.searchThreads('Archive test completed', undefined, true);
     assert.deepEqual(searched.data.map(item => item.thread.id), [ids[1]]);
     assert.match(searched.data[0].snippet, /Archive test completed/);
+    const { createThreadRepository } = require('../src/threadRepository.ts');
+    const repository = createThreadRepository({ list: client.listThreads, archived: client.listArchivedThreads, search: client.searchThreads });
+    assert.deepEqual((await repository.query({ archived: true })).data.map(thread => thread.id), [ids[1]]);
+    assert.ok((await repository.query()).data.some(thread => thread.id === ids[0]));
+    for (const archivedScope of [false, true]) {
+      const page = await repository.query({ archived: archivedScope, search: ' Archive test completed ' });
+      assert.deepEqual(page.data.map(thread => thread.id), [ids[archivedScope ? 1 : 0]]);
+      assert.match(page.data[0].snippet, /Archive test completed/);
+    }
     const { createThreadMutations } = require('../src/threadMutations.ts');
     const localState = { threads: [], activeThreadId: 'current-selection' };
     const mutations = createThreadMutations({ restore: client.unarchiveThread }, mutate => mutate(localState));
