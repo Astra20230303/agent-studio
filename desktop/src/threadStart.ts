@@ -1,5 +1,5 @@
 import { readThreadPermissions } from './threadPermissions.ts';
-export type ThreadStartOptions = { cwd?: string; model?: string; modelProvider?: string; providerId?: string; effort?: string; permission?: 'on-request' | 'workspace-write' | 'danger-full-access' };
+export type ThreadStartOptions = { cwd?: string; model?: string; modelProvider?: string; providerId?: string; projectId?: string; effort?: string; permission?: 'on-request' | 'workspace-write' | 'danger-full-access' };
 export function readThreadStart(value: any) {
   const object = (item: any) => item && typeof item === 'object' && !Array.isArray(item);
   if (!object(value) || !object(value.thread) || typeof value.thread.id !== 'string' || !value.thread.id.trim()

@@ -1,7 +1,7 @@
 const{chromium}=require('playwright');const assert=require('node:assert/strict');
 (async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
  const page=await browser.newPage();await page.addInitScript(()=>{
-  localStorage.setItem('codex-desktop-state-v1',JSON.stringify({model:'test',activeThreadId:'a',threads:[{id:'a',title:'新对话',messages:[],status:'idle',updatedAt:''}]}));window.__calls=[];
+  localStorage.setItem('codex-desktop-state-v1',JSON.stringify({model:'test',activeProjectId:'project-a',activeThreadId:'a',threads:[{id:'a',title:'新对话',messages:[],status:'idle',updatedAt:''}]}));window.__calls=[];
   window.desktop={listModels:async()=>({ok:true,models:['test']}),providerStatus:async()=>({keyConfigured:true})};
   window.codex={connect:async()=>({ok:true}),notify:async()=>({}),request:async(method,params)=>{
    window.__calls.push({method,params});
@@ -27,6 +27,7 @@ const{chromium}=require('playwright');const assert=require('node:assert/strict')
  assert.equal(await page.evaluate(()=>window.__calls.filter(c=>c.method==='thread/start').length),attempts+1);assert.ok(await send.isDisabled());assert.equal(await input.inputValue(),'Retain this draft');
  await page.evaluate(()=>window.__release());await page.waitForFunction(()=>window.__calls.some(c=>c.method==='turn/start'));
  const sent=await page.evaluate(()=>window.__calls.find(c=>c.method==='turn/start').params);assert.equal(sent.threadId,'remote-good');assert.equal(sent.input[0].text,'Retain this draft');
+ assert.equal((await page.evaluate(()=>window.__calls.find(c=>c.method==='thread/start').params)).projectId,'project-a');
  await page.waitForFunction(()=>document.querySelector('textarea[aria-label="消息"]').value==='');
  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads[0].providerId),'confirmed');
  console.log('PASS: malformed creation cannot bind/send, retains draft, deduplicates pending request and retries successfully');
