@@ -1,0 +1,71 @@
+const { _electron: electron } = require('playwright');
+const assert = require('node:assert/strict');
+const fsp = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
+
+(async () => {
+  const project = path.resolve(__dirname, '../..');
+  const scratch = await fsp.mkdtemp(path.join(os.tmpdir(), 'felix-workspace-electron-'));
+  const root = path.join(scratch, 'workspace');
+  const profile = path.join(scratch, 'profile');
+  await fsp.mkdir(path.join(root, 'src', 'nested'), { recursive: true });
+  await fsp.writeFile(path.join(root, 'src', 'nested', 'example.txt'), 'Needle needle\nneedles\n');
+  await fsp.writeFile(path.join(root, 'root.txt'), 'needle');
+  let app;
+  try {
+    const env = { ...process.env, FELIX_DATA_DIR: profile };
+    for (const key of ['ELECTRON_RUN_AS_NODE', 'CODEX_APP_SERVER_COMMAND', 'VITE_DEV_SERVER_URL', 'MINIMAX_API_KEY']) delete env[key];
+    app = await electron.launch({ executablePath: require('electron'), args: [path.join(project, 'desktop/electron/main.cjs')], env, timeout: 30000 });
+    const page = await app.firstWindow();
+    await page.getByRole('textbox', { name: '消息', exact: true }).waitFor({ timeout: 30000 });
+    const result = await page.evaluate(async rootPath => {
+      const read = await window.desktop.workspaceFile({ root: rootPath, path: 'src/nested/example.txt', action: 'read' });
+      const content = await window.desktop.workspaceFile({ root: rootPath, path: 'src', action: 'search-content', query: 'needle', searchOptions: { wholeWord: true } });
+      const name = await window.desktop.workspaceFile({ root: rootPath, path: 'src', action: 'search', query: 'example' });
+      return { read, content, name };
+    }, root);
+    assert.equal(result.read.ok, true);
+    assert.match(result.read.result.text, /Needle needle/);
+    assert.equal(result.content.ok, true);
+    assert.deepEqual(result.content.result.entries.map(entry => [entry.path, entry.line, entry.column, entry.matchLength]), [[path.join('src', 'nested', 'example.txt'), 1, 1, 6], [path.join('src', 'nested', 'example.txt'), 1, 8, 6]]);
+    assert.equal(result.name.ok, true);
+    assert.deepEqual(result.name.result.entries.map(entry => entry.path), [path.join('src', 'nested', 'example.txt')]);
+    const saved = await page.evaluate(rootPath => window.desktop.storage.write('codex-desktop-state-v1', JSON.stringify({ activeProjectId: 'fixture', projects: [{ id: 'fixture', path: rootPath, name: 'Search fixture', git: {} }], threads: [] })), root);
+    assert.equal(saved.ok, true);
+    await page.reload();
+    await page.getByRole('button', { name: '浏览工作区文件', exact: true }).click();
+    const panel = page.getByRole('region', { name: '工作区文件', exact: true });
+    await panel.getByRole('button', { name: '▸ src', exact: true }).click();
+    await panel.getByRole('button', { name: '▸ nested', exact: true }).waitFor();
+    await panel.getByRole('combobox', { name: '文件搜索范围' }).selectOption('directory');
+    await panel.getByRole('combobox', { name: '文件搜索方式' }).selectOption('content');
+    await panel.getByRole('checkbox', { name: '全字匹配' }).check();
+    await panel.getByRole('checkbox', { name: '区分大小写' }).check();
+    const input = panel.getByRole('textbox', { name: '查找工作区文件' });
+    await input.fill('needle');
+    await input.press('Enter');
+    await panel.locator('.workspace-file-row').waitFor();
+    assert.equal(await panel.locator('.workspace-file-row').count(), 1);
+    assert.match(await panel.locator('.workspace-file-row').innerText(), /:1:8/);
+    await input.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await panel.locator('mark[data-search-match]').waitFor();
+    assert.equal(await panel.locator('mark[data-search-match]').innerText(), 'needle');
+    await panel.getByRole('button', { name: '展开文件预览', exact: true }).click();
+    const preview = page.getByRole('dialog', { name: '消息文件预览' });
+    await preview.locator('mark[data-search-match]').waitFor();
+    assert.equal(await preview.locator('mark[data-search-match]').evaluate(el => el.previousSibling.textContent), 'Needle ');
+    const revision = result.read.result.revision;
+    await fsp.appendFile(path.join(root, 'src', 'nested', 'example.txt'), 'changed');
+    const changed = await page.evaluate(async rootPath => window.desktop.workspaceFile({ root: rootPath, path: 'src/nested/example.txt', action: 'read' }), root);
+    assert.notEqual(changed.result.revision, revision);
+    await preview.getByRole('button', { name: '刷新预览', exact: true }).click();
+    await preview.getByText('文件在搜索后已变化，未定位旧搜索行；请重新搜索或手动跳转。', { exact: true }).waitFor();
+    assert.equal(await preview.locator('mark[data-search-match]').count(), 0);
+    console.log('PASS: real Electron UI, preload IPC, directory scope, search options, keyboard open, exact preview range and stale revision handling');
+  } finally {
+    if (app) await app.close();
+    await fsp.rm(scratch, { recursive: true, force: true });
+  }
+})().catch(error => { console.error(error); process.exitCode = 1; });
