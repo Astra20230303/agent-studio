@@ -1,9 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { automaticThreadTitle, ensureThreadTitle, loadState, defaultState, createThread, appendMessage } = require('../src/store.ts');
-
-const values = new Map();
-global.localStorage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+const { automaticThreadTitle, ensureThreadTitle, decodeState, defaultState, createThread, appendMessage } = require('../src/store.ts');
 
 test('first send names an existing empty chat and subsequent messages preserve it', () => {
   const state = defaultState();
@@ -23,8 +20,7 @@ test('legacy default titles are repaired on load, without renaming empty or manu
     { id: 'manual', title: '新对话', titleSource: 'manual', messages: [{ role: 'user', content: '保留手动标题' }] },
     { id: 'named', title: '发布检查', messages: [{ role: 'user', content: '原始消息' }] },
   ];
-  localStorage.setItem('codex-desktop-state-v1', JSON.stringify(state));
-  assert.deepEqual(loadState().threads.map(thread => thread.title), ['修复历史会话标题', '新对话', '新对话', '发布检查']);
+  assert.deepEqual(decodeState(JSON.stringify(state)).threads.map(thread => thread.title), ['修复历史会话标题', '新对话', '新对话', '发布检查']);
 });
 
 test('long titles keep enough content to scroll and truncate on grapheme boundaries', () => {

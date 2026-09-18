@@ -55,7 +55,8 @@ import { Globe } from 'lucide-react';
 import { StrictMode, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { ReactNode, ClipboardEvent } from 'react';
 import { createRoot } from 'react-dom/client';
-import { appendMessage, automaticThreadTitle, createThread, ensureThreadTitle, loadState, saveState } from './store';
+import { appendMessage, automaticThreadTitle, createThread, ensureThreadTitle } from './store';
+import { stateRepository } from './stateRepository';
 import { StorageGate } from './StorageGate';
 import type { DesktopState, Project } from './domain';
 import { failureMessage, recordTurnFailure } from './turnFailure';
@@ -89,8 +90,8 @@ function projectLabel(pathOrName?: string) {
   return pathOrName?.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || pathOrName;
 }
 
-function App() {
-  const [state, setState] = useState<DesktopState>(() => { const loaded = loadState(); loaded.model = modelId(loaded.model); return loaded; });
+function App({ initialState }: { initialState: DesktopState }) {
+  const [state, setState] = useState<DesktopState>(() => ({ ...initialState, model: modelId(initialState.model) }));
   const audit = useAuditLog();
   const effectiveTheme = useTheme(state.theme);
   const [stateSaveFailed, setStateSaveFailed] = useState(false);
@@ -201,7 +202,7 @@ function App() {
   const threads = useMemo(() => state.threads.filter(thread => !thread.archived && (thread.title.toLowerCase().includes(search.trim().toLowerCase()) || thread.messages.some(message => message.content.toLowerCase().includes(search.trim().toLowerCase())) || !!thread.remoteId && threadList.matchingIds.includes(thread.remoteId))).slice().sort((a, b) => Number(b.pinned) - Number(a.pinned) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt)), [state.threads, search, threadList.matchingIds]);
   useEffect(() => {
     let disposed = false;
-    void saveState(state).then(saved => { if (!disposed) setStateSaveFailed(!saved); });
+    void stateRepository.save(state).then(() => { if (!disposed) setStateSaveFailed(false); }, () => { if (!disposed) setStateSaveFailed(true); });
     return () => { disposed = true; };
   }, [state, stateSaveAttempt]);
   const refreshProviders = () => window.desktop?.listProviders?.().then((items: any[]) => {
@@ -1028,4 +1029,4 @@ function ProviderSettings({ audit, state, update, toast }: { audit: ReturnType<t
 }
 
   declare global { interface Window { desktop?: WindowFrameBridge & { storage?: import('./persistentStorage').StorageBridge; platform?: string; savePastedImage?: (bytes: Uint8Array) => Promise<{ ok: boolean; path?: string; error?: string }>; droppedFilePaths?: (files: File[]) => string[]; saveTaskOutput?: (input: { filename: string; content: string }) => Promise<{ ok: boolean; canceled?: boolean; error?: string }>; saveTerminal?: (input: { filename: string; content: string }) => Promise<{ ok: boolean; canceled?: boolean; error?: string }>; saveConversation?: (input: { filename: string; content: string }) => Promise<{ ok: boolean; canceled?: boolean; error?: string }>;  openExternal?: (url: string) => Promise<void>; terminal?: import('./TerminalPanel').TerminalBridge; artifact?: (input: any) => Promise<any>; toggleMaximize: () => Promise<{ maximized?: boolean }>; minimize?: () => Promise<void>; close?: () => Promise<void>; providerStatus?: (providerId?: string) => Promise<any>; saveProvider?: (input: { id?: string; activate?: boolean; manualModel?: boolean; name: string; baseUrl: string; apiKey: string; model: string }) => Promise<{ ok: boolean; id?: string; error?: string }>; listProviders?: () => Promise<any[]>; threadProvider?: (threadId: string) => Promise<string | undefined>; deleteProvider?: (id: string) => Promise<{ ok: boolean; error?: string }>; activateProvider?: (id: string) => Promise<{ ok: boolean; model?: string; error?: string }>; listModels?: (input?: { providerId: string } | { id?: string; baseUrl: string; apiKey: string }) => Promise<any>; workspaceGit?: (input: any) => Promise<any>; workspaceFile?: (input: { root: string; path: string; action: string; query?: string; searchOptions?: { caseSensitive?: boolean; wholeWord?: boolean }; edit?: { text: string; revision: string } }) => Promise<any>; pickProject?: () => Promise<import('./domain').Project | null>; getProjectRoot?: () => Promise<string>; pickFiles?: () => Promise<string[]>; readExtensionFile?: (path: string, kind: 'image' | 'skill') => Promise<any>; listTasks?: () => Promise<any>; saveTask?: (input: any) => Promise<any>; setTaskStatus?: (id: string, status: string) => Promise<any>; runTask?: (id: string) => Promise<any>; cancelTask?: (id: string) => Promise<any>; deleteTask?: (id: string) => Promise<any>; taskDetail?: (id: string) => Promise<any>; validateAttachment?: (path: string) => Promise<{ ok: boolean; error?: string }>; onTasksChanged?: (listener: (message?: { error?: string }) => void) => () => void }; codex?: any } }
-createRoot(document.getElementById('root')!).render(<StrictMode><WindowFrame><StorageGate><App /></StorageGate></WindowFrame></StrictMode>);
+createRoot(document.getElementById('root')!).render(<StrictMode><WindowFrame><StorageGate>{state => <App initialState={state} />}</StorageGate></WindowFrame></StrictMode>);

@@ -1,8 +1,4 @@
 import type { DesktopState, Message, Thread } from './domain';
-import { persistentStorage } from './persistentStorage.ts';
-
-const KEY = 'codex-desktop-state-v1';
-
 const now = () => new Date().toISOString();
 const id = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
 
@@ -18,9 +14,9 @@ export const defaultState = (): DesktopState => ({
   ,providers: []
 });
 
-export function loadState(): DesktopState {
+export function decodeState(raw: string | null): DesktopState {
   try {
-    const parsed = JSON.parse(persistentStorage.getItem(KEY) ?? '{}');
+    const parsed = JSON.parse(raw ?? '{}');
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw Error('会话数据格式无效');
     const state: DesktopState = { ...defaultState(), ...parsed };
     if (!Array.isArray(state.threads) || !state.threads.every(thread => thread && typeof thread.id === 'string' && typeof thread.title === 'string' && Array.isArray(thread.messages) && thread.messages.every(message => message && typeof message.content === 'string'))
@@ -35,11 +31,6 @@ export function loadState(): DesktopState {
     return state;
   }
   catch { throw Error('会话和设置读取失败，原始数据已保留。请修复数据后重试读取。'); }
-}
-
-export async function saveState(state: DesktopState): Promise<boolean> {
-  try { await persistentStorage.setItem(KEY, JSON.stringify(state)); return true; }
-  catch { return false; }
 }
 
 export function automaticThreadTitle(thread?: Thread, incoming?: string): string | undefined {
