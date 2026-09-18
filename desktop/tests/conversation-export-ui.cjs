@@ -15,7 +15,7 @@ const assert = require('node:assert/strict');
           if (window.__badCursor && params.cursor) return { ok: true, result: { data: [], nextCursor: { invalid: true } } };
           return { ok: true, result: params.cursor ? { data: [null,42,{item:null},{ item: { type: 'agentMessage', text: 'Final reply' } }, { item: { type: 'futureTool', payload: '``` nested ```' } }], nextCursor: null } : { data: [{ item: { type: 'userMessage', content: [{ type: 'text', text: '你好' }, { type: 'localImage', path: 'D:/image.png' }] } }, { item: { type: 'commandExecution', command: 'pwd', aggregatedOutput: 'D:/workspace' } }], nextCursor: 'second' } };
         }
-        return { ok: true, result: method === 'thread/resume' ? { thread: { turns: [] } } : { data: [] } };
+        return { ok: true, result: method === 'thread/resume' ? { thread: { id: params.threadId, turns: [] } } : { data: [] } };
       }, onNotification: () => () => {}, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
     });
     await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');

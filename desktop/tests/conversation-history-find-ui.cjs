@@ -17,12 +17,12 @@ const assert = require('node:assert/strict');
       window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async (method, params) => {
         if (method === 'thread/items/list') {
           window.__pages.push(params);
-          if (window.__hold) await new Promise(resolve => { window.__release = resolve; });
+          if (window.__hold && (!window.__holdSecond || params.cursor)) await new Promise(resolve => { window.__release = resolve; });
           if (window.__fail) return { ok: false, error: 'History offline' };
           if (window.__invalid && params.cursor) return { ok: true, result: { data: [{ item: { type: 'agentMessage', text: 'Missing ID' } }], nextCursor: null } };
           return { ok: true, result: params.cursor ? { data: [{ item: { type: 'agentMessage', id: 'old-reply', text: 'Historical discovery' } }], nextCursor: null } : { data: [{ item: { type: 'userMessage', id: 'old-user', content: [{ type: 'text', text: 'Earlier question' }] } }], nextCursor: 'next' } };
         }
-        return { ok: true, result: method === 'thread/resume' ? { thread: { turns: [] } } : { data: [] } };
+        return { ok: true, result: method === 'thread/resume' ? { thread: { id: params.threadId, turns: [] } } : { data: [] } };
       }, onNotification: fn => { window.__notify = fn; return () => {}; }, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
     });
     await page.goto(process.env.FELIX_TEST_URL || 'http://127.0.0.1:5318');
@@ -46,13 +46,28 @@ const assert = require('node:assert/strict');
     await page.getByRole('status').filter({ hasText: '服务端历史条目无效，已有消息已保留' }).waitFor();
     assert.equal(await page.locator('.conversation-find-match').getAttribute('data-message-id'), 'live-old-reply');
     await page.evaluate(() => { window.__invalid = false; window.__pages = []; });
+    await page.evaluate(() => { window.__hold = true; window.__holdSecond = true; window.__release = undefined; });
+    await page.getByRole('button', { name: '加载完整历史', exact: true }).click();
+    await page.getByRole('status').filter({hasText:'已读取 1 页，1 条记录'}).waitFor();
+    await page.waitForFunction(()=>Boolean(window.__release));
+    await page.getByRole('button',{name:'取消加载历史',exact:true}).click();
+    await page.getByRole('status').filter({hasText:'已取消加载，已有消息保留'}).waitFor();
+    assert.ok(await page.getByRole('button',{name:'加载完整历史',exact:true}).isEnabled());
+    assert.equal(await page.locator('.conversation-find-match').getAttribute('data-message-id'),'live-old-reply');
+    await page.evaluate(()=>{window.__hold=false;window.__lateRelease=window.__release;});
+    await page.getByRole('button',{name:'加载完整历史',exact:true}).click();
+    await page.getByRole('status').filter({hasText:'历史已加载'}).waitFor();
+    await page.evaluate(()=>{window.__lateRelease();return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));});
+    assert.equal(await page.evaluate(()=>window.__pages.length),4);
+    await page.getByRole('status').filter({hasText:'历史已加载'}).waitFor();
+    await page.evaluate(()=>{window.__pages=[];window.__holdSecond=false;window.__release=undefined;});
     await page.evaluate(() => { window.__fail = false; window.__hold = true; });
     await page.getByRole('button', { name: '加载完整历史', exact: true }).click();
     await page.waitForFunction(() => Boolean(window.__release));
     await page.getByRole('button', { name: '新对话', exact: true }).click();
     await page.evaluate(() => { window.__hold = false; window.__release(); });
-    await page.waitForFunction(() => window.__pages.length === 2);
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    assert.equal(await page.evaluate(()=>window.__pages.length),1);
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.find(t => t.id !== 'a').messages.length), 0);
     assert.equal(await page.getByText('Historical discovery', { exact: true }).count(), 0);
   } finally { await browser.close(); }
