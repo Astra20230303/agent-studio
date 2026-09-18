@@ -9,6 +9,18 @@ const cache = path.resolve(__dirname, '../../.project-cache/tmp');
 fs.mkdirSync(cache, { recursive: true });
 const temp = () => fs.mkdtempSync(path.join(cache, 'felix-tasks-'));
 
+test('failed task keeps its conversation reference and partial output across restart', async () => {
+  const directory = temp();
+  const scheduler = new TaskScheduler({directory,runner:async()=>{throw Object.assign(Error('model failed'),{threadId:'failed-thread',output:'partial output'});}});
+  const saved = scheduler.save(task({kind:'agent',model:'test'}));
+  await scheduler.run(saved.id); await scheduler.stop();
+  const restarted = new TaskScheduler({directory,runner:async()=>({})});
+  try {
+    const run = restarted.detail(saved.id).runs[0];
+    assert.equal(run.status,'failed');assert.equal(run.threadId,'failed-thread');assert.equal(run.output,'partial output');
+  } finally {await restarted.stop();}
+});
+
 test('agent workspace is persisted and relative paths are rejected', () => {
   const directory = temp(); const cwd = temp();
   const scheduler = new TaskScheduler({ directory, runner: async () => ({}) });

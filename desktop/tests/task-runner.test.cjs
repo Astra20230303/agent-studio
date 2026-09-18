@@ -98,7 +98,7 @@ test('cancellation closes active model connections and terminates the dedicated 
   try {
     const runner = createTaskRunner(root, { apiKey: () => 'local-test', upstream: `http://127.0.0.1:${server.address().port}`, timeoutMs: 8000 });
     const done = runner(task, { signal: controller.signal, runId: randomUUID() });
-    const rejected = assert.rejects(done, /停止|超过/);
+    const rejected = assert.rejects(done, error => { assert.match(error.message, /停止|超过/); assert.equal(typeof error.threadId, 'string'); assert.ok(error.threadId); return true; });
     await Promise.race([requested, done.catch(() => {})]); controller.abort(); await rejected;
   } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
 });
