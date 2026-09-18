@@ -213,6 +213,12 @@ ipcMain.handle('desktop:pick-files', async event => {
   const result = await dialog.showOpenDialog(win, { title: '选择附件', properties: ['openFile', 'multiSelections'] });
   return result.canceled ? [] : result.filePaths;
 });
+ipcMain.handle('desktop:validate-attachment', async (_event, filename) => {
+  try {
+    await require('./attachment-validation.cjs').validateImageInputs('turn/start', { input: [{ type: 'localImage', path: filename }] });
+    return { ok: true };
+  } catch (error) { return { ok: false, error: error.message }; }
+});
 ipcMain.handle('desktop:save-conversation', (event, input) => require('./conversation-export.cjs').saveConversation(input, options => dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender), options)));
 ipcMain.handle('desktop:save-terminal', (event, input) => require('./conversation-export.cjs').saveTerminal(input, options => dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender), options)));
 ipcMain.handle('desktop:save-task-output', (event, input) => require('./conversation-export.cjs').saveTerminal(input, options => dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender), { ...options, title: '导出任务结果' })));

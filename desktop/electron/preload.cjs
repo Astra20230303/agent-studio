@@ -48,6 +48,7 @@ contextBridge.exposeInMainWorld('desktop', {
   workspaceGit: input => ipcRenderer.invoke('desktop:workspace-git', input),
   pickProject: () => ipcRenderer.invoke('desktop:pick-project'),
   pickFiles: () => ipcRenderer.invoke('desktop:pick-files'),
+  validateAttachment: path => ipcRenderer.invoke('desktop:validate-attachment', path),
   saveConversation: input => ipcRenderer.invoke('desktop:save-conversation', input),
   saveTerminal: input => ipcRenderer.invoke('desktop:save-terminal', input),
   saveTaskOutput: input => ipcRenderer.invoke('desktop:save-task-output', input),
