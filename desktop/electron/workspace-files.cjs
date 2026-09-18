@@ -3,7 +3,7 @@ const path = require('node:path');
 const { createHash, randomUUID } = require('node:crypto');
 const { readTextPreview, TEXT_PREVIEW_LIMIT } = require('./text-preview.cjs');
 const revision = bytes => createHash('sha256').update(bytes).digest('hex');
-async function workspaceFile(root, name = '.', action = 'list', query = '', edit) {
+async function workspaceFile(root, name = '.', action = 'list', query = '', edit, searchOptions = {}) {
   if (typeof root !== 'string' || !path.isAbsolute(root) || typeof name !== 'string') throw Error('无效工作区路径');
   root = await fs.realpath(root);
   const target = await fs.realpath(path.resolve(root, name));
@@ -27,10 +27,14 @@ async function workspaceFile(root, name = '.', action = 'list', query = '', edit
   }
   if (action === 'search' || action === 'search-content') {
     const contentSearch = action === 'search-content';
+    if (!searchOptions || typeof searchOptions !== 'object' || ['caseSensitive', 'wholeWord'].some(key => searchOptions[key] !== undefined && typeof searchOptions[key] !== 'boolean')) throw Error('无效搜索选项');
     if (typeof query !== 'string' || !query.trim()) return { entries: [], truncated: false, skipped: 0 };
     const term = (contentSearch ? query.trim() : query.trim().replace(/\\/g, '/')).toLowerCase();
     if (term.length > 1000 || term.includes('\n') || term.includes('\r')) throw Error('请输入不超过 1000 字符的单行关键词');
-    const contentPattern = contentSearch ? new RegExp(query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'iu') : undefined;
+    const literal = query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Keep matching on the original text so Unicode case folding cannot shift columns.
+    const word = '[\\p{L}\\p{N}\\p{M}_]';
+    const contentPattern = contentSearch ? new RegExp(searchOptions.wholeWord ? `(?<!${word})${literal}(?!${word})` : literal, searchOptions.caseSensitive ? 'u' : 'iu') : undefined;
     let scannedBytes = 0;
     const entries = []; const pending = [target]; let visited = 0; let skipped = 0; let truncated = false;
     while (pending.length && !truncated) {

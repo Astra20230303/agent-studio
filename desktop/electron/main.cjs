@@ -197,7 +197,7 @@ ipcMain.handle('desktop:workspace-git', async (_event, input) => {
   catch (error) { return { ok: false, error: error.message }; }
 });
 ipcMain.handle('desktop:workspace-file', async (_event, input) => {
-  try { return { ok: true, result: await require('./workspace-files.cjs').workspaceFile(input.root, input.path, input.action, input.query, input.edit) }; }
+  try { return { ok: true, result: await require('./workspace-files.cjs').workspaceFile(input.root, input.path, input.action, input.query, input.edit, input.searchOptions) }; }
   catch (error) { return { ok: false, error: error.message }; }
 });
 ipcMain.handle('desktop:pick-project', async () => {
