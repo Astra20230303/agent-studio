@@ -24,7 +24,16 @@ export function FileEditor({ root, path, initial, onClose, onSaved }: { root: st
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const dirty = text !== originalText;
-  useEffect(() => { dialog.current?.showModal(); }, []);
+  useEffect(() => {
+    const previous = document.activeElement;
+    const opened = dialog.current;
+    opened?.showModal();
+    editor.current?.focus();
+    return () => {
+      opened?.close();
+      if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
+    };
+  }, []);
   useEffect(() => { const warn = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn); }, [dirty]);
   const close = () => { if (!busy && (!dirty || window.confirm('放弃未保存的文件修改？'))) onClose(); };
   const reload = async () => {

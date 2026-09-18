@@ -12,6 +12,20 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  await page.evaluate(()=>window.__result={ok:true,result:{text:'short',revision:'short'}});await modal.getByRole('button',{name:'刷新预览'}).click();await modal.getByRole('status').getByText('第 2 行不在当前预览范围内。').waitFor();
  await page.evaluate(()=>window.__result=undefined);await modal.getByRole('button',{name:'刷新预览'}).click();await modal.locator('pre').getByText('second',{exact:true}).waitFor();
  await modal.getByRole('button',{name:'编辑此文件'}).click();await page.locator('.file-editor textarea').waitFor();assert.equal(await page.locator('.file-editor textarea').inputValue(),'first\nsecond\nthird');
+ const editor=page.getByRole('dialog',{name:'编辑工作区文件',exact:true});
+ const contents=editor.getByRole('textbox',{name:'文件内容',exact:true});
+ assert.ok(await contents.evaluate(el=>el===document.activeElement));
+ await editor.press('Escape');await editor.waitFor({state:'detached'});
+ assert.ok(await page.getByRole('button',{name:'open notes',exact:true}).evaluate(el=>el===document.activeElement));
+ await page.getByRole('button',{name:'open notes',exact:true}).press('Enter');
+ await modal.getByRole('button',{name:'编辑此文件'}).click();
+ await contents.fill('Unsaved edits');
+ page.once('dialog',dialog=>dialog.dismiss());
+ await editor.press('Escape');
+ assert.ok(await editor.isVisible());assert.equal(await contents.inputValue(),'Unsaved edits');
+ page.once('dialog',dialog=>dialog.accept());
+ await editor.press('Escape');await editor.waitFor({state:'detached'});
+ assert.ok(await page.getByRole('button',{name:'open notes',exact:true}).evaluate(el=>el===document.activeElement));
  console.log('PASS: message file opens preview at line and enters existing editor in original workspace');
 }finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});
 

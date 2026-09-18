@@ -1,5 +1,13 @@
 # Felix capability roadmap
 
+## Preserve focus through file editing
+
+The file editor explicitly focuses its text area on opening and closes its native
+dialog before restoring the connected opener on unmount. Preview-to-editor
+transitions return to the original message link after editing, rather than an
+unmounted preview button. Browser acceptance covers initial focus, clean Escape,
+declining to discard dirty content and confirming discard. Build passes.
+
 ## Load file preview code on demand
 
 The file preview, text search and image controls now load only when a file is
