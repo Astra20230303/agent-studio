@@ -80,7 +80,12 @@ test('real app-server archives, paginates and restores isolated conversations', 
     assert.equal((await client.listArchivedThreads()).data.length, 0);
     const active = await rpc.request('thread/list', { modelProviders: [], archived: false, limit: 100 });
     assert.ok(active.data.some(thread => thread.id === ids[0]));
-    assert.equal((await rpc.request('thread/resume', { threadId: ids[0] })).thread.id, ids[0]);
+    const resumed = await rpc.request('thread/resume', { threadId: ids[0] });
+    assert.equal(resumed.thread.id, ids[0]);
+    const { readThreadResume } = require('../src/threadResume.ts');
+    const snapshot = readThreadResume(resumed, ids[0]);
+    assert.equal(snapshot.running, undefined);
+    assert.ok(snapshot.items.some(entry => entry.item.type === 'agentMessage' && entry.item.text.includes('Archive test completed.')));
     const turns = await client.listThreadTurns(ids[0]);
     assert.equal(turns.data.length, 1);
     assert.ok(turns.data[0].items.some(item => item.type === 'agentMessage' && item.text.includes('Archive test completed.')));

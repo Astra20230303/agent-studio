@@ -14,7 +14,7 @@ const assert = require('node:assert/strict');
         connect: async () => ({ ok: true }), notify: async () => ({ ok: true }),
         request: async (method, params) => {
           if (method === 'turn/interrupt') window.__interrupts++;
-          if (method === 'thread/resume') return { ok: true, result: { thread: { turns: [{ id: window.__live, status: 'inProgress', items: [] }] } } };
+          if (method === 'thread/resume') return { ok: true, result: { thread: { id: params.threadId, turns: [{ id: window.__live, status: 'inProgress', items: [] }] } } };
           if (method === 'turn/start') {
             window.__sent.push(params);
             if (window.__reject) return { ok: false, error: 'Rejected' };

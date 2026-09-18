@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
     await page.addInitScript(() => {
       window.__calls = []; window.__fail = true;
       localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ activeThreadId: 'a', model: 'test', threads: [
-        { id: 'a', remoteId: 'remote-a', title: 'Thread A', cwd: 'D:/old', status: 'completed', messages: [], updatedAt: new Date().toISOString() },
+        { id: 'a', remoteId: 'remote-a', title: 'Thread A', cwd: 'D:/old', status: 'completed', messages: [{id:'saved-message',role:'assistant',content:'Saved conversation content',createdAt:new Date().toISOString()}], updatedAt: new Date().toISOString() },
         { id: 'b', title: 'Local B', status: 'completed', messages: [], updatedAt: new Date().toISOString() },
       ] }));
       localStorage.setItem('felix-thread-drafts-v1', JSON.stringify({ a: 'draft A', b: 'draft B' }));
@@ -15,6 +15,7 @@ const assert = require('node:assert/strict');
       window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async (method, params) => {
         window.__calls.push({ method, params });
         if (method === 'thread/resume') {
+          if (window.__resumeOverride) return {ok:true,result:window.__resumeOverride};
           if (window.__hold) await new Promise(resolve => window.__release = resolve);
           if (window.__invalid) return {ok:true,result:{thread:{id:params.threadId,turns:[{id:'bad-turn',items:[{id:'bad',type:'agentMessage',text:42}]}]}}};
           return window.__fail ? { ok: false, error: 'temporary resume failure' } : { ok: true, result: { thread: { id: params.threadId, cwd: 'D:/confirmed', turns: [] } } };
@@ -42,6 +43,21 @@ const assert = require('node:assert/strict');
     await error.getByText(/服务端历史条目无效/).waitFor();
     assert.ok(await send.isDisabled()); assert.equal(await input.inputValue(),'edited A');
     await page.evaluate(() => { window.__invalid = false; });
+    for(const response of [
+      {thread:{id:'wrong-thread',cwd:'D:/wrong',turns:[]},providerId:'wrong-provider'},
+      {thread:{id:'remote-a',cwd:'D:/wrong'}},
+      {thread:{id:'remote-a',cwd:'D:/wrong',turns:[{id:'t',items:null}]}},
+      {thread:{id:'remote-a',cwd:{invalid:true},turns:[]}},
+    ]) {
+      await page.evaluate(value=>{window.__resumeOverride=value;},response);
+      await error.getByRole('button',{name:'重试恢复会话'}).click();
+      await error.getByText(/已有会话已保留/).waitFor();
+      assert.ok(await send.isDisabled());assert.equal(await input.inputValue(),'edited A');
+      await page.getByText('Saved conversation content',{exact:true}).waitFor();
+      const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.find(t=>t.id==='a'));
+      assert.equal(saved.cwd,'D:/old');assert.equal(saved.providerId,undefined);
+    }
+    await page.evaluate(()=>{window.__resumeOverride=null;});
     await page.evaluate(() => { window.__fail = false; window.__hold = true; });
     const retry = error.getByRole('button', { name: '重试恢复会话' });
     await retry.click();
