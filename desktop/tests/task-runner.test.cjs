@@ -42,6 +42,7 @@ test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local
         assert.ok(result); assert.match(result.content, /FELIX_SCHEDULE_OK/);
         res.write('data: ' + JSON.stringify({ choices: [{ delta: { content: 'Verified FELIX_SCHEDULE_OK from the scheduled run.' }, finish_reason: 'stop' }] }) + '\n\n');
       } else {
+        assert.notEqual(body.reasoning_effort, 'high', 'Model default must clear the previous explicit high effort');
         assert.ok(body.messages.some(message => message.role === 'assistant' && JSON.stringify(message.content).includes('Verified FELIX_SCHEDULE_OK')));
         assert.ok(body.messages.some(message => message.role === 'user' && JSON.stringify(message.content).includes('Continue the scheduled task conversation')));
         res.write('data: ' + JSON.stringify({choices:[{delta:{content:'Continued with retained task context.'},finish_reason:'stop'}]}) + '\n\n');
@@ -84,7 +85,7 @@ test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local
     const child = spawn(findCommand(root).command, ['-c', 'web_search="disabled"', '-c', 'model_providers.minimax.name="MiniMax"', '-c', 'model_providers.minimax.wire_api="responses"', '-c', `model_providers.minimax.base_url="http://127.0.0.1:${adapter.address().port}/v1"`, 'app-server', '--stdio'], {cwd:root,windowsHide:true,stdio:['pipe','pipe','pipe'],env:{...process.env,CODEX_HOME:path.join(dataRoot,'codex-home')}});
     const rpc = new CodexRpc(child);const timer=setTimeout(()=>rpc.close(),20000);
     try {
-      await rpc.request('initialize',{clientInfo:{name:'task_resume_acceptance',version:'1'}});rpc.notify('initialized',{});
+      await rpc.request('initialize',{clientInfo:{name:'task_resume_acceptance',version:'1'},capabilities:{experimentalApi:true}});rpc.notify('initialized',{});
       const restored=await rpc.request('thread/resume',{threadId:result.threadId});
       assert.equal(restored.thread.id,result.threadId);
       assert.ok(restored.thread.turns.some(turn=>turn.items.some(item=>item.type==='agentMessage' && item.text.includes('FELIX_SCHEDULE_OK'))));
@@ -92,7 +93,7 @@ test(`real scheduled tool execution (${apiKey ? 'authenticated' : 'keyless local
         rpc.once('closed',reject);
         rpc.on('notification',message=>{if(message.method==='turn/completed' && message.params.threadId===result.threadId){rpc.off('closed',reject);resolve(message.params.turn);}});
       });completed.catch(()=>{});
-      const next=await rpc.request('turn/start',{threadId:result.threadId,input:[{type:'text',text:'Continue the scheduled task conversation.'}]});
+      const next=await rpc.request('turn/start',{threadId:result.threadId,collaborationMode:{mode:'default',settings:{model:task.model,reasoning_effort:null,developer_instructions:null}},input:[{type:'text',text:'Continue the scheduled task conversation.'}]});
       const finished=await completed;assert.equal(finished.id,next.turn.id);assert.equal(finished.status,'completed',JSON.stringify(finished.error));
       if(upstreamError)throw upstreamError;assert.equal(requests,3);
       const latest=await rpc.request('thread/resume',{threadId:result.threadId});

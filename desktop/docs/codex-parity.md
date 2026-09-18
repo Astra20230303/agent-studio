@@ -2931,3 +2931,9 @@ user-message-copy-ui.cjs 覆盖原文保真、键盘操作、失败重试、空�
 实现 654e3a5：渠道设置连接及已有会话迁移统一调用模型目录校验。损坏目录不进入配置列表，不发送迁移 RPC；错误后保留原渠道、会话历史和草稿，可重新连接/切换。
 
 验收：provider-catalog-validation-ui 覆盖损坏响应、去重、已有选择后失败禁存及恢复选择；thread-provider-migration-ui 覆盖无效目录零迁移及修复重试。manual-model-ui 与 thread-provider-catalog-ui 回归通过，后者修正旧相对路径夹具以符合当前项目仓库契约。生产构建通过。模型能力字段尚未接入，不能声称已按模型限制推理强度。
+
+## 聊天模型默认推理强度
+
+实现 8a995f1：聊天选择器新增模型默认，恢复默认按钮不再固定设为低。显式 default 状态随会话/全局偏好及队列保存，避免与未设置的继承状态混淆；请求不发送 default 字符串，通过 collaborationMode 的 null reasoning_effort 清除前一回合显式强度。旧低/中/高状态及新会话原有低强度初始化保持兼容。
+
+验收：thread-model-ui 验证高强度切回默认、刷新保持、全局与会话隔离，以及队列实际发送 null；planning 单测和界面回归通过。task-runner 的真实 app-server 先执行 high 任务，再恢复并以默认续聊，带密钥和本机免密两种路径均确认不再发送 high，全部 7 项通过。验收连接补齐应用已启用的 experimentalApi 声明。生产构建通过。模型默认由运行配置和模型决定，不意味着关闭推理；未声称所有云端模型兼容。

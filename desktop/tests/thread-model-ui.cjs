@@ -51,6 +51,11 @@ const assert = require('node:assert/strict');
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('felix-turn-queue-v1'))[0].effort), 'default');
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).reasoningEffort), 'low');
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('codex-desktop-state-v1')).model), 'model-a');
+    await page.evaluate(() => window.__notify({ method: 'turn/completed', params: { threadId: 'a', turn: { id: 'turn', status: 'completed' } } }));
+    await page.waitForFunction(() => window.__calls.filter(call => call.method === 'turn/start').length === 2);
+    const queued = await page.evaluate(() => window.__calls.filter(call => call.method === 'turn/start')[1].params);
+    assert.equal(queued.effort, undefined);
+    assert.equal(queued.collaborationMode.settings.reasoning_effort, null);
     await page.evaluate(() => {
       window.desktop.listModels = async () => ({ ok: true, models: ['model-a'] });
       window.dispatchEvent(new Event('provider-changed'));
