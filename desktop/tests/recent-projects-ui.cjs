@@ -11,6 +11,8 @@ const assert=require('node:assert/strict');const {chromium}=require('playwright'
  assert.equal(state.threads[0].cwd,'D:/original');assert.equal(state.activeThreadId,'a');assert.equal(state.threads[0].projectId,undefined);
  await page.reload();assert.equal(await page.getByRole('textbox',{name:'消息',exact:true}).inputValue(),'Retained draft');
  await page.locator('.project-strip .project').click();assert.equal(await page.getByRole('button',{name:'移除最近项目 Project A',exact:true}).count(),0);
+ assert.equal(await page.locator('.project-menu button').count(),1);
+ await page.getByRole('button',{name:'打开文件夹…',exact:true}).waitFor();
  const audit=await page.evaluate(()=>JSON.parse(localStorage.getItem('felix-audit-log-v1')));assert.equal(audit.filter(e=>e.action==='移除最近项目').length,1);assert.equal(audit.find(e=>e.action==='移除最近项目').detail,undefined);
  console.log('PASS: removing recent project retains conversation workspace and draft, persists removal without file operations');
 }finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});
