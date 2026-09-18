@@ -22,6 +22,7 @@ const path = require('node:path');
     let page = await app.firstWindow();
     assert.equal(await app.evaluate(({ app }) => app.getPath('userData')), path.join(dataRoot, 'electron-user-data'));
     await page.waitForFunction(() => window.desktop?.saveTask);
+    await page.locator('.composer').waitFor();
     const attachment = path.join(scratch, 'dropped file.txt'); fs.writeFileSync(attachment, 'real attachment');
     await page.evaluate(() => { const input = document.createElement('input'); input.type = 'file'; input.id = 'drop-fixture'; document.body.append(input); });
     await page.locator('#drop-fixture').setInputFiles(attachment);
@@ -41,8 +42,8 @@ const path = require('node:path');
       const data = new DataTransfer(); data.items.add(new File([blob], 'clipboard.png', { type: 'image/png' }));
       document.querySelector('.composer textarea').dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: data }));
     });
-    await page.waitForFunction(() => JSON.parse(localStorage.getItem('felix-attachments-v1') || '{}').new?.some(path => path.includes('clipboard-')));
-    const pasted = await page.evaluate(() => JSON.parse(localStorage.getItem('felix-attachments-v1')).new.find(path => path.includes('clipboard-')));
+    await page.waitForFunction(async () => JSON.parse((await window.desktop.storage.read()).values['felix-attachments-v1'] || '{}').new?.some(path => path.includes('clipboard-')));
+    const pasted = await page.evaluate(async () => JSON.parse((await window.desktop.storage.read()).values['felix-attachments-v1']).new.find(path => path.includes('clipboard-')));
     assert.equal(path.dirname(pasted), path.join(dataRoot, 'attachments'));
     assert.deepEqual([...fs.readFileSync(pasted).subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
     const saved = await page.evaluate(async () => {

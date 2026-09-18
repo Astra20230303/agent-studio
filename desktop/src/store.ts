@@ -1,4 +1,5 @@
 import type { DesktopState, Message, Thread } from './domain';
+import { persistentStorage } from './persistentStorage.ts';
 
 const KEY = 'codex-desktop-state-v1';
 
@@ -19,7 +20,7 @@ export const defaultState = (): DesktopState => ({
 
 export function loadState(): DesktopState {
   try {
-    const state: DesktopState = { ...defaultState(), ...JSON.parse(localStorage.getItem(KEY) ?? '{}') };
+    const state: DesktopState = { ...defaultState(), ...JSON.parse(persistentStorage.getItem(KEY) ?? '{}') };
     state.reasoningEffort = ['low', 'medium', 'high'].includes(state.reasoningEffort) ? state.reasoningEffort : 'low';
     state.mode = state.mode === 'work' ? 'work' : 'code';
     state.theme = ['light', 'dark', 'system'].includes(state.theme) ? state.theme : 'light';
@@ -32,8 +33,8 @@ export function loadState(): DesktopState {
   catch { return defaultState(); }
 }
 
-export function saveState(state: DesktopState): boolean {
-  try { localStorage.setItem(KEY, JSON.stringify(state)); return true; }
+export async function saveState(state: DesktopState): Promise<boolean> {
+  try { await persistentStorage.setItem(KEY, JSON.stringify(state)); return true; }
   catch { return false; }
 }
 

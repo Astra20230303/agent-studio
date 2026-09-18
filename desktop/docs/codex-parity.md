@@ -1,5 +1,29 @@
 # Felix capability roadmap
 
+## Native conversation and draft storage
+
+Desktop conversations/settings, text/attachment/plugin/skill drafts and the turn
+queue now live under the application data directory's renderer-storage folder.
+Startup imports missing records from legacy localStorage before mounting the app;
+existing native records take precedence and old browser records remain untouched.
+Browser-only development keeps its localStorage fallback.
+
+Each store validates JSON, writes a unique temporary file, fsyncs it and renames
+it into place, retaining the previous valid record as a backup. Ordinary writes
+use async IPC and coalesce pending snapshots; queue changes require synchronous
+main-process persistence before exposing a transition that can dispatch work.
+Shutdown drains accepted writes. Startup recovers a corrupt primary from backup
+with a visible warning; unreadable primary and backup block startup and offer
+retry instead of overwriting records with an empty app state.
+
+Build, six filesystem tests, four title tests and browser state/draft/attachment/
+plugin/queue regressions pass. Real Electron validates migration of all six
+stores, native writes, clearing localStorage, multiple restarts, corrupt-primary
+recovery and the existing external-profile/clipboard workflow. Records are
+independent snapshots bounded to 64 MiB each, not a transaction across stores or
+a guarantee against disk failure/power loss. An interrupted unacknowledged write
+may lose the latest change; restored queues remain paused for review.
+
 ## Switch an existing conversation's Provider
 
 Idle conversations can switch Provider without replacing their thread ID, local

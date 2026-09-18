@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react';
 import { finishQueuedTurn, pauseThreadQueue, restoreQueue } from './turnQueue';
 import type { QueuedTurn } from './turnQueue';
+import { persistentStorage } from './persistentStorage';
 
 const key = 'felix-turn-queue-v1';
 export function useTurnQueue() {
   const [initial] = useState(() => {
-    try { return { items: restoreQueue(localStorage.getItem(key)), failed: false }; }
+    try { return { items: restoreQueue(persistentStorage.getItem(key)), failed: false }; }
     catch { return { items: [] as QueuedTurn[], failed: true }; }
   });
   const [items, setItems] = useState(initial.items);
@@ -16,7 +17,7 @@ export function useTurnQueue() {
     if (unread.current) { setSaveFailed(true); return false; }
     const next = fn(ref.current);
     // Persist before exposing a state transition that could dispatch work.
-    try { localStorage.setItem(key, JSON.stringify(next)); }
+    try { persistentStorage.setQueue(JSON.stringify(next)); }
     catch {
       // A persistence failure cannot cancel an already dispatched request.
       const paused = (requireSaved ? ref.current : next).map(item =>
@@ -33,7 +34,7 @@ export function useTurnQueue() {
     retry: () => {
       if (unread.current) {
         try {
-          const restored = restoreQueue(localStorage.getItem(key));
+          const restored = restoreQueue(persistentStorage.getItem(key));
           unread.current = false; ref.current = restored; setItems(restored); setSaveFailed(false);
         } catch { setSaveFailed(true); }
       } else change(items => items);

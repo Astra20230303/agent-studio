@@ -24,6 +24,7 @@ if (app.requestSingleInstanceLock()) startDesktop();
 else app.quit();
 
 function startDesktop() {
+const rendererStorage = require('./renderer-storage.cjs').registerRendererStorage(ipcMain, path.join(dataRoot, 'renderer-storage'));
 ipcMain.handle('desktop:open-external', (_event, url) => require('electron').shell.openExternal(require('./external-url.cjs').externalUrl(url)));
 const remoteDesktop = new RemoteDesktop();
 const localDesktop = new LocalDesktop();
@@ -263,7 +264,7 @@ app.on('before-quit', event => {
   codex.stop();
   if (!tasksStopped && event?.preventDefault) {
     event.preventDefault();
-    stoppingTasks ||= Promise.allSettled([scheduler.stop(), terminals.closeAll()]).finally(() => { tasksStopped = true; app.quit(); });
-  } else if (!stoppingTasks) stoppingTasks = Promise.allSettled([scheduler.stop(), terminals.closeAll()]);
+    stoppingTasks ||= Promise.allSettled([scheduler.stop(), terminals.closeAll(), rendererStorage.flush()]).finally(() => { tasksStopped = true; app.quit(); });
+  } else if (!stoppingTasks) stoppingTasks = Promise.allSettled([scheduler.stop(), terminals.closeAll(), rendererStorage.flush()]);
 });
 }

@@ -1,6 +1,12 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('desktop', {
+  storage: {
+    read: () => ipcRenderer.invoke('storage:read'),
+    importLegacy: values => ipcRenderer.invoke('storage:import', values),
+    write: (key, value) => ipcRenderer.invoke('storage:write', { key, value }),
+    writeQueue: value => ipcRenderer.sendSync('storage:queue', value),
+  },
   platform: process.platform,
   droppedFilePaths: files => files.map(file => webUtils.getPathForFile(file)),
   savePastedImage: bytes => ipcRenderer.invoke('desktop:pasted-image', bytes),
