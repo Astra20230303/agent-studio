@@ -19,6 +19,18 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  assert.equal(await modal.locator('pre [aria-current="location"]').getAttribute('data-line'),'3');
  await lineInput.fill('1');await lineInput.press('Enter');
  assert.equal(await modal.locator('pre [aria-current="location"]').getAttribute('data-line'),'1');
+ for(const invalid of ['0','-1','1.5','1e0','9007199254740992']){
+  await lineInput.fill(invalid);await modal.getByRole('button',{name:'跳转到行',exact:true}).click();
+  await modal.getByRole('alert').getByText('请输入 1 至 3 的行号。',{exact:true}).waitFor();
+  assert.equal(await modal.locator('pre [aria-current="location"]').getAttribute('data-line'),'1');
+ }
+ await page.evaluate(()=>window.__result={ok:true,result:{text:'last\n',revision:'blank'}});
+ await modal.getByRole('button',{name:'刷新预览'}).click();
+ await modal.locator('pre').getByText('last',{exact:true}).waitFor();
+ await lineInput.fill('2');await lineInput.press('Enter');
+ const blank=await modal.locator('pre [aria-current="location"]').boundingBox();
+ assert.ok(blank.width>0 && blank.height>0);
+ assert.equal(await modal.locator('pre').textContent(),'last\n');
  await page.evaluate(()=>window.__result={ok:false,error:'file removed'});await modal.getByRole('button',{name:'刷新预览'}).click();await modal.getByRole('alert').getByText('file removed').waitFor();assert.equal(await modal.getByRole('button',{name:'编辑此文件'}).count(),0);
  await page.evaluate(()=>window.__result={ok:true,result:{text:'short',revision:'short'}});await modal.getByRole('button',{name:'刷新预览'}).click();await modal.getByRole('status').getByText('第 2 行不在当前预览范围内。').waitFor();
  await page.evaluate(()=>window.__result=undefined);await modal.getByRole('button',{name:'刷新预览'}).click();await modal.locator('pre').getByText('second',{exact:true}).waitFor();

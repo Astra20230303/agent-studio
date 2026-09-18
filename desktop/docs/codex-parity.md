@@ -9,6 +9,11 @@ out-of-range input preserves the previous location with an error. Truncated
 previews label their limited range. Browser keyboard/navigation, existing editor
 workflow, narrow-layout acceptance and production build pass.
 
+Post-commit correction gives a selected empty final line a visible box without
+adding text to the document. Browser acceptance verifies its geometry and exact
+text, plus rejection of zero, negative, fractional, exponential and unsafe integer
+inputs. Expanded acceptance and build pass.
+
 ## Download original preview images
 
 Decoded image previews expose a download link using their loaded source bytes and
