@@ -9,7 +9,7 @@ const { workspaceFile } = require('../electron/workspace-files.cjs');
  const file = path.join(root, 'source.txt');
  const browser = await chromium.launch({ channel: 'msedge', headless: true });
  try {
-  const source = 'header\r\n前缀🙂 needle 后缀\r\ntail\r\n';
+  const source = 'header\r\n' + 'prefix '.repeat(200) + '前缀🙂 needle 后缀\r\ntail\r\n';
   await fs.writeFile(file, source);
   const page = await browser.newPage();
   const writes = [];
@@ -34,6 +34,7 @@ const { workspaceFile } = require('../electron/workspace-files.cjs');
   await panel.getByRole('button', { name: '编辑文件', exact: true }).click();
   const editor = page.getByRole('textbox', { name: '文件内容', exact: true });
   assert.equal(await editor.evaluate(node => node.value.slice(node.selectionStart, node.selectionEnd)), 'needle');
+  assert.equal(await editor.evaluate(node => node.scrollLeft > node.clientWidth), true, 'Opening a far-right search result reveals its column');
   await page.keyboard.insertText('replacement');
   await editor.press('Control+s'); await editor.waitFor({ state: 'detached' });
   assert.equal(await fs.readFile(file, 'utf8'), source.replace('needle', 'replacement'));
