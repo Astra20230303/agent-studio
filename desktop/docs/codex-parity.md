@@ -2596,3 +2596,5 @@ remains low. The expanded browser flow passes without further product changes.
 在本机操作记录基础上，补充会话生命周期和安全操作事件：重命名、归档、删除、分叉、会话权限修改，以及服务请求审批结果。事件只保存动作类型和受限标识，不保存消息正文、问题答案、命令内容或密钥；写入仍经过同一串行持久化队列和原生数据校验。
 
 验收：`audit-lifecycle-ui.cjs` 验证重命名与归档事件顺序及正文隔离；`audit-log-ui.cjs`、`renderer-storage.test.cjs` 和生产构建回归通过。
+
+修正验收：补齐侧栏归档和消息级分叉记录；会话切换详情改用本机 ID，避免自动标题或消息内容进入审计日志。生命周期、审批失败重试、存储校验和生产构建回归通过。
