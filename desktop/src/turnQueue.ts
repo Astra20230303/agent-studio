@@ -36,10 +36,17 @@ export function moveQueuedTurn(queue: QueuedTurn[], id: string, direction: -1 | 
   return next;
 }
 export function restoreQueue(raw: string | null): QueuedTurn[] {
-  try {
-    const items = JSON.parse(raw || '[]');
-    if (!Array.isArray(items)) return [];
-    return items.filter(item => item && ['id', 'localId', 'threadId', 'text', 'model', 'effort'].every(key => typeof item[key] === 'string') && Array.isArray(item.plugins))
-      .map(item => ({ ...item, status: 'paused', error: item.status === 'sending' ? '上次发送结果未知，请检查会话记录后再试。' : '已恢复排队消息，请继续队列。' }));
-  } catch { return []; }
+  const items = JSON.parse(raw ?? '[]');
+  const ids = new Set<string>();
+  if (!Array.isArray(items) || !items.every(item => {
+    if (!item || !['id', 'localId', 'threadId', 'text', 'model', 'effort'].every(key => typeof item[key] === 'string')
+      || !item.id.trim() || !item.localId.trim() || !item.threadId.trim() || ids.has(item.id)
+      || !Array.isArray(item.plugins) || !item.plugins.every((plugin: any) => plugin && typeof plugin.id === 'string' && typeof plugin.name === 'string')
+      || item.attachments !== undefined && (!Array.isArray(item.attachments) || !item.attachments.every((path: unknown) => typeof path === 'string'))
+      || item.skills !== undefined && (!Array.isArray(item.skills) || !item.skills.every((skill: any) => skill && typeof skill.name === 'string' && typeof skill.path === 'string'))
+      || item.cwd !== undefined && typeof item.cwd !== 'string'
+      || item.waitingOn !== undefined && typeof item.waitingOn !== 'string') return false;
+    ids.add(item.id); return true;
+  })) throw Error('排队消息格式无效，原始数据已保留。');
+  return items.map(item => ({ ...item, status: 'paused', error: item.status === 'sending' ? '上次发送结果未知，请检查会话记录后再试。' : '已恢复排队消息，请继续队列。' }));
 }

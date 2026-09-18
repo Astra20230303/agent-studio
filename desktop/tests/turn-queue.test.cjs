@@ -39,5 +39,14 @@ test('only successful completion of the matching thread and turn releases work',
 test('restored messages never auto-replay, especially an unconfirmed send', () => {
   assert.equal(restoreQueue(JSON.stringify([item]))[0].status, 'paused');
   assert.match(restoreQueue(JSON.stringify([{ ...item, status: 'sending' }]))[0].error, /结果未知/);
-  assert.deepEqual(restoreQueue('invalid'), []);
+  assert.throws(() => restoreQueue('invalid'));
+});
+
+test('malformed queues fail as a whole without silently dropping records', () => {
+  for (const raw of ['', '{}', 'null', JSON.stringify([item, null]), JSON.stringify([item, item])]) assert.throws(() => restoreQueue(raw));
+  for (const changed of [{ id: '' }, { plugins: [null] }, { attachments: [1] }, { skills: [{ name: 'x' }] }, { cwd: {} }, { waitingOn: 5 }]) {
+    assert.throws(() => restoreQueue(JSON.stringify([item, { ...item, id: 'other', ...changed }])));
+  }
+  assert.deepEqual(restoreQueue(null), []);
+  assert.deepEqual(restoreQueue('[]'), []);
 });
