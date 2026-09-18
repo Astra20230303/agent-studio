@@ -34,7 +34,7 @@ async function workspaceFile(root, name = '.', action = 'list', query = '', edit
     const literal = query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     // Keep matching on the original text so Unicode case folding cannot shift columns.
     const word = '[\\p{L}\\p{N}\\p{M}_]';
-    const contentPattern = contentSearch ? new RegExp(searchOptions.wholeWord ? `(?<!${word})${literal}(?!${word})` : literal, searchOptions.caseSensitive ? 'u' : 'iu') : undefined;
+    const contentPattern = contentSearch ? new RegExp(searchOptions.wholeWord ? `(?<!${word})${literal}(?!${word})` : literal, searchOptions.caseSensitive ? 'gu' : 'giu') : undefined;
     let scannedBytes = 0;
     const entries = []; const pending = [target]; let visited = 0; let skipped = 0; let truncated = false;
     while (pending.length && !truncated) {
@@ -65,16 +65,20 @@ async function workspaceFile(root, name = '.', action = 'list', query = '', edit
           if (typeof result.text !== 'string' || !result.revision) { skipped++; continue; }
           const lines = result.text.split(/\r?\n/);
           for (let index = 0; index < lines.length; index++) {
-            const column = contentPattern.exec(lines[index])?.index ?? -1;
-            if (column < 0) continue;
-            if (entries.length >= 200) { truncated = true; break; }
-            const start = Math.max(0, column - 60);
-            entries.push({ name: entry.name, path: file, directory: false, symlink: false, revision: result.revision, line: index + 1, column: column + 1, snippet: (start ? '…' : '') + lines[index].slice(start, start + 300) });
+            contentPattern.lastIndex = 0;
+            let match;
+            while ((match = contentPattern.exec(lines[index]))) {
+              if (entries.length >= 200) { truncated = true; break; }
+              const column = match.index;
+              const start = Math.max(0, column - 60);
+              entries.push({ name: entry.name, path: file, directory: false, symlink: false, revision: result.revision, line: index + 1, column: column + 1, matchLength: match[0].length, snippet: (start ? '…' : '') + lines[index].slice(start, start + 300) });
+            }
+            if (truncated) break;
           }
         } catch { skipped++; }
       }
     }
-    return { entries: entries.sort((a, b) => a.path.localeCompare(b.path) || (a.line || 0) - (b.line || 0)), truncated, skipped };
+    return { entries: entries.sort((a, b) => a.path.localeCompare(b.path) || (a.line || 0) - (b.line || 0) || (a.column || 0) - (b.column || 0)), truncated, skipped };
   }
   if (action === 'list') {
     const entries = await fs.readdir(target, { withFileTypes: true });

@@ -1,14 +1,16 @@
 import { useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react';
 import { editorMatches } from './editorSearchMatches';
 import { CopyText } from './CopyText';
+import { SearchMatchText } from './SearchMatchText';
 
 export type PreviewTextHandle = { find: () => void; goToLine: () => void };
-export function PreviewText({ text, lineNumber, truncated, ref }: { text: string; lineNumber?: number; truncated?: boolean; ref: Ref<PreviewTextHandle> }) {
+export function PreviewText({ text, lineNumber, column, matchLength, truncated, ref }: { text: string; lineNumber?: number; column?: number; matchLength?: number; truncated?: boolean; ref: Ref<PreviewTextHandle> }) {
   const [finding, setFinding] = useState(false);
   const [query, setQuery] = useState('');
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [index, setIndex] = useState(0);
   const [selectedLine, setSelectedLine] = useState(lineNumber);
+  const [showSearchMatch, setShowSearchMatch] = useState(true);
   const [requestedLine, setRequestedLine] = useState(String(lineNumber || 1));
   const [lineError, setLineError] = useState('');
   const lineInput = useRef<HTMLInputElement>(null);
@@ -22,7 +24,8 @@ export function PreviewText({ text, lineNumber, truncated, ref }: { text: string
   const match = matches[current];
   const find = () => { setFinding(true); requestAnimationFrame(() => input.current?.focus()); };
   useImperativeHandle(ref, () => ({ find, goToLine: () => { lineInput.current?.focus(); lineInput.current?.select(); } }));
-  useEffect(() => { setSelectedLine(lineNumber); setRequestedLine(String(lineNumber || 1)); setLineError(''); }, [text, lineNumber]);
+  useEffect(() => { setSelectedLine(lineNumber); setRequestedLine(String(lineNumber || 1)); setLineError(''); setShowSearchMatch(true); }, [text, lineNumber, column, matchLength]);
+  useEffect(() => { if (!finding && showSearchMatch) pre.current?.querySelector('[data-search-match]')?.scrollIntoView({ block: 'center', inline: 'center' }); }, [text, lineNumber, column, matchLength, finding, showSearchMatch]);
   useEffect(() => { line.current?.scrollIntoView({ block: 'center' }); }, [text, selectedLine]);
   useEffect(() => { selected.current?.scrollIntoView({ block: 'center' }); }, [match]);
   const close = () => { setFinding(false); pre.current?.focus(); };
@@ -37,7 +40,7 @@ export function PreviewText({ text, lineNumber, truncated, ref }: { text: string
       if (!/^\d+$/.test(requestedLine) || !Number.isSafeInteger(value) || value < 1 || value > lines.length) {
         setLineError(`请输入 1 至 ${lines.length} 的行号${truncated ? '（仅限已预览部分）' : ''}。`); return;
       }
-      setLineError(''); setSelectedLine(value); setFinding(false); pre.current?.focus();
+      setLineError(''); setSelectedLine(value); setShowSearchMatch(false); setFinding(false); pre.current?.focus();
       if (selectedLine === value) line.current?.scrollIntoView({ block: 'center' });
     }}>
       <label>行号 <input ref={lineInput} aria-label="预览行号" inputMode="numeric" value={requestedLine} onChange={event => { setRequestedLine(event.target.value); setLineError(''); }} onKeyDown={event => { if (event.key === 'Enter' && event.nativeEvent.isComposing) event.preventDefault(); }} /></label>
@@ -60,7 +63,7 @@ export function PreviewText({ text, lineNumber, truncated, ref }: { text: string
       const highlighted = match && match.start < start + value.length && match.end > start;
       const from = highlighted ? Math.max(0, match.start - start) : 0;
       const to = highlighted ? Math.min(value.length, match.end - start) : 0;
-      return <span key={index} data-line={index + 1} aria-current={index + 1 === selectedLine ? 'location' : undefined} ref={index + 1 === selectedLine ? line : undefined} style={index + 1 === selectedLine ? { background: '#ffe08a', color: '#202020' } : undefined}>{highlighted ? <>{value.slice(0, from)}<mark ref={match.start >= start ? selected : undefined}>{value.slice(from, to)}</mark>{value.slice(to)}</> : value}{index < lines.length - 1 ? '\n' : ''}</span>;
+      return <span key={index} data-line={index + 1} aria-current={index + 1 === selectedLine ? 'location' : undefined} ref={index + 1 === selectedLine ? line : undefined} style={index + 1 === selectedLine ? { background: '#ffe08a', color: '#202020' } : undefined}>{highlighted ? <>{value.slice(0, from)}<mark ref={match.start >= start ? selected : undefined}>{value.slice(from, to)}</mark>{value.slice(to)}</> : !finding && showSearchMatch && index + 1 === lineNumber ? <SearchMatchText text={value} column={column} length={matchLength} /> : value}{index < lines.length - 1 ? '\n' : ''}</span>;
     })}</pre>
   </div>;
 }
