@@ -13,11 +13,12 @@ export function ArchivedThreads({ threads, connected, onRestore, onClose }: { th
   const [loading, setLoading] = useState(false);
   const [restoring, setRestoring] = useState('');
   const lock = useRef(false);
+  const restoreLock = useRef(false);
   const generation = useRef(0);
   const cursors = useRef(new Set<string>());
   useEffect(() => { const element = dialog.current!; element.showModal(); return () => element.close(); }, []);
   const load = async (next?: string) => {
-    if (!connected || lock.current) return;
+    if (!connected || lock.current || restoreLock.current) return;
     const token = generation.current;
     lock.current = true; setLoading(true); setError('');
     if (!next) cursors.current.clear();
@@ -36,19 +37,19 @@ export function ArchivedThreads({ threads, connected, onRestore, onClose }: { th
   };
   useEffect(() => { generation.current++; lock.current = false; setLoading(false); setRemote([]); setCursor(undefined); void load(); return () => { generation.current++; }; }, [connected, search]);
   const restore = async (thread: Thread) => {
-    if (lock.current) return;
-    lock.current = true; setRestoring(thread.id); setError('');
+    if (lock.current || restoreLock.current || (thread.remoteId && !connected)) return;
+    restoreLock.current = true; setRestoring(thread.id); setError('');
     try {
       if (thread.remoteId) await unarchiveThread(thread.remoteId);
       setRemote(current => current.filter(item => item.remoteId !== thread.remoteId));
       onRestore(thread);
     } catch (error) { setError(String(error)); }
-    finally { lock.current = false; setRestoring(''); }
+    finally { restoreLock.current = false; setRestoring(''); }
   };
   const local = threads.filter(thread => thread.archived && (!search || thread.title.toLowerCase().includes(search.toLowerCase()) || thread.messages.some(message => message.content.toLowerCase().includes(search.toLowerCase())) || remote.some(item => item.remoteId === thread.remoteId)));
   const snippets = Object.fromEntries(remote.map(item => [item.remoteId, item.snippet]));
   const entries = [...local, ...remote.filter(thread => !local.some(item => item.remoteId === thread.remoteId)).map(thread => ({ ...thread, ...threads.find(item => item.remoteId === thread.remoteId), archived: true }))];
-  return <dialog ref={dialog} className="task-modal" aria-label="归档会话" onCancel={event => { event.preventDefault(); onClose(); }}><header><h2>归档会话</h2><button aria-label="关闭归档会话" title="关闭" onClick={onClose}><X size={16} /></button></header>
+  return <dialog ref={dialog} className="task-modal" aria-label="归档会话" onCancel={event => { event.preventDefault(); if (!restoreLock.current) onClose(); }}><header><h2>归档会话</h2><button disabled={!!restoring} aria-label="关闭归档会话" title="关闭" onClick={onClose}><X size={16} /></button></header>
     <form onSubmit={event => { event.preventDefault(); setSearch(query.trim()); }}><input aria-label="搜索归档内容" placeholder="标题或消息内容" value={query} disabled={!!restoring} onChange={event => setQuery(event.target.value)} /><button disabled={!!restoring}>搜索归档</button>{search && <button type="button" disabled={!!restoring} onClick={() => { setQuery(''); setSearch(''); }}>清除归档搜索</button>}</form><p>在线搜索已归档的历史消息；离线仅搜索本机已加载内容。</p>
     {error && <p role="alert">{error}</p>}{!connected && <p role="status">未连接，远端归档暂不可用。</p>}
     <button disabled={!connected || loading || !!restoring} onClick={() => void load()}>刷新归档</button>
