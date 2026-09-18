@@ -41,6 +41,8 @@ const assert = require('node:assert/strict');
       if (extra.encodingInvalid) await page.getByRole('status').getByText('文件包含无法按 UTF-8 解码的字符，预览使用替代字符，不能编辑。', { exact: true }).waitFor();
     }
     await page.getByRole('alert').getByText('图片无法解码，文件可能已损坏。请修复文件后刷新文件。', { exact: true }).waitFor();
+    await page.evaluate(() => window.__renderPanel({ image: 'data:image/png;base64,AA==', size: 1 }));
+    await page.getByRole('alert').getByText('图片无法解码，文件可能已损坏。请修复文件后刷新文件。', { exact: true }).waitFor();
     await page.evaluate(() => { delete window.__resolveRead; });
     await page.getByRole('button', { name: '刷新文件', exact: true }).click();
     await page.waitForFunction(() => !!window.__resolveRead);

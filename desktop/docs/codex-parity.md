@@ -8,6 +8,11 @@ this prevents a post-render reset from erasing a fast decoder error. Refreshing
 with repaired data clears the error and restores the image; valid text restores
 editing. Browser decoder/recovery and encoding-status acceptance and build pass.
 
+Post-commit correction ties failure to the image source rather than the wrapper
+object: replacing metadata for the same failed source does not erase the error
+when the browser reuses its image element. Expanded decoder acceptance, workspace
+workflow regression and build pass.
+
 ## Keep saved previews authoritative
 
 Workspace preview updates from a completed save invalidate older pending reads,
