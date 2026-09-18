@@ -13,5 +13,9 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  await editor.getByRole('button',{name:'取消',exact:true}).click();await warning.getByRole('button',{name:'继续编辑'}).click();
  await editor.getByRole('button',{name:'关闭对话框'}).click();await warning.getByRole('button',{name:'放弃修改'}).click();await editor.waitFor({state:'detached'});assert.equal(await page.evaluate(()=>window.__saves.length),0);
  await open();await editor.getByLabel('任务名称',{exact:true}).fill('Saved task');await editor.getByRole('textbox',{name:'任务内容',exact:true}).fill('Save normally');await editor.getByRole('button',{name:'保存任务'}).click();await editor.waitFor({state:'detached'});assert.equal(await page.evaluate(()=>window.__saves.length),1);
+ await open();await editor.getByLabel('频率').selectOption('once');await editor.getByRole('button',{name:'取消',exact:true}).click();
+ await warning.getByRole('button',{name:'继续编辑'}).click();
+ await editor.getByLabel('运行时间（本地时区）').fill('2099-01-01T10:00');await editor.getByRole('button',{name:'关闭对话框'}).click();await warning.waitFor();
+ await warning.getByRole('button',{name:'放弃修改'}).click();assert.equal(await page.evaluate(()=>window.__saves.length),1);
  console.log('PASS: task editor protects modified drafts across Escape/cancel/close and still saves normally');
 }finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});
