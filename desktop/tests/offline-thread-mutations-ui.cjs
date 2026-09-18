@@ -17,6 +17,8 @@ const assert = require('node:assert/strict');
   assert.equal(state.threads.length,2); assert.ok(!state.threads.find(t=>t.id==='remote').archived);
   assert.equal(state.threads.find(t=>t.id==='remote').messages[0].content,'Retain me');
   assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('felix-audit-log-v1')||'[]').length),0);
+  await page.getByRole('alertdialog').getByText('请重新连接服务后再归档或删除远端会话。',{exact:true}).waitFor();
+  await page.getByRole('alertdialog').getByRole('button',{name:'取消',exact:true}).click();
   await page.getByRole('button',{name:'local',exact:true}).click();
   await toolbar.getByRole('button',{name:'归档',exact:true}).click();
   await page.waitForFunction(()=>JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads.find(t=>t.id==='local').archived);

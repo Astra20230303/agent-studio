@@ -4,6 +4,7 @@ import { AppMenus } from './AppMenus';
 import { AuditLog } from './AuditLog';
 import { useAuditLog } from './useAuditLog';
 import { RenameThread } from './RenameThread';
+import { DeleteThread } from './DeleteThread';
 import { useFileDrop } from './useFileDrop';
 import { pasteImage } from './pasteImage';
 import { CommandPalette } from './CommandPalette';
@@ -584,7 +585,15 @@ function App({ initialState }: { initialState: DesktopState }) {
     audit.record('重命名会话');
   };
   const archiveActive = async () => { const thread = state.threads.find(item => item.id === state.activeThreadId); if (!thread) return; if (thread.remoteId && codexStatus !== 'connected') { toast('请重新连接服务后再归档或删除远端会话。'); return; } if (thread.remoteId) { try { await archiveThread(thread.remoteId); } catch (error: any) { toast(`归档失败：${error.message}`); return; } } update(next => { const item = next.threads.find(value => value.id === thread.id); if (item) { item.archived = true; item.status = 'completed'; } }); audit.record('归档会话'); setRemoteThreadId(undefined); };
-  const performDelete = async (threadId: string) => { const thread = state.threads.find(item => item.id === threadId); if (!thread) return; if (thread.remoteId && codexStatus !== 'connected') { toast('请重新连接服务后再归档或删除远端会话。'); return; } if (thread.remoteId) { try { await deleteThread(thread.remoteId); } catch (error: any) { toast(`删除失败：${error.message}`); return; } } update(next => { next.threads = next.threads.filter(value => value.id !== threadId); if (next.activeThreadId === threadId) next.activeThreadId = undefined; }); audit.record('删除会话'); setRemoteThreadId(value => value === thread.remoteId ? undefined : value); };
+  const performDelete = async (threadId: string) => {
+    const thread = state.threads.find(item => item.id === threadId);
+    if (!thread) throw Error('会话已不存在，请关闭后重试。');
+    if (thread.remoteId && codexStatus !== 'connected') throw Error('请重新连接服务后再归档或删除远端会话。');
+    if (thread.remoteId) await deleteThread(thread.remoteId);
+    update(next => { next.threads = next.threads.filter(value => value.id !== threadId); if (next.activeThreadId === threadId) next.activeThreadId = undefined; });
+    audit.record('删除会话');
+    setRemoteThreadId(value => value === thread.remoteId ? undefined : value);
+  };
   const deleteActive = async () => { const thread = state.threads.find(item => item.id === state.activeThreadId); if (thread) setDeleteCandidate(thread.id); };
   const togglePinned = (threadId: string) => update(next => { const thread = next.threads.find(item => item.id === threadId); if (thread) thread.pinned = !thread.pinned; });
   const archiveThreadFromSidebar = async (threadId: string) => { const thread = state.threads.find(item => item.id === threadId); if (!thread) return; if (thread.remoteId && codexStatus !== 'connected') { toast('请重新连接服务后再归档或删除远端会话。'); return; } if (thread.remoteId) { try { await archiveThread(thread.remoteId); } catch (error: any) { toast(`归档失败：${error.message}`); return; } } update(next => { const item = next.threads.find(value => value.id === threadId); if (item) { item.archived = true; item.status = 'completed'; if (next.activeThreadId === threadId) next.activeThreadId = undefined; } }); audit.record('归档会话', thread.id); setRemoteThreadId(value => value === thread.remoteId ? undefined : value); };
@@ -771,7 +780,7 @@ function App({ initialState }: { initialState: DesktopState }) {
       {terminalStarted && <TerminalPanel cwd={workspaceFor(state, active)} open={terminalOpen} onClose={() => setTerminalOpen(false)} />}
       {gitOpen && <GitPanel protectedPaths={state.threads.filter(thread => thread.status === 'running' || pendingThreads.includes(thread.id) || thread.remoteId && (restoringThread === thread.remoteId || runtime.threads[thread.remoteId]?.turnId) || queue.items.some(item => item.localId === thread.id)).map(thread => workspaceFor(state, thread)).filter((path): path is string => Boolean(path))} onReview={text => { setInput(current => current ? `${current}\n\n${text}` : text); setPage('chat'); setGitOpen(false); }} key={workspaceFor(state, active) || 'none'} root={workspaceFor(state, active)} onClose={() => setGitOpen(false)} onWorktree={project => { changeProject(project); setGitOpen(false); }} />}
       {filesOpen && <WorkspaceFiles onPreview={setArtifactTarget} onEdit={setFileEdit} previewUpdate={filePreviewUpdate} key={workspaceFor(state, active) || 'none'} root={workspaceFor(state, active)} onClose={() => setFilesOpen(false)} onAttach={path => setAttachments(current => [...new Set([...current, path])])} />}
-    </div>{notice && <div className="toast">{notice}</div>}{approval && <ApprovalDialog request={approval} onDecision={respondApproval} />}{deleteCandidate && <DeleteDialog thread={state.threads.find(item => item.id === deleteCandidate)} onCancel={() => setDeleteCandidate(undefined)} onConfirm={() => { const id = deleteCandidate; setDeleteCandidate(undefined); void performDelete(id); }} />}
+    </div>{notice && <div className="toast">{notice}</div>}{approval && <ApprovalDialog request={approval} onDecision={respondApproval} />}{deleteCandidate && <DeleteThread title={state.threads.find(item => item.id === deleteCandidate)?.title || '会话'} onCancel={() => setDeleteCandidate(undefined)} onConfirm={() => performDelete(deleteCandidate)} />}
     {artifactTarget && <ArtifactPreview target={artifactTarget} onClose={() => setArtifactTarget(undefined)} onEdit={session => { setArtifactTarget(undefined); setFileEdit(session); }} />}
     {fileEdit && <FileEditor root={fileEdit.root} path={fileEdit.path} initial={fileEdit.initial} onClose={() => setFileEdit(undefined)} onSaved={preview => setFilePreviewUpdate({ root: fileEdit.root, path: fileEdit.path, preview })} />}
     {archivesOpen && <ArchivedThreads threads={state.threads} connected={codexStatus === 'connected'} onClose={() => setArchivesOpen(false)} onRestore={thread => { audit.record('恢复归档会话', thread.id); update(next => { const existing = next.threads.find(item => item.id === thread.id || !!thread.remoteId && item.remoteId === thread.remoteId); if (existing) existing.archived = false; else next.threads.push({ ...thread, archived: false }); }); }} />}
@@ -780,17 +789,6 @@ function App({ initialState }: { initialState: DesktopState }) {
 
 function modelId(model: string) { return model.split(' · ')[0]; }
 
-
-function DeleteDialog({ thread, onCancel, onConfirm }: { thread?: DesktopState['threads'][number]; onCancel: () => void; onConfirm: () => void }) {
-  if (!thread) return null;
-  return <div className="confirm-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onCancel(); }}>
-    <section className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-dialog-title" aria-describedby="delete-dialog-description">
-      <div className="confirm-icon" aria-hidden="true">!</div>
-      <div className="confirm-copy"><h2 id="delete-dialog-title">删除会话？</h2><p id="delete-dialog-description">“{thread.title}”将被永久删除，此操作无法撤销。</p></div>
-      <div className="confirm-actions"><button onClick={onCancel}>取消</button><button className="danger" onClick={onConfirm}>删除</button></div>
-    </section>
-  </div>;
-}
 
 function ApprovalDialog({ request, onDecision }: { request: any; onDecision: (decision: string, answers?: UserAnswers, content?: Record<string, unknown>) => Promise<void> }) {
   if (request.method === 'mcpServer/elicitation/request' && request.params?.mode === 'url') return <McpUrl key={request.id} request={request} onDecision={onDecision} />;
