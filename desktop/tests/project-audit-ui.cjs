@@ -10,7 +10,7 @@ async function openCase(browser, pickProject) {
       providerStatus: async () => ({ keyConfigured: true }),
       listModels: async () => ({ ok: true, models: ['test'] }),
       getProjectRoot: async () => 'D:/Felix',
-      pickProject: async () => pickMode === 'cancel' ? null : (() => { throw Error('picker failed'); })(),
+      pickProject: async () => pickMode === 'cancel' ? null : pickMode === 'invalid' ? {id:'bad',name:'Bad',path:'relative',git:{isRepository:false},environment:'local'} : (() => { throw Error('picker failed'); })(),
     };
     window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async () => ({ ok: true, result: { data: [] } }), onNotification: () => () => {}, onClosed: () => () => {}, onServerRequest: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
   }, { pickMode: pickProject });
@@ -24,9 +24,17 @@ async function openCase(browser, pickProject) {
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
-    for (const mode of ['cancel', 'failure']) {
+    for (const mode of ['cancel', 'failure', 'invalid']) {
       const page = await openCase(browser, mode);
       assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('felix-audit-log-v1'))), []);
+      if (mode === 'invalid') {
+        await page.getByText('项目数据无效，请重新选择目录。',{exact:true}).waitFor();
+        assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('codex-desktop-state-v1')).activeThreadId),'a');
+        await page.evaluate(()=>{window.desktop.pickProject=async()=>({id:'valid',name:'Valid',path:'D:/valid',git:{isRepository:false},environment:'local'});});
+        await page.getByRole('button',{name:'打开文件夹…',exact:true}).click();
+        await page.waitForFunction(()=>JSON.parse(localStorage.getItem('codex-desktop-state-v1')).activeProjectId==='valid');
+        assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('felix-audit-log-v1')).filter(e=>e.action==='切换项目').length),1);
+      }
       await page.close();
     }
     console.log('PASS: canceled and failed project pickers do not create success audit entries');
