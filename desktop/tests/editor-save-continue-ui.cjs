@@ -48,7 +48,35 @@ const { workspaceFile } = require('../electron/workspace-files.cjs');
     assert.equal(await editor.inputValue(), 'first\n中文');
     assert.equal(await keep.isDisabled(), true);
     await editor.fill('second\n中文');
+    await page.evaluate(() => {
+      const native = window.desktop.workspaceFile;
+      window.restoreFile = () => { window.desktop.workspaceFile = native; };
+      window.desktop.workspaceFile = async input => input.action === 'write'
+        ? { ok: true, result: { kind: 'text', text: 'wrong response', revision: 'wrong-version' } }
+        : native(input);
+    });
     await keep.click();
+    await page.getByRole('alert').filter({ hasText: '保存结果不完整' }).waitFor();
+    assert.equal(await editor.inputValue(), 'second\n中文');
+    assert.equal(await fs.readFile(target, 'utf8'), 'first\r\n中文');
+    await editor.press('Control+z');
+    assert.equal(await editor.inputValue(), 'first\n中文');
+    assert.equal(await keep.isDisabled(), true);
+    await editor.press('Control+y');
+    await page.evaluate(() => {
+      window.restoreFile();
+      const native = window.desktop.workspaceFile;
+      window.desktop.workspaceFile = input => input.action === 'write'
+        ? new Promise(resolve => { window.releaseSave = () => resolve(native(input)); })
+        : native(input);
+    });
+    await keep.click();
+    assert.equal(await editor.isDisabled(), true);
+    assert.equal(await keep.isDisabled(), true);
+    assert.equal(await page.getByRole('button', { name: '取消编辑', exact: true }).isDisabled(), true);
+    await page.keyboard.press('Control+s');
+    assert.equal(writes.length, 1);
+    await page.evaluate(() => { window.restoreFile(); window.releaseSave(); });
     await page.waitForFunction(() => document.querySelector('textarea[aria-label="文件内容"]')?.disabled === false);
     assert.equal(await keep.isDisabled(), true);
     assert.equal(await fs.readFile(target, 'utf8'), 'second\r\n中文');
