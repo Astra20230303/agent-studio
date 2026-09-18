@@ -9,6 +9,11 @@ remains available. Returning to the original queue does not restore an abandoned
 edit. Browser component acceptance covers scope and status transitions without
 unintended saves; full queue workflow regression and production build pass.
 
+Post-commit acceptance verifies ordinary item refresh preserves typed content and
+saves to the same message ID, while clearing and refilling the queue neither
+reopens the editor nor blocks resume. In-flight dispatch/persistence-failure
+regression also passes. No additional product correction was required.
+
 ## Remove attachments from queued messages
 
 Queue editing now lists attachment filenames and full paths, and permits removing
