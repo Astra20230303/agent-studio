@@ -40,6 +40,18 @@ const { chromium } = require('playwright');
   await page.getByRole('alert').filter({hasText:'refresh rejected'}).waitFor();
   assert.equal(await page.getByText('fresh command',{exact:true}).count(), 1);
   assert.equal(await page.evaluate(() => window.__calls.length), 3);
+  await page.getByRole('button',{name:'终止后台命令 new',exact:true}).click();
+  await page.waitForFunction(() => window.__calls.length === 4);
+  await page.evaluate(() => window.__render(false));
+  await page.getByText(/列表可能已过期/).waitFor();
+  await page.evaluate(() => window.__render(true));
+  await page.getByText(/列表可能已过期/).waitFor({state:'detached'});
+  assert.equal(await page.getByRole('button',{name:'终止后台命令 new',exact:true}).isDisabled(), true);
+  await page.evaluate(() => window.__resolve[3]({ok:false,error:'old termination failure'}));
+  await page.waitForFunction(() => window.__calls.length === 5);
+  assert.equal(await page.getByText('old termination failure',{exact:true}).count(), 0);
+  await page.evaluate(() => window.__resolve[4]({ok:true,result:{data:[]}}));
+  await page.getByText('没有运行中的后台命令',{exact:true}).waitFor();
   console.log('PASS: lazy opening, reconnect invalidation, deferred refresh, collapsed silence and failed refresh preserve snapshot');
  } finally {await browser.close();}
 })().catch(error => {console.error(error);process.exitCode=1;});
