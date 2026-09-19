@@ -7,7 +7,7 @@ const validSchedule = (value: any): value is TaskSchedule => {
   if (!value || typeof value !== 'object') return false;
   if (value.kind === 'interval') return typeof value.minutes === 'number' && Number.isFinite(value.minutes);
   if (value.kind === 'once') return typeof value.at === 'string';
-  return ['daily', 'weekdays', 'weekly'].includes(value.kind) && typeof value.time === 'string' && typeof value.timezone === 'string' && (value.day == null || Number.isInteger(value.day) && value.day >= 0 && value.day <= 6);
+  return ['daily', 'weekdays', 'weekly', 'customWeek'].includes(value.kind) && typeof value.time === 'string' && typeof value.timezone === 'string' && (value.kind !== 'customWeek' || Array.isArray(value.days) && value.days.length <= 7 && value.days.every((day: unknown) => typeof day === 'number' && Number.isInteger(day) && day >= 0 && day <= 6) && new Set(value.days).size === value.days.length) && (value.day == null || Number.isInteger(value.day) && value.day >= 0 && value.day <= 6);
 };
 
 export function isTaskDraft(value: unknown): value is TaskDraft {

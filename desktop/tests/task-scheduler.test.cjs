@@ -206,3 +206,18 @@ test('extended effort run snapshots survive restart and model-default edits', as
     }
   } finally { await scheduler.stop(); fs.rmSync(directory, { recursive: true, force: true }); }
 });
+
+test('multiple weekly days persist and run only on selected weekdays',async()=>{
+ const directory=temp();let now=Date.parse('2026-09-20T00:00:00Z');let calls=0;
+ let scheduler=new TaskScheduler({directory,now:()=>now,runner:async()=>{calls++;return {output:'ok'};}});
+ const saved=scheduler.save(task({kind:'agent',model:'test',schedule:{kind:'customWeek',days:[5,1,3],time:'09:00',timezone:'UTC'}}));
+ assert.deepEqual(saved.schedule.days,[1,3,5]);await scheduler.stop();
+ scheduler=new TaskScheduler({directory,now:()=>now,runner:async()=>{calls++;return {output:'ok'};}});
+ try{
+  assert.deepEqual(scheduler.detail(saved.id).schedule.days,[1,3,5]);
+  now=Date.parse('2026-09-21T09:00:00Z');await scheduler.tick();assert.equal(calls,1);
+  assert.equal(scheduler.detail(saved.id).nextRunAt,'2026-09-23T09:00:00.000Z');
+  now=Date.parse('2026-09-22T09:00:00Z');await scheduler.tick();assert.equal(calls,1);
+  now=Date.parse('2026-09-23T09:00:00Z');await scheduler.tick();assert.equal(calls,2);
+ }finally{await scheduler.stop();}
+});

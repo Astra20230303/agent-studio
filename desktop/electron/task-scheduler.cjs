@@ -9,7 +9,7 @@ function scheduleNext(schedule, now = Date.now()) {
   if (schedule.kind === 'interval') return new Date(now + schedule.minutes * 60000).toISOString();
   if (schedule.kind === 'once') return new Date(schedule.at).getTime() > now ? schedule.at : null;
   const [hour, minute] = schedule.time.split(':').map(Number);
-  const days = schedule.kind === 'weekdays' ? '1-5' : schedule.kind === 'weekly' ? schedule.day : '*';
+  const days = schedule.kind === 'weekdays' ? '1-5' : schedule.kind === 'weekly' ? schedule.day : schedule.kind === 'customWeek' ? schedule.days.join(',') : '*';
   return CronExpressionParser.parse(`${minute} ${hour} * * ${days}`, { currentDate: new Date(now), tz: schedule.timezone }).next().toISOString();
 }
 
@@ -29,7 +29,7 @@ function validateTask(input, now) {
   if (cwd && !path.isAbsolute(cwd)) throw new Error('工作目录必须是绝对路径。');
   if (!['read-only', 'workspace-write'].includes(input.permission)) throw new Error('执行权限无效。');
   const raw = input.schedule;
-  if (!raw || !['once', 'daily', 'weekdays', 'weekly', 'interval'].includes(raw.kind)) throw new Error('时间安排无效。');
+  if (!raw || !['once', 'daily', 'weekdays', 'weekly', 'customWeek', 'interval'].includes(raw.kind)) throw new Error('时间安排无效。');
   let schedule;
   if (raw.kind === 'interval') {
     if (!Number.isInteger(raw.minutes) || raw.minutes < 1 || raw.minutes > 10080) throw new Error('间隔须为 1 至 10080 分钟的整数。');
@@ -42,7 +42,8 @@ function validateTask(input, now) {
     if (typeof raw.timezone !== 'string') throw new Error('请选择时区。');
     try { new Intl.DateTimeFormat('en', { timeZone: raw.timezone }).format(); } catch { throw new Error('时区无效。'); }
     if (raw.kind === 'weekly' && (!Number.isInteger(raw.day) || raw.day < 0 || raw.day > 6)) throw new Error('星期无效。');
-    schedule = { kind: raw.kind, time: raw.time, timezone: raw.timezone, ...(raw.kind === 'weekly' ? { day: raw.day } : {}) };
+    if (raw.kind === 'customWeek' && (!Array.isArray(raw.days) || raw.days.length < 1 || raw.days.length > 7 || raw.days.some(day => !Number.isInteger(day) || day < 0 || day > 6) || new Set(raw.days).size !== raw.days.length)) throw new Error('请选择至少一个不重复的运行日。');
+    schedule = { kind: raw.kind, ...(raw.kind === 'customWeek' ? { days: [...raw.days].sort((a, b) => a - b) } : {}), time: raw.time, timezone: raw.timezone, ...(raw.kind === 'weekly' ? { day: raw.day } : {}) };
   }
   if (input.timeoutMinutes != null && (!Number.isInteger(input.timeoutMinutes) || input.timeoutMinutes < 1 || input.timeoutMinutes > 120)) throw new Error('执行时限须为 1 至 120 分钟的整数。');
   if (input.reasoningEffort != null && !['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra', 'persistent'].includes(input.reasoningEffort)) throw new Error('推理强度无效。');

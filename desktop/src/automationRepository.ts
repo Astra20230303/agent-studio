@@ -26,8 +26,9 @@ function task(value: any): value is ScheduledTask {
   if (schedule.kind === 'interval') { if (!Number.isInteger(schedule.minutes) || schedule.minutes < 1 || schedule.minutes > 10080) return false; }
   else if (schedule.kind === 'once') { if (!date(schedule.at)) return false; }
   else {
-    if (!['daily','weekdays','weekly'].includes(schedule.kind) || typeof schedule.time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(schedule.time) || typeof schedule.timezone !== 'string') return false;
+    if (!['daily','weekdays','weekly','customWeek'].includes(schedule.kind) || typeof schedule.time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(schedule.time) || typeof schedule.timezone !== 'string') return false;
     try { new Intl.DateTimeFormat('en', { timeZone: schedule.timezone }); } catch { return false; }
+    if (schedule.kind === 'customWeek' && (!Array.isArray(schedule.days) || schedule.days.length < 1 || schedule.days.length > 7 || schedule.days.some((day: unknown) => typeof day !== 'number' || !Number.isInteger(day) || day < 0 || day > 6) || new Set(schedule.days).size !== schedule.days.length)) return false;
     if (schedule.kind === 'weekly' && (!Number.isInteger(schedule.day) || schedule.day < 0 || schedule.day > 6)) return false;
   }
   return value.runs.every((run: any) => record(run) && typeof run.id === 'string' && !!run.id

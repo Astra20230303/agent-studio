@@ -10,3 +10,8 @@ test('preview uses real scheduler for intervals, once, weekdays and timezone',()
 test('preview rejects invalid and expired schedules',()=>{
  for(const schedule of [{kind:'interval',minutes:0},{kind:'once',at:''},{kind:'once',at:'2020-01-01'},{kind:'daily',time:'25:00',timezone:'UTC'},{kind:'daily',time:'09:00',timezone:'invalid'}])assert.throws(()=>previewSchedule(schedule,now));
 });
+
+test('multiple weekly days preview across week boundaries',()=>{
+ assert.deepEqual(previewSchedule({kind:'customWeek',days:[1,3,5],time:'09:00',timezone:'Asia/Shanghai'},now).times,['2026-09-21T01:00:00.000Z','2026-09-23T01:00:00.000Z','2026-09-25T01:00:00.000Z']);
+ for(const days of [[],[1,1],[7],['1'],null])assert.throws(()=>previewSchedule({kind:'customWeek',days,time:'09:00',timezone:'UTC'},now),/运行日/);
+});
