@@ -22,6 +22,19 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  assert.match(await editor.locator('time').textContent(),/GMT\+11/);
  await editor.getByText(/本地时间（Asia\/Shanghai）：.*08:00/).waitFor();
 
+ const zone=editor.getByRole('combobox',{name:'任务时区',exact:true});
+ await zone.selectOption('Asia/Calcutta');
+ await editor.getByRole('button',{name:'预览运行时间',exact:true}).click();await editor.locator('time').waitFor();
+ assert.match(await editor.locator('time').textContent(),/05:30/);assert.match(await editor.locator('time').textContent(),/GMT\+5:30/);
+ await zone.selectOption('America/Los_Angeles');
+ await editor.getByRole('button',{name:'预览运行时间',exact:true}).click();await editor.locator('time').waitFor();
+ assert.match(await editor.locator('time').textContent(),/2098\/12\/31.*16:00/);
+ await editor.getByText(/本地时间（Asia\/Shanghai）：2099\/0?1\/0?1.*08:00/).waitFor();
+ await zone.selectOption('Asia/Shanghai');
+ await editor.getByRole('button',{name:'预览运行时间',exact:true}).click();await editor.locator('time').waitFor();
+ assert.equal(await editor.getByText(/本地时间（/).count(),0);
+ assert.match(await editor.locator('time').textContent(),/08:00/);
+ await zone.selectOption('Australia/Sydney');
  await frequency.selectOption('daily');assert.equal(await editor.locator('time').count(),0);
  assert.equal(await editor.getByLabel('运行时间',{exact:true}).inputValue(),'18:45');assert.equal(await editor.getByRole('combobox',{name:'任务时区',exact:true}).inputValue(),'Australia/Sydney');
  await editor.getByRole('button',{name:'保存任务',exact:true}).click();await editor.waitFor({state:'detached'});
