@@ -10,6 +10,8 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  const modal=page.getByRole('dialog',{name:'消息文件预览'});await modal.getByText('工作区：D:/One',{exact:true}).waitFor();
  await modal.locator('pre').waitFor();assert.equal(await modal.evaluate(el=>el.matches(':modal')),false);assert.equal(await modal.locator('pre span').nth(1).evaluate(el=>el.style.background),'rgb(255, 224, 138)');
  assert.deepEqual(await page.evaluate(()=>window.__reads[0]),{root:'D:/One',path:'notes.txt',action:'read'});
+ const panelBox=await page.locator('.artifact-side-panel').boundingBox();const chatBox=await page.locator('.chat-layout').boundingBox();assert.ok(chatBox.x+chatBox.width<=panelBox.x+1);
+ await page.setViewportSize({width:390,height:650});const narrowBox=await page.locator('.artifact-side-panel').boundingBox();assert.ok(narrowBox.x>=0&&narrowBox.x+narrowBox.width<=390);await page.setViewportSize({width:1280,height:720});
  await modal.press('Control+g');
  const lineInput=modal.getByRole('textbox',{name:'预览行号',exact:true});
  assert.ok(await lineInput.evaluate(el=>el===document.activeElement));
