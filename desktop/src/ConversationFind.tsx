@@ -41,14 +41,14 @@ export function ConversationFind({ messages, view, searching, loadHistory, searc
   const input = useRef<HTMLInputElement>(null);
   const composing = useRef(false);
   useEffect(() => { composing.current = false; }, [open, reset]);
-  const button = useRef<HTMLButtonElement>(null);
+
   const term = query.trim().toLocaleLowerCase();
   const matches = term ? messages.filter(message => (scope === 'all' || (message.tool ? scope === 'tool' : message.role === scope)) && [message.content, ...(message.attachments || []), ...(message.skills || []).map(skill => `${skill.name} ${skill.path}`), ...(message.plugins || []).map(plugin => `${plugin.name} ${plugin.id}`), message.tool ? JSON.stringify(message.tool) : ''].join('\n').toLocaleLowerCase().includes(term)) : [];
   const index = Math.max(0, matches.findIndex(message => message.id === selected));
   const targetMessage = remoteTarget && messages.find(message => (message.id === remoteTarget.itemId || message.id === `live-${remoteTarget.itemId}`) && (!message.turnId || message.turnId === remoteTarget.turnId));
   const id = open ? targetMessage?.id || matches[index]?.id : undefined;
   searching.current = open && Boolean(term);
-  const close = () => { cancelRemote(); setRemote(current => ({ ...current, loading: false })); setOpen(false); button.current?.focus(); };
+  const close = () => { cancelRemote(); setRemote(current => ({ ...current, loading: false })); setOpen(false); document.getElementById('conversation-find-trigger')?.focus(); };
   const loadRemote = async () => {
     if (!searchRemote || !term || disabled || remoteRequest.current) return;
     const request = new AbortController(); remoteRequest.current = request;
@@ -71,8 +71,10 @@ export function ConversationFind({ messages, view, searching, loadHistory, searc
       if (!canHandleAppShortcut(event) || event.shiftKey) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f' && !event.altKey) { event.preventDefault(); setOpen(true); input.current?.focus(); }
     };
+    const reveal = () => { setOpen(true); input.current?.focus(); };
+    window.addEventListener('felix:conversation-find', reveal);
     window.addEventListener('keydown', listener);
-    return () => { window.removeEventListener('keydown', listener); searching.current = false; };
+    return () => { window.removeEventListener('felix:conversation-find', reveal); window.removeEventListener('keydown', listener); searching.current = false; };
   }, [searching]);
   useEffect(() => { if (open) input.current?.focus(); }, [open]);
   useEffect(() => {
@@ -85,8 +87,7 @@ export function ConversationFind({ messages, view, searching, loadHistory, searc
     target.scrollIntoView({ block: 'center', behavior: 'instant' });
     return () => target.classList.remove('conversation-find-match');
   }, [id, view, messages]);
-  return <div className="conversation-find">
-    <button ref={button} aria-expanded={open} onClick={() => setOpen(value => !value)}>会话内查找</button>
+  return <div className="conversation-find" hidden={!open}>
     {open && loadHistory && <button disabled={loading || disabled} onClick={() => void load()}>{loading ? '正在加载历史…' : '加载完整历史'}</button>}
     {open && loading && <button onClick={() => historyRequest.current?.abort()}>取消加载历史</button>}
     {open && historyStatus && <span role="status">{historyStatus}</span>}
@@ -94,6 +95,6 @@ export function ConversationFind({ messages, view, searching, loadHistory, searc
       if (composing.current || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
       if (event.key === 'Enter') { event.preventDefault(); move(event.shiftKey ? -1 : 1); }
       if (event.key === 'Escape') { event.preventDefault(); close(); }
-    }} /><span role="status">{term ? matches.length ? `${index + 1} / ${matches.length} 条匹配记录` : '没有匹配记录' : '查找范围：已加载记录'}</span>{searchRemote && term && <button disabled={remote.loading || disabled} onClick={() => void loadRemote()}>{remote.loading ? '正在搜索完整历史…' : '搜索完整历史'}</button>}<button aria-label="上一个匹配" disabled={!matches.length} onClick={() => move(-1)}>↑</button><button aria-label="下一个匹配" disabled={!matches.length} onClick={() => move(1)}>↓</button><button aria-label="关闭会话查找" onClick={close}>×</button>{remote.query === term && (remote.error ? <p role="alert">{remote.error}</p> : remote.loading ? <span role="status">正在搜索用户消息和最终回复…</span> : !remote.data.length ? <span role="status">完整历史没有匹配消息</span> : <ol aria-label="完整历史匹配">{remote.data.map((occurrence, index) => <li key={`${occurrence.itemId}-${index}`}><button disabled={disabled || loading} onClick={() => void locate(occurrence)}>{occurrence.snippet.slice(0, occurrence.matchStart)}<mark>{occurrence.snippet.slice(occurrence.matchStart, occurrence.matchEnd)}</mark>{occurrence.snippet.slice(occurrence.matchEnd)}</button></li>)}</ol>)}</>}
+    }} /><span role="status">{term ? matches.length ? `${index + 1} / ${matches.length} 条匹配记录` : '没有匹配记录' : '查找范围：已加载记录'}</span>{searchRemote && term && <button disabled={remote.loading || disabled} onClick={() => void loadRemote()}>{remote.loading ? '正在搜索完整历史…' : '搜索完整历史'}</button>}<button aria-label="上一个匹配" disabled={!matches.length} onClick={() => move(-1)}>↑</button><button aria-label="下一个匹配" disabled={!matches.length} onClick={() => move(1)}>↓</button><button aria-label="关闭会话查找" onClick={close}>×</button>{term && remote.query === term && (remote.error ? <p role="alert">{remote.error}</p> : remote.loading ? <span role="status">正在搜索用户消息和最终回复…</span> : !remote.data.length ? <span role="status">完整历史没有匹配消息</span> : <ol aria-label="完整历史匹配">{remote.data.map((occurrence, index) => <li key={`${occurrence.itemId}-${index}`}><button disabled={disabled || loading} onClick={() => void locate(occurrence)}>{occurrence.snippet.slice(0, occurrence.matchStart)}<mark>{occurrence.snippet.slice(occurrence.matchStart, occurrence.matchEnd)}</mark>{occurrence.snippet.slice(occurrence.matchEnd)}</button></li>)}</ol>)}</>}
   </div>;
 }

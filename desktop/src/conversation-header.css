@@ -1,0 +1,18 @@
+.conversation-header{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:6px 20px;border-bottom:1px solid #8882;flex:none}
+.conversation-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:500}
+.conversation-header-actions{display:flex;gap:4px;flex:none}
+.conversation-header button{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:8px;background:transparent;color:inherit;padding:8px;cursor:pointer}
+.conversation-header button:hover{background:#8882}
+.conversation-settings{position:fixed;inset:90px 20px auto auto;margin:0;width:360px;max-width:calc(100vw - 32px);max-height:calc(100dvh - 110px);overflow:auto;box-sizing:border-box;padding:16px;border:1px solid #8883;border-radius:16px;background:#fff;color:#303030;box-shadow:0 10px 35px #0002;font-size:13px}
+.dark .conversation-settings{background:#30302e;color:#eee}
+.conversation-settings-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.conversation-settings .planning-controls{display:flex;flex-direction:column;align-items:stretch;padding:0;gap:14px}
+.conversation-settings .planning-controls label{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.conversation-settings select{max-width:190px;min-width:0;background:inherit;color:inherit}
+.conversation-settings .plan-panel{margin:16px 0 0;padding:12px 0 0;border:0;border-top:1px solid #8883;border-radius:0}
+.conversation-settings .goal-editor{display:flex;flex-direction:column;gap:12px;padding-top:12px}
+.conversation-settings .goal-editor label{display:flex;flex-direction:column;gap:6px}
+.conversation-settings textarea,.conversation-settings input{box-sizing:border-box;width:100%;border:1px solid #8885;border-radius:7px;padding:8px;background:transparent;color:inherit;font:inherit}
+.conversation-settings .plan-actions{display:flex;flex-wrap:wrap;gap:6px}
+.conversation-settings button:disabled{opacity:.45;cursor:default}
+@media(max-width:760px){.conversation-header{padding:6px 12px}.conversation-settings{right:12px;top:85px}}
