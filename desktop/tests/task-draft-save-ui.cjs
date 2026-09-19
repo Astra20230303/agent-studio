@@ -1,0 +1,37 @@
+const {chromium}=require('playwright');const assert=require('node:assert/strict');
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
+ const page=await browser.newPage();await page.addInitScript(()=>{
+  const write=Storage.prototype.setItem;
+  Storage.prototype.setItem=function(key,value){if(key==='felix-task-editor-draft-v1'&&window.__failTaskDraft)throw new Error('Disk full');return write.call(this,key,value);};
+  window.__saves=[];window.desktop={listModels:async()=>({ok:true,models:['test']}),listTasks:async()=>({ok:true,tasks:[]}),saveTask:async input=>{window.__saves.push(input);return {ok:true};}};
+ });await page.goto(process.env.FELIX_TEST_URL||'http://127.0.0.1:5318');await page.getByRole('button',{name:'已安排',exact:true}).click();
+ await page.getByRole('button',{name:'创建',exact:true}).click();await page.getByRole('menuitem',{name:'提醒',exact:true}).click();
+ const editor=page.getByRole('dialog',{name:'创建任务',exact:true});
+ await page.evaluate(()=>{window.__failTaskDraft=true;});
+ await editor.getByLabel('任务名称',{exact:true}).fill('Recovered draft');
+ await editor.getByRole('textbox',{name:'任务内容',exact:true}).fill('Latest unsaved task');
+ await editor.getByRole('alert').filter({hasText:'任务草稿未能保存到本机'}).waitFor();
+ await editor.getByRole('button',{name:'重试保存任务草稿',exact:true}).click();
+ await editor.getByRole('alert').filter({hasText:'任务草稿未能保存到本机'}).waitFor();
+ await page.evaluate(()=>{window.__failTaskDraft=false;});
+ await editor.getByRole('button',{name:'重试保存任务草稿',exact:true}).click();
+ await editor.getByRole('alert').filter({hasText:'任务草稿未能保存到本机'}).waitFor({state:'detached'});
+ await page.waitForFunction(()=>JSON.parse(localStorage.getItem('felix-task-editor-draft-v1')).current.prompt==='Latest unsaved task');
+ assert.equal(await page.evaluate(()=>window.__saves.length),0);
+ await page.reload();await page.getByRole('button',{name:'已安排',exact:true}).click();
+ await editor.waitFor();assert.equal(await editor.getByLabel('任务名称',{exact:true}).inputValue(),'Recovered draft');
+ assert.equal(await editor.getByRole('textbox',{name:'任务内容',exact:true}).inputValue(),'Latest unsaved task');
+ await page.evaluate(()=>localStorage.setItem('felix-task-editor-draft-v1','{broken'));
+ await page.reload();await page.getByRole('button',{name:'已安排',exact:true}).click();
+ await page.getByRole('button',{name:'重试读取任务草稿',exact:true}).waitFor();
+ await page.getByRole('button',{name:'创建',exact:true}).click();await page.getByRole('menuitem',{name:'提醒',exact:true}).click();
+ await editor.getByLabel('任务名称',{exact:true}).fill('Edited during recovery');
+ await editor.getByRole('button',{name:'重试读取任务草稿',exact:true}).click();
+ assert.equal(await page.evaluate(()=>localStorage.getItem('felix-task-editor-draft-v1')),'{broken');
+ await page.evaluate(()=>localStorage.setItem('felix-task-editor-draft-v1','{}'));
+ await editor.getByRole('button',{name:'重试读取任务草稿',exact:true}).click();
+ await editor.getByRole('button',{name:'重试读取任务草稿',exact:true}).waitFor({state:'detached'});
+ await page.waitForFunction(()=>JSON.parse(localStorage.getItem('felix-task-editor-draft-v1')).current.name==='Edited during recovery');
+ assert.equal(await editor.getByLabel('任务名称',{exact:true}).inputValue(),'Edited during recovery');
+ console.log('PASS: task draft storage failure visible in modal, retry and reload recovery without scheduling');
+}finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});
