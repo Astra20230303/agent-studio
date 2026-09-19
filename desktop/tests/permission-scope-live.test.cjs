@@ -90,6 +90,3 @@ for (const scope of ['turn', 'session']) test(`real permission grant ${scope} ha
     adapter.closeAllConnections();await new Promise(r=>adapter.close(r));model.closeAllConnections();await new Promise(r=>model.close(r));
   }
 });
-
-
-
