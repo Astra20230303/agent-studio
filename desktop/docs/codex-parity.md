@@ -3842,3 +3842,5 @@ Codex Rust 传递依赖和原生二进制传递依赖仍需进一步许可审计
 
 - desktop-manifest.json 新增 source：打包开始时的 Git 提交、UTC 时间、仓库 clean/modified/unknown 状态和 packaging 阶段标记。包括暂存/未暂存/未跟踪及子模块状态，不包含文件名、路径、正文或远端地址；Git 不可用时明确 unknown。
 - 临时仓库测试验证干净、修改、暂存、未跟踪和无仓库状态。新目录包 .project-cache/felix-desktop-source-20260919 实际记录当前提交和 modified，835 文件完整性校验、迁移启动/内置后端/终端/任务草稿回归通过。此记录是打包时仓库观察值，不证明 dist 或预构建运行时来自相同提交，也不是可复现构建或签名证明。
+
+- 提交后验收：真实临时 Git 子模块配置 ignore=all 后，其未跟踪文件仍使来源记录为 modified；独立子进程移除 PATH 中 Git 后返回 unknown/null，未误报 clean。4 项来源状态测试通过，无产品修正，报告不包含测试文件名或内容。
