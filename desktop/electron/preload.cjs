@@ -58,6 +58,7 @@ contextBridge.exposeInMainWorld('desktop', {
   saveTerminal: input => ipcRenderer.invoke('desktop:save-terminal', input),
   saveTaskOutput: input => ipcRenderer.invoke('desktop:save-task-output', input),
   readExtensionFile: (path, kind) => ipcRenderer.invoke('desktop:extension-file', { path, kind }),
+  previewTaskSchedule: schedule => ipcRenderer.invoke('tasks:preview', schedule),
   listTasks: () => ipcRenderer.invoke('tasks:list'),
   saveTask: input => ipcRenderer.invoke('tasks:save', input),
   setTaskStatus: (id, status) => ipcRenderer.invoke('tasks:status', { id, status }),

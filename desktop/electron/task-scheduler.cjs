@@ -245,4 +245,15 @@ class TaskScheduler extends EventEmitter {
   }
 }
 
-module.exports = { TaskScheduler, scheduleNext, validateTask };
+function previewSchedule(raw, now = Date.now()) {
+  const { schedule } = validateTask({ name: 'preview', prompt: 'preview', kind: 'reminder', permission: 'read-only', notify: false, schedule: raw }, now);
+  const times = [];
+  let cursor = now;
+  for (let index = 0; index < 3; index++) {
+    const next = scheduleNext(schedule, cursor);
+    if (!next) break;
+    times.push(next); cursor = Date.parse(next);
+  }
+  return { times, calculatedAt: new Date(now).toISOString() };
+}
+module.exports = { TaskScheduler, scheduleNext, validateTask, previewSchedule };

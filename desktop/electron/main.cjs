@@ -235,6 +235,7 @@ ipcMain.handle('desktop:extension-file', async (_event, { path: filename, kind }
   catch (error) { return { ok: false, error: error.message }; }
 });
 ipcMain.handle('tasks:list', () => { try { return { ok: true, tasks: scheduler.list() }; } catch (error) { return { ok: false, error: error.message, tasks: [] }; } });
+ipcMain.handle('tasks:preview', (_event, schedule) => { try { return { ok: true, ...require('./task-scheduler.cjs').previewSchedule(schedule) }; } catch (error) { return { ok: false, error: error.message }; } });
 ipcMain.handle('tasks:save', (_event, input) => { try { return { ok: true, task: scheduler.save(input) }; } catch (error) { return { ok: false, error: error.message }; } });
 ipcMain.handle('tasks:status', (_event, { id, status }) => { try { scheduler.setStatus(id, status); return { ok: true }; } catch (error) { return { ok: false, error: error.message }; } });
 ipcMain.handle('tasks:run', (_event, { id }) => { try { scheduler.run(id).catch(error => scheduler.emit('failure', error.message)); return { ok: true }; } catch (error) { return { ok: false, error: error.message }; } });
