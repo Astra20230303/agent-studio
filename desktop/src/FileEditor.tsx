@@ -6,7 +6,7 @@ import { isEditablePreview } from './editablePreview';
 import { indentSelection } from './editorIndent';
 import { EditorFind } from './FileEditorFind';
 import { editHistory, newEditorHistory, stepHistory } from './editorHistory';
-export function FileEditor({ root, path, initial, lineNumber, column, matchLength, onClose, onSaved }: { root: string; path: string; lineNumber?: number; column?: number; matchLength?: number; initial: { text: string; revision: string }; onClose: () => void; onSaved: (value: any) => void }) {
+export function FileEditor({ root, path, initial, lineNumber, column, matchLength, onClose, onSaved, docked = false }: { docked?: boolean; root: string; path: string; lineNumber?: number; column?: number; matchLength?: number; initial: { text: string; revision: string }; onClose: () => void; onSaved: (value: any) => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const editor = useRef<HTMLTextAreaElement>(null);
   const operation = useRef(false);
@@ -31,7 +31,7 @@ export function FileEditor({ root, path, initial, lineNumber, column, matchLengt
   useEffect(() => {
     const previous = document.activeElement;
     const opened = dialog.current;
-    opened?.showModal();
+    if (docked) opened?.show(); else opened?.showModal();
     editor.current?.focus();
     if (editor.current && lineNumber !== undefined) selectEditorLine(editor.current, lineNumber, column, matchLength);
     return () => {
@@ -76,7 +76,8 @@ export function FileEditor({ root, path, initial, lineNumber, column, matchLengt
     } catch (error) { setError(error instanceof Error ? error.message : String(error)); }
     finally { operation.current = false; setBusy(false); }
   };
-  return <dialog ref={dialog} aria-label="编辑工作区文件" className="file-editor" onKeyDown={event => {
+  return <dialog ref={dialog} aria-label="编辑工作区文件" className={`file-editor${docked ? ' docked-file' : ''}`} onKeyDown={event => {
+    if (docked && event.key === 'Escape' && !event.nativeEvent.isComposing) { event.preventDefault(); close(); }
     if ((event.ctrlKey || event.metaKey) && ['f', 'h'].includes(event.key.toLowerCase()) && !event.altKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); setFinding(true); requestAnimationFrame(() => dialog.current?.querySelector<HTMLInputElement>('[aria-label="查找编辑内容"]')?.focus()); }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'g' && !event.altKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); const input = dialog.current?.querySelector<HTMLInputElement>('[aria-label="编辑行号"]'); input?.focus(); input?.select(); }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's' && !event.altKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); void save(); }

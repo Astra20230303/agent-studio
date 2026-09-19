@@ -20,3 +20,8 @@
 .conversation-environment p{overflow-wrap:anywhere;line-height:1.6}.environment-actions{display:flex;flex-wrap:wrap;gap:6px}.conversation-environment .settings-card{margin:12px 0;padding:12px 0;border:0;border-top:1px solid #8883}
 
 .conversation-more-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}.conversation-more details{margin-top:14px;border-top:1px solid #8883;padding-top:12px}.conversation-more summary{cursor:pointer}.conversation-more textarea{max-width:100%}.conversation-more .turn-queue{margin:10px 0;padding:0}
+
+.artifact-side-panel{width: min(560px,45vw);min-width:300px;flex:none;border-left:1px solid #8883;overflow:auto;background:inherit;box-sizing:border-box}
+.artifact-side-panel .docked-file{position:static;display:block;margin:0;width:100%;max-width:100%;max-height:none;box-sizing:border-box;border:0;border-radius:0;padding:16px;background:inherit;color:inherit}
+.artifact-side-panel .docked-file>div{flex-wrap:wrap}.artifact-side-panel textarea{box-sizing:border-box;max-width:100%}
+@media(max-width:900px){.artifact-side-panel{position:fixed;inset:82px 0 0 auto;width:min(560px,100vw);max-width:100vw;background:#fff;z-index:20;box-shadow:-8px 0 24px #0002}.dark .artifact-side-panel{background:#30302e}}

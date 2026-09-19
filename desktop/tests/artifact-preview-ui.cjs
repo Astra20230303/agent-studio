@@ -5,8 +5,10 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  window.__reads=[];window.desktop={artifact:async()=>({ok:true,result:{root:'D:/One',path:'notes.txt',line:2,name:'notes.txt',image:false,data:'data:text/plain;base64,YQ=='}}),workspaceFile:async input=>{window.__reads.push(input);return window.__result || {ok:true,result:{text:'first\nsecond\nthird',revision:'original'}};}};
  });await page.goto(process.env.FELIX_TEST_URL||'http://127.0.0.1:5318');
  await page.getByRole('button',{name:'open notes',exact:true}).click();
+ assert.ok(await page.getByRole('textbox',{name:'消息',exact:true}).isEnabled());
+ await page.getByRole('textbox',{name:'消息',exact:true}).fill('Draft remains editable beside preview');
  const modal=page.getByRole('dialog',{name:'消息文件预览'});await modal.getByText('工作区：D:/One',{exact:true}).waitFor();
- await modal.locator('pre').waitFor();assert.equal(await modal.locator('pre span').nth(1).evaluate(el=>el.style.background),'rgb(255, 224, 138)');
+ await modal.locator('pre').waitFor();assert.equal(await modal.evaluate(el=>el.matches(':modal')),false);assert.equal(await modal.locator('pre span').nth(1).evaluate(el=>el.style.background),'rgb(255, 224, 138)');
  assert.deepEqual(await page.evaluate(()=>window.__reads[0]),{root:'D:/One',path:'notes.txt',action:'read'});
  await modal.press('Control+g');
  const lineInput=modal.getByRole('textbox',{name:'预览行号',exact:true});

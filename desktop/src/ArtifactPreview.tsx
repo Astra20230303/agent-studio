@@ -6,7 +6,7 @@ import { PreviewText, type PreviewTextHandle } from './PreviewText';
 import { PreviewImage } from './PreviewImage';
 import './artifactPreview.css';
 import { isEditablePreview } from './editablePreview';
-export function ArtifactPreview({ target, onClose, onEdit }: { target: ArtifactTarget; onClose: () => void; onEdit: (session: FileEditSession) => void }) {
+export function ArtifactPreview({ target, onClose, onEdit, docked = false }: { docked?: boolean; target: ArtifactTarget; onClose: () => void; onEdit: (session: FileEditSession) => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const textPreview = useRef<PreviewTextHandle>(null);
   const [preview, setPreview] = useState<any>();
@@ -16,7 +16,7 @@ export function ArtifactPreview({ target, onClose, onEdit }: { target: ArtifactT
   useEffect(() => {
     const previous = document.activeElement;
     const opened = dialog.current;
-    opened?.showModal();
+    if (docked) opened?.show(); else opened?.showModal();
     return () => {
       opened?.close();
       if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
@@ -34,7 +34,8 @@ export function ArtifactPreview({ target, onClose, onEdit }: { target: ArtifactT
     })();
     return () => { disposed = true; };
   }, [target, revision]);
-  return <dialog ref={dialog} className="file-editor file-preview" aria-label="消息文件预览" onKeyDown={event => {
+  return <dialog ref={dialog} className={`file-editor file-preview${docked ? ' docked-file' : ''}`} aria-label="消息文件预览" onKeyDown={event => {
+    if (docked && event.key === 'Escape') { event.preventDefault(); onClose(); }
     if ((event.ctrlKey || event.metaKey) && !event.altKey && ['f', 'g'].includes(event.key.toLowerCase()) && !event.nativeEvent.isComposing && textPreview.current) {
       event.preventDefault(); event.stopPropagation();
       if (event.key.toLowerCase() === 'g') textPreview.current.goToLine(); else textPreview.current.find();
