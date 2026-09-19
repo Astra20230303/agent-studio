@@ -20,6 +20,7 @@ import { readRemoteControlClients as readRemoteControlClientPage, readRemoteCont
 import { readThreadTimelinePage, type TimelineEntry } from './threadTimeline';
 import { environmentAddParams, readEnvironmentInfo as parseEnvironmentInfo, readEnvironmentStatus as parseEnvironmentStatus, type EnvironmentInfo, type EnvironmentStatus } from './environment';
 import { readCodexModelPage, type CodexModel } from './codexModelCatalog';
+import { readCodexProviderCapabilities as parseCodexProviderCapabilities, type CodexProviderCapabilities } from './codexProviderCapabilities';
 export type RpcMessage = { id?: number | string; method?: string; params?: any; result?: any; error?: any };
 type Bridge = { connect: () => Promise<any>; request: (method: string, params?: unknown) => Promise<any>; notify: (method: string, params?: unknown) => Promise<any>; respond: (id: number | string, result?: unknown, error?: unknown) => Promise<any>; onNotification: (listener: (message: RpcMessage) => void) => () => void; onServerRequest: (listener: (message: RpcMessage) => void) => () => void; onError: (listener: (message: any) => void) => () => void; onStderr: (listener: (message: any) => void) => () => void; onClosed: (listener: (message: any) => void) => () => void };
 const bridge = () => window.codex as Bridge;
@@ -108,6 +109,7 @@ export async function readEnvironmentInfo(environmentId: string): Promise<Enviro
 export async function readEnvironmentStatus(environmentId: string): Promise<EnvironmentStatus> { if (!/^\S+$/.test(environmentId)) throw new Error('环境 ID 无效'); return parseEnvironmentStatus(await unwrap<unknown>(bridge().request('environment/status', { environmentId }))); }
 export async function addEnvironment(environmentId: string, execServerUrl: string, connectTimeoutMs?: number) { await unwrap(bridge().request('environment/add', environmentAddParams(environmentId, execServerUrl, connectTimeoutMs))); }
 export async function listCodexModels(includeHidden = false): Promise<CodexModel[]> { const models: CodexModel[] = []; let cursor: string | undefined; const seen = new Set<string>(); for (let page = 0; page < 100; page++) { const result = readCodexModelPage(await unwrap<unknown>(bridge().request('model/list', { limit: 100, includeHidden, ...(cursor ? { cursor } : {}) }))); models.push(...result.data); if (!result.nextCursor) return models; if (seen.has(result.nextCursor)) throw new Error('Codex 模型目录分页重复，请重试'); seen.add(result.nextCursor); cursor = result.nextCursor; } throw new Error('Codex 模型目录页数过多'); }
+export async function readCodexProviderCapabilities(): Promise<CodexProviderCapabilities> { return parseCodexProviderCapabilities(await unwrap<unknown>(bridge().request('model/providerCapabilities/read', {}))); }
 export async function uploadFeedback(input: FeedbackInput) { const params = validateFeedbackInput(input); return readFeedbackUpload(await unwrap<unknown>(bridge().request('feedback/upload', params))); }
 export async function searchThreadOccurrences(threadId: string, searchTerm: string, signal?: AbortSignal): Promise<ThreadSearchOccurrence[]> {
   if (!/^\S+$/.test(threadId) || !searchTerm.trim()) throw new Error('会话搜索参数无效');
