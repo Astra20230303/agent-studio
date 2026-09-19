@@ -3837,3 +3837,8 @@ Codex Rust 传递依赖和原生二进制传递依赖仍需进一步许可审计
 - 重新构建独立应用 .project-cache/felix-desktop-parity-20260919，835 个文件通过清单完整性校验。迁移到含空格临时目录，以 isPackaged=true 运行 Felix.exe，移除开发运行时环境覆盖，验证内置 app-server 模型目录、原生终端、WebP/GIF 解码、提醒任务重启。
 - 新增分发包验收：url-template 已进入前端许可清单；真实 IPC 月度 31 日预览正常；多日任务草稿暂存后重启保留正文和选择、不创建正式任务，明确放弃可清理。
 - 生成 .project-cache/felix-release-parity-20260919/Felix-portable.zip 及 SHA256SUMS.txt；再次解压后校验 ZIP 哈希、835 文件清单、27 个组件许可清单并重跑完整分发包启动测试，全部通过。包为未签名 Windows 本地验收产物，未发布到远端下载渠道；使用当前工作树（含既有远程桌面未提交改动）构建，不声明为纯提交版本或干净机器认证。
+
+### 打包时源码状态记录（2026-09-19）
+
+- desktop-manifest.json 新增 source：打包开始时的 Git 提交、UTC 时间、仓库 clean/modified/unknown 状态和 packaging 阶段标记。包括暂存/未暂存/未跟踪及子模块状态，不包含文件名、路径、正文或远端地址；Git 不可用时明确 unknown。
+- 临时仓库测试验证干净、修改、暂存、未跟踪和无仓库状态。新目录包 .project-cache/felix-desktop-source-20260919 实际记录当前提交和 modified，835 文件完整性校验、迁移启动/内置后端/终端/任务草稿回归通过。此记录是打包时仓库观察值，不证明 dist 或预构建运行时来自相同提交，也不是可复现构建或签名证明。

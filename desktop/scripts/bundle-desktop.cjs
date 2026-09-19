@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const { sourceSnapshot } = require('./source-snapshot.cjs');
 const { createRequire } = require('node:module');
 const { verifyRuntime } = require('./verify-runtime.cjs');
 const { writeDesktopManifest } = require('./verify-desktop.cjs');
@@ -11,6 +12,7 @@ function bundleDesktop({ output, runtime, desktop = path.resolve(__dirname, '..'
   if (fs.existsSync(output)) throw new Error('Output already exists; choose a new directory');
   verifyRuntime(runtime);
   if (!fs.existsSync(path.join(desktop, 'dist/index.html'))) throw new Error('Run the production build first');
+  const source = sourceSnapshot(desktop);
   const resolve = createRequire(path.join(desktop, 'package.json'));
   const electronDist = path.dirname(resolve('electron'));
   fs.mkdirSync(path.dirname(output), { recursive: true });
@@ -46,7 +48,7 @@ function bundleDesktop({ output, runtime, desktop = path.resolve(__dirname, '..'
     copyDependency(sharpBinary, createRequire(resolve.resolve('sharp')), `${sharpBinary}/sharp.node`);
     fs.cpSync(runtime, path.join(output, 'resources/felix-runtime'), { recursive: true, dereference: true });
     verifyRuntime(path.join(output, 'resources/felix-runtime'));
-    fs.writeFileSync(path.join(output, 'desktop-manifest.json'), JSON.stringify({ version: sourcePackage.version, platform: process.platform, arch: process.arch, dependencies: Object.fromEntries(copied) }, null, 2));
+    fs.writeFileSync(path.join(output, 'desktop-manifest.json'), JSON.stringify({ source, version: sourcePackage.version, platform: process.platform, arch: process.arch, dependencies: Object.fromEntries(copied) }, null, 2));
     writeThirdPartyNotices(output);
     writeDesktopManifest(output);
     return path.join(output, 'Felix.exe');

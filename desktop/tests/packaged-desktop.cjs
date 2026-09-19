@@ -6,6 +6,12 @@ const path = require('node:path');
 
 (async () => {
   const source = path.resolve(process.argv[2] || path.join(__dirname, '../../.project-cache/felix-desktop'));
+  const manifest = JSON.parse(fs.readFileSync(path.join(source, 'desktop-manifest.json'), 'utf8'));
+  if (manifest.source) {
+    assert.ok(['clean','modified','unknown'].includes(manifest.source.state));
+    assert.equal(manifest.source.phase,'packaging');
+    assert.ok(Number.isFinite(Date.parse(manifest.source.observedAt)));
+  }
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'felix-packaged-'));
   const directory = path.join(profile, 'relocated app');
   fs.cpSync(source, directory, { recursive: true, dereference: true });
