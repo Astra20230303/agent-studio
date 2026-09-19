@@ -11,6 +11,8 @@ export type McpResourceTemplate = { uriTemplate: string; name: string; descripti
 export function McpResources({ server, resources, templates, threadId, disabled, onAddToDraft }: {
   server: string; resources: McpResource[]; templates: McpResourceTemplate[]; threadId?: string; disabled: boolean; onAddToDraft?: (text: string) => void;
 }) {
+  const [query, setQuery] = useState('');
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [uri, setUri] = useState('');
   const [contents, setContents] = useState<McpResourceContent[]>();
   const [error, setError] = useState('');
@@ -32,10 +34,18 @@ export function McpResources({ server, resources, templates, threadId, disabled,
     } catch (error) { if (token === generation.current) setError(String(error)); }
     finally { if (token === generation.current) setLoading(false); }
   };
+  const needle = query.trim().toLocaleLowerCase();
+  const matches = (...fields: (string | undefined)[]) => fields.some(field => field?.toLocaleLowerCase().includes(needle));
+  const visibleResources = resources.filter(resource => matches(resource.name, resource.title, resource.description, resource.uri));
+  const visibleTemplates = templates.filter(template => matches(template.name, template.description, template.uriTemplate));
   return <div aria-label={`${server} 资源`}>
     <h3>资源 ({resources.length})</h3>
-    {resources.map(resource => <div key={resource.uri}><button disabled={disabled || loading} onClick={() => void read(resource.uri)}>{resource.title || resource.name}</button><p style={{ overflowWrap: 'anywhere' }}>{resource.uri}</p>{resource.description && <p>{resource.description}</p>}</div>)}
-    {templates.length > 0 && <details><summary>资源模板 ({templates.length})</summary>{templates.map(template => <McpResourceTemplateForm key={`${server}:${threadId}:${template.uriTemplate}`} template={template} disabled={disabled || loading} onRead={value => void read(value)} />)}</details>}
+    <label>搜索资源和模板<input type="search" aria-label={`${server} 搜索资源和模板`} placeholder="名称、描述或 URI" value={query} onChange={event => { setQuery(event.target.value); if (event.target.value.trim()) setTemplatesOpen(true); }} /></label>
+    {query && <button type="button" onClick={() => setQuery('')}>清空 {server} 资源搜索</button>}
+    {needle && <p role="status">匹配资源 {visibleResources.length}/{resources.length} · 模板 {visibleTemplates.length}/{templates.length}</p>}
+    {needle && visibleResources.length === 0 && visibleTemplates.length === 0 && <p role="status">没有匹配的资源或模板，仍可手动输入 URI 读取。</p>}
+    {visibleResources.map(resource => <div key={resource.uri}><button disabled={disabled || loading} onClick={() => void read(resource.uri)}>{resource.title || resource.name}</button><p style={{ overflowWrap: 'anywhere' }}>{resource.uri}</p>{resource.description && <p>{resource.description}</p>}</div>)}
+    {templates.length > 0 && <details open={templatesOpen} onToggle={event => setTemplatesOpen(event.currentTarget.open)}><summary>资源模板 ({templates.length})</summary>{templates.map(template => <div key={`${server}:${threadId}:${template.uriTemplate}`} hidden={!visibleTemplates.includes(template)}><McpResourceTemplateForm template={template} disabled={disabled || loading} onRead={value => void read(value)} /></div>)}</details>}
     <form onSubmit={event => { event.preventDefault(); void read(uri); }} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
       <input aria-label={`${server} 资源 URI`} value={uri} onChange={event => setUri(event.target.value)} placeholder="资源 URI" style={{ flex: '1 1 200px', minWidth: 0 }} />
       <button disabled={disabled || loading || !uri.trim()} type="submit">读取资源</button>
