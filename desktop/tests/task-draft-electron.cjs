@@ -196,8 +196,26 @@ const path = require('node:path');
     assert.equal(await incompleteMonthly.isVisible(),true);
     assert.equal((await page.evaluate(()=>window.desktop.listTasks())).tasks.find(task=>task.name==='Multiple days（副本）').schedule.monthDay,31);
     await incompleteMonthly.getByRole('spinbutton',{name:'每月运行日期',exact:true}).fill('15');
+    await incompleteMonthly.getByRole('combobox',{name:'任务时区',exact:true}).selectOption('Australia/Sydney');
+    await incompleteMonthly.getByLabel('运行时间',{exact:true}).fill('09:00');
+    await incompleteMonthly.getByRole('button',{name:'预览运行时间',exact:true}).click();
+    const regionalPreview=incompleteMonthly.getByRole('region',{name:'运行时间预览',exact:true});
+    await regionalPreview.locator('time').first().waitFor();
+    const regionalDates=await regionalPreview.locator('time').evaluateAll(elements=>elements.map(element=>({
+      day:new Intl.DateTimeFormat('en',{timeZone:'Australia/Sydney',day:'numeric'}).format(new Date(element.dateTime)),
+      hour:new Intl.DateTimeFormat('en',{timeZone:'Australia/Sydney',hour:'2-digit',hourCycle:'h23'}).format(new Date(element.dateTime))
+    })));
+    assert.deepEqual(regionalDates,[{day:'15',hour:'09'},{day:'15',hour:'09'},{day:'15',hour:'09'}]);
     await incompleteMonthly.getByRole('button',{name:'保存任务',exact:true}).click();await incompleteMonthly.waitFor({state:'detached'});
     assert.equal((await page.evaluate(()=>window.desktop.listTasks())).tasks.find(task=>task.name==='Multiple days（副本）').schedule.monthDay,15);
+    await app.close();app=undefined;page=await open();
+    await page.getByRole('button',{name:'查看任务 Multiple days（副本）',exact:true}).click();
+    const regionalDetail=page.getByRole('dialog',{name:'Multiple days（副本）',exact:true});
+    await regionalDetail.getByText(/Australia\/Sydney/).waitFor();
+    await regionalDetail.getByRole('button',{name:'编辑',exact:true}).click();
+    assert.equal(await page.getByRole('dialog',{name:'编辑任务',exact:true}).getByRole('combobox',{name:'任务时区',exact:true}).inputValue(),'Australia/Sydney');
+    assert.equal((await page.evaluate(()=>window.desktop.listTasks())).tasks.find(task=>task.name==='Multiple days（副本）').schedule.timezone,'Australia/Sydney');
+    console.log('PASS: full timezone catalog selected Sydney, native preview matches local schedule and restart retains saved timezone');
     console.log('PASS: incomplete monthly draft survives native restart without modifying saved schedule, then repairs to a valid day');
     console.log('PASS: multiple-weekday task copy preserves selection, isolates edits and persists independently after restart');
     console.log('PASS: deleting an edited task never recreates it on stale save, preserves draft and permits explicit discard after restart');
