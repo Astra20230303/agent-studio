@@ -1,6 +1,6 @@
 const {chromium}=require('playwright');const assert=require('node:assert/strict');
 (async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
- const page=await browser.newPage();await page.addInitScript(()=>{
+ const page=await browser.newPage({timezoneId:'Asia/Shanghai'});await page.addInitScript(()=>{
   window.__saves=[];window.__previews=[];
   window.desktop={listModels:async()=>({ok:true,models:['test']}),listTasks:async()=>({ok:true,tasks:[]}),saveTask:async value=>{window.__saves.push(value);return {ok:true};},previewTaskSchedule:async schedule=>{window.__previews.push(schedule);return {ok:true,times:['2099-01-01T00:00:00Z']};}};
  });await page.goto(process.env.FELIX_TEST_URL||'http://127.0.0.1:5318');await page.getByRole('button',{name:'已安排',exact:true}).click();
@@ -17,6 +17,11 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  await frequency.selectOption('monthly');await editor.getByRole('spinbutton',{name:'每月运行日期',exact:true}).fill('31');
  await editor.getByRole('button',{name:'预览运行时间',exact:true}).click();await editor.locator('time').waitFor();
  assert.deepEqual(await page.evaluate(()=>window.__previews.at(-1)),{kind:'monthly',time:'18:45',timezone:'Australia/Sydney',monthDay:31});
+ await editor.getByText('计划时间（任务时区：Australia/Sydney）',{exact:true}).waitFor();
+ assert.match(await editor.locator('time').textContent(),/11:00/);
+ assert.match(await editor.locator('time').textContent(),/GMT\+11/);
+ await editor.getByText(/本地时间（Asia\/Shanghai）：.*08:00/).waitFor();
+
  await frequency.selectOption('daily');assert.equal(await editor.locator('time').count(),0);
  assert.equal(await editor.getByLabel('运行时间',{exact:true}).inputValue(),'18:45');assert.equal(await editor.getByRole('combobox',{name:'任务时区',exact:true}).inputValue(),'Australia/Sydney');
  await editor.getByRole('button',{name:'保存任务',exact:true}).click();await editor.waitFor({state:'detached'});
