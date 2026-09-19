@@ -21,7 +21,7 @@ export function createServerResponses(respond: (id: string | number, result: unk
         } else if (typeof decision !== 'string') {
           throw Error('此请求不支持规则审批。');
         } else if (method === 'item/permissions/requestApproval') {
-          result = permissionApprovalResponse(request.params?.permissions, decision);
+          result = permissionApprovalResponse(request.params?.permissions, decision, content);
         } else if (method === 'item/tool/requestUserInput') {
           result = { answers: answers || Object.fromEntries((request.params?.questions || []).map((question: any) => [question.id, { answers: [] }])) };
         } else if (method === 'mcpServer/elicitation/request') {

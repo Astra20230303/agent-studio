@@ -17,3 +17,14 @@ test('transport receives explicit session scope and refusal never grants permiss
  await service.send(request,'acceptForSession');await service.send(request,'decline');
  assert.deepEqual(calls,[{scope:'session',permissions:{network:{enabled:true}}},{scope:'turn',permissions:{}}]);
 });
+
+test('partial grants only copy selected categories from the original request',async()=>{
+ const requested={network:{enabled:true},fileSystem:{read:['D:/read'],write:null}};
+ assert.deepEqual(permissionApprovalResponse(requested,'accept',{network:false,fileSystem:true}),{scope:'turn',permissions:{fileSystem:requested.fileSystem}});
+ assert.deepEqual(permissionApprovalResponse(requested,'acceptForSession',{network:true,fileSystem:false}),{scope:'session',permissions:{network:requested.network}});
+ assert.deepEqual(permissionApprovalResponse(requested,'accept',{network:false,fileSystem:false}),{scope:'turn',permissions:{}});
+ for(const selection of [{network:true},{network:'true',fileSystem:false},{network:true,fileSystem:true,write:['D:/other']},[]]) assert.throws(()=>permissionApprovalResponse(requested,'accept',selection));
+ const calls=[];const service=createServerResponses(async(id,result)=>{calls.push(result);return{ok:true};});
+ await service.send({id:5,method:'item/permissions/requestApproval',params:{permissions:requested}},'acceptForSession',undefined,{network:false,fileSystem:true});
+ assert.deepEqual(calls,[{scope:'session',permissions:{fileSystem:requested.fileSystem}}]);
+});
