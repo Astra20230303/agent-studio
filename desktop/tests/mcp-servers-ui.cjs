@@ -8,7 +8,7 @@ const assert = require('node:assert/strict');
       localStorage.setItem('codex-desktop-state-v1', JSON.stringify({ model: 'test', projects: [], threads: [] }));
       const listeners = new Set(); window.__notify = event => listeners.forEach(fn => fn(event));
       window.__calls = []; window.__opened = []; window.__failReload = true;
-      window.__badStatus = '';
+      window.__badStatus = '';Object.defineProperty(navigator,'clipboard',{value:{writeText:async text=>{window.__copied=text;}}});
       window.desktop = { providerStatus: async () => ({ keyConfigured: true }), listModels: async () => ({ ok: true, models: ['test'] }), openExternal: async url => window.__opened.push(url) };
       window.codex = { connect: async () => ({ ok: true }), notify: async () => ({}), request: async (method, params) => {
         window.__calls.push({ method, params });
@@ -20,7 +20,7 @@ const assert = require('node:assert/strict');
           if (!window.__resourceRetried) { window.__resourceRetried = true; return { ok: false, error: 'Resource temporarily unavailable' }; }
           return { ok: true, result: { contents: [{ uri: params.uri, text: '<script>unsafe()</script>Resource text' }] } };
         }
-        if (method === 'mcpServerStatus/list') { if(window.__badStatus==='duplicate') return {ok:true,result:{data:[{name:'cloud',authStatus:'unsupported'},{name:'cloud',authStatus:'unsupported'}]}}; if(window.__badStatus==='broken') return {ok:true,result:{data:[{name:'cloud',authStatus:'unsupported',tools:[]} ]}}; return { ok: true, result: params.cursor ? { data: [{ name: 'local', authStatus: 'unsupported', runtimeStatus: 'connected', tools: { read: {} } }] } : { data: [{ name: 'cloud', authStatus: 'notLoggedIn', runtimeStatus: 'authenticationRequired', toolsError: 'Authentication needed', tools: {} }], nextCursor: 'page2' } }; }
+        if (method === 'mcpServerStatus/list') { if(window.__badStatus==='duplicate') return {ok:true,result:{data:[{name:'cloud',authStatus:'unsupported'},{name:'cloud',authStatus:'unsupported'}]}}; if(window.__badStatus==='broken') return {ok:true,result:{data:[{name:'cloud',authStatus:'unsupported',tools:[]} ]}}; return { ok: true, result: params.cursor ? { data: [{ name: 'local', authStatus: 'unsupported', runtimeStatus: 'connected', tools: { read: { inputSchema:{type:'object',properties:{path:{type:'string',description:'<script>literal</script>'}},required:['path']},outputSchema:{type:'object',properties:{text:{type:'string'}}} } } }] } : { data: [{ name: 'cloud', authStatus: 'notLoggedIn', runtimeStatus: 'authenticationRequired', toolsError: 'Authentication needed', tools: {} }], nextCursor: 'page2' } }; }
         if (method === 'mcpServer/oauth/login') { if(window.__delayLogin) await new Promise(resolve=>{window.__finishLogin=resolve;}); if (window.__early) window.__notify({ method: 'mcpServer/oauthLogin/completed', params: { name: 'cloud', success: true, threadId: null } }); if(window.__failEarly)return {ok:false,error:'Obsolete login failure'}; return { ok: true, result: { authorizationUrl: 'https://example.com/login?state=test' } }; }
         if (method === 'config/mcpServer/reload' && window.__failReload) return { ok: false, error: 'Reload failed' };
         return { ok: true, result: { data: [], marketplaces: [] } };
@@ -31,6 +31,11 @@ const assert = require('node:assert/strict');
     await page.getByRole('button', { name: '插件', exact: true }).click();
     await page.getByRole('button', { name: '管理 MCP 服务' }).click();
     await page.getByRole('heading', { name: 'local', exact: true }).waitFor();
+    const local=page.getByRole('region',{name:'local',exact:true});await local.getByText('工具 (1)',{exact:true}).click();await local.getByText('read · 输入参数',{exact:true}).click();
+    assert.equal(await local.locator('script').count(),0);await local.getByRole('button',{name:'复制 read 输入参数',exact:true}).click();
+    assert.deepEqual(JSON.parse(await page.evaluate(()=>window.__copied)),{type:'object',properties:{path:{type:'string',description:'<script>literal</script>'}},required:['path']});
+    await local.getByText('read · 输出结构',{exact:true}).click();await local.getByRole('button',{name:'复制 read 输出结构',exact:true}).click();assert.equal(JSON.parse(await page.evaluate(()=>window.__copied)).properties.text.type,'string');
+
     const emitStartup=(params)=>page.evaluate(params=>window.__notify({method:'mcpServer/startupStatus/updated',params}),params);
     await emitStartup({threadId:'other',name:'cloud',status:'failed',error:'Wrong thread'});assert.equal(await page.getByText(/Wrong thread/).count(),0);
     await emitStartup({threadId:null,name:'cloud',status:'starting'});await page.getByText('cloud · 正在启动',{exact:true}).waitFor();

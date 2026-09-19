@@ -4,6 +4,7 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { once } = require('node:events');
 const { CodexRpc } = require('../electron/codex-rpc.cjs');
+const { parseMcpStatusPage } = require('../src/mcpStatus.ts');
 const { findCommand } = require('../electron/codex-server.cjs');
 
 // Run the fixture through the same stdio transport as a configured MCP server.
@@ -51,7 +52,7 @@ async function main() {
     const inventory = async threadId => {
       const entries = []; const cursors = new Set(); let cursor;
       do {
-        const page = await rpc.request('mcpServerStatus/list', { threadId, cursor, limit: 1, detail: 'toolsAndAuthOnly' });
+        const page = parseMcpStatusPage(await rpc.request('mcpServerStatus/list', { threadId, cursor, limit: 1, detail: 'toolsAndAuthOnly' }));
         assert.ok(page.data.length <= 1);
         entries.push(...page.data);
         cursor = page.nextCursor;

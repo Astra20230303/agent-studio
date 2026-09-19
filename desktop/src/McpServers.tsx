@@ -2,9 +2,10 @@ import { readMcpStartup, mcpStartupText, type McpStartup } from './mcpStartup';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { extensionRequest } from './extensions';
 import { McpResources, type McpResource, type McpResourceTemplate } from './McpResources';
-import { parseMcpStatusPage } from './mcpStatus';
+import { CopyText } from './CopyText';
+import { parseMcpStatusPage, type McpToolInfo } from './mcpStatus';
 
-type Server = { name: string; runtimeStatus?: string; authStatus: string; tools?: Record<string, { description?: string }>; toolsError?: string; resources?: McpResource[]; resourceTemplates?: McpResourceTemplate[] };
+type Server = { name: string; runtimeStatus?: string; authStatus: string; tools?: Record<string, McpToolInfo>; toolsError?: string; resources?: McpResource[]; resourceTemplates?: McpResourceTemplate[] };
 const emptyResources: McpResource[] = [];
 const emptyTemplates: McpResourceTemplate[] = [];
 const labels: Record<string, string> = { connected: '已连接', starting: '正在启动', failed: '连接失败', disabled: '已禁用', cancelled: '已取消', notStarted: '未启动', authenticationRequired: '需要认证', notLoggedIn: '未登录', oAuth: 'OAuth 已登录', bearerToken: '令牌认证', unsupported: '无需 OAuth', unknown: '未知' };
@@ -86,7 +87,7 @@ export function McpServers({ connected, threadId, onBack, onAddToDraft }: { conn
       {server.toolsError && <p role="alert">工具发现失败：{server.toolsError}</p>}
       {server.authStatus !== 'unsupported' && <button disabled={!connected || busy} onClick={() => void action(server.name)}>登录 {server.name}</button>}
       {links[server.name] && <button onClick={() => { const open = window.desktop?.openExternal; if (!open) { setError('无法打开系统浏览器'); return; } void open(links[server.name]).catch(error => setError(String(error))); }}>打开 {server.name} 登录页面</button>}
-      <details><summary>工具 ({Object.keys(server.tools || {}).length})</summary>{Object.entries(server.tools || {}).map(([name, tool]) => <p key={name}><strong>{name}</strong> {tool.description}</p>)}</details>
+      <details><summary>工具 ({Object.keys(server.tools || {}).length})</summary>{Object.entries(server.tools || {}).map(([name, tool]) => <div key={name}><p><strong>{name}</strong> {tool.description}</p>{(['inputSchema', 'outputSchema'] as const).filter(key => tool[key] != null).map(key => <details key={key}><summary>{name} · {key === 'inputSchema' ? '输入参数' : '输出结构'}</summary><CopyText source={JSON.stringify(tool[key], null, 2)} label={`复制 ${name} ${key === 'inputSchema' ? '输入参数' : '输出结构'}`} /><pre style={{ maxHeight: 320, overflow: 'auto', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{JSON.stringify(tool[key], null, 2)}</pre></details>)}</div>)}</details>
       {includeResources && <McpResources key={`${server.name}:${threadId || ''}`} server={server.name} threadId={threadId} resources={server.resources || emptyResources} templates={server.resourceTemplates || emptyTemplates} disabled={!connected || busy} onAddToDraft={onAddToDraft} />}
     </section>)}{connected && !busy && !error && !servers.length && <p>暂无 MCP 服务。</p>}
   </div></div></section>;
