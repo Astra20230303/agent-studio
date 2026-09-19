@@ -98,7 +98,8 @@ function wireRpc(rpc) {
   rpc.on('notification', message => {
     const warning = threadProviders.observe(message);
     if (warning) sendToWindow('codex:notification', warning);
-    sendToWindow('codex:notification', message); conversationNotifications.handle(message);
+    sendToWindow('codex:notification', message);
+    if (!followups.active.has(message.params?.threadId)) conversationNotifications.handle(message);
   });
   rpc.on('request', message => { sendToWindow('codex:server-request', message); conversationNotifications.handle(message); });
   rpc.on('stderr', text => sendToWindow('codex:stderr', text));
