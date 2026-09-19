@@ -6,8 +6,9 @@ const { spawn } = require('node:child_process');
 const { once } = require('node:events');
 const { CodexRpc } = require('../electron/codex-rpc.cjs');
 const { findCommand, compatibilityCatalog } = require('../electron/codex-server.cjs');
+const { readCodexProviderCapabilities } = require('../src/codexProviderCapabilities.ts');
 const { readCodexModelPage } = require('../src/codexModelCatalog.ts');
-test('real app-server model catalog is consumable across all pages', { timeout: 20000 }, async () => {
+test('real app-server provider capabilities and paginated model catalog are consumable', { timeout: 20000 }, async () => {
  const root = path.resolve(__dirname, '../..');
  const cache = path.join(root, '.project-cache/tmp'); fs.mkdirSync(cache, { recursive: true });
  const profile = fs.mkdtempSync(path.join(cache, 'model-catalog-live-'));
@@ -16,6 +17,10 @@ test('real app-server model catalog is consumable across all pages', { timeout: 
  const exited = once(child, 'exit'); const rpc = new CodexRpc(child); const timer = setTimeout(() => rpc.close(), 15000);
  try {
   await rpc.request('initialize', { clientInfo: { name: 'catalog_test', version: '1' }, capabilities: { experimentalApi: true } }); rpc.notify('initialized', {});
+  const capabilities = readCodexProviderCapabilities(await rpc.request('modelProvider/capabilities/read', {}));
+  assert.equal(typeof capabilities.webSearch, 'boolean');
+  assert.equal(typeof capabilities.imageGeneration, 'boolean');
+  assert.equal(typeof capabilities.namespaceTools, 'boolean');
   const entries = []; let cursor; const seen = new Set();
   do {
    const page = readCodexModelPage(await rpc.request('model/list', { limit: 1, includeHidden: true, ...(cursor ? { cursor } : {}) }));
