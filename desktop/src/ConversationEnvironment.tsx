@@ -1,15 +1,17 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useContext, useEffect, useState, type ReactNode } from 'react';
 import { parseGitSnapshot, type GitSnapshot } from './gitSnapshot';
+import { ConversationPopoverVisible } from './ConversationPopover';
 
 export function ConversationEnvironment({ cwd, environment, onFiles, onGit, children }: { cwd?: string; environment?: 'local' | 'worktree'; onFiles: () => void; onGit: () => void; children?: ReactNode }) {
   const [snapshot, setSnapshot] = useState<GitSnapshot>();
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(false);
+  const visible = useContext(ConversationPopoverVisible);
   useEffect(() => {
     let alive = true;
     setSnapshot(undefined); setError('');
-    if (!cwd) return;
+    if (!cwd || !visible) return;
     setLoading(true);
     void (async () => {
       try {
@@ -21,7 +23,7 @@ export function ConversationEnvironment({ cwd, environment, onFiles, onGit, chil
       finally { if (alive) setLoading(false); }
     })();
     return () => { alive = false; };
-  }, [cwd, revision]);
+  }, [cwd, revision, visible]);
   return <section className="conversation-environment" aria-label="当前会话环境">
     <p>{environment === 'worktree' ? '工作树' : '本地'} · {cwd || '尚未绑定工作目录'}</p>
     <div className="environment-actions"><button disabled={!cwd} onClick={onFiles}>打开工作区文件</button><button disabled={!cwd} onClick={onGit}>打开 Git 变更</button></div>

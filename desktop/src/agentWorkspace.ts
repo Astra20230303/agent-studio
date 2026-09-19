@@ -42,7 +42,14 @@ export async function readAgentSnapshot(request: Request, threadId: string) {
   return { status: latest?.status || thread.status.type, turnId: running?.id as string | undefined,
     message: typeof latest?.error?.message === 'string' ? latest.error.message : items.filter((item: any) => item.type === 'agentMessage' && typeof item.text === 'string').map((item: any) => item.text).join('\n') as string };
 }
+const pendingCommands = new Set<string>();
 export async function commandAgent(request: Request, threadId: string, action: 'stop' | 'send', text = '') {
+  if (pendingCommands.has(threadId)) throw Error('此子任务操作尚未完成，请稍后重试');
+  pendingCommands.add(threadId);
+  try { return await executeAgentCommand(request, threadId, action, text); }
+  finally { pendingCommands.delete(threadId); }
+}
+async function executeAgentCommand(request: Request, threadId: string, action: 'stop' | 'send', text: string) {
   if (!threadId.trim() || action === 'send' && !text.trim()) throw Error('子任务或追加指令不能为空');
   if (action === 'send') {
     const resumed = await request('thread/resume', { threadId });
@@ -55,6 +62,7 @@ export async function commandAgent(request: Request, threadId: string, action: '
     return '已请求停止子任务，请刷新核对';
   }
   const result = await request(state.turnId ? 'turn/steer' : 'turn/start', { threadId, ...(state.turnId ? { expectedTurnId: state.turnId } : {}), input: [{ type: 'text', text: text.trim() }] });
-  if (typeof (state.turnId ? result?.turnId : result?.turn?.id) !== 'string') throw Error('追加指令未获有效确认，请核对会话后再试');
+  const confirmed = state.turnId ? result?.turnId : result?.turn?.id;
+  if (typeof confirmed !== 'string' || !confirmed.trim() || state.turnId && confirmed !== state.turnId) throw Error('追加指令未获有效确认，请核对会话后再试');
   return state.turnId ? '已追加到运行中的子任务' : '已启动子任务后续回合';
 }

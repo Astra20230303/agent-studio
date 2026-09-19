@@ -18,3 +18,9 @@ test('refresh validates identity and sends to running turn or starts idle contin
  active=false;await commandAgent(request,'child','send','Next');assert.equal(calls.find(c=>c.method==='turn/start').params.threadId,'child');
  await assert.rejects(readAgentSnapshot(async()=>({thread:{id:'other',status:{type:'idle'}}}),'child'),/无效/);
 });
+test('pending command lock survives panel replacement and releases after failure',async()=>{
+ let reject;const pending=commandAgent(()=>new Promise((_,fail)=>{reject=fail}),'child','send','First');
+ await assert.rejects(commandAgent(async()=>{},'child','send','Duplicate'),/尚未完成/);
+ const failure=assert.rejects(pending,/Offline/);reject(Error('Offline'));await failure;
+ await assert.rejects(commandAgent(async()=>({thread:{id:'wrong'}}),'child','send','Retry'),/身份不匹配/);
+});

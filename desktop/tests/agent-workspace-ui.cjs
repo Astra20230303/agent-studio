@@ -21,6 +21,8 @@ await page.addInitScript(scenario=>{
  const panel=page.getByRole('complementary',{name:'多 Agent 协作',exact:true});await panel.waitFor();
  await panel.getByText('Inspecting files',{exact:true}).waitFor();
  await panel.getByRole('button',{name:'刷新状态与结果'}).click();await panel.getByText('Build failed',{exact:true}).waitFor();
+ await page.screenshot({path:'.project-cache/ui-checks/agent-workspace-panel.png'});
+ await page.setViewportSize({width:600,height:700});const bounds=await panel.boundingBox();assert.ok(bounds.x>=0&&bounds.x+bounds.width<=600);await page.setViewportSize({width:1280,height:720});
  const input=panel.getByRole('textbox',{name:'追加指令 child'});await input.fill('Fix the build');
  await page.evaluate(()=>window.__failAgent=true);await panel.getByRole('button',{name:'发送追加指令'}).click();await panel.getByRole('alert').getByText('Send failed').waitFor();assert.equal(await input.inputValue(),'Fix the build');
  await page.evaluate(()=>window.__failAgent=false);await panel.getByRole('button',{name:'发送追加指令'}).click();await panel.getByText('已启动子任务后续回合',{exact:true}).waitFor();assert.equal(await input.inputValue(),'');
