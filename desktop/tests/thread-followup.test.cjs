@@ -22,6 +22,14 @@ test('busy thread never receives another turn',async()=>{
  const runner=createThreadFollowupRunner({getRpc:async()=>rpc,request:()=>{throw Error('must not dispatch')}});
  await assert.rejects(runner.run(task,{signal:new AbortController().signal}),/会话正在执行/);assert.equal(runner.active.size,0);
 });
+test('cancel interrupts only the followup turn and releases its listeners and lock',async()=>{
+ const rpc=new EventEmitter(), controller=new AbortController(), calls=[];rpc.notify=()=>{};
+ rpc.request=async(method,params)=>{calls.push({method,params});if(method==='thread/read')return{thread:{id:'thread',cwd:process.cwd(),status:{type:'idle'}}};if(method==='turn/start'){setImmediate(()=>controller.abort());return{turn:{id:'owned-turn',status:'inProgress'}};}return{};};
+ const runner=createThreadFollowupRunner({getRpc:async()=>rpc,request:(rpc,m,p)=>rpc.request(m,p)});
+ await assert.rejects(runner.run(task,{signal:controller.signal}),/取消/);
+ assert.deepEqual(calls.find(c=>c.method==='turn/interrupt').params,{threadId:'thread',turnId:'owned-turn'});
+ assert.equal(runner.active.size,0);assert.equal(rpc.listenerCount('notification'),0);assert.equal(rpc.listenerCount('closed'),0);
+});
 test('followup persistence, quiet unchanged result, completion stops schedule, pause and resume',async()=>{
  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'felix-follow-'));let result={output:'[FELIX_FOLLOWUP_UNCHANGED]',silent:true};
  let scheduler=new TaskScheduler({directory,runner:async()=>result});const saved=scheduler.save(task);
