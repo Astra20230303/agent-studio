@@ -140,6 +140,13 @@ async function main() {
     await dialog.locator('.task-run summary').getByText('已中断', { exact: true }).waitFor();
     await dialog.locator('.task-run summary').first().getByText(/^耗时 /).waitFor();
     assert.equal(await dialog.locator('.task-run summary').first().getByText(/^已运行 /).count(), 0);
+    const finishedRun = scheduler.detail(sample.id).runs[0];
+    const finishedSeconds = Math.floor((Date.parse(finishedRun.finishedAt) - Date.parse(finishedRun.startedAt)) / 1000);
+    const finalDuration = await dialog.locator('.task-run summary').first().getByText(/^耗时 /).textContent();
+    assert.equal(finalDuration, `耗时 ${finishedSeconds} 秒`);
+    await page.waitForTimeout(1200);
+    assert.equal(await dialog.locator('.task-run summary').first().getByText(/^耗时 /).textContent(), finalDuration, 'Completed duration must stop advancing');
+
     await dialog.locator('pre').getByText('LIVE_TASK_PROGRESS',{exact:true}).waitFor();
     assert.equal(scheduler.detail(sample.id).runs[0].output,'LIVE_TASK_PROGRESS');
     await dialog.getByRole('button', { name: '关闭对话框' }).click();
@@ -178,6 +185,7 @@ async function main() {
     assert.equal(scheduler.detail(sample.id).notificationPolicy, 'failed_runs_only', 'Notification policy survives service restart');
     await page.getByRole('button', { name: '查看任务 每日工作区检查' }).click();
     await dialog.locator('.task-metadata').getByText('25 分钟', {exact:true}).waitFor();
+    assert.equal(await dialog.locator('.task-run summary').first().getByText(/^耗时 /).textContent(), finalDuration, 'Service and page restart preserve final duration');
     await dialog.locator('.task-metadata').getByText('极高', { exact: true }).waitFor();
     await dialog.locator('.task-metadata').getByText('仅失败时通知', { exact: true }).waitFor();
     await dialog.locator('.task-metadata').getByText('跟随当前启用渠道', { exact: true }).waitFor();
