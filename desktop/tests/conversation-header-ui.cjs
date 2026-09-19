@@ -29,6 +29,11 @@ await page.addInitScript(scenario=>{
  await page.getByRole('textbox',{name:'会话目标',exact:true}).fill('Keep my goal draft');
  await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.querySelector('.conversation-settings').matches(':popover-open'));
  await settings.click();assert.equal(await page.getByRole('textbox',{name:'会话目标',exact:true}).inputValue(),'Keep my goal draft');
+ await page.keyboard.press('Control+f');
+ assert.equal(await page.getByRole('searchbox',{name:'查找会话内容'}).count(),0,'Settings keep application shortcuts scoped');
+ await page.locator('.conversation-title').click();
+ await page.waitForFunction(()=>!document.querySelector('.conversation-settings').matches(':popover-open'));
+ await settings.click();
  await page.getByRole('button',{name:'关闭会话设置'}).click();
  const search=page.getByRole('button',{name:'会话内查找',exact:true});await search.click();
  const query=page.getByRole('searchbox',{name:'查找会话内容'});await query.waitFor();
@@ -38,6 +43,10 @@ await page.addInitScript(scenario=>{
  await page.getByRole('button',{name:'收起侧栏',exact:true}).click();await page.setViewportSize({width:600,height:650});await settings.click();
  const box=await page.locator('.conversation-settings').boundingBox();assert.ok(box.x>=0&&box.x+box.width<=600&&box.y+box.height<=650);
  await page.screenshot({path:'.project-cache/ui-checks/conversation-settings-600.png'});
+ await page.setViewportSize({width:390,height:600});
+ const narrow=await page.locator('.conversation-settings').boundingBox();assert.ok(narrow.x>=0&&narrow.x+narrow.width<=390&&narrow.y+narrow.height<=600);
+ await page.getByRole('button',{name:'读取远端',exact:true}).scrollIntoViewIfNeeded();
+ assert.ok(await page.getByRole('button',{name:'读取远端',exact:true}).isVisible());
  await page.getByRole('button',{name:'关闭会话设置'}).click();
  await page.setViewportSize({width:1280,height:800});
  await page.screenshot({path:'.project-cache/ui-checks/conversation-clean-header.png'});
@@ -46,5 +55,12 @@ await page.addInitScript(scenario=>{
  await page.getByRole('button',{name:'发送',exact:true}).click();
  await page.waitForFunction(()=>window.__calls.some(c=>c.method==='turn/start'));
  assert.equal(await page.evaluate(()=>window.__calls.find(c=>c.method==='turn/start').params.input[0].text),'Hello from clean chat');
+ await settings.click();
+ await page.getByRole('button',{name:'展开侧栏',exact:true}).click();
+ await page.getByRole('button',{name:'新对话',exact:true}).click();
+ assert.equal(await page.locator('.conversation-settings').evaluate(el=>el.matches(':popover-open')),false);
+ await settings.click();
+ await page.locator('.conversation-settings summary').click();
+ assert.equal(await page.getByRole('textbox',{name:'会话目标',exact:true}).inputValue(),'','New conversation must not inherit goal draft');
  console.log('PASS: compact header, non-shifting settings, retained goal draft, search shortcut/focus, narrow layout and sending');
 }finally{await browser.close()}})().catch(error=>{console.error(error);process.exitCode=1});
