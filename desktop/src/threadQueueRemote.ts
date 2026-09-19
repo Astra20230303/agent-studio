@@ -18,3 +18,16 @@ export function moveRemoteQueue(items: RemoteQueuedSubmission[], submissionId: s
   [ids[index], ids[target]] = [ids[target], ids[index]];
   return ids;
 }
+
+export function queueTextBlocks(input: unknown[]): { index: number; text: string }[] {
+  return input.flatMap((entry: any, index) => entry?.type === 'text' && typeof entry.text === 'string' ? [{ index, text: entry.text }] : []);
+}
+export function replaceQueueText(input: unknown[], texts: string[]): unknown[] {
+  const blocks = queueTextBlocks(input);
+  if (!blocks.length || texts.length !== blocks.length || texts.some(text => typeof text !== 'string' || !text.trim() || text.length > 100000)) throw new Error('排队消息文本无效');
+  const result = structuredClone(input) as any[];
+  blocks.forEach((block, i) => {
+    if (block.text !== texts[i]) result[block.index] = { ...result[block.index], text: texts[i], text_elements: [] };
+  });
+  return result;
+}

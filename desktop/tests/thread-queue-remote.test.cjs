@@ -19,3 +19,12 @@ test('remote reorder preserves the complete queue and rejects ambiguous identiti
   assert.throws(() => remoteQueueReorderParams('thread', ['a','bad id']));
   assert.deepEqual(remoteQueueReorderParams('thread', ['b','a']), { threadId: 'thread', queuedSubmissionIds: ['b','a'] });
 });
+const { replaceQueueText } = require('../src/threadQueueRemote.ts');
+test('editing queue text preserves rich input and resets only changed text spans', () => {
+  const input = [{ type: 'text', text: 'first', text_elements: [{ start: 1 }] }, { type: 'localImage', path: 'C:/image.png' }, { type: 'skill', name: 'test', path: 'C:/skill' }, { type: 'text', text: 'second', text_elements: [{ start: 2 }] }];
+  const saved = replaceQueueText(input, ['changed', 'second']);
+  assert.deepEqual(saved, [{ type: 'text', text: 'changed', text_elements: [] }, ...input.slice(1)]);
+  assert.equal(input[0].text, 'first');
+  assert.throws(() => replaceQueueText(input, ['only one']));
+  assert.throws(() => replaceQueueText(input, ['', 'second']));
+});

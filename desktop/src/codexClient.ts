@@ -208,3 +208,11 @@ export async function terminateBackgroundTerminal(threadId: string, processId: s
 }
 
 export async function reorderRemoteQueuedSubmissions(threadId: string, submissionIds: string[]) { await unwrap(bridge().request('thread/queue/reorder', remoteQueueReorderParams(threadId, submissionIds))); }
+
+export async function updateRemoteQueuedSubmission(threadId: string, original: RemoteQueuedSubmission, input: unknown[]) {
+  const latest = (await listRemoteQueuedSubmissions(threadId)).find(item => item.id === original.id);
+  if (!latest || JSON.stringify(latest.input) !== JSON.stringify(original.input) || latest.clientUserMessageId !== original.clientUserMessageId) throw new Error('消息已被修改或移出队列，请刷新后重新编辑；草稿已保留');
+  const response = await unwrap<any>(bridge().request('thread/queue/update', { ...remoteQueueIdentity(threadId, original.id), input }));
+  const saved = readRemoteQueuePage({ data: [response?.queuedSubmission] }).data[0];
+  if (saved.id !== original.id || saved.clientUserMessageId !== original.clientUserMessageId) throw new Error('服务端返回了不同的排队消息，请刷新确认');
+}

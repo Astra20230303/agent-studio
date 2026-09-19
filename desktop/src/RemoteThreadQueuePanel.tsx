@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { addRemoteQueuedSubmission, deleteRemoteQueuedSubmission, listRemoteQueuedSubmissions, reorderRemoteQueuedSubmissions, startRemoteQueuedSubmission, subscribeCodex } from './codexClient';
-import { moveRemoteQueue, type RemoteQueuedSubmission } from './threadQueueRemote';
+import { addRemoteQueuedSubmission, deleteRemoteQueuedSubmission, listRemoteQueuedSubmissions, reorderRemoteQueuedSubmissions, startRemoteQueuedSubmission, updateRemoteQueuedSubmission, subscribeCodex } from './codexClient';
+import { moveRemoteQueue, queueTextBlocks, replaceQueueText, type RemoteQueuedSubmission } from './threadQueueRemote';
 
 type Props = { threadId?: string; connected: boolean; busy?: boolean; running?: boolean };
 export function RemoteThreadQueuePanel(props: Props) {
@@ -10,6 +10,7 @@ export function RemoteThreadQueuePanel(props: Props) {
 function ThreadQueue({ threadId, connected, busy, running }: Props & { threadId: string }) {
   const [items, setItems] = useState<RemoteQueuedSubmission[]>([]);
   const [text, setText] = useState('');
+  const [editing, setEditing] = useState<{ original: RemoteQueuedSubmission; texts: string[] }>();
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState('');
   const epoch = useRef(0);
@@ -44,7 +45,7 @@ function ThreadQueue({ threadId, connected, busy, running }: Props & { threadId:
     return () => { epoch.current++; dirty.current = false; unsubscribe?.(); };
   }, [connected]);
 
-  const mutate = async (action: () => Promise<void>, success: string, submittedText?: string) => {
+  const mutate = async (action: () => Promise<void>, success: string, submittedText?: string, onSaved?: () => void) => {
     if (!connected || busy || lock.current) return;
     const generation = epoch.current;
     lock.current = true; setLoading(true); setNotice('');
@@ -52,6 +53,7 @@ function ThreadQueue({ threadId, connected, busy, running }: Props & { threadId:
       await action();
       if (epoch.current !== generation) return;
       if (submittedText !== undefined) setText(current => current === submittedText ? '' : current);
+      onSaved?.();
       setNotice(success);
       // A confirmed mutation must not be reported as failed if the subsequent read fails.
       try { await refresh(generation); }
@@ -70,9 +72,19 @@ function ThreadQueue({ threadId, connected, busy, running }: Props & { threadId:
     {items.map((item, index) => <div key={item.id}>
       <span>{item.input.map((entry: any) => typeof entry?.text === 'string' ? entry.text : '').filter(Boolean).join(' ') || item.id}</span>
       {([-1, 1] as const).map(direction => <button key={direction} aria-label={`${direction === -1 ? '上移' : '下移'}服务端消息 ${item.id}`} disabled={blocked || index + direction < 0 || index + direction >= items.length} onClick={() => void mutate(() => reorderRemoteQueuedSubmissions(threadId, moveRemoteQueue(items, item.id, direction)), '队列顺序已保存')}>{direction === -1 ? '上移' : '下移'}</button>)}
+      <button aria-label={`编辑服务端消息 ${item.id}`} disabled={blocked || !!editing || !queueTextBlocks(item.input).length} onClick={() => setEditing({ original: structuredClone(item), texts: queueTextBlocks(item.input).map(block => block.text) })}>编辑</button>
       <button disabled={blocked} onClick={() => void mutate(() => deleteRemoteQueuedSubmission(threadId, item.id), '已删除服务端排队消息')}>删除</button>
       <button disabled={blocked || running} onClick={() => { if (running) return; void mutate(() => startRemoteQueuedSubmission(threadId, item.id), '已启动服务端排队消息'); }}>启动</button>
     </div>)}
+    {editing && <form aria-label="编辑服务端排队消息" onSubmit={event => {
+      event.preventDefault(); const draft = editing;
+      void mutate(() => updateRemoteQueuedSubmission(threadId, draft.original, replaceQueueText(draft.original.input, draft.texts)), '排队消息已保存', undefined, () => setEditing(undefined));
+    }}>
+      {editing.texts.map((value, index) => <label key={index}>文本 {index + 1}<textarea aria-label={`排队文本 ${index + 1}`} disabled={loading} value={value} onChange={event => { const value = event.target.value; setEditing(current => current && ({ ...current, texts: current.texts.map((text, i) => i === index ? value : text) })); }} /></label>)}
+      <p>非文本附件和引用会保留。编辑期间消息仍可能被服务端执行。</p>
+      <button disabled={blocked || editing.texts.some(text => !text.trim())}>保存编辑</button>
+      <button type="button" disabled={loading} onClick={() => setEditing(undefined)}>取消编辑</button>
+    </form>}
     {notice && <p role="status">{notice}</p>}
   </section>;
 }
