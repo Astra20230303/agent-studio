@@ -12,3 +12,14 @@ test('catalog accepts empty descriptions and omitted defaulted service tiers', (
  assert.equal(readCodexModelPage({ data: [{ ...model, serviceTiers: [{ id: 'fast', name: 'Fast', description: '' }] }] }).data[0].serviceTiers[0].description, '');
  assert.throws(() => readCodexModelPage({ data: [{ ...model, serviceTiers: null }] }));
 });
+
+test('upgrade metadata supports legacy, nullable fields and Unix seconds', () => {
+ const base = { id:'m', model:'m', displayName:'M', description:'', hidden:false, supportedReasoningEfforts:[] };
+ const read = fields => readCodexModelPage({data:[{...base,...fields}]}).data[0].upgradeInfo;
+ assert.equal(read({upgrade:null,upgradeInfo:null}),undefined);
+ assert.deepEqual(read({upgrade:'next'}),{model:'next'});
+ assert.deepEqual(read({upgrade:'legacy',upgradeInfo:{model:'next',upgradeCopy:null,modelLink:null,migrationMarkdown:'**Move**',retirementAt:0}}),{model:'next',migrationMarkdown:'**Move**',retirementAt:0});
+ for (const retirementAt of ['123',1.5,Infinity,8640000000001]) assert.throws(()=>read({upgradeInfo:{model:'next',retirementAt}}));
+ for (const upgradeInfo of [[],false,{model:''},{model:'next',upgradeCopy:5},{model:'next',migrationMarkdown:[]},{model:'next',modelLink:{}}]) assert.throws(()=>read({upgradeInfo}));
+ assert.throws(()=>read({upgrade:42}));
+});

@@ -3624,3 +3624,8 @@ Codex Rust 传递依赖和原生二进制传递依赖仍需进一步许可审计
 
 - 已交付：接入 `thread/goal/updated` 与 `thread/goal/cleared`，校验目标 threadId、objective、状态（active/paused/blocked/usageLimited/budgetLimited/complete）、token budget、tokens used 和 time used；聊天计划区新增可展开目标面板。清除只影响对应会话，坏目标和未知会话不写入。
 - 验证：4 项 thread-goal/name/status 测试通过，覆盖目标身份、非法状态、预算/用量边界和多字段解析；生产 TypeScript/Vite 构建通过。
+
+### 模型升级与退役提示（2026-09-19）
+
+- 已交付：模型目录展示 `upgradeInfo` 推荐替代模型、升级文案、可折叠 Markdown 迁移说明、模型网页及已知 UTC 退役时间；兼容旧版 `upgrade` 和可选空字段。不会自动切换会话模型。
+- 验证：目录解析及真实 app-server 分页读取共 4 项测试通过；模拟 RPC 的 Edge 交互验收覆盖新旧字段、Unix 秒时间、Markdown 原始 HTML 不执行、链接打开及不支持协议过滤；目录过滤/断线生命周期回归通过；生产构建通过（现有大分块警告仍在）。真实服务测试验证协议兼容性，升级展示由固定测试数据验证。
