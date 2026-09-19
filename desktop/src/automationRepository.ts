@@ -15,6 +15,7 @@ const record = (value: any) => value && typeof value === 'object' && !Array.isAr
 const date = (value: unknown) => typeof value === 'string' && Number.isFinite(Date.parse(value));
 function task(value: any): value is ScheduledTask {
   if (!record(value) || typeof value.id !== 'string' || !value.id || typeof value.name !== 'string' || typeof value.prompt !== 'string'
+    || value.followupThreadId != null && (typeof value.followupThreadId !== 'string' || !value.followupThreadId.trim() || /[\s\0]/.test(value.followupThreadId))
     || !['agent','reminder'].includes(value.kind) || !['active','paused','completed'].includes(value.status)
     || value.timeoutMinutes != null && (!Number.isInteger(value.timeoutMinutes) || value.timeoutMinutes < 1 || value.timeoutMinutes > 120)
     || value.reasoningEffort != null && !isExplicitReasoningEffort(value.reasoningEffort)
@@ -33,6 +34,7 @@ function task(value: any): value is ScheduledTask {
     if (schedule.kind === 'weekly' && (!Number.isInteger(schedule.day) || schedule.day < 0 || schedule.day > 6)) return false;
   }
   return value.runs.every((run: any) => record(run) && typeof run.id === 'string' && !!run.id
+    && (run.silent == null || typeof run.silent === 'boolean')
     && (run.outputTruncated == null || typeof run.outputTruncated === 'boolean')
     && (run.environment == null || record(run.environment) && typeof run.environment.cwd === 'string' && !!run.environment.cwd
       && (run.environment.providerId == null || typeof run.environment.providerId === 'string'))

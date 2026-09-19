@@ -40,9 +40,11 @@ ipcMain.handle('desktop:remote-action', async (_event, action) => {
 });
 const codex = new CodexServer(projectRoot, { dataRoot, runtimeRoot });
 const threadProviders = new (require('./thread-provider-router.cjs').ThreadProviderRouter)(path.join(dataRoot, 'thread-providers.json'), readProvider, () => `http://127.0.0.1:${codex.adapter.address().port}`);
+const followups = require('./thread-followup-runner.cjs').createThreadFollowupRunner({ getRpc, request: (rpc, method, params) => threadProviders.request(rpc, method, params) });
+const standaloneTaskRunner = createTaskRunner(projectRoot, { dataRoot, runtimeRoot, provider: id => readProvider(id), onThreadCreated: ({ threadId, providerId, model }) => threadProviders.save(threadId, providerId, 'minimax', model) });
 const scheduler = new TaskScheduler({
   directory: path.join(dataRoot, 'scheduled-tasks'),
-  runner: createTaskRunner(projectRoot, { dataRoot, runtimeRoot, provider: id => readProvider(id), onThreadCreated: ({ threadId, providerId, model }) => threadProviders.save(threadId, providerId, 'minimax', model) }),
+  runner: (task, context) => task.followupThreadId ? followups.run(task, context) : standaloneTaskRunner(task, context),
 });
 let mainWindow;
 const conversationNotifications = require('./conversation-notifications.cjs').createConversationNotifications(path.join(app.getPath('userData'), 'conversation-notifications.json'), {
@@ -249,6 +251,7 @@ ipcMain.handle('codex:connect', async () => {
 });
 
 ipcMain.handle('codex:request', async (_event, { method, params }) => {
+  if (['turn/start', 'thread/resume', 'thread/archive', 'thread/delete', 'felix/thread/provider'].includes(method) && followups.active.has(params?.threadId)) return { ok: false, error: { message: '此会话的跟进任务正在运行，请停止跟进后重试。' } };
   try { await imageProcessing.validate(method, params); }
   catch (error) { return { ok: false, error: { message: error.message } }; }
   try { return { ok: true, result: await threadProviders.request(await getRpc(), method, params || {}) }; }

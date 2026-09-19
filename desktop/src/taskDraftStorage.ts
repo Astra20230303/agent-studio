@@ -13,6 +13,7 @@ const validSchedule = (value: any): value is TaskSchedule => {
 export function isTaskDraft(value: unknown): value is TaskDraft {
   const draft = value as any;
   return !!draft && typeof draft === 'object' && (draft.id == null || typeof draft.id === 'string') && validText(draft.name) && validText(draft.prompt)
+    && (draft.followupThreadId == null || typeof draft.followupThreadId === 'string' && !!draft.followupThreadId.trim() && !/[\s\0]/.test(draft.followupThreadId))
     && ['agent', 'reminder'].includes(draft.kind) && (draft.providerId == null || typeof draft.providerId === 'string') && typeof draft.model === 'string'
     && ['read-only', 'workspace-write'].includes(draft.permission) && typeof draft.notify === 'boolean' && (draft.notificationPolicy == null || draft.notificationPolicy === 'failed_runs_only')
     && (draft.cwd == null || typeof draft.cwd === 'string')

@@ -22,6 +22,8 @@ function validateTask(input, now) {
   const name = string(input.name, 120, '名称');
   const prompt = string(input.prompt, 20000, '任务内容');
   if (!['agent', 'reminder'].includes(input.kind)) throw new Error('任务类型无效。');
+  const followupThreadId = input.followupThreadId == null ? undefined : string(input.followupThreadId, 200, '跟进会话');
+  if (followupThreadId && (input.kind !== 'agent' || /[\s\0]/.test(followupThreadId))) throw Error('跟进会话无效。');
   const model = input.kind === 'agent' ? string(input.model, 200, '模型') : '';
   const providerId = input.kind === 'agent' && input.providerId != null ? string(input.providerId, 128, 'Provider') : undefined;
   if (providerId && !/^[A-Za-z0-9_-]+$/.test(providerId)) throw new Error('Provider 无效。');
@@ -49,7 +51,7 @@ function validateTask(input, now) {
   if (input.timeoutMinutes != null && (!Number.isInteger(input.timeoutMinutes) || input.timeoutMinutes < 1 || input.timeoutMinutes > 120)) throw new Error('执行时限须为 1 至 120 分钟的整数。');
   if (input.reasoningEffort != null && !['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra', 'persistent'].includes(input.reasoningEffort)) throw new Error('推理强度无效。');
   if (input.notificationPolicy != null && input.notificationPolicy !== 'failed_runs_only') throw new Error('通知策略无效。');
-  return { timeoutMinutes: input.kind === 'agent' ? input.timeoutMinutes : undefined, name, prompt, kind: input.kind, reasoningEffort: input.kind === 'agent' ? input.reasoningEffort : undefined, model, providerId, cwd, permission: input.permission, notify: Boolean(input.notify), notificationPolicy: input.notificationPolicy ?? null, schedule };
+  return { followupThreadId, timeoutMinutes: input.kind === 'agent' ? input.timeoutMinutes : undefined, name, prompt, kind: input.kind, reasoningEffort: input.kind === 'agent' ? input.reasoningEffort : undefined, model, providerId, cwd, permission: input.permission, notify: Boolean(input.notify), notificationPolicy: input.notificationPolicy ?? null, schedule };
 }
 
 class TaskScheduler extends EventEmitter {
@@ -230,6 +232,10 @@ class TaskScheduler extends EventEmitter {
         const finalOutput = String(result.output || error?.output || run.output || '');
         run.outputTruncated = run.outputTruncated === true || result.outputTruncated === true || error?.outputTruncated === true || finalOutput.length > 200000;
         Object.assign(run, { status: signal.aborted ? 'interrupted' : error ? 'failed' : 'completed', finishedAt: new Date(this.now()).toISOString(), output: finalOutput.slice(-200000), error: error ? String(error.message || error).slice(0, 4000) : signal.aborted ? '执行已停止。' : undefined, threadId: result.threadId || error?.threadId || run.threadId });
+        if (task.followupThreadId && !error && !signal.aborted) {
+          run.silent = result.silent === true;
+          if (result.followupComplete) { current.status = 'completed'; current.nextRunAt = null; }
+        }
         if (current.schedule.kind === 'once' && (trigger === 'scheduled' || !error && !signal.aborted)) { current.status = 'completed'; current.nextRunAt = null; }
       this.pendingFinalTaskId = task.id;
       this.retryFinalization();

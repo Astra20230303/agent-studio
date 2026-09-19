@@ -130,6 +130,11 @@ test('real app-server archives, paginates and restores isolated conversations', 
     assert.equal(typeof created.id,'string');assert.ok(created.id);assert.equal(created.permissions.sandbox,'readOnly');
     assert.equal(localState.threads.length,0);
 
+    const followups = require('../electron/thread-followup-runner.cjs').createThreadFollowupRunner({getRpc:async()=>rpc,request:(rpc,method,params)=>rpc.request(method,params)});
+    const followup = await followups.run({followupThreadId:ids[0],cwd:root,model:'MiniMax-M2.1',prompt:'Continue this conversation with a brief reply.',permission:'read-only'}, {signal:new AbortController().signal});
+    assert.equal(followup.threadId,ids[0]);assert.match(followup.output,/Archive test completed/);
+    assert.ok((await client.listThreadItems(ids[0])).data.some(entry=>entry.item.type==='userMessage'));
+
 
   } finally {
     clearTimeout(timer);

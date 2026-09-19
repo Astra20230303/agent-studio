@@ -8,6 +8,7 @@ function validateTaskRuns(runs) {
     if (!record(run) || !nonempty(run.id) || ids.has(run.id)
       || !['running','completed','failed','interrupted'].includes(run.status)
       || !['manual','scheduled'].includes(run.trigger) || !date(run.startedAt)
+      || run.silent != null && typeof run.silent !== 'boolean'
       || run.outputTruncated != null && typeof run.outputTruncated !== 'boolean'
       || run.finishedAt != null && !date(run.finishedAt)
       || run.output != null && !text(run.output) || run.error != null && !text(run.error)
