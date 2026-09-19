@@ -21,6 +21,17 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  await page.reload();await page.getByRole('button',{name:'已安排',exact:true}).click();
  await editor.waitFor();assert.equal(await editor.getByLabel('任务名称',{exact:true}).inputValue(),'Recovered draft');
  assert.equal(await editor.getByRole('textbox',{name:'任务内容',exact:true}).inputValue(),'Latest unsaved task');
+ await page.keyboard.press('Escape');
+ const discard = editor.getByRole('alert',{name:'放弃任务修改'});
+ await discard.waitFor();
+ await discard.getByRole('button',{name:'继续编辑'}).click();
+ assert.equal(await editor.getByRole('textbox',{name:'任务内容',exact:true}).inputValue(),'Latest unsaved task');
+ await editor.getByRole('button',{name:'取消',exact:true}).click();
+ await discard.getByRole('button',{name:'放弃修改'}).click();
+ await editor.waitFor({state:'detached'});
+ await page.waitForFunction(()=>!JSON.parse(localStorage.getItem('felix-task-editor-draft-v1')).current);
+ await page.reload();await page.getByRole('button',{name:'已安排',exact:true}).click();
+ assert.equal(await editor.count(),0,'Explicit discard removes restored draft');
  await page.evaluate(()=>localStorage.setItem('felix-task-editor-draft-v1','{broken'));
  await page.reload();await page.getByRole('button',{name:'已安排',exact:true}).click();
  await page.getByRole('button',{name:'重试读取任务草稿',exact:true}).waitFor();
@@ -45,5 +56,17 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
   await editor.getByRole('button',{name:'保存任务',exact:true}).click();
   assert.equal(await page.evaluate(()=>window.__saves.length),0,'Incomplete restored schedules cannot be submitted');
  }
+ await page.evaluate(()=>localStorage.setItem('felix-task-editor-draft-v1',JSON.stringify({current:{id:'existing-task',name:'Restored write task',prompt:'Review restored directory',kind:'agent',model:'test',permission:'workspace-write',cwd:'D:/new-workspace',notify:true,schedule:{kind:'daily',time:'09:00',timezone:'UTC'}}})));
+ await page.reload();await page.getByRole('button',{name:'已安排',exact:true}).click();
+ const restoredEditor=page.getByRole('dialog',{name:'编辑任务',exact:true});
+ await restoredEditor.waitFor();
+ const writeConfirmation=restoredEditor.getByRole('checkbox',{name:'允许此任务无人值守修改上述任务工作目录'});
+ assert.equal(await writeConfirmation.isChecked(),false);
+ await restoredEditor.getByRole('button',{name:'保存任务',exact:true}).click();
+ await restoredEditor.getByRole('alert').filter({hasText:'请确认允许无人值守修改工作区'}).waitFor();
+ assert.equal(await page.evaluate(()=>window.__saves.length),0);
+ await writeConfirmation.check();await restoredEditor.getByRole('button',{name:'保存任务',exact:true}).click();
+ await restoredEditor.waitFor({state:'detached'});
+ assert.equal(await page.evaluate(()=>window.__saves[0].cwd),'D:/new-workspace');
  console.log('PASS: task draft storage failure visible in modal, retry and reload recovery without scheduling');
 }finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});
