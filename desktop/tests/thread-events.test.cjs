@@ -124,3 +124,21 @@ test('auto approval review lifecycle is recorded and stale or malformed events a
   f.emit('item/autoApprovalReview/started', { ...base, reviewId: '' });
   assert.equal(f.state.threads[0].messages.at(-1).tool.status, 'completed');
 });
+test('moderation stays with its turn, ignores late events and resets on a new turn', () => {
+ const f = fixture();
+ f.emit('turn/started', { threadId: 'a', turn: { id: 'one' } });
+ f.emit('turn/moderationMetadata', { threadId: 'a', turnId: 'one', metadata: { score: 1 } });
+ assert.deepEqual(f.state.threads[0].moderationMetadata, { turnId: 'one', metadata: { score: 1 } });
+ assert.equal(f.state.threads[1].moderationMetadata, undefined);
+ f.emit('turn/completed', { threadId: 'a', turn: { id: 'one', status: 'completed' } });
+ f.emit('turn/moderationMetadata', { threadId: 'a', turnId: 'one', metadata: { score: 2 } });
+ assert.equal(f.state.threads[0].moderationMetadata.metadata.score, 1);
+ f.emit('turn/started', { threadId: 'a', turn: { id: 'two' } });
+ assert.equal(f.state.threads[0].moderationMetadata, undefined);
+ f.emit('turn/moderationMetadata', { threadId: 'a', turnId: 'one', metadata: { score: 3 } });
+ assert.equal(f.state.threads[0].moderationMetadata, undefined);
+ f.emit('turn/moderationMetadata', { threadId: 'a', turnId: 'two', metadata: () => {} });
+ assert.equal(f.state.threads[0].moderationMetadata, undefined);
+ f.emit('turn/moderationMetadata', { threadId: 'a', turnId: 'two', metadata: null });
+ assert.deepEqual(f.state.threads[0].moderationMetadata, { turnId: 'two', metadata: null });
+});

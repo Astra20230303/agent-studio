@@ -40,3 +40,9 @@ test('branches preserve settings but reset transient state and historical progre
   const full = fullBranchSnapshot(source, 'full'); full.plan.steps.push({ step: 'new' });
   assert.equal(source.plan.steps.length, 0);
 });
+test('forked conversations do not inherit source moderation diagnostics', () => {
+ const source = { id: 'source', title: 'History', messages: [{ id: 'answer', role: 'assistant', content: 'done' }], moderationMetadata: { turnId: 'old', metadata: { result: 'source-only' } } };
+ assert.equal(fullBranchSnapshot(source, 'fork').moderationMetadata, undefined);
+ assert.equal(branchSnapshot(source, 'answer', 'fork').moderationMetadata, undefined);
+ assert.equal(source.moderationMetadata.turnId, 'old');
+});

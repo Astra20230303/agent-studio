@@ -5,7 +5,7 @@ import { recordTurnFailure } from './turnFailure.ts';
 import { applyToolEvent, finishTools, upsertTool } from './toolActivity.ts';
 import type { DesktopState } from './domain';
 import type { TurnEvent, TurnRuntime } from './turnRuntime';
-import { readTurnModerationMetadata } from './turnModerationMetadata';
+import { readTurnModerationMetadata } from './turnModerationMetadata.ts';
 
 const methods = new Set(['turn/plan/updated', 'turn/diff/updated', 'turn/moderationMetadata', 'turn/started', 'turn/completed', 'error', 'item/agentMessage/delta', 'item/started', 'item/completed', 'item/autoApprovalReview/started', 'item/autoApprovalReview/completed', 'item/plan/delta', 'item/commandExecution/outputDelta', 'item/commandExecution/terminalInteraction', 'item/fileChange/outputDelta', 'item/fileChange/patchUpdated', 'item/mcpToolCall/progress', 'item/reasoning/textDelta', 'item/reasoning/summaryTextDelta', 'item/reasoning/summaryPartAdded']);
 
@@ -37,6 +37,7 @@ export function createThreadEvents({ update, runtime, queue, audit, activeRemote
     }
     if (message.method === 'turn/moderationMetadata') {
       const metadata = readTurnModerationMetadata(params);
+      if (!metadata) return true;
       const current = runtime.read(params.threadId);
       if (!metadata || current?.turnId && current.turnId !== metadata.turnId || current?.completed.includes(metadata?.turnId || '')) return true;
       update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) thread.moderationMetadata = { turnId: metadata.turnId, metadata: metadata.metadata }; });
@@ -85,7 +86,7 @@ export function createThreadEvents({ update, runtime, queue, audit, activeRemote
     if (message.method === 'turn/started' && params.threadId && params.turn?.id) {
       audit.record('回合开始', params.threadId);
       runtime.apply(params.threadId, { type: 'start', turnId: params.turn.id });
-      update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) { thread.status = 'running'; if (thread.plan?.turnId !== params.turn.id) thread.plan = undefined; if (thread.planDelta?.turnId !== params.turn.id) thread.planDelta = undefined; if (thread.turnDiff?.turnId !== params.turn.id) thread.turnDiff = undefined; } });
+      update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) { thread.status = 'running'; if (thread.plan?.turnId !== params.turn.id) thread.plan = undefined; if (thread.planDelta?.turnId !== params.turn.id) thread.planDelta = undefined; if (thread.turnDiff?.turnId !== params.turn.id) thread.turnDiff = undefined; if (thread.moderationMetadata?.turnId !== params.turn.id) thread.moderationMetadata = undefined; } });
     }
     if (message.method === 'item/agentMessage/delta' || message.method === 'item/completed' && params.item?.type === 'agentMessage') {
       if (message.method === 'item/agentMessage/delta') runtime.apply(params.threadId, { type: 'activity', turnId: params.turnId });

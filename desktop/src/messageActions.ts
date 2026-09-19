@@ -23,6 +23,6 @@ export function branchSnapshot(source: Thread, messageId: string, remoteId: stri
 
 export function fullBranchSnapshot(source: Thread, remoteId: string): Thread {
   return { ...structuredClone(source), id: `remote-${remoteId}`, remoteId, title: `${source.title} · 分支`,
-    requestedPermission: undefined, effectivePermissions: undefined, contextTokens: undefined,
+    requestedPermission: undefined, effectivePermissions: undefined, contextTokens: undefined, moderationMetadata: undefined,
     pinned: false, archived: false, status: 'idle', updatedAt: new Date().toISOString() };
 }
