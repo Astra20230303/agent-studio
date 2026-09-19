@@ -14,3 +14,12 @@ export function readEnvironmentStatus(value: unknown): EnvironmentStatus {
   if (!input || !['ready', 'pending', 'disconnected', 'unknown'].includes(input.status) || input.error != null && !identity(input.error)) throw new Error('环境状态响应无效');
   return { status: input.status, ...(input.error != null ? { error: input.error } : {}) };
 }
+
+export function environmentAddParams(environmentId: string, execServerUrl: string, connectTimeoutMs?: number) {
+  if (!/^\S+$/.test(environmentId)) throw new Error('环境 ID 无效');
+  let url: URL;
+  try { url = new URL(execServerUrl); } catch { throw new Error('exec-server URL 无效'); }
+  if (!['ws:', 'wss:'].includes(url.protocol) || url.username || url.password || /[\r\n]/.test(execServerUrl)) throw new Error('exec-server URL 无效');
+  if (connectTimeoutMs != null && (!Number.isSafeInteger(connectTimeoutMs) || connectTimeoutMs <= 0 || connectTimeoutMs > 300000)) throw new Error('连接超时时间无效');
+  return { environmentId, execServerUrl, ...(connectTimeoutMs != null ? { connectTimeoutMs } : {}) };
+}

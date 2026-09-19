@@ -18,7 +18,7 @@ import { createRemoteProjectParams, deleteRemoteProjectParams, moveRemoteProject
 import { updateThreadGitParams, updateThreadProjectParams } from './threadMetadata';
 import { readRemoteControlClients as readRemoteControlClientPage, readRemoteControlPairing, readRemoteControlStatus, remoteControlId, type RemoteControlClient, type RemoteControlPairing, type RemoteControlStatus } from './remoteControl';
 import { readThreadTimelinePage, type TimelineEntry } from './threadTimeline';
-import { readEnvironmentInfo as parseEnvironmentInfo, readEnvironmentStatus as parseEnvironmentStatus, type EnvironmentInfo, type EnvironmentStatus } from './environment';
+import { environmentAddParams, readEnvironmentInfo as parseEnvironmentInfo, readEnvironmentStatus as parseEnvironmentStatus, type EnvironmentInfo, type EnvironmentStatus } from './environment';
 export type RpcMessage = { id?: number | string; method?: string; params?: any; result?: any; error?: any };
 type Bridge = { connect: () => Promise<any>; request: (method: string, params?: unknown) => Promise<any>; notify: (method: string, params?: unknown) => Promise<any>; respond: (id: number | string, result?: unknown, error?: unknown) => Promise<any>; onNotification: (listener: (message: RpcMessage) => void) => () => void; onServerRequest: (listener: (message: RpcMessage) => void) => () => void; onError: (listener: (message: any) => void) => () => void; onStderr: (listener: (message: any) => void) => () => void; onClosed: (listener: (message: any) => void) => () => void };
 const bridge = () => window.codex as Bridge;
@@ -105,6 +105,7 @@ export async function readAccount() { return readAccountInfo(await unwrap<any>(b
 export async function readServerDiagnosticsInfo() { return readServerDiagnostics(await unwrap<unknown>(bridge().request('server/diagnostics', {}))); }
 export async function readEnvironmentInfo(environmentId: string): Promise<EnvironmentInfo> { if (!/^\S+$/.test(environmentId)) throw new Error('环境 ID 无效'); return parseEnvironmentInfo(await unwrap<unknown>(bridge().request('environment/info', { environmentId }))); }
 export async function readEnvironmentStatus(environmentId: string): Promise<EnvironmentStatus> { if (!/^\S+$/.test(environmentId)) throw new Error('环境 ID 无效'); return parseEnvironmentStatus(await unwrap<unknown>(bridge().request('environment/status', { environmentId }))); }
+export async function addEnvironment(environmentId: string, execServerUrl: string, connectTimeoutMs?: number) { await unwrap(bridge().request('environment/add', environmentAddParams(environmentId, execServerUrl, connectTimeoutMs))); }
 export async function uploadFeedback(input: FeedbackInput) { const params = validateFeedbackInput(input); return readFeedbackUpload(await unwrap<unknown>(bridge().request('feedback/upload', params))); }
 export async function searchThreadOccurrences(threadId: string, searchTerm: string, signal?: AbortSignal): Promise<ThreadSearchOccurrence[]> {
   if (!/^\S+$/.test(threadId) || !searchTerm.trim()) throw new Error('会话搜索参数无效');
