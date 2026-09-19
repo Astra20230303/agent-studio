@@ -14,16 +14,17 @@ export function McpResources({ server, resources, templates, threadId, disabled,
   const [contents, setContents] = useState<McpResourceContent[]>();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [cancelled, setCancelled] = useState(false);
   const generation = useRef(0);
   useEffect(() => {
-    generation.current++; setContents(undefined); setError(''); setLoading(false);
+    generation.current++; setContents(undefined); setError(''); setLoading(false); setCancelled(false);
     return () => { generation.current++; };
   }, [server, resources, threadId, disabled]);
   const read = async (value: string) => {
     const requested = value.trim();
     if (!requested || disabled) return;
     const token = ++generation.current;
-    setUri(requested); setLoading(true); setError(''); setContents(undefined);
+    setCancelled(false); setUri(requested); setLoading(true); setError(''); setContents(undefined);
     try {
       const result = readMcpResourceContent(await extensionRequest<unknown>('mcpServer/resource/read', { server, threadId, uri: requested }));
       if (token === generation.current) setContents(result);
@@ -38,7 +39,10 @@ export function McpResources({ server, resources, templates, threadId, disabled,
       <input aria-label={`${server} 资源 URI`} value={uri} onChange={event => setUri(event.target.value)} placeholder="资源 URI" style={{ flex: '1 1 200px', minWidth: 0 }} />
       <button disabled={disabled || loading || !uri.trim()} type="submit">读取资源</button>
     </form>
-    {loading && <p role="status">正在读取资源…</p>}
+    {loading && <div><p role="status">正在读取资源…</p><button type="button" onClick={() => {
+      generation.current++; setLoading(false); setContents(undefined); setError(''); setCancelled(true);
+    }}>取消等待读取</button></div>}
+    {cancelled && <p role="status">已取消等待，可以读取其他资源。服务端读取可能仍在进行，返回结果将被忽略。</p>}
     {error && <p role="alert">{error}</p>}
     {contents && <div aria-label="资源内容">{contents.length === 0 && <p>资源内容为空。</p>}{contents.map((content, index) => <div key={index}><p style={{ overflowWrap: 'anywhere' }}>{content.uri}</p>{onAddToDraft && typeof content.text === 'string' && <button disabled={disabled || loading} onClick={() => onAddToDraft(`MCP resource snapshot:\n${JSON.stringify({ server, uri: content.uri, mimeType: content.mimeType, text: content.text }, null, 2)}`)}>加入聊天草稿</button>}{typeof content.blob === 'string' && <McpResourceDownload uri={content.uri} blob={content.blob} />}<ToolResult result={{ content: [typeof content.text === 'string' ? { type: 'text', text: content.text } : { type: content.mimeType?.startsWith('audio/') ? 'audio' : content.mimeType?.startsWith('image/') ? 'image' : 'resource', mimeType: content.mimeType, data: content.blob }] }} /></div>)}</div>}
   </div>;

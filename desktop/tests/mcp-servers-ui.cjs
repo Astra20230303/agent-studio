@@ -16,6 +16,7 @@ const assert = require('node:assert/strict');
         if (method === 'turn/start') return { ok: true, result: { turn: { id: 'resource-turn', status: 'completed' } } };
         if (method === 'mcpServerStatus/list' && params.detail === 'full') return { ok: true, result: { data: [{ name: 'local', authStatus: 'unsupported', resources: [{ uri: 'fixture://readme', name: 'Readme' }], resourceTemplates: [{ uriTemplate: 'fixture://notes/{id}', name: 'Notes' }] }] } };
         if (method === 'mcpServer/resource/read') { if(window.__malformedResource)return {ok:true,result:{contents:[null]}};
+          if (params.uri.startsWith('fixture://cancel/')) return await new Promise((resolve, reject) => { (window.__pendingResources ||= {})[params.uri] = { resolve, reject }; });
           if (params.uri === 'fixture://slow') return await new Promise(resolve => { window.__resolveResource = () => resolve({ ok: true, result: { contents: [{ uri: params.uri, text: 'Stale resource result' }] } }); });
           if (!window.__resourceRetried) { window.__resourceRetried = true; return { ok: false, error: 'Resource temporarily unavailable' }; }
           return { ok: true, result: { contents: [{ uri: params.uri, text: '<script>unsafe()</script>Resource text' }] } };
@@ -101,6 +102,47 @@ const assert = require('node:assert/strict');
     await page.getByLabel('local 资源 URI').fill('fixture://notes/42');
     await page.getByRole('button', { name: '读取资源', exact: true }).click();
     await page.getByLabel('资源内容').getByText('fixture://notes/42', { exact: true }).waitFor();
+    const readUri = async uri => {
+      await page.getByLabel('local 资源 URI').fill(uri);
+      await page.getByRole('button', { name: '读取资源', exact: true }).click();
+    };
+    for (const outcome of ['success', 'failure']) {
+      const oldUri = `fixture://cancel/${outcome}-old`;
+      const newUri = `fixture://cancel/${outcome}-new`;
+      await readUri(oldUri);
+      await page.waitForFunction(uri => !!window.__pendingResources?.[uri], oldUri);
+      await page.getByRole('button', { name: '取消等待读取', exact: true }).click();
+      await page.getByRole('status').filter({ hasText: '已取消等待' }).waitFor();
+      assert.equal(await page.getByLabel('资源内容').count(), 0);
+      assert.equal(await page.getByRole('button', { name: 'Readme', exact: true }).isEnabled(), true);
+      await readUri(newUri);
+      await page.waitForFunction(uri => !!window.__pendingResources?.[uri], newUri);
+      assert.equal(await page.getByText(/已取消等待/).count(), 0);
+      await page.evaluate(async ({ uri, outcome }) => {
+        const pending = window.__pendingResources[uri];
+        if (outcome === 'success') pending.resolve({ ok: true, result: { contents: [{ uri, text: 'Cancelled stale content' }] } });
+        else pending.reject(new Error('Cancelled stale failure'));
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }, { uri: oldUri, outcome });
+      await page.getByRole('status').filter({ hasText: '正在读取资源' }).waitFor();
+      assert.equal(await page.getByRole('button', { name: '读取资源', exact: true }).isDisabled(), true);
+      assert.equal(await page.getByText(/Cancelled stale/).count(), 0);
+      await page.evaluate(uri => window.__pendingResources[uri].resolve({ ok: true, result: { contents: [{ uri, text: 'Current resource content' }] } }), newUri);
+      await page.getByLabel('资源内容').getByText(newUri, { exact: true }).waitFor();
+      assert.equal(await page.getByRole('button', { name: '取消等待读取', exact: true }).count(), 0);
+    }
+    // A cancelled response arriving after a newer read completes must also be ignored.
+    await readUri('fixture://cancel/after-completion');
+    await page.getByRole('button', { name: '取消等待读取', exact: true }).click();
+    await readUri('fixture://notes/latest');
+    await page.getByLabel('资源内容').getByText('fixture://notes/latest', { exact: true }).waitFor();
+    await page.evaluate(async () => {
+      window.__pendingResources['fixture://cancel/after-completion'].resolve({ ok: true, result: { contents: [{ uri: 'fixture://obsolete', text: 'Cancelled stale content' }] } });
+      await new Promise(resolve => setTimeout(resolve, 50));
+    });
+    await page.getByLabel('资源内容').getByText('fixture://notes/latest', { exact: true }).waitFor();
+    assert.equal(await page.getByText(/Cancelled stale/).count(), 0);
+    console.log('PASS: cancel resource waiting, resume reads and isolate late success/failure from pending and completed reads');
     await page.getByLabel('local 资源 URI').fill('fixture://slow');
     await page.getByRole('button', { name: '读取资源', exact: true }).click();
     await page.waitForFunction(() => typeof window.__resolveResource === 'function');
