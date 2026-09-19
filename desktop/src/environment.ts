@@ -1,7 +1,7 @@
 export type EnvironmentInfo = { shell: { name: string; path: string }; cwd?: string | null };
 export type EnvironmentStatus = { status: 'ready' | 'pending' | 'disconnected' | 'unknown'; error?: string };
 
-const identity = (value: unknown): value is string => typeof value === 'string' && /^\S.{0,255}$/.test(value);
+const identity = (value: unknown): value is string => typeof value === 'string' && !!value.trim() && !/[\0\r\n]/.test(value);
 
 export function readEnvironmentInfo(value: unknown): EnvironmentInfo {
   const input = value as any;
@@ -11,7 +11,7 @@ export function readEnvironmentInfo(value: unknown): EnvironmentInfo {
 
 export function readEnvironmentStatus(value: unknown): EnvironmentStatus {
   const input = value as any;
-  if (!input || !['ready', 'pending', 'disconnected', 'unknown'].includes(input.status) || input.error != null && !identity(input.error)) throw new Error('环境状态响应无效');
+  if (!input || !['ready', 'pending', 'disconnected', 'unknown'].includes(input.status) || input.error != null && (typeof input.error !== 'string' || !input.error.trim())) throw new Error('环境状态响应无效');
   return { status: input.status, ...(input.error != null ? { error: input.error } : {}) };
 }
 
