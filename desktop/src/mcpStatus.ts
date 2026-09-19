@@ -1,5 +1,5 @@
 import type { McpResource, McpResourceTemplate } from './McpResources';
-export type McpToolInfo = { description?: string; inputSchema?: Record<string, unknown>; outputSchema?: Record<string, unknown> };
+export type McpToolInfo = { annotations?: unknown; description?: string; inputSchema?: Record<string, unknown>; outputSchema?: Record<string, unknown> };
 export type McpStatusPage = {
   data: Array<{ name: string; runtimeStatus?: string; authStatus: string; tools?: Record<string, McpToolInfo>; toolsError?: string; resources?: McpResource[]; resourceTemplates?: McpResourceTemplate[] }>;
   nextCursor?: string;

@@ -19,7 +19,7 @@ if (process.argv.includes('--fixture')) {
       case 'resources/templates/list': result = { resourceTemplates: [{ uriTemplate: 'fixture://notes/{id}', name: 'Notes' }] }; break;
       case 'resources/read': result = { contents: [{ uri: message.params.uri, mimeType: 'text/plain', text: 'Felix resource acceptance' }] }; break;
       case 'ping': result = {}; break;
-      case 'tools/list': result = { tools: [{ name: 'echo', description: 'Acceptance echo', inputSchema: { type: 'object', properties: { text: { type: 'string' }, fail: { type: 'boolean' } }, required: ['text'] } }] }; break;
+      case 'tools/list': result = { tools: [{ name: 'echo', annotations: { readOnlyHint: true, openWorldHint: false }, description: 'Acceptance echo', inputSchema: { type: 'object', properties: { text: { type: 'string' }, fail: { type: 'boolean' } }, required: ['text'] } }] }; break;
       case 'tools/call': {
         const { text, fail } = message.params.arguments;
         result = { content: [{ type: 'text', text: fail ? 'Fixture failure' : text }], structuredContent: { echoed: text }, isError: !!fail };
@@ -64,6 +64,7 @@ async function main() {
     assert.deepEqual(initial.map(entry => entry.name).sort(), ['acceptance_a', 'acceptance_b']);
     for (const entry of initial) {
       assert.equal(entry.authStatus, 'unsupported');
+      assert.deepEqual(require('../src/mcpToolHints.ts').mcpToolHints(Object.values(entry.tools).find(tool=>tool.name==='echo').annotations),['只读：是','可能访问外部系统：否']);
       assert.equal(entry.toolsError, null);
       assert.ok(Object.values(entry.tools).some(tool => tool.name === 'echo' && tool.inputSchema.required.includes('text')));
     }
