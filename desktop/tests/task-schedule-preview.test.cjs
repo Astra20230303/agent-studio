@@ -25,3 +25,8 @@ test('monthly preview skips absent dates, handles leap years and rejects invalid
  assert.equal(previewSchedule({kind:'monthly',monthDay:29,time:'09:00',timezone:'UTC'},Date.parse('2028-02-01T00:00:00Z')).times[0],'2028-02-29T09:00:00.000Z');
  for(const monthDay of [0,32,1.5,'1',null])assert.throws(()=>previewSchedule({kind:'monthly',monthDay,time:'09:00',timezone:'UTC'},now),/每月日期/);
 });
+
+test('monthly local time adjusts its UTC offset across daylight transitions',()=>{
+ assert.deepEqual(previewSchedule({kind:'monthly',monthDay:15,time:'09:00',timezone:'America/New_York'},Date.parse('2026-02-01T00:00:00Z')).times,['2026-02-15T14:00:00.000Z','2026-03-15T13:00:00.000Z','2026-04-15T13:00:00.000Z']);
+ assert.deepEqual(previewSchedule({kind:'monthly',monthDay:15,time:'09:00',timezone:'America/New_York'},Date.parse('2026-10-01T00:00:00Z')).times,['2026-10-15T13:00:00.000Z','2026-11-15T14:00:00.000Z','2026-12-15T14:00:00.000Z']);
+});
