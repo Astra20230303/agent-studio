@@ -32,7 +32,10 @@ const path = require('node:path');
     await editor.getByRole('textbox', { name: '任务内容', exact: true }).fill('恢复草稿后继续编辑，不创建任务');
     await editor.getByLabel('频率').selectOption('once');
     await editor.getByLabel('运行时间（本地时区）').fill('');
-    // Close the real app while the editor is open; main-process shutdown flushes storage.
+    await editor.getByRole('button', { name: '保留草稿并返回列表', exact: true }).click();
+    await editor.waitFor({ state: 'detached' });
+    await page.getByRole('button', { name: '继续编辑任务草稿', exact: true }).waitFor();
+    // Close with a suspended draft; startup must recover it through native storage.
     await app.close(); app = undefined;
     page = await open();
     editor = page.getByRole('dialog', { name: '创建任务', exact: true });
