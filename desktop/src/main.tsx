@@ -1,3 +1,4 @@
+import type { ApprovalDecision } from './approvalDecisions';
 import { DaybreakPreference } from './DaybreakPreference';
 import { unsupportedEffort } from './reasoningEffort';
 import { createServerResponses } from './serverResponses';
@@ -591,11 +592,11 @@ function App({ initialState }: { initialState: DesktopState }) {
     })();
     return () => { disposed = true; setRestoringThread(current => current === threadId ? undefined : current); };
   }, [active?.remoteId, codexStatus, restoreAttempt]);
-  const respondApproval = async (decision: string, answers?: UserAnswers, content?: Record<string, unknown>, target = approval) => {
+  const respondApproval = async (decision: ApprovalDecision, answers?: UserAnswers, content?: Record<string, unknown>, target = approval) => {
     const approval = target;
     if (!approval) return;
     if (!await serverResponses.send(approval, decision, answers, content)) return;
-    audit.record('处理服务请求', `${approval.method} · ${decision}`);
+    audit.record('处理服务请求', `${approval.method} · ${typeof decision === 'string' ? decision : JSON.stringify(decision)}`);
     setApprovals(pending => pending.filter(item => item !== approval));
   };
   const loadFullHistory = async (options?: HistoryReadOptions) => {
@@ -932,7 +933,7 @@ function App({ initialState }: { initialState: DesktopState }) {
 function modelId(model: string) { return model.split(' · ')[0]; }
 
 
-function ApprovalDialog({ request, onDecision, fileChanges }: { fileChanges?: import('./domain').ToolActivity['changes']; request: any; onDecision: (decision: string, answers?: UserAnswers, content?: Record<string, unknown>) => Promise<void> }) {
+function ApprovalDialog({ request, onDecision, fileChanges }: { fileChanges?: import('./domain').ToolActivity['changes']; request: any; onDecision: (decision: ApprovalDecision, answers?: UserAnswers, content?: Record<string, unknown>) => Promise<void> }) {
   if (request.method === 'mcpServer/elicitation/request' && request.params?.mode === 'url') return <McpUrl key={request.id} request={request} onDecision={onDecision} />;
   if (request.method === 'mcpServer/elicitation/request') return <McpForm key={request.id} request={request} onSubmit={(action, content) => onDecision(action, undefined, content)} />;
   if (request.method === 'item/tool/requestUserInput') return <UserInputDialog key={request.id} request={request} onDecision={onDecision} />;

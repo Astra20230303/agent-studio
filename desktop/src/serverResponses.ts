@@ -1,3 +1,4 @@
+import { validateCommandDecision, type ApprovalDecision } from './approvalDecisions.ts';
 type Answers = Record<string, { answers: string[] }>;
 type Request = { id?: string | number; method?: string; params?: any };
 
@@ -6,7 +7,7 @@ export function createServerResponses(respond: (id: string | number, result: unk
   return {
     invalidate(id: string | number) { pending.delete(id); },
     reset() { pending.clear(); },
-    async send(request: Request, decision: string, answers?: Answers, content?: Record<string, unknown>) {
+    async send(request: Request, decision: ApprovalDecision, answers?: Answers, content?: Record<string, unknown>) {
       const { id, method } = request;
       if (!(typeof id === 'string' && !!id.trim() || typeof id === 'number' && Number.isSafeInteger(id))) throw Error('服务请求编号无效，未提交回答。');
       if (pending.has(id)) throw Error('此请求正在提交，请等待完成。');
@@ -14,7 +15,11 @@ export function createServerResponses(respond: (id: string | number, result: unk
       pending.set(id, token);
       try {
         let result: unknown = { decision };
-        if (method === 'item/permissions/requestApproval') {
+        if (method === 'item/commandExecution/requestApproval') {
+          result = { decision: validateCommandDecision(request.params, decision) };
+        } else if (typeof decision !== 'string') {
+          throw Error('此请求不支持规则审批。');
+        } else if (method === 'item/permissions/requestApproval') {
           result = { scope: 'turn', permissions: decision === 'accept' ? request.params?.permissions || {} : {} };
         } else if (method === 'item/tool/requestUserInput') {
           result = { answers: answers || Object.fromEntries((request.params?.questions || []).map((question: any) => [question.id, { answers: [] }])) };

@@ -1,7 +1,8 @@
 import type { ToolActivity } from './domain';
 import { useEffect, useRef, useState } from 'react';
+import { commandApprovalOptions, type ApprovalDecision, type ApprovalOption } from './approvalDecisions';
 const labels: Record<string, string> = { accept: '本次允许', acceptForSession: '本会话允许', decline: '拒绝', cancel: '取消本轮' };
-export function ApprovalPrompt({ request, onDecision, fileChanges }: { fileChanges?: ToolActivity['changes']; request: any; onDecision: (decision: string) => Promise<void> }) {
+export function ApprovalPrompt({ request, onDecision, fileChanges }: { fileChanges?: ToolActivity['changes']; request: any; onDecision: (decision: ApprovalDecision) => Promise<void> }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const lock = useRef(false);
@@ -18,10 +19,9 @@ export function ApprovalPrompt({ request, onDecision, fileChanges }: { fileChang
   const file = request.method === 'item/fileChange/requestApproval';
   const command = request.method === 'item/commandExecution/requestApproval';
   const supported = permissions || file || command;
-  const decisions = command && Array.isArray(params.availableDecisions)
-    ? params.availableDecisions.filter((value: unknown) => typeof value === 'string' && Object.hasOwn(labels, value)) as string[]
-    : permissions ? ['decline', 'accept'] : file || command ? ['decline', 'accept', 'acceptForSession', 'cancel'] : [];
-  const submit = async (decision: string) => {
+  const decisions: ApprovalOption[] = command ? commandApprovalOptions(params)
+    : (permissions ? ['decline', 'accept'] : file ? ['decline', 'accept', 'acceptForSession', 'cancel'] : []).map(decision => ({ decision, label: labels[decision] }));
+  const submit = async (decision: ApprovalDecision) => {
     if (lock.current) return;
     lock.current = true; dialog.current?.focus(); setBusy(true); setError('');
     try { await onDecision(decision); }
@@ -45,6 +45,6 @@ export function ApprovalPrompt({ request, onDecision, fileChanges }: { fileChang
     {(params.permissions || params.additionalPermissions || params.networkApprovalContext) && <pre>{JSON.stringify(params.permissions || params.additionalPermissions || params.networkApprovalContext, null, 2)}</pre>}
     {!supported && <p role="alert">此请求类型尚未支持：{request.method}</p>}{error && <p role="alert">{error}</p>}
     {!decisions.length && <p role="alert">服务端未提供可用的审批选项。</p>}
-    <div className="approval-actions" style={{ flexWrap: 'wrap' }}>{decisions.map(decision => <button key={decision} disabled={busy} onClick={() => void submit(decision)}>{labels[decision]}</button>)}</div>
+    <div className="approval-actions" style={{ flexWrap: 'wrap' }}>{decisions.map((option, index) => <div key={index}>{option.detail && <p id={`approval-option-${index}`}>{option.detail}</p>}<button aria-describedby={option.detail ? `approval-option-${index}` : undefined} disabled={busy} onClick={() => void submit(option.decision)}>{option.label}</button></div>)}</div>
   </dialog>;
 }

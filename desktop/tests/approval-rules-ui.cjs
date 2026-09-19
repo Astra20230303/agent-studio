@@ -1,0 +1,21 @@
+const { chromium }=require('playwright');const assert=require('node:assert/strict');
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
+ const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.addInitScript(()=>{window.__responses=[];window.desktop={listModels:async()=>({ok:true,models:['test']})};window.codex={connect:async()=>({ok:true}),request:async()=>({ok:true,result:{data:[]}}),notify:async()=>({}),respond:async(id,result)=>{window.__responses.push({id,result});return{ok:true}},onNotification:()=>()=>{},onServerRequest:fn=>{window.__ask=fn;return()=>{}},onClosed:()=>()=>{},onError:()=>()=>{},onStderr:()=>()=>{}};});
+ await page.goto(process.env.FELIX_TEST_URL||'http://127.0.0.1:15439');await page.waitForFunction(()=>window.__ask);
+ const exec={acceptWithExecpolicyAmendment:{execpolicy_amendment:['git','status']}};
+ const net={applyNetworkPolicyAmendment:{network_policy_amendment:{host:'example.com',action:'deny'}}};
+ await page.evaluate(choices=>window.__ask({id:1,method:'item/commandExecution/requestApproval',params:{command:'git status',availableDecisions:choices}}),[exec,net,'decline']);
+ const dialog=page.getByRole('dialog');
+ await dialog.getByText(/以后匹配此命令前缀/).waitFor();await dialog.getByText('持久拒绝访问主机：example.com',{exact:true}).waitFor();
+ assert.equal(await dialog.getByRole('button',{name:'本次允许',exact:true}).count(),0);
+ await page.setViewportSize({width:390,height:720});assert.equal(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth),true);
+ await dialog.getByRole('button',{name:'允许并保存命令规则',exact:true}).click();await dialog.waitFor({state:'hidden'});
+ assert.deepEqual(await page.evaluate(()=>window.__responses[0]),{id:1,result:{decision:exec}});
+ await page.evaluate(choice=>window.__ask({id:2,method:'item/commandExecution/requestApproval',params:{availableDecisions:[choice,'cancel']}}),net);
+ await dialog.getByRole('button',{name:'拒绝并保存网络规则',exact:true}).click();await dialog.waitFor({state:'hidden'});
+ assert.deepEqual(await page.evaluate(()=>window.__responses[1]),{id:2,result:{decision:net}});
+ await page.evaluate(()=>window.__ask({id:3,method:'item/commandExecution/requestApproval',params:{availableDecisions:[],proposedExecpolicyAmendment:['git']}}));
+ await dialog.getByText('服务端未提供可用的审批选项。',{exact:true}).waitFor();assert.equal(await dialog.getByRole('button').count(),0);
+ assert.deepEqual(errors,[]);console.log('PASS: exact command/network rule payloads, scope disclosure, narrow layout and explicit empty choices');
+}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});
