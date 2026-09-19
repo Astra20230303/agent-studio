@@ -33,5 +33,17 @@ const {chromium}=require('playwright');const assert=require('node:assert/strict'
  await editor.getByRole('button',{name:'重试读取任务草稿',exact:true}).waitFor({state:'detached'});
  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('felix-task-editor-draft-v1')).current.name==='Edited during recovery');
  assert.equal(await editor.getByLabel('任务名称',{exact:true}).inputValue(),'Edited during recovery');
+ for (const scenario of ['interval', 'once']) {
+  await editor.getByLabel('频率').selectOption(scenario);
+  const field = scenario === 'interval' ? editor.getByRole('spinbutton', {name:'任务间隔分钟数'}) : editor.getByLabel('运行时间（本地时区）');
+  await field.fill('');
+  await page.waitForFunction(kind => { const draft=JSON.parse(localStorage.getItem('felix-task-editor-draft-v1')).current; return draft.schedule.kind===kind && (kind==='interval' ? draft.schedule.minutes===0 : draft.schedule.at===''); }, scenario);
+  await page.reload();await page.getByRole('button',{name:'已安排',exact:true}).click();await editor.waitFor();
+  assert.equal(await editor.getByLabel('频率').inputValue(),scenario);
+  assert.equal(await field.inputValue(),scenario==='interval'?'0':'');
+  await editor.getByRole('textbox',{name:'任务内容',exact:true}).fill('Incomplete schedule');
+  await editor.getByRole('button',{name:'保存任务',exact:true}).click();
+  assert.equal(await page.evaluate(()=>window.__saves.length),0,'Incomplete restored schedules cannot be submitted');
+ }
  console.log('PASS: task draft storage failure visible in modal, retry and reload recovery without scheduling');
 }finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1;});
