@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { addRemoteQueuedSubmission, deleteRemoteQueuedSubmission, listRemoteQueuedSubmissions, reorderRemoteQueuedSubmissions, startRemoteQueuedSubmission } from './codexClient';
+import { addRemoteQueuedSubmission, deleteRemoteQueuedSubmission, listRemoteQueuedSubmissions, reorderRemoteQueuedSubmissions, startRemoteQueuedSubmission, subscribeCodex } from './codexClient';
 import { moveRemoteQueue, type RemoteQueuedSubmission } from './threadQueueRemote';
 
 type Props = { threadId?: string; connected: boolean; busy?: boolean };
@@ -14,24 +14,34 @@ function ThreadQueue({ threadId, connected, busy }: Props & { threadId: string }
   const [notice, setNotice] = useState('');
   const epoch = useRef(0);
   const lock = useRef(false);
+  const dirty = useRef(false);
   const blocked = !connected || busy || loading;
 
   const refresh = async (generation: number) => {
-    const result = await listRemoteQueuedSubmissions(threadId);
-    if (epoch.current === generation) setItems(result);
+    do {
+      dirty.current = false;
+      const result = await listRemoteQueuedSubmissions(threadId);
+      if (epoch.current !== generation) return;
+      // A notification during a paginated read invalidates that snapshot.
+      if (!dirty.current) setItems(result);
+    } while (dirty.current);
   };
   const load = async () => {
-    if (!connected || lock.current) return;
+    if (!connected) return;
+    if (lock.current) { dirty.current = true; return; }
     const generation = epoch.current;
     lock.current = true; setLoading(true); setNotice('');
     try { await refresh(generation); }
     catch (error) { if (epoch.current === generation) { setItems([]); setNotice(`读取服务端队列失败：${error instanceof Error ? error.message : String(error)}`); } }
-    finally { if (epoch.current === generation) { lock.current = false; setLoading(false); } }
+    finally { if (epoch.current === generation) { lock.current = false; setLoading(false); if (dirty.current) void load(); } }
   };
   useEffect(() => {
-    epoch.current++; lock.current = false; setLoading(false); setItems([]); setNotice('');
+    epoch.current++; lock.current = false; dirty.current = false; setLoading(false); setItems([]); setNotice('');
+    const unsubscribe = connected ? subscribeCodex({ notification: message => {
+      if (message.method === 'thread/queue/changed' && message.params?.threadId === threadId) void load();
+    } }) : undefined;
     if (connected) void load();
-    return () => { epoch.current++; };
+    return () => { epoch.current++; dirty.current = false; unsubscribe?.(); };
   }, [connected]);
 
   const mutate = async (action: () => Promise<void>, success: string, submittedText?: string) => {
@@ -48,7 +58,7 @@ function ThreadQueue({ threadId, connected, busy }: Props & { threadId: string }
       catch (error) { if (epoch.current === generation) { setItems([]); setNotice(`${success}；刷新失败，请刷新队列：${error instanceof Error ? error.message : String(error)}`); } }
     } catch (error) {
       if (epoch.current === generation) setNotice(`服务端队列操作失败：${error instanceof Error ? error.message : String(error)}`);
-    } finally { if (epoch.current === generation) { lock.current = false; setLoading(false); } }
+    } finally { if (epoch.current === generation) { lock.current = false; setLoading(false); if (dirty.current) void load(); } }
   };
   return <section className="remote-thread-queue" aria-label="服务端排队消息">
     <header><b>服务端排队消息 · {items.length}</b><button disabled={!connected || loading} onClick={() => void load()}>刷新</button></header>
