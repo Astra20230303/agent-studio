@@ -16,3 +16,9 @@ export function updateThreadDaybreakParams(threadId: string, enabled: boolean) {
   if (!validId(threadId) || typeof enabled !== 'boolean') throw new Error('会话 Daybreak 参数无效');
   return { threadId, daybreakEnabled: enabled };
 }
+
+export function readThreadDaybreakResponse(value: unknown, threadId: string): boolean {
+  const thread = (value as any)?.thread;
+  if (!thread || thread.id !== threadId || typeof thread.daybreakEnabled !== 'boolean') throw new Error('服务端未确认此会话的 Daybreak 偏好，请重新打开会话确认');
+  return thread.daybreakEnabled;
+}

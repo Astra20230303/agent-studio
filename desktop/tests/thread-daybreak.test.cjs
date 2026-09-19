@@ -8,3 +8,9 @@ test('thread Daybreak metadata is validated and restored', () => {
   assert.throws(() => updateThreadDaybreakParams('thread-1', 'true'));
   assert.throws(() => readThreadResume({ thread: { id: 'thread-1', turns: [], daybreakEnabled: 'yes' } }, 'thread-1'));
 });
+const { readThreadDaybreakResponse } = require('../src/threadMetadata.ts');
+test('Daybreak saves require the matching thread and explicit boolean confirmation', () => {
+ assert.equal(readThreadDaybreakResponse({thread:{id:'t',daybreakEnabled:false}},'t'),false);
+ for (const value of [{}, {thread:{id:'other',daybreakEnabled:true}}, {thread:{id:'t',daybreakEnabled:null}}, {thread:{id:'t',daybreakEnabled:'true'}}]) assert.throws(()=>readThreadDaybreakResponse(value,'t'));
+ assert.equal(readThreadResume({thread:{id:'t',turns:[],daybreakEnabled:null}},'t').daybreakEnabled,undefined);
+});
