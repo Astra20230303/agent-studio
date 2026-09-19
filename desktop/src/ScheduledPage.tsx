@@ -5,7 +5,7 @@ import type { TaskOrder } from './taskOrdering';
 import { duplicateTask } from './duplicateTask';
 import { projectRepository } from './projectRepository';
 import { createAutomationRepository } from './automationRepository';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode, FormEvent } from 'react';
 import { Bell, CheckCircle2, ChevronDown, Circle, Clock3, FileSearch, LoaderCircle, Pause, Pencil, Play, Plus, RefreshCw, Square, Search, Trash2, X } from 'lucide-react';
 import { formatTaskDate, localDateInput, localZone, nextRunLabel, scheduleLabel, taskRequest, taskRunLabels, taskStatusLabels, taskTemplates } from './scheduledTasks';
@@ -46,7 +46,7 @@ function TaskEditor({ draft, providers, onClose, onSaved, onChange, storageFeedb
     if (edited.current) setDiscarding(true); else onClose();
   };
   const [writeConfirmed, setWriteConfirmed] = useState(!restored && Boolean(draft.id) && draft.permission === 'workspace-write');
-  useEffect(() => {
+  useLayoutEffect(() => {
     const parsedOnce = new Date(onceAt);
     const schedule = form.schedule.kind === 'once' ? { kind: 'once' as const, at: Number.isNaN(parsedOnce.getTime()) ? onceAt : parsedOnce.toISOString() } : form.schedule;
     onChange({ ...structuredClone(form), schedule });

@@ -1,4 +1,4 @@
-import { useEffect, useState, type SetStateAction } from 'react';
+import { useLayoutEffect, useState, type SetStateAction } from 'react';
 import { persistentStorage } from './persistentStorage';
 
 export type DraftSchema<T> = { key: string; empty: () => T; valid: (value: unknown) => value is T; removeEmpty?: (value: T) => boolean };
@@ -17,7 +17,7 @@ export function useDraftStorage<T>(schema: DraftSchema<T>, threadId?: string) {
   const [readFailed, setReadFailed] = useState(loaded.failed);
   const [saveFailed, setSaveFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (readFailed) return;
     let disposed = false;
     void persistentStorage.setItem(schema.key, JSON.stringify(drafts)).then(() => { if (!disposed) setSaveFailed(false); }, () => { if (!disposed) setSaveFailed(true); });
