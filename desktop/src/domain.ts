@@ -52,6 +52,7 @@ export interface Thread {
   plan?: import('./planning').PlanProgress;
   planDelta?: { turnId: string; itemId: string; content: string };
   turnDiff?: { turnId: string; diff: string };
+  moderationMetadata?: import('./turnModerationMetadata').TurnModerationMetadata;
   goal?: { objective: string; status: 'active' | 'paused' | 'blocked' | 'usageLimited' | 'budgetLimited' | 'complete'; tokenBudget?: number; tokensUsed: number; timeUsedSeconds: number };
   id: string;
   remoteId?: string;

@@ -5,8 +5,9 @@ import { recordTurnFailure } from './turnFailure.ts';
 import { applyToolEvent, finishTools, upsertTool } from './toolActivity.ts';
 import type { DesktopState } from './domain';
 import type { TurnEvent, TurnRuntime } from './turnRuntime';
+import { readTurnModerationMetadata } from './turnModerationMetadata';
 
-const methods = new Set(['turn/plan/updated', 'turn/diff/updated', 'turn/started', 'turn/completed', 'error', 'item/agentMessage/delta', 'item/started', 'item/completed', 'item/autoApprovalReview/started', 'item/autoApprovalReview/completed', 'item/plan/delta', 'item/commandExecution/outputDelta', 'item/commandExecution/terminalInteraction', 'item/fileChange/outputDelta', 'item/fileChange/patchUpdated', 'item/mcpToolCall/progress', 'item/reasoning/textDelta', 'item/reasoning/summaryTextDelta', 'item/reasoning/summaryPartAdded']);
+const methods = new Set(['turn/plan/updated', 'turn/diff/updated', 'turn/moderationMetadata', 'turn/started', 'turn/completed', 'error', 'item/agentMessage/delta', 'item/started', 'item/completed', 'item/autoApprovalReview/started', 'item/autoApprovalReview/completed', 'item/plan/delta', 'item/commandExecution/outputDelta', 'item/commandExecution/terminalInteraction', 'item/fileChange/outputDelta', 'item/fileChange/patchUpdated', 'item/mcpToolCall/progress', 'item/reasoning/textDelta', 'item/reasoning/summaryTextDelta', 'item/reasoning/summaryPartAdded']);
 
 export function createThreadEvents({ update, runtime, queue, audit, activeRemoteId }: {
   update: (mutate: (state: DesktopState) => void) => void;
@@ -33,6 +34,12 @@ export function createThreadEvents({ update, runtime, queue, audit, activeRemote
       const current = runtime.read(params.threadId);
       if (!valid || current?.turnId && current.turnId !== params.turnId || current?.completed.includes(params.turnId)) return true;
       update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) thread.turnDiff = { turnId: params.turnId, diff: params.diff }; });
+    }
+    if (message.method === 'turn/moderationMetadata') {
+      const metadata = readTurnModerationMetadata(params);
+      const current = runtime.read(params.threadId);
+      if (!metadata || current?.turnId && current.turnId !== metadata.turnId || current?.completed.includes(metadata?.turnId || '')) return true;
+      update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) thread.moderationMetadata = { turnId: metadata.turnId, metadata: metadata.metadata }; });
     }
     if (message.method === 'item/plan/delta') {
       const delta = readPlanDelta(params);
