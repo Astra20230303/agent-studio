@@ -42,5 +42,10 @@ const { chromium } = require('playwright'); const assert = require('node:assert/
   await page.evaluate(()=>window.__ask({id:6,method:'item/permissions/requestApproval',params:{permissions:{network:{enabled:true}}}}));
   assert.equal(await network.isChecked(),true);await network.uncheck();await page.getByRole('button',{name:'本轮允许',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
   assert.deepEqual(await page.evaluate(()=>window.__responses[5].result),{scope:'turn',permissions:{}});
+  await page.evaluate(()=>window.__ask({id:7,method:'item/permissions/requestApproval',params:{permissions:{fileSystem:{read:['D:/a'],write:['D:/b'],entries:[{path:{type:'path',path:'D:/a'},access:'read'},{path:{type:'path',path:'D:/b'},access:'write'},{path:{type:'path',path:'D:/secret'},access:'deny'}]}}}}));
+  await page.getByRole('checkbox',{name:'写入：D:/b',exact:true}).uncheck();
+  const deny=page.getByRole('checkbox',{name:'禁止访问：D:/secret（保留限制）',exact:true});assert.equal(await deny.isDisabled(),true);assert.equal(await deny.isChecked(),true);
+  await page.getByRole('button',{name:'本轮允许',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
+  assert.deepEqual(await page.evaluate(()=>window.__responses[6].result),{scope:'turn',permissions:{fileSystem:{entries:[{path:{type:'path',path:'D:/a'},access:'read'},{path:{type:'path',path:'D:/secret'},access:'deny'}]}}});
   assert.deepEqual(errors,[]);console.log('PASS: server decisions, retry after failure, permission details and denial payload');
 } finally {await browser.close()}})().catch(error=>{console.error(error);process.exitCode=1});

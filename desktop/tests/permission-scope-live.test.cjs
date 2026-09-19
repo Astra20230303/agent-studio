@@ -16,6 +16,7 @@ for (const scope of ['turn', 'session']) test(`real permission grant ${scope} ha
   const cache=path.join(root,'.project-cache/tmp');fs.mkdirSync(cache,{recursive:true});
   const profile=fs.mkdtempSync(path.join(cache,'permission-scope-live-'));
   const workspace=fs.mkdtempSync(path.join(cache,'permission-scope-workspace-'));
+  const unselected=fs.mkdtempSync(path.join(cache,'permission-unselected-'));
   let target=path.join(workspace,'approved.txt');
   let calls=0, modelError;
   const model=http.createServer(async(req,res)=>{
@@ -27,8 +28,8 @@ for (const scope of ['turn', 'session']) test(`real permission grant ${scope} ha
       if(index===0){
         const tool=body.tools.find(tool=>/(^|__)request_permissions$/.test(tool.function.name));
         assert.ok(tool,'request_permissions must be advertised');
-        delta={tool_calls:[{index:0,id:'permission-call',type:'function',function:{name:tool.function.name,arguments:JSON.stringify({reason:'Allow fixture writes',permissions:{file_system:{write:[workspace]}}})}}]};
-      }else if(index===2||index===4){
+        delta={tool_calls:[{index:0,id:'permission-call',type:'function',function:{name:tool.function.name,arguments:JSON.stringify({reason:'Allow fixture writes',permissions:{file_system:{write:[workspace,unselected]}}})}}]};
+      }else if(index===2||index===4||index===6){
         const tool=body.tools.find(tool=>/(^|__)apply_patch$/.test(tool.function.name));
         assert.ok(tool,'apply_patch must be advertised');
         const patch='*** Begin Patch\n*** Add File: '+target.replaceAll('\\','/')+'\n+approved content\n*** End Patch';
@@ -55,7 +56,11 @@ for (const scope of ['turn', 'session']) test(`real permission grant ${scope} ha
     await wait(()=>requests.length>0);
     const request=requests[0];assert.equal(request.method,'item/permissions/requestApproval');
     const responses=createServerResponses(async(id,result)=>{rpc.respond(id,result);return {ok:true};});
-    await responses.send(request,scope==='session'?'acceptForSession':'accept');
+    const entries=request.params.permissions.fileSystem.entries;
+    assert.equal(entries.length,2);
+    const fileSystemEntries=entries.flatMap((entry,index)=>entry.path.type==='path'&&path.resolve(entry.path.path)===workspace?[index]:[]);
+    assert.equal(fileSystemEntries.length,1);
+    await responses.send(request,scope==='session'?'acceptForSession':'accept',undefined,{network:false,fileSystem:true,fileSystemEntries});
     await wait(()=>notifications.some(n=>n.method==='turn/completed'));
     assert.equal(notifications.find(n=>n.method==='turn/completed').params.turn.status,'completed');
     assert.equal(fs.existsSync(target),false);
@@ -73,6 +78,14 @@ for (const scope of ['turn', 'session']) test(`real permission grant ${scope} ha
     assert.equal(fs.existsSync(target),scope==='session');
     if(scope==='session')assert.equal(fs.readFileSync(target,'utf8'),'approved content\n');
     if(scope==='session'){
+      target=path.join(unselected,'not-approved.txt');notifications.length=0;requests.length=0;
+      await rpc.request('turn/start',{threadId:thread.id,input:[{type:'text',text:'Try the unselected directory fixture.'}]});
+      await wait(()=>requests.length>0||notifications.some(n=>n.method==='turn/completed'));
+      assert.equal(requests.length,1,'unselected directory must still require approval');
+      assert.equal(requests[0].method,'item/fileChange/requestApproval');
+      await responses.send(requests[0],'decline');
+      await wait(()=>notifications.some(n=>n.method==='turn/completed'));
+      assert.equal(fs.existsSync(target),false);
       target=path.join(workspace,'other-thread.txt');notifications.length=0;requests.length=0;
       const other=await rpc.request('thread/start',{cwd:workspace,model:'gpt-5.4',modelProvider:'minimax',approvalPolicy:'on-request',sandbox:'read-only'});
       await rpc.request('turn/start',{threadId:other.thread.id,input:[{type:'text',text:'Write the new conversation fixture.'}]});

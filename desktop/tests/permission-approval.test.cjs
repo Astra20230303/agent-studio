@@ -28,3 +28,15 @@ test('partial grants only copy selected categories from the original request',as
  await service.send({id:5,method:'item/permissions/requestApproval',params:{permissions:requested}},'acceptForSession',undefined,{network:false,fileSystem:true});
  assert.deepEqual(calls,[{scope:'session',permissions:{fileSystem:requested.fileSystem}}]);
 });
+
+test('path selection respects entries precedence and preserves deny restrictions',()=>{
+ const {permissionPaths}=require('../src/permissionApproval.ts');
+ const paths={read:['D:/read'],write:['D:/write']};
+ const selection={network:false,fileSystem:true,fileSystemEntries:[1]};
+ assert.deepEqual(permissionApprovalResponse({fileSystem:paths},'accept',selection).permissions.fileSystem,{entries:[{path:{type:'path',path:'D:/write'},access:'write'}]});
+ const entries=[{path:{type:'glob_pattern',pattern:'D:/data/**'},access:'read'},{path:{type:'path',path:'D:/secret'},access:'deny'}];
+ const requested={fileSystem:{...paths,entries,globScanMaxDepth:3}};
+ assert.deepEqual(permissionPaths(requested.fileSystem),entries);
+ assert.deepEqual(permissionApprovalResponse(requested,'accept',{...selection,fileSystemEntries:[]}).permissions.fileSystem,{entries:[entries[1]],globScanMaxDepth:3});
+ for(const fileSystemEntries of [[-1],[2],[0.5],['0'],null]) assert.throws(()=>permissionApprovalResponse(requested,'accept',{...selection,fileSystemEntries}));
+});
