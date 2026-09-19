@@ -139,7 +139,7 @@ const path = require('node:path');
     await multi.getByLabel('任务名称', { exact: true }).fill('Multiple days');
     await multi.getByRole('textbox', { name: '任务内容', exact: true }).fill('Selected weekdays only');
     await multi.getByLabel('频率').selectOption('customWeek');
-    for (const day of ['一','三','五']) await multi.getByRole('checkbox', { name: `运行日 星期${day}`, exact: true }).uncheck();
+    for (const day of ['日','一','二','三','四','五','六']) await multi.getByRole('checkbox', { name: `运行日 星期${day}`, exact: true }).uncheck();
     await multi.getByRole('button', { name: '保存任务', exact: true }).click();
     await multi.getByRole('alert').filter({ hasText: '请选择至少一个不重复的运行日' }).waitFor();
     for (const day of ['二','四']) await multi.getByRole('checkbox', { name: `运行日 星期${day}`, exact: true }).check();
