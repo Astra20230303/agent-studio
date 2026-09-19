@@ -19,3 +19,9 @@ test('multiple weekly days preview across week boundaries',()=>{
 test('multiple selected weekdays retain local time across DST end',()=>{
  assert.deepEqual(previewSchedule({kind:'customWeek',days:[0,1],time:'09:00',timezone:'America/New_York'},Date.parse('2026-10-31T00:00:00Z')).times,['2026-11-01T14:00:00.000Z','2026-11-02T14:00:00.000Z','2026-11-08T14:00:00.000Z']);
 });
+
+test('monthly preview skips absent dates, handles leap years and rejects invalid days',()=>{
+ assert.deepEqual(previewSchedule({kind:'monthly',monthDay:31,time:'09:00',timezone:'UTC'},Date.parse('2026-01-31T10:00:00Z')).times,['2026-03-31T09:00:00.000Z','2026-05-31T09:00:00.000Z','2026-07-31T09:00:00.000Z']);
+ assert.equal(previewSchedule({kind:'monthly',monthDay:29,time:'09:00',timezone:'UTC'},Date.parse('2028-02-01T00:00:00Z')).times[0],'2028-02-29T09:00:00.000Z');
+ for(const monthDay of [0,32,1.5,'1',null])assert.throws(()=>previewSchedule({kind:'monthly',monthDay,time:'09:00',timezone:'UTC'},now),/每月日期/);
+});

@@ -225,3 +225,16 @@ test('multiple weekly days persist and run only on selected weekdays',async()=>{
   assert.deepEqual(scheduler.detail(saved.id).schedule.days,[1,3,5]);
  }finally{await scheduler.stop();}
 });
+
+test('monthly tasks retain date after restart and skip shorter months',async()=>{
+ const directory=temp();let now=Date.parse('2026-01-01T00:00:00Z');let calls=0;
+ let scheduler=new TaskScheduler({directory,now:()=>now,runner:async()=>{calls++;return {output:'ok'};}});
+ const saved=scheduler.save(task({kind:'agent',model:'test',schedule:{kind:'monthly',monthDay:31,time:'09:00',timezone:'UTC'}}));await scheduler.stop();
+ scheduler=new TaskScheduler({directory,now:()=>now,runner:async()=>{calls++;return {output:'ok'};}});
+ try{
+  assert.equal(scheduler.detail(saved.id).schedule.monthDay,31);
+  now=Date.parse('2026-01-31T09:00:00Z');await scheduler.tick();assert.equal(calls,1);
+  assert.equal(scheduler.detail(saved.id).nextRunAt,'2026-03-31T09:00:00.000Z');
+  now=Date.parse('2026-02-28T09:00:00Z');await scheduler.tick();assert.equal(calls,1);
+ }finally{await scheduler.stop();}
+});

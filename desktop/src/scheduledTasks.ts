@@ -1,5 +1,5 @@
 import type { ExplicitReasoningEffort } from './reasoningEffort';
-export type TaskSchedule = { kind: 'interval'; minutes: number } | { kind: 'once'; at: string } | { kind: 'daily' | 'weekdays' | 'weekly' | 'customWeek'; time: string; timezone: string; day?: number; days?: number[] };
+export type TaskSchedule = { kind: 'interval'; minutes: number } | { kind: 'once'; at: string } | { kind: 'daily' | 'weekdays' | 'weekly' | 'customWeek' | 'monthly'; time: string; timezone: string; day?: number; days?: number[]; monthDay?: number };
 export type TaskDraft = { timeoutMinutes?: number; reasoningEffort?: ExplicitReasoningEffort; id?: string; providerId?: string; cwd?: string; name: string; prompt: string; kind: 'agent' | 'reminder'; model: string; permission: 'read-only' | 'workspace-write'; notify: boolean; notificationPolicy?: 'failed_runs_only' | null; schedule: TaskSchedule };
 export type TaskRunConfiguration = Pick<TaskDraft, 'timeoutMinutes' | 'name' | 'prompt' | 'kind' | 'model' | 'providerId' | 'cwd' | 'reasoningEffort' | 'permission'>;
 export type TaskRun = { outputTruncated?: boolean; environment?: { cwd: string; providerId?: string }; configuration?: TaskRunConfiguration; threadId?: string; id: string; status: 'running' | 'completed' | 'failed' | 'interrupted'; trigger: 'manual' | 'scheduled'; startedAt: string; finishedAt?: string; error?: string; output?: string };
@@ -11,7 +11,7 @@ export const formatTaskDate = (value?: string | null) => value ? new Intl.DateTi
 export function scheduleLabel(schedule: TaskSchedule) {
   if (schedule.kind === 'interval') return `每隔 ${schedule.minutes} 分钟`;
   if (schedule.kind === 'once') return `仅一次 · ${formatTaskDate(schedule.at)}`;
-  const frequency = schedule.kind === 'daily' ? '每天' : schedule.kind === 'weekdays' ? '工作日' : schedule.kind === 'customWeek' ? `每周${(schedule.days || []).map(day => '日一二三四五六'[day]).join('、')}` : `星期${'日一二三四五六'[schedule.day ?? 1]}`;
+  const frequency = schedule.kind === 'daily' ? '每天' : schedule.kind === 'weekdays' ? '工作日' : schedule.kind === 'monthly' ? `每月 ${schedule.monthDay} 日` : schedule.kind === 'customWeek' ? `每周${(schedule.days || []).map(day => '日一二三四五六'[day]).join('、')}` : `星期${'日一二三四五六'[schedule.day ?? 1]}`;
   return `${frequency} ${schedule.time} · ${schedule.timezone}`;
 }
 export function nextRunLabel(at: string | null) {
