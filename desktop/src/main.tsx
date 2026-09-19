@@ -73,6 +73,7 @@ import { RemoteProjectsPanel } from './RemoteProjectsPanel';
 import { RemoteControlPanel } from './RemoteControlPanel';
 import { ThreadTimelinePanel } from './ThreadTimelinePanel';
 import { readThreadProjectUpdated } from './threadMetadata';
+import { readModelReroute } from './modelReroute';
 import { ServerWarnings, useServerWarnings } from './ServerWarnings';
 import { moveQueuedTurn } from './turnQueue';
 import { AttachmentPreviewButton, MessageAttachment } from './MessageAttachment';
@@ -322,6 +323,10 @@ function App({ initialState }: { initialState: DesktopState }) {
         if (message.method === 'thread/project/updated') {
           const project = readThreadProjectUpdated(params);
           if (project) update(next => { const thread = next.threads.find(item => item.remoteId === project.threadId); if (thread) { if (project.projectId) thread.projectId = project.projectId; else delete thread.projectId; } });
+        }
+        if (message.method === 'model/rerouted') {
+          const reroute = readModelReroute(params);
+          if (reroute) setNotice(`模型已从 ${reroute.fromModel} 切换为 ${reroute.toModel}（${reroute.reason}）`);
         }
         if (message.method === 'thread/tokenUsage/updated') {
           const usage = readContextTokens(params.tokenUsage);
