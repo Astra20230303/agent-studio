@@ -130,9 +130,16 @@ async function main() {
     await dialog.getByRole('button', { name: '立即运行', exact: true }).click();
     await dialog.locator('.task-run > summary').filter({hasText:'运行中'}).click();
     await dialog.locator('pre').getByText('LIVE_TASK_PROGRESS', {exact:true}).waitFor();
+    const elapsed = dialog.locator('.task-run summary').first().getByText(/^已运行 /);
+    await elapsed.waitFor();
+    const elapsedBefore = await elapsed.textContent();
+    await page.waitForFunction(previous => [...document.querySelectorAll('.task-run summary span')].some(element => element.textContent.startsWith('已运行 ') && element.textContent !== previous), elapsedBefore);
+
     assert.ok(await dialog.locator('.task-run').first().getByRole('button', {name:'复制运行结果',exact:true}).isDisabled());
     await dialog.getByRole('button', { name: '停止运行', exact: true }).click(); await changed();
     await dialog.locator('.task-run summary').getByText('已中断', { exact: true }).waitFor();
+    await dialog.locator('.task-run summary').first().getByText(/^耗时 /).waitFor();
+    assert.equal(await dialog.locator('.task-run summary').first().getByText(/^已运行 /).count(), 0);
     await dialog.locator('pre').getByText('LIVE_TASK_PROGRESS',{exact:true}).waitFor();
     assert.equal(scheduler.detail(sample.id).runs[0].output,'LIVE_TASK_PROGRESS');
     await dialog.getByRole('button', { name: '关闭对话框' }).click();
