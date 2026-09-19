@@ -1,4 +1,5 @@
 import { McpResourceDownload } from './McpResourceDownload';
+import { McpResourceTemplateForm } from './McpResourceTemplateForm';
 import { readMcpResourceContent, type McpResourceContent } from './mcpResourceContent';
 import { useEffect, useRef, useState } from 'react';
 import { extensionRequest } from './extensions';
@@ -34,7 +35,7 @@ export function McpResources({ server, resources, templates, threadId, disabled,
   return <div aria-label={`${server} 资源`}>
     <h3>资源 ({resources.length})</h3>
     {resources.map(resource => <div key={resource.uri}><button disabled={disabled || loading} onClick={() => void read(resource.uri)}>{resource.title || resource.name}</button><p style={{ overflowWrap: 'anywhere' }}>{resource.uri}</p>{resource.description && <p>{resource.description}</p>}</div>)}
-    {templates.length > 0 && <details><summary>资源模板 ({templates.length})</summary>{templates.map(template => <p key={template.uriTemplate} style={{ overflowWrap: 'anywhere' }}>{template.name}: {template.uriTemplate} {template.description}</p>)}</details>}
+    {templates.length > 0 && <details><summary>资源模板 ({templates.length})</summary>{templates.map(template => <McpResourceTemplateForm key={`${server}:${threadId}:${template.uriTemplate}`} template={template} disabled={disabled || loading} onRead={value => void read(value)} />)}</details>}
     <form onSubmit={event => { event.preventDefault(); void read(uri); }} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
       <input aria-label={`${server} 资源 URI`} value={uri} onChange={event => setUri(event.target.value)} placeholder="资源 URI" style={{ flex: '1 1 200px', minWidth: 0 }} />
       <button disabled={disabled || loading || !uri.trim()} type="submit">读取资源</button>

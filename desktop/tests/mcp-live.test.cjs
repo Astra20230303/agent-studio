@@ -88,6 +88,10 @@ async function main() {
       const resource = await rpc.request('mcpServer/resource/read', { threadId, server: 'acceptance_a', uri: 'fixture://readme' });
       assert.deepEqual(require('../src/mcpResourceContent.ts').readMcpResourceContent(resource), [{ uri: 'fixture://readme', mimeType: 'text/plain', text: 'Felix resource acceptance' }]);
     }
+    const templateUri = require('../src/mcpResourceTemplate.ts').expandResourceTemplate(resourceServer.resourceTemplates[0].uriTemplate, { id: 'a/b 中文' });
+    assert.equal(templateUri, 'fixture://notes/a%2Fb%20%E4%B8%AD%E6%96%87');
+    const templateResource = await rpc.request('mcpServer/resource/read', { threadId: thread.id, server: 'acceptance_a', uri: templateUri });
+    assert.equal(require('../src/mcpResourceContent.ts').readMcpResourceContent(templateResource)[0].uri, templateUri);
     fs.writeFileSync(path.join(home, 'config.toml'), config(['acceptance_a', 'acceptance_c']));
     await rpc.request('config/mcpServer/reload', {});
     assert.deepEqual((await inventory()).map(entry => entry.name).sort(), ['acceptance_a', 'acceptance_c']);
