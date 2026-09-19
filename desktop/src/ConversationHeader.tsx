@@ -1,14 +1,15 @@
+import { ConversationPopover } from './ConversationPopover';
 import { useId, useRef, useState, type ReactNode } from 'react';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Monitor } from 'lucide-react';
 import './conversation-header.css';
 
-export function ConversationHeader({ title, children }: { title: string; children: ReactNode }) {
+export function ConversationHeader({ title, children, environment }: { title: string; children: ReactNode; environment?: ReactNode }) {
   const id = useId();
   const panel = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   return <header className="conversation-header">
     <span className="conversation-title" title={title}>{title}</span>
-    <div className="conversation-header-actions">
+    <div className="conversation-header-actions">{environment && <ConversationPopover label="会话环境" icon={<Monitor size={17} />}>{environment}</ConversationPopover>}
       <button id="conversation-find-trigger" aria-label="会话内查找" title="会话内查找 (Ctrl/⌘ F)" onClick={() => window.dispatchEvent(new Event('felix:conversation-find'))}><Search size={17} /></button>
       <button popoverTarget={id} aria-label="会话设置" title="会话设置" aria-expanded={open}><SlidersHorizontal size={17} /></button>
     </div>
