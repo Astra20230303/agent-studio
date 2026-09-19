@@ -1,7 +1,7 @@
 import { applyAssistantMessage } from './assistantMessages.ts';
 import { acceptTurnNotification } from './turnNotifications.ts';
 import { readPlan, readPlanDelta, readPlanMessage } from './planning.ts';
-import { recordTurnFailure } from './turnFailure.ts';
+import { recordTurnFailure, retryMessage } from './turnFailure.ts';
 import { applyToolEvent, finishTools, upsertTool } from './toolActivity.ts';
 import type { DesktopState } from './domain';
 import type { TurnEvent, TurnRuntime } from './turnRuntime';
@@ -102,7 +102,7 @@ export function createThreadEvents({ update, runtime, queue, audit, activeRemote
       });
     }
     if (message.method === 'error') {
-      if (params.willRetry) runtime.apply(params.threadId, { type: 'activity', turnId: params.turnId, activity: '服务暂时不可用，正在重试…' });
+      if (params.willRetry) runtime.apply(params.threadId, { type: 'activity', turnId: params.turnId, activity: retryMessage(params.error) });
       else update(next => {
         const thread = next.threads.find(item => item.remoteId === params.threadId);
         if (thread) {

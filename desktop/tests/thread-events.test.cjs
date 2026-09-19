@@ -33,7 +33,7 @@ test('retry hints, terminal failure and tool interruption produce one error and 
   f.emit('item/started', { threadId: 'a', turnId: 'turn', item: { id: 'cmd', type: 'commandExecution' } });
   f.emit('error', { threadId: 'a', turnId: 'turn', willRetry: true, error: { message: 'temporary' } });
   assert.equal(f.state.threads[0].messages.length, 1);
-  assert.match(f.records.get('a').activity, /重试/);
+  assert.equal(f.records.get('a').activity, '正在重试：temporary');
   f.emit('error', { threadId: 'a', turnId: 'turn', willRetry: false, error: { message: 'offline' } });
   f.emit('turn/completed', { threadId: 'a', turn: { id: 'turn', status: 'failed', error: { message: 'offline' } } });
   assert.equal(f.state.threads[0].status, 'failed');
@@ -141,4 +141,24 @@ test('moderation stays with its turn, ignores late events and resets on a new tu
  assert.equal(f.state.threads[0].moderationMetadata, undefined);
  f.emit('turn/moderationMetadata', { threadId: 'a', turnId: 'two', metadata: null });
  assert.deepEqual(f.state.threads[0].moderationMetadata, { turnId: 'two', metadata: null });
+});
+
+test('retry reason is transient and stale errors cannot replace new activity',()=>{
+ const f=fixture();f.emit('turn/started',{threadId:'a',turn:{id:'t'}});
+ f.emit('error',{threadId:'a',turnId:'t',willRetry:true,error:{message:'Rate limit\n retry later'}});
+ assert.equal(f.records.get('a').activity,'正在重试：Rate limit retry later');
+ assert.equal(f.state.threads[0].status,'running');assert.equal(f.state.threads[0].messages.length,0);
+ f.emit('item/agentMessage/delta',{threadId:'a',turnId:'t',itemId:'answer',delta:'Recovered'});
+ assert.equal(f.records.get('a').activity,undefined);
+ f.emit('turn/completed',{threadId:'a',turn:{id:'t',status:'completed'}});
+ f.emit('turn/started',{threadId:'a',turn:{id:'next'}});
+ f.emit('error',{threadId:'a',turnId:'t',willRetry:true,error:{message:'late'}});
+ assert.equal(f.records.get('a').activity,'正在思考…');
+});
+test('retry reason normalizes controls, bounds length and accepts old string errors',()=>{
+ const {retryMessage}=require('../src/turnFailure.ts');
+ assert.equal(retryMessage('temporary'),'正在重试：temporary');
+ assert.equal(retryMessage({message:'a\0b'}),'正在重试：a b');
+ assert.equal(retryMessage({message:'x'.repeat(600)}),'正在重试：'+'x'.repeat(500)+'…');
+ assert.equal(retryMessage({}),'服务暂时不可用，正在重试…');
 });

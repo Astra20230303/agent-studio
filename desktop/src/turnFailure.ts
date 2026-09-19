@@ -14,3 +14,9 @@ export function recordTurnFailure(thread: Thread, turnId: string, error: unknown
     thread.messages.push({ id, role: 'system', content: failureMessage(error), createdAt: new Date().toISOString() });
   }
 }
+
+export function retryMessage(error: unknown): string {
+  const raw = typeof error === 'string' ? error : (error as { message?: unknown })?.message;
+  const reason = typeof raw === 'string' ? raw.replace(/[\s\u0000-\u001f\u007f]+/g, ' ').trim() : '';
+  return reason ? `正在重试：${reason.slice(0, 500)}${reason.length > 500 ? '…' : ''}` : '服务暂时不可用，正在重试…';
+}
