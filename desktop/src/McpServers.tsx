@@ -20,6 +20,8 @@ export function McpServers({ connected, threadId, onBack, onAddToDraft }: { conn
   const [links, setLinks] = useState<Record<string, string>>({});
   const generation = useRef(0);
   const lock = useRef(false);
+  const actionGeneration = useRef(0);
+  const oauthCompletions = useRef(new Map<string, number>());
   const refresh = useCallback(async () => {
     const token = ++generation.current;
     if (!connected) { setServers([]); setLoading(false); return; }
@@ -38,7 +40,7 @@ export function McpServers({ connected, threadId, onBack, onAddToDraft }: { conn
     finally { if (token === generation.current) setLoading(false); }
   }, [connected, threadId, includeResources]);
   useEffect(() => { void refresh(); return () => { generation.current++; }; }, [refresh]);
-  useEffect(() => { setLinks({}); setNotice(''); setStartup({}); }, [connected, threadId]);
+  useEffect(() => { actionGeneration.current++; lock.current = false; setActing(false); oauthCompletions.current.clear(); setLinks({}); setNotice(''); setStartup({}); return () => { actionGeneration.current++; }; }, [connected, threadId]);
   useEffect(() => window.codex?.onNotification((event: any) => {
     if (!connected) return;
     if (event.method === 'mcpServer/startupStatus/updated') {
@@ -50,25 +52,29 @@ export function McpServers({ connected, threadId, onBack, onAddToDraft }: { conn
     }
     if (event.method !== 'mcpServer/oauthLogin/completed' || (event.params?.threadId || undefined) !== threadId) return;
     const result = event.params;
+    if (!result || typeof result.name !== 'string' || !result.name.trim() || typeof result.success !== 'boolean' || result.error != null && typeof result.error !== 'string') return;
+    oauthCompletions.current.set(result.name, (oauthCompletions.current.get(result.name) || 0) + 1);
     setLinks(current => { const next = { ...current }; delete next[result.name]; return next; });
     setNotice(result.success ? `${result.name} 登录成功` : `${result.name} 登录失败：${result.error || '请重试'}`);
     void refresh();
   }), [connected, refresh, threadId]);
   const action = async (name?: string) => {
     if (lock.current || !connected) return;
-    const token = generation.current;
+    const token = actionGeneration.current;
+    const completion = name ? oauthCompletions.current.get(name) || 0 : 0;
     lock.current = true; setActing(true); setError('');
     try {
       if (name) {
         const result = await extensionRequest<{ authorizationUrl: string }>('mcpServer/oauth/login', { name, threadId });
-        if (token !== generation.current) return;
+        if (token !== actionGeneration.current) return;
+        if ((oauthCompletions.current.get(name) || 0) !== completion) return;
         const url = new URL(result.authorizationUrl);
         if (!['https:', 'http:'].includes(url.protocol)) throw Error('不支持的登录链接');
         setLinks(current => ({ ...current, [name]: url.href }));
         setNotice('请在浏览器完成登录，然后返回此处。');
-      } else { await extensionRequest('config/mcpServer/reload', {}); if (token !== generation.current) return; setNotice('已请求重新加载 MCP 配置'); await refresh(); }
-    } catch (error) { if (token === generation.current) setError(String(error)); }
-    finally { lock.current = false; setActing(false); }
+      } else { await extensionRequest('config/mcpServer/reload', {}); if (token !== actionGeneration.current) return; setNotice('已请求重新加载 MCP 配置'); await refresh(); }
+    } catch (error) { if (token === actionGeneration.current && (!name || (oauthCompletions.current.get(name) || 0) === completion)) setError(String(error)); }
+    finally { if (token === actionGeneration.current) { lock.current = false; setActing(false); } }
   };
   return <section className="extensions"><div className="ext-scroll"><div className="ext-content">
     <button onClick={onBack}>返回扩展</button><h1>MCP 服务</h1>

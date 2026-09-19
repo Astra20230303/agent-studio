@@ -21,7 +21,7 @@ const assert = require('node:assert/strict');
           return { ok: true, result: { contents: [{ uri: params.uri, text: '<script>unsafe()</script>Resource text' }] } };
         }
         if (method === 'mcpServerStatus/list') { if(window.__badStatus==='duplicate') return {ok:true,result:{data:[{name:'cloud',authStatus:'unsupported'},{name:'cloud',authStatus:'unsupported'}]}}; if(window.__badStatus==='broken') return {ok:true,result:{data:[{name:'cloud',authStatus:'unsupported',tools:[]} ]}}; return { ok: true, result: params.cursor ? { data: [{ name: 'local', authStatus: 'unsupported', runtimeStatus: 'connected', tools: { read: {} } }] } : { data: [{ name: 'cloud', authStatus: 'notLoggedIn', runtimeStatus: 'authenticationRequired', toolsError: 'Authentication needed', tools: {} }], nextCursor: 'page2' } }; }
-        if (method === 'mcpServer/oauth/login') { if (window.__early) window.__notify({ method: 'mcpServer/oauthLogin/completed', params: { name: 'cloud', success: true, threadId: null } }); return { ok: true, result: { authorizationUrl: 'https://example.com/login?state=test' } }; }
+        if (method === 'mcpServer/oauth/login') { if(window.__delayLogin) await new Promise(resolve=>{window.__finishLogin=resolve;}); if (window.__early) window.__notify({ method: 'mcpServer/oauthLogin/completed', params: { name: 'cloud', success: true, threadId: null } }); if(window.__failEarly)return {ok:false,error:'Obsolete login failure'}; return { ok: true, result: { authorizationUrl: 'https://example.com/login?state=test' } }; }
         if (method === 'config/mcpServer/reload' && window.__failReload) return { ok: false, error: 'Reload failed' };
         return { ok: true, result: { data: [], marketplaces: [] } };
       }, onNotification: fn => { listeners.add(fn); return () => listeners.delete(fn); }, onServerRequest: () => () => {}, onClosed: () => () => {}, onError: () => () => {}, onStderr: () => () => {} };
@@ -39,7 +39,12 @@ const assert = require('node:assert/strict');
     const before=await page.evaluate(()=>window.__calls.filter(call=>call.method==='mcpServerStatus/list').length);
     await emitStartup({threadId:null,name:'cloud',status:'ready'});await startup.getByText('cloud · 已就绪',{exact:true}).waitFor();assert.equal(await startup.getByRole('alert').count(),0);
     await page.waitForFunction(before=>window.__calls.filter(call=>call.method==='mcpServerStatus/list').length>before,before);
+    await page.evaluate(()=>{window.__delayLogin=true;});
     await page.getByRole('button', { name: '登录 cloud', exact: true }).click();
+    await page.waitForFunction(()=>!!window.__finishLogin);
+    await emitStartup({threadId:null,name:'local',status:'ready'});
+    await page.evaluate(()=>{window.__delayLogin=false;window.__finishLogin();});
+
     await page.getByRole('button', { name: '打开 cloud 登录页面' }).click();
     assert.deepEqual(await page.evaluate(() => window.__opened), ['https://example.com/login?state=test']);
     await page.evaluate(() => window.__notify({ method: 'mcpServer/oauthLogin/completed', params: { name: 'cloud', success: true, threadId: null } }));
@@ -61,11 +66,12 @@ const assert = require('node:assert/strict');
     await page.evaluate(()=>{window.__badStatus='';});
     await page.getByRole('button',{name:'刷新 MCP 状态',exact:true}).click();
     await page.getByRole('heading',{name:'cloud',exact:true}).waitFor();
-    await page.evaluate(() => { window.__early = true; });
+    await page.evaluate(() => { window.__early = true;window.__failEarly=true; });
     await page.getByRole('button', { name: '登录 cloud', exact: true }).click();
     await page.getByRole('status').filter({ hasText: 'cloud 登录成功' }).waitFor();
     await page.waitForFunction(() => ![...document.querySelectorAll('button')].find(button => button.textContent === '登录 cloud')?.disabled);
     assert.equal(await page.getByRole('button', { name: '打开 cloud 登录页面' }).count(), 0);
+    assert.equal(await page.getByText('Obsolete login failure',{exact:false}).count(),0);
     console.log('PASS: MCP pagination, OAuth link, completion refresh and reload retry');
     await page.getByRole('checkbox', { name: '显示资源目录' }).check();
     await page.getByRole('button', { name: 'Readme', exact: true }).click();
