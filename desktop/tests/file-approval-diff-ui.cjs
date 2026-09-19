@@ -13,11 +13,11 @@ const assert=require('node:assert/strict');const {chromium}=require('playwright'
  await page.evaluate(()=>window.__notify({method:'item/fileChange/patchUpdated',params:{threadId:'remote',turnId:'turn',itemId:'file',changes:[{path:'src/example.txt',kind:{type:'update'},diff:'@@ -1 +1 @@\n-old\n+new <script>literal</script>'},{path:'empty.txt',kind:{type:'add'},diff:''}]}}));
  await region.getByText('src/example.txt',{exact:true}).waitFor();assert.equal(await region.locator('pre').textContent(),'@@ -1 +1 @@\n-old\n+new <script>literal</script>');assert.equal(await region.locator('script').count(),0);
  await region.getByText('此文件尚未提供差异内容。').waitFor();
- await page.getByRole('button',{name:'取消本轮',exact:true}).focus();await page.keyboard.press('Tab');
+ await page.getByRole('button',{name:'取消本轮',exact:true}).focus();await page.keyboard.press('Tab');assert.equal(await page.evaluate(()=>document.activeElement.textContent),'审批来源');await page.keyboard.press('Tab');
  assert.equal(await region.locator('summary').first().evaluate(el=>el===document.activeElement),true);
  await page.keyboard.press('Enter');assert.equal(await region.locator('details').first().evaluate(el=>el.open),false);
  await page.keyboard.press('Enter');assert.equal(await region.locator('details').first().evaluate(el=>el.open),true);
- await page.keyboard.press('Shift+Tab');assert.equal(await page.getByRole('button',{name:'取消本轮',exact:true}).evaluate(el=>el===document.activeElement),true);
+ await page.keyboard.press('Shift+Tab');await page.keyboard.press('Shift+Tab');assert.equal(await page.getByRole('button',{name:'取消本轮',exact:true}).evaluate(el=>el===document.activeElement),true);
  await page.setViewportSize({width:390,height:720});
  const bounds=await page.getByRole('dialog').boundingBox();assert.ok(bounds.x>=0 && bounds.x+bounds.width<=390);
  await page.getByRole('button',{name:'拒绝',exact:true}).click();await page.getByRole('dialog').waitFor({state:'detached'});

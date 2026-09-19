@@ -24,6 +24,7 @@ const { chromium }=require('playwright');const assert=require('node:assert/stric
  await dialog.waitFor();assert.equal(await dialog.evaluate(el=>el.scrollHeight>el.clientHeight),true);
  const last=dialog.getByRole('checkbox',{name:'读取：D:/directory-44',exact:true});await last.focus();await page.keyboard.press('Space');assert.equal(await last.isChecked(),false);
  await dialog.getByRole('button',{name:'本会话允许',exact:true}).focus();await page.keyboard.press('Tab');
+ assert.equal(await page.evaluate(()=>document.activeElement.textContent),'审批来源');await page.keyboard.press('Tab');
  assert.equal(await dialog.getByRole('checkbox',{name:'文件系统权限',exact:true}).evaluate(el=>el===document.activeElement),true);
  await dialog.getByRole('button',{name:'本会话允许',exact:true}).click();await dialog.waitFor({state:'hidden'});
  const granted=await page.evaluate(()=>window.__responses[2].result);assert.equal(granted.scope,'session');assert.equal(granted.permissions.fileSystem.entries.length,44);

@@ -6,8 +6,9 @@ const { chromium } = require('playwright'); const assert = require('node:assert/
   await page.evaluate(()=>window.__ask({id:1,method:'item/commandExecution/requestApproval',params:{command:'git status',cwd:'D:/repo',availableDecisions:['acceptForSession','decline']}}));
   assert.equal(await page.getByRole('button',{name:'本次允许',exact:true}).count(),0);
   assert.equal(await page.evaluate(()=>document.activeElement.textContent),'本会话允许');
+  await page.keyboard.press('Shift+Tab');assert.equal(await page.evaluate(()=>document.activeElement.textContent),'审批来源');
   await page.keyboard.press('Shift+Tab');assert.equal(await page.evaluate(()=>document.activeElement.textContent),'拒绝');
-  await page.keyboard.press('Tab');assert.equal(await page.evaluate(()=>document.activeElement.textContent),'本会话允许');
+  await page.keyboard.press('Tab');assert.equal(await page.evaluate(()=>document.activeElement.textContent),'审批来源');await page.keyboard.press('Tab');assert.equal(await page.evaluate(()=>document.activeElement.textContent),'本会话允许');
   await page.setViewportSize({width:390,height:720});assert.equal(await page.getByRole('dialog').evaluate(el=>el.scrollWidth<=el.clientWidth),true);
   await page.keyboard.press('Escape'); assert.equal(await page.getByRole('dialog').count(),1);
   await page.evaluate(()=>{document.querySelector('textarea')?.focus();window.__delay=true});
@@ -32,7 +33,7 @@ const { chromium } = require('playwright'); const assert = require('node:assert/
   const network=page.getByRole('checkbox',{name:'网络权限',exact:true});const files=page.getByRole('checkbox',{name:'文件系统权限',exact:true});
   await network.uncheck();assert.equal(await files.isChecked(),true);
   await page.getByRole('button',{name:'本会话允许',exact:true}).focus();await page.keyboard.press('Tab');
-  assert.equal(await network.evaluate(el=>el===document.activeElement),true);
+  assert.equal(await page.evaluate(()=>document.activeElement.textContent),'审批来源');await page.keyboard.press('Tab');assert.equal(await network.evaluate(el=>el===document.activeElement),true);
   await page.evaluate(()=>{window.__fail=true;window.__delay=true;});
   await page.getByRole('button',{name:'本会话允许',exact:true}).click();assert.equal(await network.isDisabled(),true);assert.equal(await files.isDisabled(),true);
   await page.evaluate(()=>{window.__delay=false;window.__finish();});await page.getByRole('alert').filter({hasText:'Transport failed'}).waitFor();

@@ -14,6 +14,6 @@ export function approvalAuditDetail(request: { method?: string; params?: any }, 
     if ('acceptWithExecpolicyAmendment' in decision) return '命令审批 · 允许并保存命令规则';
     return `命令审批 · 保存网络规则：${decision.applyNetworkPolicyAmendment.network_policy_amendment.action === 'allow' ? '允许' : '拒绝'}`;
   }
-  const kind = request.method === 'item/commandExecution/requestApproval' ? '命令审批' : request.method === 'item/fileChange/requestApproval' ? '文件变更审批' : request.method === 'item/tool/requestUserInput' ? '用户问题' : request.method === 'mcpServer/elicitation/request' ? 'MCP 请求' : '服务请求';
+  const kind = request.method === 'item/commandExecution/requestApproval' ? request.params?.kind === 'writeStdin' ? '终端输入审批' : '命令审批' : request.method === 'item/fileChange/requestApproval' ? '文件变更审批' : request.method === 'item/tool/requestUserInput' ? '用户问题' : request.method === 'mcpServer/elicitation/request' ? 'MCP 请求' : '服务请求';
   return `${kind} · ${labels[decision] || '已回答'}`;
 }

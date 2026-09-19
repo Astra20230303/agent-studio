@@ -15,7 +15,13 @@ const { chromium }=require('playwright');const assert=require('node:assert/stric
  await page.evaluate(choice=>window.__ask({id:2,method:'item/commandExecution/requestApproval',params:{availableDecisions:[choice,'cancel']}}),net);
  await dialog.getByRole('button',{name:'拒绝并保存网络规则',exact:true}).click();await dialog.waitFor({state:'hidden'});
  assert.deepEqual(await page.evaluate(()=>window.__responses[1]),{id:2,result:{decision:net}});
+ await page.evaluate(()=>window.__ask({id:'stdin-callback',method:'item/commandExecution/requestApproval',params:{kind:'writeStdin',environmentId:'remote-build',threadId:'thread-1',turnId:'turn-2',itemId:'terminal-3',approvalId:'callback-4',command:'answer to terminal',availableDecisions:['accept','cancel']}}));
+ await page.getByRole('dialog',{name:'确认发送终端输入',exact:true}).waitFor();await dialog.getByText('执行环境：remote-build',{exact:true}).waitFor();
+ await dialog.getByText('审批来源',{exact:true}).click();for(const id of ['thread-1','turn-2','terminal-3','callback-4'])await dialog.getByText(id,{exact:true}).waitFor();
+ await dialog.getByRole('button',{name:'本次允许',exact:true}).click();await dialog.waitFor({state:'hidden'});
+ assert.deepEqual(await page.evaluate(()=>window.__responses[2]),{id:'stdin-callback',result:{decision:'accept'}});
  await page.evaluate(()=>window.__ask({id:3,method:'item/commandExecution/requestApproval',params:{availableDecisions:[],proposedExecpolicyAmendment:['git']}}));
+ await page.getByRole('dialog',{name:'确认命令执行',exact:true}).waitFor();await dialog.getByText('执行环境：服务端未提供',{exact:true}).waitFor();
  await dialog.getByText('服务端未提供可用的审批选项。',{exact:true}).waitFor();assert.equal(await dialog.getByRole('button').count(),0);
  assert.deepEqual(errors,[]);console.log('PASS: exact command/network rule payloads, scope disclosure, narrow layout and explicit empty choices');
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

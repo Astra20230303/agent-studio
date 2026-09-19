@@ -22,6 +22,7 @@ export function ApprovalPrompt({ request, onDecision, fileChanges }: { fileChang
   const permissions = request.method === 'item/permissions/requestApproval';
   const file = request.method === 'item/fileChange/requestApproval';
   const command = request.method === 'item/commandExecution/requestApproval';
+  const stdin = command && params.kind === 'writeStdin';
   const supported = permissions || file || command;
   const decisions: ApprovalOption[] = command ? commandApprovalOptions(params)
     : (permissions ? ['decline', 'accept', 'acceptForSession'] : file ? ['decline', 'accept', 'acceptForSession', 'cancel'] : []).map(decision => ({ decision, label: permissions && decision === 'accept' ? '本轮允许' : labels[decision] }));
@@ -41,9 +42,11 @@ export function ApprovalPrompt({ request, onDecision, fileChanges }: { fileChang
     if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) { event.preventDefault(); last?.focus(); }
     else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialog.current)) { event.preventDefault(); first.focus(); }
   }} onCancel={event => event.preventDefault()} style={{ maxHeight: '85vh', overflow: 'auto', overflowWrap: 'anywhere', boxSizing: 'border-box' }}>
-    <h2 id="approval-title">{permissions ? '请求额外权限' : file ? '确认文件变更' : '确认命令执行'}</h2>
+    <h2 id="approval-title">{permissions ? '请求额外权限' : file ? '确认文件变更' : stdin ? '确认发送终端输入' : '确认命令执行'}</h2>
+    {stdin && <p>此次审批将向已有终端发送输入。</p>}
     <p>{params.reason || params.message}</p>{params.command && <pre>{params.command}</pre>}{params.cwd && <p>{params.cwd}</p>}
-    {params.threadId && <small>会话：{params.threadId}</small>}
+    {(command || permissions) && <p>执行环境：{typeof params.environmentId === 'string' && params.environmentId.trim() ? params.environmentId : '服务端未提供'}</p>}
+    <details><summary>审批来源</summary><dl>{[['会话', params.threadId], ['回合', params.turnId], ['条目', params.itemId], ['审批回调', params.approvalId]].filter(([, value]) => typeof value === 'string' && value.trim()).map(([label, value]) => <div key={label}><dt>{label}</dt><dd style={{ marginInlineStart: 0 }}>{value}</dd></div>)}</dl></details>
     {file && <section aria-label="待审批文件差异">{fileChanges?.length ? fileChanges.map((change, index) => <details key={`${change.path}-${index}`} open><summary>{change.path}</summary>{typeof change.diff === 'string' && change.diff ? <pre>{change.diff}</pre> : <p>此文件尚未提供差异内容。</p>}</details>) : <p>尚未收到此请求的文件差异。</p>}</section>}
     {permissions && <p>本轮允许仅用于当前回合；本会话允许可在此会话后续回合继续使用所列权限。</p>}
     {permissions && <fieldset disabled={busy}><legend>选择要批准的权限</legend><p>只授予勾选的类别，未勾选的权限不会批准。</p>{(['network', 'fileSystem'] as const).filter(key => params.permissions?.[key] != null).map(key => <div key={key}><label><input type="checkbox" checked={selection[key]} onChange={event => setSelection(current => ({ ...current, [key]: event.target.checked }))} />{key === 'network' ? '网络权限' : '文件系统权限'}</label>{key === 'fileSystem' && paths?.length ? <div>{paths.map((entry, index) => <label key={index} style={{ display: 'block' }}><input type="checkbox" disabled={!selection.fileSystem || entry.access === 'deny'} checked={entry.access === 'deny' || !excludedPaths.includes(index)} onChange={event => setExcludedPaths(current => event.target.checked ? current.filter(value => value !== index) : [...current, index])} />{permissionPathLabel(entry)}{entry.access === 'deny' ? '（保留限制）' : ''}</label>)}<p>取消某项仅表示不新增该项授权；其他目录规则或已有权限仍可能覆盖此路径。</p></div> : <pre>{JSON.stringify(params.permissions[key], null, 2)}</pre>}</div>)}</fieldset>}
