@@ -74,6 +74,7 @@ import { RemoteControlPanel } from './RemoteControlPanel';
 import { ThreadTimelinePanel } from './ThreadTimelinePanel';
 import { readThreadProjectUpdated } from './threadMetadata';
 import { readModelReroute } from './modelReroute';
+import { readModelVerification } from './modelVerification';
 import { ServerWarnings, useServerWarnings } from './ServerWarnings';
 import { moveQueuedTurn } from './turnQueue';
 import { AttachmentPreviewButton, MessageAttachment } from './MessageAttachment';
@@ -327,6 +328,10 @@ function App({ initialState }: { initialState: DesktopState }) {
         if (message.method === 'model/rerouted') {
           const reroute = readModelReroute(params);
           if (reroute) setNotice(`模型已从 ${reroute.fromModel} 切换为 ${reroute.toModel}（${reroute.reason}）`);
+        }
+        if (message.method === 'model/verification') {
+          const verification = readModelVerification(params);
+          if (verification) setNotice(`模型验证：${verification.verifications.join('、')}`);
         }
         if (message.method === 'thread/tokenUsage/updated') {
           const usage = readContextTokens(params.tokenUsage);
