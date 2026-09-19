@@ -60,6 +60,7 @@ await page.addInitScript(scenario=>{
  await page.locator('.conversation-more summary').filter({hasText:'时间线'}).click();
  await page.getByRole('button',{name:'查看会话时间线',exact:true}).waitFor();
  await page.keyboard.press('Escape');assert.equal(await page.locator('.global-thread-toolbar').count(),0);
+ await more.click();await page.getByRole('button',{name:'查看会话时间线',exact:true}).waitFor();await page.keyboard.press('Escape');
  await settings.click();
  await page.getByRole('button',{name:'展开侧栏',exact:true}).click();
  await page.getByRole('button',{name:'新对话',exact:true}).click();
