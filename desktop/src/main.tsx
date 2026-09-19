@@ -78,9 +78,7 @@ import { CodexProviderCapabilitiesPanel } from './CodexProviderCapabilitiesPanel
 import { RemoteThreadQueuePanel } from './RemoteThreadQueuePanel';
 import { ThreadTimelinePanel } from './ThreadTimelinePanel';
 import { readThreadProjectUpdated } from './threadMetadata';
-import { readModelReroute } from './modelReroute';
-import { readModelVerification } from './modelVerification';
-import { readModelSafetyBuffering } from './modelSafetyBuffering';
+import { modelNotice } from './modelNotice';
 import { ServerWarnings, useServerWarnings } from './ServerWarnings';
 import { moveQueuedTurn } from './turnQueue';
 import { AttachmentPreviewButton, MessageAttachment } from './MessageAttachment';
@@ -331,18 +329,8 @@ function App({ initialState }: { initialState: DesktopState }) {
           const project = readThreadProjectUpdated(params);
           if (project) update(next => { const thread = next.threads.find(item => item.remoteId === project.threadId); if (thread) { if (project.projectId) thread.projectId = project.projectId; else delete thread.projectId; } });
         }
-        if (message.method === 'model/rerouted') {
-          const reroute = readModelReroute(params);
-          if (reroute) setNotice(`模型已从 ${reroute.fromModel} 切换为 ${reroute.toModel}（${reroute.reason}）`);
-        }
-        if (message.method === 'model/verification') {
-          const verification = readModelVerification(params);
-          if (verification) setNotice(`模型验证：${verification.verifications.join('、')}`);
-        }
-        if (message.method === 'model/safetyBuffering/updated') {
-          const buffering = readModelSafetyBuffering(params);
-          if (buffering?.showBufferingUi) setNotice(`模型安全缓冲中：${buffering.reasons.join('、') || '正在完成安全检查'}${buffering.fasterModel ? ` · 可切换为 ${buffering.fasterModel}` : ''}`);
-        }
+        const modelUpdate = modelNotice(message.method, params, activeRemoteRef.current, runtime.read);
+        if (modelUpdate) setNotice(current => modelUpdate.clearBuffering ? current.startsWith('模型安全缓冲中：') ? '' : current : modelUpdate.text);
         if (message.method === 'thread/tokenUsage/updated') {
           const usage = readContextTokens(params.tokenUsage);
           if (usage) update(next => { const thread = next.threads.find(item => item.remoteId === params.threadId); if (thread) thread.contextTokens = usage; });
