@@ -20,7 +20,7 @@ export function ApprovalPrompt({ request, onDecision, fileChanges }: { fileChang
   const command = request.method === 'item/commandExecution/requestApproval';
   const supported = permissions || file || command;
   const decisions: ApprovalOption[] = command ? commandApprovalOptions(params)
-    : (permissions ? ['decline', 'accept'] : file ? ['decline', 'accept', 'acceptForSession', 'cancel'] : []).map(decision => ({ decision, label: labels[decision] }));
+    : (permissions ? ['decline', 'accept', 'acceptForSession'] : file ? ['decline', 'accept', 'acceptForSession', 'cancel'] : []).map(decision => ({ decision, label: permissions && decision === 'accept' ? '本轮允许' : labels[decision] }));
   const submit = async (decision: ApprovalDecision) => {
     if (lock.current) return;
     lock.current = true; dialog.current?.focus(); setBusy(true); setError('');
@@ -41,6 +41,7 @@ export function ApprovalPrompt({ request, onDecision, fileChanges }: { fileChang
     <p>{params.reason || params.message}</p>{params.command && <pre>{params.command}</pre>}{params.cwd && <p>{params.cwd}</p>}
     {params.threadId && <small>会话：{params.threadId}</small>}
     {file && <section aria-label="待审批文件差异">{fileChanges?.length ? fileChanges.map((change, index) => <details key={`${change.path}-${index}`} open><summary>{change.path}</summary>{typeof change.diff === 'string' && change.diff ? <pre>{change.diff}</pre> : <p>此文件尚未提供差异内容。</p>}</details>) : <p>尚未收到此请求的文件差异。</p>}</section>}
+    {permissions && <p>本轮允许仅用于当前回合；本会话允许可在此会话后续回合继续使用所列权限。</p>}
     {params.grantRoot && <p>写入目录：{params.grantRoot}</p>}
     {(params.permissions || params.additionalPermissions || params.networkApprovalContext) && <pre>{JSON.stringify(params.permissions || params.additionalPermissions || params.networkApprovalContext, null, 2)}</pre>}
     {!supported && <p role="alert">此请求类型尚未支持：{request.method}</p>}{error && <p role="alert">{error}</p>}

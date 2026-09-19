@@ -1,3 +1,4 @@
+import { permissionApprovalResponse } from './permissionApproval.ts';
 import { validateCommandDecision, type ApprovalDecision } from './approvalDecisions.ts';
 type Answers = Record<string, { answers: string[] }>;
 type Request = { id?: string | number; method?: string; params?: any };
@@ -20,7 +21,7 @@ export function createServerResponses(respond: (id: string | number, result: unk
         } else if (typeof decision !== 'string') {
           throw Error('此请求不支持规则审批。');
         } else if (method === 'item/permissions/requestApproval') {
-          result = { scope: 'turn', permissions: decision === 'accept' ? request.params?.permissions || {} : {} };
+          result = permissionApprovalResponse(request.params?.permissions, decision);
         } else if (method === 'item/tool/requestUserInput') {
           result = { answers: answers || Object.fromEntries((request.params?.questions || []).map((question: any) => [question.id, { answers: [] }])) };
         } else if (method === 'mcpServer/elicitation/request') {

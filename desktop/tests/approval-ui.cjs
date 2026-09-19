@@ -21,5 +21,12 @@ const { chromium } = require('playwright'); const assert = require('node:assert/
   assert.deepEqual(await page.evaluate(()=>window.__responses[0]),{id:1,result:{decision:'acceptForSession'}});
   await page.evaluate(()=>window.__ask({id:2,method:'item/permissions/requestApproval',params:{threadId:'a',permissions:{network:{enabled:true}}}}));
   await page.getByText(/enabled/).waitFor();await page.getByRole('button',{name:'拒绝',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
-  assert.deepEqual(await page.evaluate(()=>window.__responses[1].result),{scope:'turn',permissions:{}});assert.deepEqual(errors,[]);console.log('PASS: server decisions, retry after failure, permission details and denial payload');
+  assert.deepEqual(await page.evaluate(()=>window.__responses[1].result),{scope:'turn',permissions:{}});await page.evaluate(()=>window.__ask({id:3,method:'item/permissions/requestApproval',params:{threadId:'a',permissions:{network:{enabled:true},fileSystem:null}}}));
+  await page.getByText('本轮允许仅用于当前回合；本会话允许可在此会话后续回合继续使用所列权限。',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'本会话允许',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
+  assert.deepEqual(await page.evaluate(()=>window.__responses[2].result),{scope:'session',permissions:{network:{enabled:true}}});
+  await page.evaluate(()=>window.__ask({id:4,method:'item/permissions/requestApproval',params:{threadId:'a',permissions:{network:null,fileSystem:{read:['D:/read'],write:null}}}}));
+  await page.getByRole('button',{name:'本轮允许',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
+  assert.deepEqual(await page.evaluate(()=>window.__responses[3].result),{scope:'turn',permissions:{fileSystem:{read:['D:/read'],write:null}}});
+  assert.deepEqual(errors,[]);console.log('PASS: server decisions, retry after failure, permission details and denial payload');
 } finally {await browser.close()}})().catch(error=>{console.error(error);process.exitCode=1});
