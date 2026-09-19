@@ -92,6 +92,10 @@ async function main() {
     assert.equal(templateUri, 'fixture://notes/a%2Fb%20%E4%B8%AD%E6%96%87');
     const templateResource = await rpc.request('mcpServer/resource/read', { threadId: thread.id, server: 'acceptance_a', uri: templateUri });
     assert.equal(require('../src/mcpResourceContent.ts').readMcpResourceContent(templateResource)[0].uri, templateUri);
+    const compositeUri = require('../src/mcpResourceTemplate.ts').expandResourceTemplate('fixture://notes{/parts*}{?filters*}', { parts: ['a/b', '中文'], filters: { q: 'a&b' } });
+    assert.equal(compositeUri, 'fixture://notes/a%2Fb/%E4%B8%AD%E6%96%87?q=a%26b');
+    const compositeResource = await rpc.request('mcpServer/resource/read', { threadId: thread.id, server: 'acceptance_a', uri: compositeUri });
+    assert.equal(require('../src/mcpResourceContent.ts').readMcpResourceContent(compositeResource)[0].uri, compositeUri);
     fs.writeFileSync(path.join(home, 'config.toml'), config(['acceptance_a', 'acceptance_c']));
     await rpc.request('config/mcpServer/reload', {});
     assert.deepEqual((await inventory()).map(entry => entry.name).sort(), ['acceptance_a', 'acceptance_c']);
