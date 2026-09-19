@@ -13,3 +13,15 @@ test('history export preserves selected order, configuration and errors while ex
 test('empty or running-only selections cannot create an empty export',()=>{
  for(const runs of [[],[{...run,status:'running'}]])assert.throws(()=>taskHistoryExport('Task',runs,'','running'),/没有可导出/);
 });
+test('batch export associates each duration with its own persisted record',()=>{
+ const result=taskHistoryExport('Task',[
+  {...run,finishedAt:'2026-09-18T00:01:02Z'},
+  {...run,id:'legacy',status:'failed'},
+  {...run,id:'backward',status:'interrupted',finishedAt:'2026-09-17T23:59:59Z'},
+ ],'','all');
+ const sections=result.content.split('运行 ID：').slice(1);
+ assert.equal(sections.length,3);
+ assert.match(sections[0],/^one\n[\s\S]*\n耗时 1 分 2 秒\n/);
+ assert.match(sections[1],/^legacy\n[\s\S]*\n耗时未知\n/);
+ assert.match(sections[2],/^backward\n[\s\S]*\n耗时未知\n/);
+});

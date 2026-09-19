@@ -1,8 +1,9 @@
 import type { TaskRun } from './scheduledTasks';
+import { taskRunDuration } from './taskRunDuration.ts';
 export function taskRunExport(name: string, run: TaskRun): string {
   const labels = { running: '运行中', completed: '已完成', failed: '失败', interrupted: '已中断' };
   const config = run.configuration;
-  const lines = [config?.name || name, `开始：${run.startedAt}`, ...(run.finishedAt ? [`结束：${run.finishedAt}`] : []), labels[run.status], `触发：${run.trigger === 'scheduled' ? '定时执行' : '手动执行'}`];
+  const lines = [config?.name || name, `开始：${run.startedAt}`, ...(run.finishedAt ? [`结束：${run.finishedAt}`] : []), ...(run.status !== 'running' ? [taskRunDuration(run)] : []), labels[run.status], `触发：${run.trigger === 'scheduled' ? '定时执行' : '手动执行'}`];
   if (run.threadId) lines.push(`会话 ID：${run.threadId}`);
   if (config) {
     lines.push('', '运行时任务配置', `类型：${config.kind === 'agent' ? 'Agent 任务' : '提醒'}`);

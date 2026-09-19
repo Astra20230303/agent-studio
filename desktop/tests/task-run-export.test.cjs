@@ -10,3 +10,16 @@ test('legacy records and reminders export without invented configuration',()=>{
  const legacy=taskRunExport('Legacy',run);assert.ok(legacy.startsWith('Legacy\n'));assert.match(legacy,/没有配置快照/);assert.match(legacy,/Output detail/);
  const reminder=taskRunExport('New',{...run,configuration:{name:'Reminder',prompt:'Remember',kind:'reminder',model:'',permission:'read-only'}});assert.match(reminder,/Remember/);assert.ok(!reminder.includes('模型：'));
 });
+test('ended exports include duration from recorded timestamps for every outcome',()=>{
+ for(const status of ['completed','failed','interrupted']) {
+  const content=taskRunExport('Task',{...run,status,finishedAt:'2026-09-18T01:02:03Z'});
+  assert.ok(content.split('\n').includes('耗时 1 小时 2 分 3 秒'));
+ }
+ assert.ok(taskRunExport('Task',{...run,finishedAt:run.startedAt}).split('\n').includes('耗时 0 秒'));
+});
+test('invalid historical timestamps remain unknown and running exports avoid clock-dependent duration',()=>{
+ for(const patch of [{finishedAt:undefined},{finishedAt:'invalid'},{startedAt:'invalid'},{finishedAt:'2026-09-17T23:59:59Z'}]) {
+  assert.ok(taskRunExport('Task',{...run,...patch}).split('\n').includes('耗时未知'));
+ }
+ assert.doesNotMatch(taskRunExport('Task',{...run,status:'running',finishedAt:undefined}),/耗时|已运行/);
+});
