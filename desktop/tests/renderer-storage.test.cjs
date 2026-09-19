@@ -106,3 +106,19 @@ test('audit records are bounded and strictly validated', async t => {
   await assert.rejects(store.write(key, JSON.stringify([{ id: 'a', at: 'now', action: 'x'.repeat(301) }])), /Invalid audit data|保存/);
   await assert.rejects(store.write(key, JSON.stringify(Array.from({ length: 201 }, (_, index) => ({ id: String(index), at: 'now', action: 'x' })))), /Invalid audit data|保存/);
 });
+
+test('task editor drafts import, flush, restart and clear through native storage', async t => {
+  const { root, store } = fixture(t);
+  const taskKey = 'felix-task-editor-draft-v1';
+  const legacy = JSON.stringify({ current: { name: 'unfinished', schedule: { kind: 'once', at: '' } } });
+  assert.equal(store.read().values[taskKey], null);
+  await store.importLegacy({ [taskKey]: legacy });
+  assert.equal(new RendererStorage(root).read().values[taskKey], legacy);
+  const latest = JSON.stringify({ current: { name: 'latest', schedule: { kind: 'interval', minutes: 0 } } });
+  const pending = store.write(taskKey, latest); await store.flush(); await pending;
+  assert.equal(new RendererStorage(root).read().values[taskKey], latest);
+  for (const bad of ['[]', '{"current":null}', '{"current":[]}']) await assert.rejects(store.write(taskKey, bad), /Invalid/);
+  assert.equal(new RendererStorage(root).read().values[taskKey], latest);
+  await store.write(taskKey, '{}');
+  assert.equal(new RendererStorage(root).read().values[taskKey], '{}');
+});

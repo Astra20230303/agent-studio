@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 
-const KEYS = ['codex-desktop-state-v1', 'felix-thread-drafts-v1', 'felix-attachments-v1', 'felix-plugin-drafts-v1', 'felix-skill-drafts-v1', 'felix-turn-queue-v1', 'felix-audit-log-v1'];
+const KEYS = ['codex-desktop-state-v1', 'felix-thread-drafts-v1', 'felix-attachments-v1', 'felix-plugin-drafts-v1', 'felix-skill-drafts-v1', 'felix-turn-queue-v1', 'felix-audit-log-v1', 'felix-task-editor-draft-v1'];
 const QUEUE_KEY = 'felix-turn-queue-v1';
 const MAX_BYTES = 64 * 1024 * 1024;
 
@@ -15,6 +15,9 @@ function validate(key, value) {
     if (!Array.isArray(parsed.threads) || !Array.isArray(parsed.projects) || !parsed.threads.every(thread => thread && typeof thread.id === 'string' && typeof thread.title === 'string' && Array.isArray(thread.messages) && thread.messages.every(message => message && typeof message.id === 'string' && typeof message.content === 'string'))) throw Error('Invalid conversation data');
   } else if (key === QUEUE_KEY) {
     if (!parsed.every(item => item && ['id', 'localId', 'threadId', 'text', 'model', 'effort'].every(field => typeof item[field] === 'string') && Array.isArray(item.plugins))) throw Error('Invalid queue data');
+  } else if (key === 'felix-task-editor-draft-v1') {
+    // Drafts can be incomplete. The renderer validates domain fields on recovery.
+    if (!Object.values(parsed).every(entry => entry && typeof entry === 'object' && !Array.isArray(entry))) throw Error('Invalid task draft data');
   } else if (key === 'felix-audit-log-v1') {
     if (!Array.isArray(parsed) || parsed.length > 200 || !parsed.every(item => item && typeof item.id === 'string' && typeof item.at === 'string' && typeof item.action === 'string' && item.action.length <= 300 && (item.detail === undefined || typeof item.detail === 'string' && item.detail.length <= 300))) throw Error('Invalid audit data');
   } else {

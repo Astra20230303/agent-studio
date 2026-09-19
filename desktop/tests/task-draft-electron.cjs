@@ -1,0 +1,65 @@
+const { _electron: electron } = require('playwright');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+(async () => {
+  const root = path.resolve(__dirname, '../..');
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'felix-task-draft-'));
+  const desktop = path.join(scratch, 'install', 'desktop');
+  fs.cpSync(path.join(root, 'desktop/electron'), path.join(desktop, 'electron'), { recursive: true });
+  fs.cpSync(path.join(root, 'desktop/dist'), path.join(desktop, 'dist'), { recursive: true });
+  fs.symlinkSync(path.join(root, 'desktop/node_modules'), path.join(desktop, 'node_modules'), 'junction');
+  const env = { ...process.env, FELIX_DATA_DIR: path.join(scratch, 'profile') };
+  for (const key of ['ELECTRON_RUN_AS_NODE', 'CODEX_APP_SERVER_COMMAND', 'VITE_DEV_SERVER_URL', 'MINIMAX_API_KEY']) delete env[key];
+  const options = { executablePath: require('electron'), args: [path.join(desktop, 'electron/main.cjs')], env, timeout: 20000 };
+  let app;
+  const errors = [];
+  const open = async () => {
+    app = await electron.launch(options);
+    const page = await app.firstWindow();
+    page.on('pageerror', error => errors.push(error.message));
+    assert.ok(page.url().startsWith('file:'));
+    await page.getByRole('button', { name: '已安排', exact: true }).click();
+    return page;
+  };
+  try {
+    let page = await open();
+    await page.getByRole('button', { name: '创建', exact: true }).click();
+    await page.getByRole('menuitem', { name: '提醒', exact: true }).click();
+    let editor = page.getByRole('dialog', { name: '创建任务', exact: true });
+    await editor.getByLabel('任务名称', { exact: true }).fill('Native persisted draft');
+    await editor.getByRole('textbox', { name: '任务内容', exact: true }).fill('恢复草稿后继续编辑，不创建任务');
+    await editor.getByLabel('频率').selectOption('once');
+    await editor.getByLabel('运行时间（本地时区）').fill('');
+    // Close the real app while the editor is open; main-process shutdown flushes storage.
+    await app.close(); app = undefined;
+    page = await open();
+    editor = page.getByRole('dialog', { name: '创建任务', exact: true });
+    await editor.waitFor();
+    assert.equal(await editor.getByLabel('任务名称', { exact: true }).inputValue(), 'Native persisted draft');
+    assert.equal(await editor.getByRole('textbox', { name: '任务内容', exact: true }).inputValue(), '恢复草稿后继续编辑，不创建任务');
+    assert.equal(await editor.getByLabel('频率').inputValue(), 'once');
+    assert.equal(await editor.getByLabel('运行时间（本地时区）').inputValue(), '');
+    const tasks = await page.evaluate(() => window.desktop.listTasks());
+    assert.equal(tasks.ok, true); assert.deepEqual(tasks.tasks, []);
+    await page.keyboard.press('Escape');
+    const warning = editor.getByRole('alert', { name: '放弃任务修改' });
+    await warning.waitFor();
+    await warning.getByRole('button', { name: '继续编辑', exact: true }).click();
+    await editor.getByLabel('任务名称', { exact: true }).fill('Native changed after restart');
+    await app.close(); app = undefined;
+    page = await open();
+    editor = page.getByRole('dialog', { name: '创建任务', exact: true });
+    assert.equal(await editor.getByLabel('任务名称', { exact: true }).inputValue(), 'Native changed after restart');
+    await editor.getByRole('button', { name: '取消', exact: true }).click();
+    await editor.getByRole('button', { name: '放弃修改', exact: true }).click();
+    await editor.waitFor({ state: 'detached' });
+    await app.close(); app = undefined;
+    page = await open();
+    await page.getByText('暂无已安排的任务', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('dialog', { name: '创建任务', exact: true }).count(), 0);
+    assert.deepEqual(errors, []);
+    console.log('PASS: native Electron task draft survives repeated restarts, retains incomplete time, protects discard and removes explicitly discarded draft without scheduling');
+  } finally { if (app) await app.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });
