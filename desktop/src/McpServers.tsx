@@ -31,10 +31,12 @@ export function McpServers({ connected, threadId, onBack, onAddToDraft }: { conn
     if (!connected) { setServers([]); setLoading(false); return; }
     setLoading(true); setError('');
     try {
-      const all: Server[] = []; let cursor: string | undefined; const seen = new Set<string>();
+      const all: Server[] = []; let cursor: string | undefined; const seen = new Set<string>(); const names = new Set<string>(); let pages = 0;
       do {
+        if (++pages > 100) throw Error('MCP 目录分页过多，请检查服务后重试');
         const result = parseMcpStatusPage(await extensionRequest<unknown>('mcpServerStatus/list', { threadId, cursor, limit: 100, detail: includeResources ? 'full' : 'toolsAndAuthOnly' }));
         if (token !== generation.current) return;
+        for (const server of result.data) { if (names.has(server.name)) throw Error('MCP 跨页服务重复，请重试'); names.add(server.name); }
         all.push(...result.data); cursor = result.nextCursor || undefined;
         if (cursor && seen.has(cursor)) throw Error('MCP 分页游标重复，请重试');
         if (cursor) seen.add(cursor);
