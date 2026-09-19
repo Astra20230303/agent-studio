@@ -75,6 +75,7 @@ import { ThreadTimelinePanel } from './ThreadTimelinePanel';
 import { readThreadProjectUpdated } from './threadMetadata';
 import { readModelReroute } from './modelReroute';
 import { readModelVerification } from './modelVerification';
+import { readModelSafetyBuffering } from './modelSafetyBuffering';
 import { ServerWarnings, useServerWarnings } from './ServerWarnings';
 import { moveQueuedTurn } from './turnQueue';
 import { AttachmentPreviewButton, MessageAttachment } from './MessageAttachment';
@@ -332,6 +333,10 @@ function App({ initialState }: { initialState: DesktopState }) {
         if (message.method === 'model/verification') {
           const verification = readModelVerification(params);
           if (verification) setNotice(`模型验证：${verification.verifications.join('、')}`);
+        }
+        if (message.method === 'model/safetyBuffering/updated') {
+          const buffering = readModelSafetyBuffering(params);
+          if (buffering?.showBufferingUi) setNotice(`模型安全缓冲中：${buffering.reasons.join('、') || '正在完成安全检查'}${buffering.fasterModel ? ` · 可切换为 ${buffering.fasterModel}` : ''}`);
         }
         if (message.method === 'thread/tokenUsage/updated') {
           const usage = readContextTokens(params.tokenUsage);
