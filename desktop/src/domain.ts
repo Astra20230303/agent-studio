@@ -48,6 +48,7 @@ export interface Thread {
   cwd?: string;
   planningMode?: 'default' | 'plan';
   memoryMode?: 'enabled' | 'disabled';
+  daybreakEnabled?: boolean;
   plan?: import('./planning').PlanProgress;
   planDelta?: { turnId: string; itemId: string; content: string };
   turnDiff?: { turnId: string; diff: string };

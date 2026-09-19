@@ -15,6 +15,7 @@ export function threadPage(value: any) {
       updatedAt: typeof item.updatedAt === 'number' || typeof item.updatedAt === 'string' ? item.updatedAt : 0,
       status: { type: typeof item.status?.type === 'string' ? item.status.type : undefined },
       ...(typeof item.projectId === 'string' && item.projectId.trim() ? { projectId: item.projectId } : {}),
+      ...(typeof item.daybreakEnabled === 'boolean' ? { daybreakEnabled: item.daybreakEnabled } : {}),
       ...(item.section == null ? {} : { section: readOptionalThreadSection(item.section) }),
     })),
   };

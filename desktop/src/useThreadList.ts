@@ -40,13 +40,14 @@ export function useThreadList(repository: ThreadRepository, connected: boolean, 
             if (existing && hasProject) {
               if (projectId) existing.projectId = projectId; else delete existing.projectId;
             }
+            if (existing && typeof item.daybreakEnabled === 'boolean') existing.daybreakEnabled = item.daybreakEnabled;
             continue;
           }
           ids.add(item.id);
           const timestamp = Number(item.updatedAt) * 1000;
           const updatedAt = new Date(Number.isFinite(timestamp) && Math.abs(timestamp) <= 8640000000000000 ? timestamp : 0).toISOString();
           const title = [item.name, item.preview].find(value => typeof value === 'string' && value.trim()) || 'Felix 对话';
-          threads.push({ id: `remote-${item.id}`, remoteId: item.id, sectionId: section?.id, ...(projectId ? { projectId } : {}), title, cwd: item.cwd, status: item.status?.type === 'active' ? 'running' : 'completed', pinned: false, archived: false, messages: [], updatedAt });
+          threads.push({ id: `remote-${item.id}`, remoteId: item.id, sectionId: section?.id, ...(projectId ? { projectId } : {}), ...(typeof item.daybreakEnabled === 'boolean' ? { daybreakEnabled: item.daybreakEnabled } : {}), title, cwd: item.cwd, status: item.status?.type === 'active' ? 'running' : 'completed', pinned: false, archived: false, messages: [], updatedAt });
         }
         return { ...previous, threads };
       });

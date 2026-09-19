@@ -12,3 +12,7 @@ export function updateThreadGitParams(threadId: string, gitInfo: { sha?: string 
   if (!validId(threadId) || !gitInfo || Object.entries(gitInfo).some(([key, value]) => !['sha', 'branch', 'originUrl'].includes(key) || value != null && (typeof value !== 'string' || !value.trim() || /[\0\r\n]/.test(value)))) throw new Error('会话 Git 元数据参数无效');
   return { threadId, gitInfo: { ...(gitInfo.sha !== undefined ? { sha: gitInfo.sha } : {}), ...(gitInfo.branch !== undefined ? { branch: gitInfo.branch } : {}), ...(gitInfo.originUrl !== undefined ? { originUrl: gitInfo.originUrl } : {}) } };
 }
+export function updateThreadDaybreakParams(threadId: string, enabled: boolean) {
+  if (!validId(threadId) || typeof enabled !== 'boolean') throw new Error('会话 Daybreak 参数无效');
+  return { threadId, daybreakEnabled: enabled };
+}

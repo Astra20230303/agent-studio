@@ -8,7 +8,8 @@ export function readThreadResume(value: any, threadId: string) {
   const object = (item: any) => item && typeof item === 'object' && !Array.isArray(item);
   const thread = value?.thread;
   if (!object(value) || !object(thread) || thread.id !== threadId || !Array.isArray(thread.turns)
-    || [value.providerId, value.model, value.reasoningEffort, thread.cwd].some(field => field != null && typeof field !== 'string')) {
+    || [value.providerId, value.model, value.reasoningEffort, thread.cwd].some(field => field != null && typeof field !== 'string')
+    || thread.daybreakEnabled != null && typeof thread.daybreakEnabled !== 'boolean') {
     throw Error('服务端会话恢复数据无效，已有会话已保留，请重试。');
   }
   const ids = new Set<string>();
@@ -33,6 +34,6 @@ export function readThreadResume(value: any, threadId: string) {
     providerId: (value.providerId || undefined) as string | undefined,
     model: (value.model || undefined) as string | undefined,
     cwd: (thread.cwd || undefined) as string | undefined,
-    reasoningEffort, permissions: readThreadPermissions(value),
+    reasoningEffort, daybreakEnabled: typeof thread.daybreakEnabled === 'boolean' ? thread.daybreakEnabled : undefined, permissions: readThreadPermissions(value),
   });
 }

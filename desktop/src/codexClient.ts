@@ -15,7 +15,7 @@ import { readServerDiagnostics } from './serverDiagnostics';
 import { readFeedbackUpload, validateFeedbackInput, type FeedbackInput } from './feedback';
 import { readThreadSearchOccurrences, type ThreadSearchOccurrence } from './threadSearchOccurrences';
 import { createRemoteProjectParams, deleteRemoteProjectParams, moveRemoteProjectParams, readRemoteProject, readRemoteProjectPage, updateRemoteProjectParams, type RemoteProject } from './remoteProjects';
-import { updateThreadGitParams, updateThreadProjectParams } from './threadMetadata';
+import { updateThreadDaybreakParams, updateThreadGitParams, updateThreadProjectParams } from './threadMetadata';
 import { readRemoteControlClients as readRemoteControlClientPage, readRemoteControlPairing, readRemoteControlStatus, remoteControlId, type RemoteControlClient, type RemoteControlPairing, type RemoteControlStatus } from './remoteControl';
 import { readThreadTimelinePage, type TimelineEntry } from './threadTimeline';
 import { environmentAddParams, readEnvironmentInfo as parseEnvironmentInfo, readEnvironmentStatus as parseEnvironmentStatus, type EnvironmentInfo, type EnvironmentStatus } from './environment';
@@ -142,6 +142,7 @@ export async function deleteRemoteProject(id: string) { await unwrap<any>(bridge
 export async function moveRemoteProject(id: string, beforeId?: string) { await unwrap<any>(bridge().request('project/move', moveRemoteProjectParams(id, beforeId))); }
 export async function updateThreadProject(threadId: string, projectId: string | null) { return unwrap<any>(bridge().request('thread/metadata/update', updateThreadProjectParams(threadId, projectId))); }
 export async function updateThreadGitInfo(threadId: string, gitInfo: { sha?: string | null; branch?: string | null; originUrl?: string | null }) { return unwrap<any>(bridge().request('thread/metadata/update', updateThreadGitParams(threadId, gitInfo))); }
+export async function updateThreadDaybreak(threadId: string, enabled: boolean) { return unwrap<any>(bridge().request('thread/metadata/update', updateThreadDaybreakParams(threadId, enabled))); }
 export async function listThreadTimeline(threadId: string): Promise<TimelineEntry[]> {
   if (!/^\S+$/.test(threadId)) throw new Error('会话时间线身份无效');
   const data: TimelineEntry[] = []; let cursor: string | undefined; const seen = new Set<string>();
