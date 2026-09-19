@@ -18,3 +18,5 @@
 @media(max-width:760px){.conversation-header{padding:6px 12px}.conversation-settings{right:12px;top:85px}}
 
 .conversation-environment p{overflow-wrap:anywhere;line-height:1.6}.environment-actions{display:flex;flex-wrap:wrap;gap:6px}.conversation-environment .settings-card{margin:12px 0;padding:12px 0;border:0;border-top:1px solid #8883}
+
+.conversation-more-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}.conversation-more details{margin-top:14px;border-top:1px solid #8883;padding-top:12px}.conversation-more summary{cursor:pointer}.conversation-more textarea{max-width:100%}.conversation-more .turn-queue{margin:10px 0;padding:0}
