@@ -47,5 +47,10 @@ const { chromium } = require('playwright'); const assert = require('node:assert/
   const deny=page.getByRole('checkbox',{name:'禁止访问：D:/secret（保留限制）',exact:true});assert.equal(await deny.isDisabled(),true);assert.equal(await deny.isChecked(),true);
   await page.getByRole('button',{name:'本轮允许',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
   assert.deepEqual(await page.evaluate(()=>window.__responses[6].result),{scope:'turn',permissions:{fileSystem:{entries:[{path:{type:'path',path:'D:/a'},access:'read'},{path:{type:'path',path:'D:/secret'},access:'deny'}]}}});
+  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('felix-audit-log-v1')||'[]').filter(item=>item.action==='处理服务请求').length===7);
+  const records=await page.evaluate(()=>JSON.parse(localStorage.getItem('felix-audit-log-v1')).filter(item=>item.action==='处理服务请求'));
+  assert.equal(records[0].detail,'额外权限 · 本轮 · 网络：未授予 · 文件条目：读取 1 / 写入 0 / 禁止 1');
+  assert.equal(records[2].detail,'额外权限 · 本会话 · 网络：未授予 · 文件条目：读取 1 / 写入 0 / 禁止 0');
+  assert.ok(!JSON.stringify(records).includes('D:/'));
   assert.deepEqual(errors,[]);console.log('PASS: server decisions, retry after failure, permission details and denial payload');
 } finally {await browser.close()}})().catch(error=>{console.error(error);process.exitCode=1});

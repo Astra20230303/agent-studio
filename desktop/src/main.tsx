@@ -1,3 +1,4 @@
+import { approvalAuditDetail } from './approvalAudit';
 import type { ApprovalDecision } from './approvalDecisions';
 import { DaybreakPreference } from './DaybreakPreference';
 import { unsupportedEffort } from './reasoningEffort';
@@ -595,8 +596,9 @@ function App({ initialState }: { initialState: DesktopState }) {
   const respondApproval = async (decision: ApprovalDecision, answers?: UserAnswers, content?: Record<string, unknown>, target = approval) => {
     const approval = target;
     if (!approval) return;
+    const auditDetail = approvalAuditDetail(approval, decision, content);
     if (!await serverResponses.send(approval, decision, answers, content)) return;
-    audit.record('处理服务请求', `${approval.method} · ${typeof decision === 'string' ? decision : JSON.stringify(decision)}`);
+    audit.record('处理服务请求', auditDetail);
     setApprovals(pending => pending.filter(item => item !== approval));
   };
   const loadFullHistory = async (options?: HistoryReadOptions) => {
