@@ -59,7 +59,7 @@ test('real app-server archives, paginates and restores isolated conversations', 
     const source = fs.readFileSync(path.resolve(__dirname, '../src/codexClient.ts'), 'utf8');
     const compiled = require('node:module').stripTypeScriptTypes(source).replace(/^import .*;\r?\n/gm, '').replace(/\bexport /g, '') + '\nObject.assign(exports, { listThreads, searchThreads, listArchivedThreads, unarchiveThread, archiveThread, deleteThread, setThreadName, resumeThread, startThread, listThreadTurns, listThreadItems, forkThread });';
     const client = {};
-    require('node:vm').runInNewContext(compiled, { exports: client, require: () => ({}), window: { codex: { request: async (method, params) => ({ ok: true, result: await rpc.request(method, params) }) } } });
+    require('node:vm').runInNewContext(compiled, { exports: client, require: () => ({}), window: { codex: { request: async (method, params) => ({ ok: true, result: await rpc.request(method, method === 'thread/fork' ? {...params, modelProvider:'minimax', model:'MiniMax-M2.1'} : params) }) } } });
     assert.deepEqual((await client.listArchivedThreads()).data.map(thread => thread.id), [ids[1]]);
     assert.ok((await client.listThreads()).data.some(thread => thread.id === ids[0]));
     assert.deepEqual((await client.listThreads(undefined, 'Archive acceptance 0')).data.map(thread => thread.id), [ids[0]]);
@@ -134,6 +134,13 @@ test('real app-server archives, paginates and restores isolated conversations', 
     const followup = await followups.run({followupThreadId:ids[0],cwd:root,model:'MiniMax-M2.1',prompt:'Continue this conversation with a brief reply.',permission:'read-only'}, {signal:new AbortController().signal});
     assert.equal(followup.threadId,ids[0]);assert.match(followup.output,/Archive test completed/);
     assert.ok((await client.listThreadItems(ids[0])).data.some(entry=>entry.item.type==='userMessage'));
+    const {readAgentSnapshot,commandAgent}=require('../src/agentWorkspace.ts');
+    const agentRequest=(method,params)=>rpc.request(method,['thread/resume','turn/start'].includes(method)?{...params,model:'MiniMax-M2.1',modelProvider:'minimax',...(method==='thread/resume'?{config:{'model_providers.minimax.name':'MiniMax','model_providers.minimax.wire_api':'responses','model_providers.minimax.base_url':`http://127.0.0.1:${adapter.address().port}/v1`}}:{})}:params);
+    assert.equal((await readAgentSnapshot(agentRequest,fork.id)).status,'completed');
+    const childDone=new Promise((resolve,reject)=>{const timer=setTimeout(()=>{rpc.off('notification',listener);reject(Error('Child followup completion timeout'));},10000);const listener=message=>{if(message.method==='turn/completed'&&message.params.threadId===fork.id){clearTimeout(timer);rpc.off('notification',listener);message.params.turn.status==='completed'?resolve():reject(Error('Child followup failed'));}};rpc.on('notification',listener);});childDone.catch(()=>{});
+    assert.equal(await commandAgent(agentRequest,fork.id,'send','Continue this child task.'),'已启动子任务后续回合');
+    await childDone;
+    assert.match((await readAgentSnapshot(agentRequest,fork.id)).message,/Archive test completed/);
 
 
   } finally {
