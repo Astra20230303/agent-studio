@@ -219,5 +219,9 @@ test('multiple weekly days persist and run only on selected weekdays',async()=>{
   assert.equal(scheduler.detail(saved.id).nextRunAt,'2026-09-23T09:00:00.000Z');
   now=Date.parse('2026-09-22T09:00:00Z');await scheduler.tick();assert.equal(calls,1);
   now=Date.parse('2026-09-23T09:00:00Z');await scheduler.tick();assert.equal(calls,2);
+  scheduler.setStatus(saved.id,'paused');now=Date.parse('2026-09-25T09:00:00Z');await scheduler.tick();assert.equal(calls,2);
+  assert.equal(scheduler.detail(saved.id).nextRunAt,null);
+  scheduler.setStatus(saved.id,'active');assert.equal(scheduler.detail(saved.id).nextRunAt,'2026-09-28T09:00:00.000Z');
+  assert.deepEqual(scheduler.detail(saved.id).schedule.days,[1,3,5]);
  }finally{await scheduler.stop();}
 });

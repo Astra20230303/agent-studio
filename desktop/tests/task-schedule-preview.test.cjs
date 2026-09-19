@@ -15,3 +15,7 @@ test('multiple weekly days preview across week boundaries',()=>{
  assert.deepEqual(previewSchedule({kind:'customWeek',days:[1,3,5],time:'09:00',timezone:'Asia/Shanghai'},now).times,['2026-09-21T01:00:00.000Z','2026-09-23T01:00:00.000Z','2026-09-25T01:00:00.000Z']);
  for(const days of [[],[1,1],[7],['1'],null])assert.throws(()=>previewSchedule({kind:'customWeek',days,time:'09:00',timezone:'UTC'},now),/运行日/);
 });
+
+test('multiple selected weekdays retain local time across DST end',()=>{
+ assert.deepEqual(previewSchedule({kind:'customWeek',days:[0,1],time:'09:00',timezone:'America/New_York'},Date.parse('2026-10-31T00:00:00Z')).times,['2026-11-01T14:00:00.000Z','2026-11-02T14:00:00.000Z','2026-11-08T14:00:00.000Z']);
+});
