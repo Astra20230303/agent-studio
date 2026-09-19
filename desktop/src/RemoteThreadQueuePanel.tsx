@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { addRemoteQueuedSubmission, deleteRemoteQueuedSubmission, listRemoteQueuedSubmissions, startRemoteQueuedSubmission } from './codexClient';
-import type { RemoteQueuedSubmission } from './threadQueueRemote';
+import { addRemoteQueuedSubmission, deleteRemoteQueuedSubmission, listRemoteQueuedSubmissions, reorderRemoteQueuedSubmissions, startRemoteQueuedSubmission } from './codexClient';
+import { moveRemoteQueue, type RemoteQueuedSubmission } from './threadQueueRemote';
 
 type Props = { threadId?: string; connected: boolean; busy?: boolean };
 export function RemoteThreadQueuePanel(props: Props) {
@@ -56,8 +56,9 @@ function ThreadQueue({ threadId, connected, busy }: Props & { threadId: string }
       <input aria-label="服务端排队消息" value={text} onChange={event => setText(event.target.value)} placeholder="发送到 app-server 队列" />
       <button disabled={blocked || !text.trim()}>加入队列</button>
     </form>
-    {items.map(item => <div key={item.id}>
+    {items.map((item, index) => <div key={item.id}>
       <span>{item.input.map((entry: any) => typeof entry?.text === 'string' ? entry.text : '').filter(Boolean).join(' ') || item.id}</span>
+      {([-1, 1] as const).map(direction => <button key={direction} aria-label={`${direction === -1 ? '上移' : '下移'}服务端消息 ${item.id}`} disabled={blocked || index + direction < 0 || index + direction >= items.length} onClick={() => void mutate(() => reorderRemoteQueuedSubmissions(threadId, moveRemoteQueue(items, item.id, direction)), '队列顺序已保存')}>{direction === -1 ? '上移' : '下移'}</button>)}
       <button disabled={blocked} onClick={() => void mutate(() => deleteRemoteQueuedSubmission(threadId, item.id), '已删除服务端排队消息')}>删除</button>
       <button disabled={blocked} onClick={() => void mutate(() => startRemoteQueuedSubmission(threadId, item.id), '已启动服务端排队消息')}>启动</button>
     </div>)}

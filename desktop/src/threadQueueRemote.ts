@@ -7,3 +7,14 @@ export function readRemoteQueuePage(value: unknown): { data: RemoteQueuedSubmiss
   return { data, ...(input.nextCursor ? { nextCursor: input.nextCursor } : {}) };
 }
 export function remoteQueueIdentity(threadId: string, submissionId?: string) { return { threadId: id(threadId, '会话身份'), ...(submissionId !== undefined ? { queuedSubmissionId: id(submissionId, '排队提交身份') } : {}) }; }
+export function remoteQueueReorderParams(threadId: string, submissionIds: string[]) {
+  if (!Array.isArray(submissionIds) || new Set(submissionIds).size !== submissionIds.length) throw new Error('队列排序身份重复或无效');
+  return { ...remoteQueueIdentity(threadId), queuedSubmissionIds: submissionIds.map(value => id(value, '排队提交身份')) };
+}
+export function moveRemoteQueue(items: RemoteQueuedSubmission[], submissionId: string, direction: -1 | 1): string[] {
+  const ids = items.map(item => item.id);
+  const index = ids.indexOf(submissionId), target = index + direction;
+  if (index < 0 || target < 0 || target >= ids.length || ![-1, 1].includes(direction)) throw new Error('无法移动此排队消息');
+  [ids[index], ids[target]] = [ids[target], ids[index]];
+  return ids;
+}

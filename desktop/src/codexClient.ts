@@ -21,7 +21,7 @@ import { readThreadTimelinePage, type TimelineEntry } from './threadTimeline';
 import { environmentAddParams, readEnvironmentInfo as parseEnvironmentInfo, readEnvironmentStatus as parseEnvironmentStatus, type EnvironmentInfo, type EnvironmentStatus } from './environment';
 import { readCodexModelPage, type CodexModel } from './codexModelCatalog';
 import { readCodexProviderCapabilities as parseCodexProviderCapabilities, type CodexProviderCapabilities } from './codexProviderCapabilities';
-import { readRemoteQueuePage, remoteQueueIdentity, type RemoteQueuedSubmission } from './threadQueueRemote';
+import { readRemoteQueuePage, remoteQueueIdentity, remoteQueueReorderParams, type RemoteQueuedSubmission } from './threadQueueRemote';
 export type RpcMessage = { id?: number | string; method?: string; params?: any; result?: any; error?: any };
 type Bridge = { connect: () => Promise<any>; request: (method: string, params?: unknown) => Promise<any>; notify: (method: string, params?: unknown) => Promise<any>; respond: (id: number | string, result?: unknown, error?: unknown) => Promise<any>; onNotification: (listener: (message: RpcMessage) => void) => () => void; onServerRequest: (listener: (message: RpcMessage) => void) => () => void; onError: (listener: (message: any) => void) => () => void; onStderr: (listener: (message: any) => void) => () => void; onClosed: (listener: (message: any) => void) => () => void };
 const bridge = () => window.codex as Bridge;
@@ -206,3 +206,5 @@ export async function listBackgroundTerminals(threadId: string, cursor?: string)
 export async function terminateBackgroundTerminal(threadId: string, processId: string) {
   return parseTermination(await unwrap<unknown>(bridge().request('thread/backgroundTerminals/terminate', { threadId, processId })));
 }
+
+export async function reorderRemoteQueuedSubmissions(threadId: string, submissionIds: string[]) { await unwrap(bridge().request('thread/queue/reorder', remoteQueueReorderParams(threadId, submissionIds))); }
