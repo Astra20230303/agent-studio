@@ -1,3 +1,4 @@
+import { McpResourceDownload } from './McpResourceDownload';
 import { readMcpResourceContent, type McpResourceContent } from './mcpResourceContent';
 import { useEffect, useRef, useState } from 'react';
 import { extensionRequest } from './extensions';
@@ -39,6 +40,6 @@ export function McpResources({ server, resources, templates, threadId, disabled,
     </form>
     {loading && <p role="status">正在读取资源…</p>}
     {error && <p role="alert">{error}</p>}
-    {contents && <div aria-label="资源内容">{contents.length === 0 && <p>资源内容为空。</p>}{contents.map((content, index) => <div key={index}><p style={{ overflowWrap: 'anywhere' }}>{content.uri}</p>{onAddToDraft && typeof content.text === 'string' && <button disabled={disabled || loading} onClick={() => onAddToDraft(`MCP resource snapshot:\n${JSON.stringify({ server, uri: content.uri, mimeType: content.mimeType, text: content.text }, null, 2)}`)}>加入聊天草稿</button>}<ToolResult result={{ content: [typeof content.text === 'string' ? { type: 'text', text: content.text } : { type: content.mimeType?.startsWith('audio/') ? 'audio' : 'image', mimeType: content.mimeType, data: content.blob }] }} /></div>)}</div>}
+    {contents && <div aria-label="资源内容">{contents.length === 0 && <p>资源内容为空。</p>}{contents.map((content, index) => <div key={index}><p style={{ overflowWrap: 'anywhere' }}>{content.uri}</p>{onAddToDraft && typeof content.text === 'string' && <button disabled={disabled || loading} onClick={() => onAddToDraft(`MCP resource snapshot:\n${JSON.stringify({ server, uri: content.uri, mimeType: content.mimeType, text: content.text }, null, 2)}`)}>加入聊天草稿</button>}{typeof content.blob === 'string' && <McpResourceDownload uri={content.uri} blob={content.blob} />}<ToolResult result={{ content: [typeof content.text === 'string' ? { type: 'text', text: content.text } : { type: content.mimeType?.startsWith('audio/') ? 'audio' : content.mimeType?.startsWith('image/') ? 'image' : 'resource', mimeType: content.mimeType, data: content.blob }] }} /></div>)}</div>}
   </div>;
 }
