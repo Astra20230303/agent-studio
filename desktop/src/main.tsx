@@ -1,3 +1,4 @@
+import { configNotice } from './configNotice';
 import { approvalAuditDetail } from './approvalAudit';
 import type { ApprovalDecision } from './approvalDecisions';
 import { DaybreakPreference } from './DaybreakPreference';
@@ -311,6 +312,8 @@ function App({ initialState }: { initialState: DesktopState }) {
           }
           return;
         }
+        const configurationNotice = configNotice(message.method, params);
+        if (configurationNotice) serverWarnings.push(configurationNotice);
         if (message.method === 'warning' && typeof params.message === 'string' && params.message.trim()) {
           if (typeof params.threadId === 'string' && params.threadId) {
             const warningId = crypto.randomUUID();
