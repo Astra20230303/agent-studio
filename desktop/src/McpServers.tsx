@@ -10,6 +10,7 @@ const emptyResources: McpResource[] = [];
 const emptyTemplates: McpResourceTemplate[] = [];
 const labels: Record<string, string> = { connected: '已连接', starting: '正在启动', failed: '连接失败', disabled: '已禁用', cancelled: '已取消', notStarted: '未启动', authenticationRequired: '需要认证', notLoggedIn: '未登录', oAuth: 'OAuth 已登录', bearerToken: '令牌认证', unsupported: '无需 OAuth', unknown: '未知' };
 export function McpServers({ connected, threadId, onBack, onAddToDraft }: { connected: boolean; threadId?: string; onBack: () => void; onAddToDraft?: (text: string) => void }) {
+  const [query, setQuery] = useState('');
   const [startup, setStartup] = useState<Record<string, McpStartup>>({});
   const [servers, setServers] = useState<Server[]>([]);
   const [includeResources, setIncludeResources] = useState(false);
@@ -77,18 +78,25 @@ export function McpServers({ connected, threadId, onBack, onAddToDraft }: { conn
     } catch (error) { if (token === actionGeneration.current && (!name || (oauthCompletions.current.get(name) || 0) === completion)) setError(String(error)); }
     finally { if (token === actionGeneration.current) { lock.current = false; setActing(false); } }
   };
+  const needle = query.trim().toLocaleLowerCase();
+  const visible = servers.map(server => {
+    const serverMatches = server.name.toLocaleLowerCase().includes(needle);
+    const tools = Object.entries(server.tools || {}).filter(([name, tool]) => serverMatches || `${name} ${tool.description || ''}`.toLocaleLowerCase().includes(needle));
+    return { server, tools, matches: serverMatches || tools.length > 0 };
+  }).filter(item => item.matches);
   return <section className="extensions"><div className="ext-scroll"><div className="ext-content">
     <button onClick={onBack}>返回扩展</button><h1>MCP 服务</h1>
     <button disabled={!connected || busy} onClick={() => void refresh()}>刷新 MCP 状态</button> <button disabled={!connected || busy} onClick={() => void action()}>重新加载 MCP 配置</button>
+    <label>搜索服务和工具<input type="search" aria-label="搜索 MCP 服务和工具" placeholder="服务名、工具名或描述" value={query} onChange={event => setQuery(event.target.value)} /></label>{query && <button onClick={() => setQuery('')}>清空 MCP 搜索</button>}
     <label><input type="checkbox" checked={includeResources} disabled={!connected || busy} onChange={event => setIncludeResources(event.target.checked)} />显示资源目录</label>
     {!connected && <p role="status">等待 app-server 连接</p>}{busy && <p role="status">正在处理…</p>}{error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
     {Object.values(startup).length > 0 && <section aria-label="MCP 启动通知">{Object.values(startup).map(value => <p key={value.name} role={value.status === 'failed' ? 'alert' : 'status'} style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{mcpStartupText(value)}</p>)}</section>}
-    {servers.map(server => <section className="page-card" key={server.name} aria-label={server.name}><h2>{server.name}</h2><p>连接：{labels[server.runtimeStatus || 'unknown'] || server.runtimeStatus} · 认证：{labels[server.authStatus] || server.authStatus}</p>
+    {visible.map(({ server, tools }) => <section className="page-card" key={server.name} aria-label={server.name}><h2>{server.name}</h2><p>连接：{labels[server.runtimeStatus || 'unknown'] || server.runtimeStatus} · 认证：{labels[server.authStatus] || server.authStatus}</p>
       {server.toolsError && <p role="alert">工具发现失败：{server.toolsError}</p>}
       {server.authStatus !== 'unsupported' && <button disabled={!connected || busy} onClick={() => void action(server.name)}>登录 {server.name}</button>}
       {links[server.name] && <button onClick={() => { const open = window.desktop?.openExternal; if (!open) { setError('无法打开系统浏览器'); return; } void open(links[server.name]).catch(error => setError(String(error))); }}>打开 {server.name} 登录页面</button>}
-      <details><summary>工具 ({Object.keys(server.tools || {}).length})</summary>{Object.entries(server.tools || {}).map(([name, tool]) => <div key={name}><p><strong>{name}</strong> {tool.description}</p>{(['inputSchema', 'outputSchema'] as const).filter(key => tool[key] != null).map(key => <details key={key}><summary>{name} · {key === 'inputSchema' ? '输入参数' : '输出结构'}</summary><CopyText source={JSON.stringify(tool[key], null, 2)} label={`复制 ${name} ${key === 'inputSchema' ? '输入参数' : '输出结构'}`} /><pre style={{ maxHeight: 320, overflow: 'auto', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{JSON.stringify(tool[key], null, 2)}</pre></details>)}</div>)}</details>
+      <details key={needle ? 'search' : 'browse'} open={needle ? true : undefined}><summary>工具 ({tools.length})</summary>{tools.map(([name, tool]) => <div key={name}><p><strong>{name}</strong> {tool.description}</p>{(['inputSchema', 'outputSchema'] as const).filter(key => tool[key] != null).map(key => <details key={key}><summary>{name} · {key === 'inputSchema' ? '输入参数' : '输出结构'}</summary><CopyText source={JSON.stringify(tool[key], null, 2)} label={`复制 ${name} ${key === 'inputSchema' ? '输入参数' : '输出结构'}`} /><pre style={{ maxHeight: 320, overflow: 'auto', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{JSON.stringify(tool[key], null, 2)}</pre></details>)}</div>)}</details>
       {includeResources && <McpResources key={`${server.name}:${threadId || ''}`} server={server.name} threadId={threadId} resources={server.resources || emptyResources} templates={server.resourceTemplates || emptyTemplates} disabled={!connected || busy} onAddToDraft={onAddToDraft} />}
-    </section>)}{connected && !busy && !error && !servers.length && <p>暂无 MCP 服务。</p>}
+    </section>)}{needle && servers.length > 0 && !visible.length && <p role="status">没有匹配的 MCP 服务或工具。</p>}{connected && !busy && !error && !servers.length && <p>暂无 MCP 服务。</p>}
   </div></div></section>;
 }

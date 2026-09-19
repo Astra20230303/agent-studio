@@ -20,7 +20,7 @@ const assert = require('node:assert/strict');
           if (!window.__resourceRetried) { window.__resourceRetried = true; return { ok: false, error: 'Resource temporarily unavailable' }; }
           return { ok: true, result: { contents: [{ uri: params.uri, text: '<script>unsafe()</script>Resource text' }] } };
         }
-        if (method === 'mcpServerStatus/list') { if(window.__badStatus==='duplicate') return {ok:true,result:{data:[{name:'cloud',authStatus:'unsupported'},{name:'cloud',authStatus:'unsupported'}]}}; if(window.__badStatus==='broken') return {ok:true,result:{data:[{name:'cloud',authStatus:'unsupported',tools:[]} ]}}; return { ok: true, result: params.cursor ? { data: [{ name: 'local', authStatus: 'unsupported', runtimeStatus: 'connected', tools: { read: { inputSchema:{type:'object',properties:{path:{type:'string',description:'<script>literal</script>'}},required:['path']},outputSchema:{type:'object',properties:{text:{type:'string'}}} } } }] } : { data: [{ name: 'cloud', authStatus: 'notLoggedIn', runtimeStatus: 'authenticationRequired', toolsError: 'Authentication needed', tools: {} }], nextCursor: 'page2' } }; }
+        if (method === 'mcpServerStatus/list') { if(window.__badStatus==='duplicate') return {ok:true,result:{data:[{name:'cloud',authStatus:'unsupported'},{name:'cloud',authStatus:'unsupported'}]}}; if(window.__badStatus==='broken') return {ok:true,result:{data:[{name:'cloud',authStatus:'unsupported',tools:[]} ]}}; return { ok: true, result: params.cursor ? { data: [{ name: 'local', authStatus: 'unsupported', runtimeStatus: 'connected', tools: { read: { description:'Inspect workspace documents', inputSchema:{type:'object',properties:{path:{type:'string',description:'<script>literal</script>'}},required:['path']},outputSchema:{type:'object',properties:{text:{type:'string'}}} } } }] } : { data: [{ name: 'cloud', authStatus: 'notLoggedIn', runtimeStatus: 'authenticationRequired', toolsError: 'Authentication needed', tools: {} }], nextCursor: 'page2' } }; }
         if (method === 'mcpServer/oauth/login') { if(window.__delayLogin) await new Promise(resolve=>{window.__finishLogin=resolve;}); if (window.__early) window.__notify({ method: 'mcpServer/oauthLogin/completed', params: { name: 'cloud', success: true, threadId: null } }); if(window.__failEarly)return {ok:false,error:'Obsolete login failure'}; return { ok: true, result: { authorizationUrl: 'https://example.com/login?state=test' } }; }
         if (method === 'config/mcpServer/reload' && window.__failReload) return { ok: false, error: 'Reload failed' };
         return { ok: true, result: { data: [], marketplaces: [] } };
@@ -36,6 +36,12 @@ const assert = require('node:assert/strict');
     assert.deepEqual(JSON.parse(await page.evaluate(()=>window.__copied)),{type:'object',properties:{path:{type:'string',description:'<script>literal</script>'}},required:['path']});
     await local.getByText('read · 输出结构',{exact:true}).click();await local.getByRole('button',{name:'复制 read 输出结构',exact:true}).click();assert.equal(JSON.parse(await page.evaluate(()=>window.__copied)).properties.text.type,'string');
 
+    const search=page.getByRole('searchbox',{name:'搜索 MCP 服务和工具',exact:true});
+    await search.fill('  READ  ');assert.equal(await page.getByRole('heading',{name:'cloud',exact:true}).count(),0);await local.getByText('read · 输入参数',{exact:true}).waitFor();
+    await search.fill('documents');await page.getByRole('heading',{name:'local',exact:true}).waitFor();
+    await search.fill('CLOUD');await page.getByRole('heading',{name:'cloud',exact:true}).waitFor();assert.equal(await page.getByRole('heading',{name:'local',exact:true}).count(),0);
+    await search.fill('missing-tool');await page.getByText('没有匹配的 MCP 服务或工具。',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'清空 MCP 搜索',exact:true}).click();await page.getByRole('heading',{name:'local',exact:true}).waitFor();
     const emitStartup=(params)=>page.evaluate(params=>window.__notify({method:'mcpServer/startupStatus/updated',params}),params);
     await emitStartup({threadId:'other',name:'cloud',status:'failed',error:'Wrong thread'});assert.equal(await page.getByText(/Wrong thread/).count(),0);
     await emitStartup({threadId:null,name:'cloud',status:'starting'});await page.getByText('cloud · 正在启动',{exact:true}).waitFor();
