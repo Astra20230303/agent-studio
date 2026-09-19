@@ -86,7 +86,7 @@ async function main() {
     assert.equal(resourceServer.resourceTemplates[0].uriTemplate, 'fixture://notes/{id}');
     for (const threadId of [undefined, thread.id]) {
       const resource = await rpc.request('mcpServer/resource/read', { threadId, server: 'acceptance_a', uri: 'fixture://readme' });
-      assert.deepEqual(resource.contents, [{ uri: 'fixture://readme', mimeType: 'text/plain', text: 'Felix resource acceptance' }]);
+      assert.deepEqual(require('../src/mcpResourceContent.ts').readMcpResourceContent(resource), [{ uri: 'fixture://readme', mimeType: 'text/plain', text: 'Felix resource acceptance' }]);
     }
     fs.writeFileSync(path.join(home, 'config.toml'), config(['acceptance_a', 'acceptance_c']));
     await rpc.request('config/mcpServer/reload', {});

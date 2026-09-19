@@ -15,7 +15,7 @@ const assert = require('node:assert/strict');
         if (method === 'thread/start') return { ok: true, result: { thread: { id: 'resource-chat', turns: [] } } };
         if (method === 'turn/start') return { ok: true, result: { turn: { id: 'resource-turn', status: 'completed' } } };
         if (method === 'mcpServerStatus/list' && params.detail === 'full') return { ok: true, result: { data: [{ name: 'local', authStatus: 'unsupported', resources: [{ uri: 'fixture://readme', name: 'Readme' }], resourceTemplates: [{ uriTemplate: 'fixture://notes/{id}', name: 'Notes' }] }] } };
-        if (method === 'mcpServer/resource/read') {
+        if (method === 'mcpServer/resource/read') { if(window.__malformedResource)return {ok:true,result:{contents:[null]}};
           if (params.uri === 'fixture://slow') return await new Promise(resolve => { window.__resolveResource = () => resolve({ ok: true, result: { contents: [{ uri: params.uri, text: 'Stale resource result' }] } }); });
           if (!window.__resourceRetried) { window.__resourceRetried = true; return { ok: false, error: 'Resource temporarily unavailable' }; }
           return { ok: true, result: { contents: [{ uri: params.uri, text: '<script>unsafe()</script>Resource text' }] } };
@@ -92,6 +92,9 @@ const assert = require('node:assert/strict');
     await page.getByRole('checkbox', { name: '显示资源目录' }).check();
     await page.getByRole('button', { name: 'Readme', exact: true }).click();
     await page.getByRole('alert').filter({ hasText: 'Resource temporarily unavailable' }).waitFor();
+    await page.evaluate(()=>{window.__malformedResource=true;});
+    await page.getByRole('button', { name: '读取资源', exact: true }).click();await page.getByRole('alert').filter({hasText:'MCP 资源内容格式无效'}).waitFor();assert.equal(await page.getByLabel('资源内容').count(),0);
+    await page.evaluate(()=>{window.__malformedResource=false;});
     await page.getByRole('button', { name: '读取资源', exact: true }).click();
     await page.locator('.tool-output').filter({ hasText: '<script>unsafe()</script>Resource text' }).waitFor();
     assert.equal(await page.locator('[aria-label="资源内容"] script').count(), 0);

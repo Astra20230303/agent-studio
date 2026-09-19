@@ -1,15 +1,16 @@
+import { readMcpResourceContent, type McpResourceContent } from './mcpResourceContent';
 import { useEffect, useRef, useState } from 'react';
 import { extensionRequest } from './extensions';
 import { ToolResult } from './ToolResult';
 
 export type McpResource = { uri: string; name: string; title?: string; description?: string };
 export type McpResourceTemplate = { uriTemplate: string; name: string; description?: string };
-type Content = { uri: string; text?: string; blob?: string; mimeType?: string };
+
 export function McpResources({ server, resources, templates, threadId, disabled, onAddToDraft }: {
   server: string; resources: McpResource[]; templates: McpResourceTemplate[]; threadId?: string; disabled: boolean; onAddToDraft?: (text: string) => void;
 }) {
   const [uri, setUri] = useState('');
-  const [contents, setContents] = useState<Content[]>();
+  const [contents, setContents] = useState<McpResourceContent[]>();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const generation = useRef(0);
@@ -23,8 +24,8 @@ export function McpResources({ server, resources, templates, threadId, disabled,
     const token = ++generation.current;
     setUri(requested); setLoading(true); setError(''); setContents(undefined);
     try {
-      const result = await extensionRequest<{ contents: Content[] }>('mcpServer/resource/read', { server, threadId, uri: requested });
-      if (token === generation.current) setContents(result.contents);
+      const result = readMcpResourceContent(await extensionRequest<unknown>('mcpServer/resource/read', { server, threadId, uri: requested }));
+      if (token === generation.current) setContents(result);
     } catch (error) { if (token === generation.current) setError(String(error)); }
     finally { if (token === generation.current) setLoading(false); }
   };
