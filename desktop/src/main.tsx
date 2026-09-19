@@ -57,7 +57,7 @@ import { readThreadGoal } from './threadGoal';
 import { ThreadGoalPanel } from './ThreadGoalPanel';
 import { ThreadSectionManager } from './ThreadSectionManager';
 import { AccountAuthPanel } from './AccountAuthPanel';
-import { workspaceFor } from './workspace';
+import { remoteProjectIdFor, workspaceFor } from './workspace';
 import { useAttachmentDraft } from './useAttachmentDraft';
 import { WorkspaceFiles, type FileEditSession, type FilePreviewUpdate } from './WorkspaceFiles';
 import { FileEditor } from './FileEditor';
@@ -441,7 +441,7 @@ function App({ initialState }: { initialState: DesktopState }) {
       update(next => { const thread = next.threads.find(item => item.id === localId); if (thread && cwd) { thread.cwd = cwd; if (!thread.remoteId) thread.projectId = projectId; } });
       let threadId = existing?.remoteId;
       const createRemoteThread = async () => {
-        const started = await threadStore.start(localId!, { effort: activeEffort, model, modelProvider, providerId: newThreadProviderId, projectId, cwd, permission: state.permission });
+        const started = await threadStore.start(localId!, { effort: activeEffort, model, modelProvider, providerId: newThreadProviderId, projectId: remoteProjectIdFor(state, projectId), cwd, permission: state.permission });
         const id = started.id;
         if (!id) throw new Error('没有返回 thread id');
         update(next => { const thread = next.threads.find(item => item.id === localId); if (thread) { thread.remoteId = id; thread.providerId = started.providerId || newThreadProviderId; thread.effectivePermissions = started.permissions; thread.requestedPermission = state.permission; } });

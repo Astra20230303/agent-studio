@@ -28,8 +28,12 @@ test('real app-server archives, paginates and restores isolated conversations', 
     const { createTurnCommands } = require('../src/turnCommands.ts');
     const turnCommands = createTurnCommands({ start: ({threadId,text}) => rpc.request('turn/start', {threadId,input:[{type:'text',text}]}), steer: (threadId,expectedTurnId,text) => rpc.request('turn/steer', {threadId,expectedTurnId,input:[{type:'text',text}]}) });
     const ids = [];
+    const { remoteProjectIdFor, workspaceFor } = require('../src/workspace.ts');
+    const projectState = { activeProjectId: root, projects: [{ id: root, path: root }] };
+    // Reproduce the reported failure against the real server before using the fix.
+    await assert.rejects(rpc.request('thread/start', { cwd: root, projectId: root }), /project not found/);
     for (let index = 0; index < 2; index++) {
-      const result = await rpc.request('thread/start', { cwd: root, ephemeral: false, model: 'MiniMax-M2.1', modelProvider: 'minimax', approvalPolicy: 'never', sandbox: 'read-only' });
+      const result = await rpc.request('thread/start', { cwd: workspaceFor(projectState), projectId: remoteProjectIdFor(projectState, projectState.activeProjectId), ephemeral: false, model: 'MiniMax-M2.1', modelProvider: 'minimax', approvalPolicy: 'never', sandbox: 'read-only' });
       ids.push(result.thread.id);
       const complete = new Promise((resolve, reject) => {
         const closed = error => { rpc.off('notification', listener); reject(error); };

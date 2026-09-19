@@ -1,16 +1,19 @@
 const{chromium}=require('playwright');const assert=require('node:assert/strict');
 (async()=>{const browser=await chromium.launch({channel:'msedge',headless:true});try{
- const page=await browser.newPage();await page.addInitScript(()=>{
-  localStorage.setItem('codex-desktop-state-v1',JSON.stringify({model:'test',activeProjectId:'project-a',activeThreadId:'a',threads:[{id:'a',title:'新对话',messages:[],status:'idle',updatedAt:''}]}));window.__calls=[];
+ for(const scenario of ['remote','local','removed-local']) {
+ const page=await browser.newPage();await page.addInitScript(scenario=>{
+  const cwd='D:\\Workspace2026\\my-agent-plantform';
+  const projectId=scenario==='remote'?'project-a':cwd;
+  localStorage.setItem('codex-desktop-state-v1',JSON.stringify({model:'test',activeProjectId:projectId,projects:scenario==='local'?[{id:projectId,name:'Local',path:cwd,environment:'local',git:{isRepository:false}}]:[],activeThreadId:'a',threads:[{id:'a',projectId,cwd,title:'新对话',messages:[],status:'idle',updatedAt:''}]}));window.__calls=[];
   window.desktop={listModels:async()=>({ok:true,models:['test']}),providerStatus:async()=>({keyConfigured:true})};
   window.codex={connect:async()=>({ok:true}),notify:async()=>({}),request:async(method,params)=>{
    window.__calls.push({method,params});
-   if(method==='thread/start'){if(window.__hold)await new Promise(resolve=>window.__release=resolve);return{ok:true,result:window.__created}};
+   if(method==='thread/start'){if(params.projectId && params.projectId!=='project-a')return{ok:false,error:`project not found: ${params.projectId}`};if(window.__hold)await new Promise(resolve=>window.__release=resolve);return{ok:true,result:window.__created}};
    if(method==='turn/start')return{ok:true,result:{turn:{id:'turn',status:'inProgress'}}};
    if(method==='thread/resume')return{ok:true,result:{thread:{id:params.threadId,turns:[]}}};
    return{ok:true,result:{data:[]}};
   },onNotification:()=>()=>{},onClosed:()=>()=>{},onError:()=>()=>{},onStderr:()=>()=>{},onServerRequest:()=>()=>{}};
- });
+ },scenario);
  await page.goto(process.env.FELIX_TEST_URL||'http://127.0.0.1:5318');await page.getByRole('button',{name:'选择模型',exact:true}).getByText('test',{exact:true}).waitFor();
  const input=page.getByRole('textbox',{name:'消息',exact:true});const send=page.getByRole('button',{name:'发送',exact:true});await input.fill('Retain this draft');
  let attempts=0;
@@ -27,8 +30,13 @@ const{chromium}=require('playwright');const assert=require('node:assert/strict')
  assert.equal(await page.evaluate(()=>window.__calls.filter(c=>c.method==='thread/start').length),attempts+1);assert.ok(await send.isDisabled());assert.equal(await input.inputValue(),'Retain this draft');
  await page.evaluate(()=>window.__release());await page.waitForFunction(()=>window.__calls.some(c=>c.method==='turn/start'));
  const sent=await page.evaluate(()=>window.__calls.find(c=>c.method==='turn/start').params);assert.equal(sent.threadId,'remote-good');assert.equal(sent.input[0].text,'Retain this draft');
- assert.equal((await page.evaluate(()=>window.__calls.find(c=>c.method==='thread/start').params)).projectId,'project-a');
+ const started=await page.evaluate(()=>window.__calls.find(c=>c.method==='thread/start').params);
+ assert.equal(started.projectId,scenario==='remote'?'project-a':undefined);
+ assert.equal(started.cwd,'D:\\Workspace2026\\my-agent-plantform');
+ assert.equal(sent.cwd,started.cwd);
  await page.waitForFunction(()=>document.querySelector('textarea[aria-label="消息"]').value==='');
  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('codex-desktop-state-v1')).threads[0].providerId),'confirmed');
- console.log('PASS: malformed creation cannot bind/send, retains draft, deduplicates pending request and retries successfully');
+ await page.close();
+ }
+ console.log('PASS: local and remote project identities stay separate; malformed creation retains draft, deduplicates and retries with original cwd');
 }finally{await browser.close()}})().catch(error=>{console.error(error);process.exitCode=1});
