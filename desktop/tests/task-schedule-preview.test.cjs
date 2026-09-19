@@ -30,3 +30,7 @@ test('monthly local time adjusts its UTC offset across daylight transitions',()=
  assert.deepEqual(previewSchedule({kind:'monthly',monthDay:15,time:'09:00',timezone:'America/New_York'},Date.parse('2026-02-01T00:00:00Z')).times,['2026-02-15T14:00:00.000Z','2026-03-15T13:00:00.000Z','2026-04-15T13:00:00.000Z']);
  assert.deepEqual(previewSchedule({kind:'monthly',monthDay:15,time:'09:00',timezone:'America/New_York'},Date.parse('2026-10-01T00:00:00Z')).times,['2026-10-15T13:00:00.000Z','2026-11-15T14:00:00.000Z','2026-12-15T14:00:00.000Z']);
 });
+
+test('Sydney schedules use the selected region through southern-hemisphere DST',()=>{
+ assert.deepEqual(previewSchedule({kind:'monthly',monthDay:15,time:'09:00',timezone:'Australia/Sydney'},Date.parse('2026-09-01T00:00:00Z')).times,['2026-09-14T23:00:00.000Z','2026-10-14T22:00:00.000Z','2026-11-14T22:00:00.000Z']);
+});
